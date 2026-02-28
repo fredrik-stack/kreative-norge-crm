@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:16
+    container_name: kreative_norge_db
+    environment:
+      POSTGRES_USER: crm
+      POSTGRES_PASSWORD: crm_password
+      POSTGRES_DB: crm_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build: .
+    container_name: kreative_norge_api
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_DEBUG: "${DJANGO_DEBUG:-False}"
+      DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:-bROv_DyrHBub3FCiB0VlvijtEMjaEMxSR43EtaHi9mgEhlHEBUKi0g72ytt99ElrwMIIFYUYA8iK6SBpAoTYorA}"
+      DJANGO_ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}"
+    command: bash -lc "python manage.py runserver 0.0.0.0:8000"
+
+volumes:
+  pgdata:
