@@ -40,3 +40,4 @@ Expected success output ends with:
 SMOKE OK: auth + organizations + persons + organization-people + person-contacts
 ```
 # kreative-norge-crm
+# kreative-norge-crm
