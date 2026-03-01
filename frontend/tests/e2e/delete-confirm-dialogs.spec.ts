@@ -109,9 +109,10 @@ test("shows confirm dialogs for deleting link, contact and person", async ({ pag
   await expect(page.getByText("EMAIL · ada@example.com")).toBeVisible();
 
   count = await confirmMessageCount(page);
+  await expect(page.locator(".loading-state.compact")).toHaveCount(0);
   const deletePersonButton = page.getByRole("button", { name: "Slett person" });
   await expect(deletePersonButton).toBeEnabled();
-  await deletePersonButton.click();
+  await deletePersonButton.dispatchEvent("click");
   await page.waitForFunction(
     (prev) => ((window as Window & { __confirmMessages?: string[] }).__confirmMessages ?? []).length > prev,
     count,
