@@ -74,11 +74,64 @@ jobs:
 
   frontend-e2e:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: crm_db
+          POSTGRES_USER: crm
+          POSTGRES_PASSWORD: crm_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U crm -d crm_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DJANGO_DEBUG: "True"
+      DJANGO_SECRET_KEY: "ci-secret-key"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1"
+      DB_NAME: crm_db
+      DB_USER: crm
+      DB_PASSWORD: crm_password
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
     defaults:
       run:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install backend dependencies
+        run: pip install -r requirements.txt
+        working-directory: .
+
+      - name: Apply backend migrations
+        run: python manage.py migrate --noinput
+        working-directory: .
+
+      - name: Start backend server
+        run: nohup python manage.py runserver 127.0.0.1:8000 > backend.log 2>&1 &
+        working-directory: .
+
+      - name: Wait for backend
+        run: |
+          for i in {1..30}; do
+            if curl -sSf http://127.0.0.1:8000/api/auth/session/ > /dev/null; then
+              echo "Backend is up"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Backend failed to start"
+          exit 1
+        working-directory: .
 
       - uses: actions/setup-node@v4
         with:
@@ -103,4 +156,5 @@ jobs:
           path: |
             frontend/playwright-report
             frontend/test-results
+            backend.log
           if-no-files-found: ignore
