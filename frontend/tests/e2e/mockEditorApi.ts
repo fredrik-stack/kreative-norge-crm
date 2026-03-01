@@ -334,7 +334,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
     await route.fallback();
   });
 
-  await page.route("**/api/tenants/1/person-contacts/", async (route) => {
+  await page.route(/.*\/api\/tenants\/1\/person-contacts\/?(?:\?.*)?$/, async (route) => {
     const method = route.request().method();
     const url = new URL(route.request().url());
     if (method === "GET") {
