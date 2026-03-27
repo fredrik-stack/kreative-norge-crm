@@ -329,14 +329,14 @@ function OrganizationEditorPanel(props: {
             </div>
           </form>
 
-          <OrganizationLinksPanel />
+          <OrganizationLinksPanel navigate={navigate} />
         </>
       )}
     </section>
   );
 }
 
-function OrganizationLinksPanel() {
+function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }) {
   const editor = useEditor();
   return (
     <div className="link-section">
