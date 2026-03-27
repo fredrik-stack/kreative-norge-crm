@@ -1,9 +1,12 @@
 import type {
+  Category,
   Organization,
   OrganizationPerson,
   Paginated,
   PersonContact,
   Person,
+  Subcategory,
+  Tag,
   Tenant,
 } from "./types";
 
@@ -127,6 +130,22 @@ export async function getOrganizations(tenantId: number): Promise<Organization[]
   return isPaginated(data) ? data.results : data;
 }
 
+export async function getTags(tenantId: number): Promise<Tag[]> {
+  const data = await request<Tag[] | Paginated<Tag>>(`/api/tenants/${tenantId}/tags/`);
+  return isPaginated(data) ? data.results : data;
+}
+
+export async function getCategories(): Promise<Category[]> {
+  const data = await request<Category[] | Paginated<Category>>("/api/categories/");
+  return isPaginated(data) ? data.results : data;
+}
+
+export async function getSubcategories(categoryId?: number): Promise<Subcategory[]> {
+  const suffix = categoryId ? `?category=${categoryId}` : "";
+  const data = await request<Subcategory[] | Paginated<Subcategory>>(`/api/subcategories/${suffix}`);
+  return isPaginated(data) ? data.results : data;
+}
+
 export async function getPersons(tenantId: number): Promise<Person[]> {
   const data = await request<Person[] | Paginated<Person>>(`/api/tenants/${tenantId}/persons/`);
   return isPaginated(data) ? data.results : data;
@@ -187,7 +206,16 @@ export type OrganizationPatch = Pick<
   | "note"
   | "is_published"
   | "publish_phone"
->;
+  | "website_url"
+  | "facebook_url"
+  | "instagram_url"
+  | "tiktok_url"
+  | "linkedin_url"
+  | "youtube_url"
+> & {
+  tag_ids: number[];
+  subcategory_ids: number[];
+};
 
 export type PersonPayload = {
   full_name: string;
@@ -195,6 +223,14 @@ export type PersonPayload = {
   phone: string | null;
   municipality: string;
   note: string | null;
+  website_url: string | null;
+  instagram_url: string | null;
+  tiktok_url: string | null;
+  linkedin_url: string | null;
+  facebook_url: string | null;
+  youtube_url: string | null;
+  tag_ids: number[];
+  subcategory_ids: number[];
 };
 
 export async function patchOrganization(
@@ -205,6 +241,16 @@ export async function patchOrganization(
   return request<Organization>(`/api/tenants/${tenantId}/organizations/${organizationId}/`, {
     method: "PATCH",
     body: JSON.stringify(payload),
+  });
+}
+
+export async function refreshOrganizationPreview(
+  tenantId: number,
+  organizationId: number,
+): Promise<Organization> {
+  return request<Organization>(`/api/tenants/${tenantId}/organizations/${organizationId}/refresh-preview/`, {
+    method: "POST",
+    body: JSON.stringify({}),
   });
 }
 

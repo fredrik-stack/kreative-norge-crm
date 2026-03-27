@@ -6,6 +6,9 @@ from .views import (
     LoginView,
     LogoutView,
     TenantViewSet,
+    TagViewSet,
+    CategoryViewSet,
+    SubcategoryViewSet,
     OrganizationViewSet,
     PersonViewSet,
     OrganizationPersonViewSet,
@@ -15,8 +18,11 @@ from .views import (
 
 router = DefaultRouter()
 router.register(r"tenants", TenantViewSet, basename="tenant")
+router.register(r"categories", CategoryViewSet, basename="category")
+router.register(r"subcategories", SubcategoryViewSet, basename="subcategory")
 
 tenant_router = DefaultRouter()
+tenant_router.register(r"tags", TagViewSet, basename="tenant-tags")
 tenant_router.register(r"organizations", OrganizationViewSet, basename="tenant-organizations")
 tenant_router.register(r"persons", PersonViewSet, basename="tenant-persons")
 tenant_router.register(r"organization-people", OrganizationPersonViewSet, basename="tenant-organization-people")

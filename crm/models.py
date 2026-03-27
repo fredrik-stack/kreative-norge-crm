@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils.text import slugify
 
 
 class Tenant(models.Model):
@@ -8,6 +9,87 @@ class Tenant(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class Tag(models.Model):
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="tags")
+    name = models.CharField(max_length=64)
+    slug = models.SlugField(max_length=80)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("tenant", "name"), ("tenant", "slug")]
+        indexes = [
+            models.Index(fields=["tenant", "name"]),
+            models.Index(fields=["tenant", "slug"]),
+        ]
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.name) or "tag"
+            slug = base_slug
+            suffix = 2
+            while Tag.objects.filter(tenant=self.tenant, slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{suffix}"
+                suffix += 1
+            self.slug = slug
+        super().save(*args, **kwargs)
+
+
+class Category(models.Model):
+    name = models.CharField(max_length=80, unique=True)
+    slug = models.SlugField(max_length=96, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.name) or "category"
+            slug = base_slug
+            suffix = 2
+            while Category.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{suffix}"
+                suffix += 1
+            self.slug = slug
+        super().save(*args, **kwargs)
+
+
+class Subcategory(models.Model):
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="subcategories")
+    name = models.CharField(max_length=80)
+    slug = models.SlugField(max_length=96)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("category", "name"), ("category", "slug")]
+        indexes = [
+            models.Index(fields=["category", "name"]),
+            models.Index(fields=["category", "slug"]),
+        ]
+        ordering = ["category__name", "name"]
+
+    def __str__(self) -> str:
+        return f"{self.category.name}: {self.name}"
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.name) or "subcategory"
+            slug = base_slug
+            suffix = 2
+            while Subcategory.objects.filter(category=self.category, slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{suffix}"
+                suffix += 1
+            self.slug = slug
+        super().save(*args, **kwargs)
 
 
 class Organization(models.Model):
@@ -30,6 +112,20 @@ class Organization(models.Model):
     is_published = models.BooleanField(default=False)
     publish_phone = models.BooleanField(default=False)
 
+    website_url = models.URLField(null=True, blank=True)
+    facebook_url = models.URLField(null=True, blank=True)
+    instagram_url = models.URLField(null=True, blank=True)
+    tiktok_url = models.URLField(null=True, blank=True)
+    linkedin_url = models.URLField(null=True, blank=True)
+    youtube_url = models.URLField(null=True, blank=True)
+
+    og_title = models.CharField(max_length=255, null=True, blank=True)
+    og_description = models.TextField(null=True, blank=True)
+    og_image_url = models.URLField(null=True, blank=True)
+    og_last_fetched_at = models.DateTimeField(null=True, blank=True)
+    tags = models.ManyToManyField(Tag, blank=True, related_name="organizations")
+    subcategories = models.ManyToManyField(Subcategory, blank=True, related_name="organizations")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -46,7 +142,37 @@ class Organization(models.Model):
         if self.org_number:
             self.org_number = self.org_number.strip().replace(" ", "").replace(".", "")
         super().save(*args, **kwargs)
-        
+
+    def get_primary_link(self) -> str | None:
+        for value in [
+            self.website_url,
+            self.instagram_url,
+            self.tiktok_url,
+            self.linkedin_url,
+            self.facebook_url,
+            self.youtube_url,
+        ]:
+            if value:
+                return value
+        return None
+
+    def get_primary_link_field(self) -> str | None:
+        for field_name in [
+            "website_url",
+            "instagram_url",
+            "tiktok_url",
+            "linkedin_url",
+            "facebook_url",
+            "youtube_url",
+        ]:
+            if getattr(self, field_name):
+                return field_name
+        return None
+
+    def get_preview_image_url(self) -> str | None:
+        from .services.open_graph import fallback_preview_image
+
+        return self.og_image_url or fallback_preview_image(self.get_primary_link())
 
 class Person(models.Model):
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="persons")
@@ -54,9 +180,17 @@ class Person(models.Model):
     full_name = models.CharField(max_length=255)
     email = models.EmailField(null=True, blank=True)
     phone = models.CharField(max_length=64, null=True, blank=True)
+    website_url = models.URLField(null=True, blank=True)
+    instagram_url = models.URLField(null=True, blank=True)
+    tiktok_url = models.URLField(null=True, blank=True)
+    linkedin_url = models.URLField(null=True, blank=True)
+    facebook_url = models.URLField(null=True, blank=True)
+    youtube_url = models.URLField(null=True, blank=True)
 
     municipality = models.CharField(max_length=255, blank=True)
     note = models.TextField(null=True, blank=True)
+    tags = models.ManyToManyField(Tag, blank=True, related_name="persons")
+    subcategories = models.ManyToManyField(Subcategory, blank=True, related_name="persons")
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

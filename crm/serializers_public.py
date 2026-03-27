@@ -1,6 +1,26 @@
 from rest_framework import serializers
 
-from .models import Organization, OrganizationPerson, PersonContact
+from .models import Organization, OrganizationPerson, PersonContact, Tag, Category, Subcategory
+
+
+class PublicTagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tag
+        fields = ["id", "name", "slug"]
+
+
+class PublicCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ["id", "name", "slug"]
+
+
+class PublicSubcategorySerializer(serializers.ModelSerializer):
+    category = PublicCategorySerializer(read_only=True)
+
+    class Meta:
+        model = Subcategory
+        fields = ["id", "name", "slug", "category"]
 
 
 class PublicPersonContactSerializer(serializers.ModelSerializer):
@@ -26,6 +46,11 @@ class PublicActorSerializer(serializers.ModelSerializer):
     # municipality / municipalities: vi støtter begge dersom du har ett av dem
     municipality = serializers.SerializerMethodField()
     municipalities = serializers.SerializerMethodField()
+    primary_link = serializers.SerializerMethodField()
+    primary_link_field = serializers.SerializerMethodField()
+    preview_image_url = serializers.SerializerMethodField()
+    tags = PublicTagSerializer(many=True, read_only=True)
+    subcategories = PublicSubcategorySerializer(many=True, read_only=True)
 
     class Meta:
         model = Organization
@@ -36,6 +61,17 @@ class PublicActorSerializer(serializers.ModelSerializer):
             "municipalities",
             "email",
             "phone",
+            "website_url",
+            "facebook_url",
+            "instagram_url",
+            "tiktok_url",
+            "linkedin_url",
+            "youtube_url",
+            "primary_link",
+            "primary_link_field",
+            "preview_image_url",
+            "tags",
+            "subcategories",
             "people",
         )
 
@@ -54,6 +90,15 @@ class PublicActorSerializer(serializers.ModelSerializer):
 
     def get_municipalities(self, obj):
         return getattr(obj, "municipalities", None)
+
+    def get_primary_link(self, obj):
+        return obj.get_primary_link()
+
+    def get_primary_link_field(self, obj):
+        return obj.get_primary_link_field()
+
+    def get_preview_image_url(self, obj):
+        return obj.get_preview_image_url()
 
     def get_people(self, obj):
         qs = (

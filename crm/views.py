@@ -3,19 +3,24 @@ from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Tenant, Organization, Person, OrganizationPerson, PersonContact
+from .models import Tenant, Tag, Category, Subcategory, Organization, Person, OrganizationPerson, PersonContact
 from .serializers import (
     TenantSerializer,
+    TagSerializer,
+    CategorySerializer,
+    SubcategorySerializer,
     OrganizationSerializer,
     PersonSerializer,
     OrganizationPersonSerializer,
     PersonContactSerializer,
     PublicOrganizationSerializer,
 )
+from .services.open_graph import refresh_organization_open_graph
 
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
@@ -86,17 +91,12 @@ class TenantViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = TenantSerializer
 
 
-class OrganizationViewSet(viewsets.ModelViewSet):
+class TagViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
-    serializer_class = OrganizationSerializer
+    serializer_class = TagSerializer
 
     def get_queryset(self):
-        qs = (
-            Organization.objects.all()
-            .order_by("name")
-            .prefetch_related("org_people__person__contacts")
-        )
-
+        qs = Tag.objects.all().order_by("name")
         tenant_id = self.kwargs.get("tenant_id")
         if tenant_id is not None:
             qs = qs.filter(tenant_id=tenant_id)
@@ -110,12 +110,67 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             serializer.save()
 
 
+class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
+    queryset = Category.objects.all().order_by("name")
+    serializer_class = CategorySerializer
+
+
+class SubcategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = SubcategorySerializer
+
+    def get_queryset(self):
+        qs = Subcategory.objects.select_related("category").all().order_by("category__name", "name")
+        category_id = self.request.query_params.get("category")
+        if category_id:
+            qs = qs.filter(category_id=category_id)
+        return qs
+
+
+class OrganizationViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = OrganizationSerializer
+
+    def get_queryset(self):
+        qs = (
+            Organization.objects.all()
+            .order_by("name")
+            .prefetch_related("org_people__person__contacts", "tags", "subcategories__category")
+        )
+
+        tenant_id = self.kwargs.get("tenant_id")
+        if tenant_id is not None:
+            qs = qs.filter(tenant_id=tenant_id)
+        return qs
+
+    def perform_create(self, serializer):
+        tenant_id = self.kwargs.get("tenant_id")
+        if tenant_id is not None:
+            organization = serializer.save(tenant_id=tenant_id)
+        else:
+            organization = serializer.save()
+        refresh_organization_open_graph(organization, force=True)
+
+    def perform_update(self, serializer):
+        organization = serializer.save()
+        refresh_organization_open_graph(organization, force=True)
+
+    @action(detail=True, methods=["post"], url_path="refresh-preview")
+    def refresh_preview(self, request, tenant_id=None, pk=None):
+        organization = self.get_object()
+        refresh_organization_open_graph(organization, force=True)
+        organization.refresh_from_db()
+        serializer = self.get_serializer(organization)
+        return Response(serializer.data)
+
+
 class PersonViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = PersonSerializer
 
     def get_queryset(self):
-        qs = Person.objects.all().order_by("full_name")
+        qs = Person.objects.all().order_by("full_name").prefetch_related("tags", "subcategories__category")
         tenant_id = self.kwargs.get("tenant_id")
         if tenant_id is not None:
             qs = qs.filter(tenant_id=tenant_id)
@@ -179,5 +234,5 @@ class PublicActorViewSet(viewsets.ReadOnlyModelViewSet):
         return (
             Organization.objects.filter(is_published=True)
             .order_by("name")
-            .prefetch_related("org_people__person__contacts")
+            .prefetch_related("org_people__person__contacts", "tags", "subcategories__category")
         )

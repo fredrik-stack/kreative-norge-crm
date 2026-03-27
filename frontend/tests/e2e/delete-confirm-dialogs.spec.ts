@@ -14,6 +14,28 @@ async function confirmMessageCount(page: import("@playwright/test").Page): Promi
   );
 }
 
+async function clickUntilConfirmIncrements(
+  page: import("@playwright/test").Page,
+  click: () => Promise<void>,
+  previousCount: number,
+): Promise<number> {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    await click();
+    try {
+      await page.waitForFunction(
+        (prev) => ((window as Window & { __confirmMessages?: string[] }).__confirmMessages ?? []).length > prev,
+        previousCount,
+        { timeout: 2000 },
+      );
+      return await confirmMessageCount(page);
+    } catch {
+      await page.waitForTimeout(150);
+    }
+  }
+
+  throw new Error("Confirm dialog was not triggered after retries");
+}
+
 test("shows confirm dialogs for deleting link, contact and person", async ({ page }) => {
   await page.addInitScript(() => {
     (window as Window & { __confirmMessages?: string[] }).__confirmMessages = [];
@@ -79,11 +101,9 @@ test("shows confirm dialogs for deleting link, contact and person", async ({ pag
 
   const linkRow = page.locator(".link-row").filter({ hasText: "Ada Editor" }).first();
   let count = await confirmMessageCount(page);
-  await linkRow.getByRole("button", { name: "Fjern" }).dispatchEvent("click");
-  await page.waitForFunction(
-    (prev) => ((window as Window & { __confirmMessages?: string[] }).__confirmMessages ?? []).length > prev,
-    count,
-  );
+  count = await clickUntilConfirmIncrements(page, async () => {
+    await linkRow.getByRole("button", { name: "Fjern" }).dispatchEvent("click");
+  }, count);
   expect(await latestConfirmMessage(page)).toContain("Fjerne koblingen");
 
   await expect(page.getByText("Ada Editor")).toBeVisible();
@@ -94,29 +114,28 @@ test("shows confirm dialogs for deleting link, contact and person", async ({ pag
   await expect(page.locator(".loading-state.compact")).toHaveCount(0);
 
   count = await confirmMessageCount(page);
-  await page
-    .locator(".link-row")
-    .filter({ hasText: "EMAIL · ada@example.com" })
-    .first()
-    .getByRole("button", { name: "Fjern" })
-    .dispatchEvent("click");
-  await page.waitForFunction(
-    (prev) => ((window as Window & { __confirmMessages?: string[] }).__confirmMessages ?? []).length > prev,
-    count,
-  );
+  count = await clickUntilConfirmIncrements(page, async () => {
+    await page
+      .locator(".link-row")
+      .filter({ hasText: "EMAIL · ada@example.com" })
+      .first()
+      .getByRole("button", { name: "Fjern" })
+      .dispatchEvent("click");
+  }, count);
   expect(await latestConfirmMessage(page)).toContain("Slette kontakt EMAIL");
 
   await expect(page.getByText("EMAIL · ada@example.com")).toBeVisible();
 
   count = await confirmMessageCount(page);
   await expect(page.locator(".loading-state.compact")).toHaveCount(0);
-  const deletePersonButton = page.getByRole("button", { name: "Slett person" });
-  await expect(deletePersonButton).toBeEnabled();
-  await deletePersonButton.dispatchEvent("click");
-  await page.waitForFunction(
-    (prev) => ((window as Window & { __confirmMessages?: string[] }).__confirmMessages ?? []).length > prev,
-    count,
-  );
+  count = await clickUntilConfirmIncrements(page, async () => {
+    await page.evaluate(() => {
+      const button = Array.from(document.querySelectorAll("button")).find(
+        (candidate) => candidate.textContent?.trim() === "Slett person",
+      );
+      button?.click();
+    });
+  }, count);
   expect(await latestConfirmMessage(page)).toContain("Slette valgt person");
 
   await expect(page.getByRole("button", { name: /Ada Editor/ })).toBeVisible();

@@ -26,6 +26,18 @@ function AppShell() {
 
 function EditorShell({ username, onLogout }: { username: string; onLogout: () => void }) {
   const editor = useEditorData();
+  const organizationsHref =
+    editor.selectedOrgId === "new"
+      ? "/organizations/new"
+      : typeof editor.selectedOrgId === "number"
+        ? `/organizations/${editor.selectedOrgId}`
+        : "/organizations/new";
+  const peopleHref =
+    editor.selectedPersonId === "new"
+      ? "/people/new"
+      : typeof editor.selectedPersonId === "number"
+        ? `/people/${editor.selectedPersonId}`
+        : "/people/new";
   const dirtySummary = useMemo(() => {
     const items: string[] = [];
     if (editor.organizationHasUnsavedChanges) items.push("Aktørskjema");
@@ -76,10 +88,10 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
             ))}
           </select>
           <nav className="top-nav" aria-label="Hovednavigasjon">
-            <NavLink to="/organizations" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
+            <NavLink to={organizationsHref} className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
               Aktører{editor.organizationHasUnsavedChanges ? " *" : ""}
             </NavLink>
-            <NavLink to="/people" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
+            <NavLink to={peopleHref} className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
               Personer{editor.peopleHasUnsavedChanges ? " *" : ""}
             </NavLink>
           </nav>

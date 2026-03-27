@@ -5,6 +5,15 @@ type SessionPayload =
   | { authenticated: true; user: { id: number; username: string } };
 
 type Tenant = { id: number; name: string; slug: string; created_at: string };
+type Tag = { id: number; tenant: number; name: string; slug: string; created_at: string };
+type Category = { id: number; name: string; slug: string; created_at: string };
+type Subcategory = {
+  id: number;
+  name: string;
+  slug: string;
+  created_at: string;
+  category: Category;
+};
 type Organization = {
   id: number;
   tenant: number;
@@ -16,6 +25,21 @@ type Organization = {
   note: string | null;
   is_published: boolean;
   publish_phone: boolean;
+   website_url: string | null;
+   facebook_url: string | null;
+   instagram_url: string | null;
+   tiktok_url: string | null;
+   linkedin_url: string | null;
+   youtube_url: string | null;
+   og_title: string | null;
+   og_description: string | null;
+   og_image_url: string | null;
+   og_last_fetched_at: string | null;
+   primary_link: string | null;
+   primary_link_field: string | null;
+   preview_image_url: string | null;
+   tags: Tag[];
+   subcategories: Subcategory[];
   created_at: string;
   updated_at: string;
   active_people: unknown[];
@@ -28,6 +52,14 @@ type Person = {
   phone: string | null;
   municipality: string;
   note: string | null;
+  website_url: string | null;
+  instagram_url: string | null;
+  tiktok_url: string | null;
+  linkedin_url: string | null;
+  facebook_url: string | null;
+  youtube_url: string | null;
+  tags: Tag[];
+  subcategories: Subcategory[];
   created_at: string;
   updated_at: string;
   contacts: PersonContact[];
@@ -57,6 +89,9 @@ type MockState = {
   tenants: Tenant[];
   organizations: Organization[];
   persons: Person[];
+  tags: Tag[];
+  categories: Category[];
+  subcategories: Subcategory[];
   organizationPeople: OrganizationPerson[];
   personContacts: PersonContact[];
 };
@@ -66,6 +101,17 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
   const state: MockState = {
     authenticated: false,
     tenants: [{ id: 1, name: "Demo Tenant", slug: "demo", created_at: now }],
+    categories: [{ id: 100, name: "Musikk", slug: "musikk", created_at: now }],
+    subcategories: [
+      {
+        id: 200,
+        name: "Jazz",
+        slug: "jazz",
+        created_at: now,
+        category: { id: 100, name: "Musikk", slug: "musikk", created_at: now },
+      },
+    ],
+    tags: [{ id: 300, tenant: 1, name: "Etablert", slug: "etablert", created_at: now }],
     organizations: [
       {
         id: 10,
@@ -78,6 +124,21 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         note: null,
         is_published: true,
         publish_phone: true,
+        website_url: "https://example.com",
+        facebook_url: null,
+        instagram_url: null,
+        tiktok_url: null,
+        linkedin_url: null,
+        youtube_url: null,
+        og_title: "Kreativ Demo AS",
+        og_description: null,
+        og_image_url: null,
+        og_last_fetched_at: null,
+        primary_link: "https://example.com",
+        primary_link_field: "website_url",
+        preview_image_url: "https://example.com/favicon.ico",
+        tags: [],
+        subcategories: [],
         created_at: now,
         updated_at: now,
         active_people: [],
@@ -92,6 +153,14 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         phone: "+4799999999",
         municipality: "Oslo",
         note: null,
+        website_url: null,
+        instagram_url: null,
+        tiktok_url: null,
+        linkedin_url: null,
+        facebook_url: null,
+        youtube_url: null,
+        tags: [],
+        subcategories: [],
         created_at: now,
         updated_at: now,
         contacts: [],
@@ -149,6 +218,23 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(state.tenants) });
   });
 
+  await page.route("**/api/categories/", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(state.categories) });
+  });
+
+  await page.route("**/api/subcategories/", async (route) => {
+    const url = new URL(route.request().url());
+    const categoryId = url.searchParams.get("category");
+    const payload = categoryId
+      ? state.subcategories.filter((item) => item.category.id === Number(categoryId))
+      : state.subcategories;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(payload) });
+  });
+
+  await page.route("**/api/tenants/1/tags/", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(state.tags) });
+  });
+
   await page.route("**/api/tenants/1/organizations/", async (route) => {
     if (route.request().method() === "GET") {
       await route.fulfill({
@@ -172,6 +258,30 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         note: payload.note ?? null,
         is_published: Boolean(payload.is_published),
         publish_phone: Boolean(payload.publish_phone),
+        website_url: payload.website_url ?? null,
+        facebook_url: payload.facebook_url ?? null,
+        instagram_url: payload.instagram_url ?? null,
+        tiktok_url: payload.tiktok_url ?? null,
+        linkedin_url: payload.linkedin_url ?? null,
+        youtube_url: payload.youtube_url ?? null,
+        og_title: null,
+        og_description: null,
+        og_image_url: null,
+        og_last_fetched_at: null,
+        primary_link: payload.website_url ?? payload.instagram_url ?? payload.tiktok_url ?? payload.linkedin_url ?? payload.facebook_url ?? payload.youtube_url ?? null,
+        primary_link_field:
+          payload.website_url ? "website_url"
+          : payload.instagram_url ? "instagram_url"
+          : payload.tiktok_url ? "tiktok_url"
+          : payload.linkedin_url ? "linkedin_url"
+          : payload.facebook_url ? "facebook_url"
+          : payload.youtube_url ? "youtube_url"
+          : null,
+        preview_image_url: null,
+        tags: state.tags.filter((tag) => (payload as { tag_ids?: number[] }).tag_ids?.includes(tag.id)),
+        subcategories: state.subcategories.filter((item) =>
+          (payload as { subcategory_ids?: number[] }).subcategory_ids?.includes(item.id),
+        ),
         created_at: now,
         updated_at: now,
         active_people: [],
@@ -202,10 +312,43 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
     }
     if (method === "PATCH") {
       const payload = route.request().postDataJSON() as Partial<Organization>;
+      const current = state.organizations[idx];
       state.organizations[idx] = {
-        ...state.organizations[idx],
+        ...current,
         ...payload,
+        primary_link:
+          payload.website_url ?? payload.instagram_url ?? payload.tiktok_url ?? payload.linkedin_url ?? payload.facebook_url ?? payload.youtube_url ?? current.primary_link,
+        primary_link_field:
+          payload.website_url ? "website_url"
+          : payload.instagram_url ? "instagram_url"
+          : payload.tiktok_url ? "tiktok_url"
+          : payload.linkedin_url ? "linkedin_url"
+          : payload.facebook_url ? "facebook_url"
+          : payload.youtube_url ? "youtube_url"
+          : current.primary_link_field,
+        preview_image_url: current.preview_image_url,
+        tags: state.tags.filter((tag) => (payload as { tag_ids?: number[] }).tag_ids?.includes(tag.id) ?? current.tags.some((item) => item.id === tag.id)),
+        subcategories: state.subcategories.filter((item) =>
+          (payload as { subcategory_ids?: number[] }).subcategory_ids?.includes(item.id) ?? current.subcategories.some((existing) => existing.id === item.id),
+        ),
         updated_at: now,
+      };
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(state.organizations[idx]),
+      });
+      return;
+    }
+    if (method === "POST" && route.request().url().endsWith("/refresh-preview/")) {
+      const current = state.organizations[idx];
+      state.organizations[idx] = {
+        ...current,
+        og_title: `${current.name} preview`,
+        og_description: "Open Graph metadata hentet fra primærlenke.",
+        og_image_url: current.preview_image_url ?? current.og_image_url ?? "https://example.com/preview.jpg",
+        preview_image_url: current.preview_image_url ?? current.og_image_url ?? "https://example.com/preview.jpg",
+        og_last_fetched_at: now,
       };
       await route.fulfill({
         status: 200,
@@ -236,6 +379,16 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         phone: payload.phone ?? null,
         municipality: payload.municipality ?? "",
         note: payload.note ?? null,
+        website_url: payload.website_url ?? null,
+        instagram_url: payload.instagram_url ?? null,
+        tiktok_url: payload.tiktok_url ?? null,
+        linkedin_url: payload.linkedin_url ?? null,
+        facebook_url: payload.facebook_url ?? null,
+        youtube_url: payload.youtube_url ?? null,
+        tags: state.tags.filter((tag) => (payload as { tag_ids?: number[] }).tag_ids?.includes(tag.id)),
+        subcategories: state.subcategories.filter((item) =>
+          (payload as { subcategory_ids?: number[] }).subcategory_ids?.includes(item.id),
+        ),
         created_at: now,
         updated_at: now,
         contacts: [],
@@ -261,6 +414,11 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
       state.persons[idx] = {
         ...state.persons[idx],
         ...payload,
+        tags: state.tags.filter((tag) => (payload as { tag_ids?: number[] }).tag_ids?.includes(tag.id) ?? state.persons[idx].tags.some((item) => item.id === tag.id)),
+        subcategories: state.subcategories.filter((item) =>
+          (payload as { subcategory_ids?: number[] }).subcategory_ids?.includes(item.id) ??
+          state.persons[idx].subcategories.some((existing) => existing.id === item.id),
+        ),
         updated_at: now,
       };
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(state.persons[idx]) });

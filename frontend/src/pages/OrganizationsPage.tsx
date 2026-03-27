@@ -52,7 +52,10 @@ function OrganizationsSidebar({ navigate }: { navigate: (to: string) => void }) 
         <button
           type="button"
           className="ghost-button"
-          onClick={() => navigate("/organizations/new")}
+          onClick={() => {
+            editor.setSelectedOrgId("new");
+            navigate("/organizations/new");
+          }}
           disabled={!editor.tenantId}
         >
           Ny organisasjon
@@ -66,7 +69,10 @@ function OrganizationsSidebar({ navigate }: { navigate: (to: string) => void }) 
             key={org.id}
             type="button"
             className={`list-item ${editor.selectedOrgId === org.id ? "active" : ""}`}
-            onClick={() => navigate(`/organizations/${org.id}`)}
+            onClick={() => {
+              editor.setSelectedOrgId(org.id);
+              navigate(`/organizations/${org.id}`);
+            }}
           >
             <div className="list-item-title">{org.name}</div>
             <div className="list-item-sub">
@@ -114,7 +120,10 @@ function OrganizationEditorPanel(props: {
               <button
                 type="button"
                 className="ghost-button"
-                onClick={() => navigate(`/organizations/${editor.organizations[0].id}`)}
+                onClick={() => {
+                  editor.setSelectedOrgId(editor.organizations[0].id);
+                  navigate(`/organizations/${editor.organizations[0].id}`);
+                }}
               >
                 Gå til første aktør
               </button>
@@ -188,6 +197,94 @@ function OrganizationEditorPanel(props: {
                 rows={4}
                 value={editor.draft.note ?? ""}
                 onChange={(e) => editor.setDraft((s) => ({ ...s, note: e.target.value }))}
+              />
+            </Field>
+
+            <SelectionChecklist
+              title="Tags"
+              description="Tenant-spesifikke etiketter for intern filtrering og senere public visning."
+              options={editor.tags.map((tag) => ({ id: tag.id, label: tag.name, meta: tag.slug }))}
+              selectedIds={editor.draft.tag_ids}
+              onToggle={(id) =>
+                editor.setDraft((state) => ({
+                  ...state,
+                  tag_ids: toggleId(state.tag_ids, id),
+                }))
+              }
+            />
+
+            <SelectionChecklist
+              title="Kategorier og underkategorier"
+              description="Velg underkategorier. Hovedkategori vises automatisk via underkategorien."
+              options={editor.subcategories.map((item) => ({
+                id: item.id,
+                label: item.name,
+                meta: item.category.name,
+              }))}
+              selectedIds={editor.draft.subcategory_ids}
+              onToggle={(id) =>
+                editor.setDraft((state) => ({
+                  ...state,
+                  subcategory_ids: toggleId(state.subcategory_ids, id),
+                }))
+              }
+            />
+
+            <div className="grid two">
+              <Field label="Website URL" error={editor.organizationFieldErrors.website_url}>
+                <input
+                  type="url"
+                  value={editor.draft.website_url ?? ""}
+                  onChange={(e) => editor.setDraft((s) => ({ ...s, website_url: e.target.value }))}
+                  placeholder="https://..."
+                />
+              </Field>
+              <Field label="Facebook URL" error={editor.organizationFieldErrors.facebook_url}>
+                <input
+                  type="url"
+                  value={editor.draft.facebook_url ?? ""}
+                  onChange={(e) => editor.setDraft((s) => ({ ...s, facebook_url: e.target.value }))}
+                  placeholder="https://facebook.com/..."
+                />
+              </Field>
+            </div>
+
+            <div className="grid two">
+              <Field label="Instagram URL" error={editor.organizationFieldErrors.instagram_url}>
+                <input
+                  type="url"
+                  value={editor.draft.instagram_url ?? ""}
+                  onChange={(e) => editor.setDraft((s) => ({ ...s, instagram_url: e.target.value }))}
+                  placeholder="https://instagram.com/..."
+                />
+              </Field>
+              <Field label="TikTok URL" error={editor.organizationFieldErrors.tiktok_url}>
+                <input
+                  type="url"
+                  value={editor.draft.tiktok_url ?? ""}
+                  onChange={(e) => editor.setDraft((s) => ({ ...s, tiktok_url: e.target.value }))}
+                  placeholder="https://tiktok.com/@..."
+                />
+              </Field>
+            </div>
+
+            <div className="grid two">
+              <Field label="LinkedIn URL" error={editor.organizationFieldErrors.linkedin_url}>
+                <input
+                  type="url"
+                  value={editor.draft.linkedin_url ?? ""}
+                  onChange={(e) => editor.setDraft((s) => ({ ...s, linkedin_url: e.target.value }))}
+                  placeholder="https://linkedin.com/..."
+                />
+              </Field>
+            </div>
+
+            <Field label="YouTube URL" error={editor.organizationFieldErrors.youtube_url}>
+              <input
+                type="url"
+                value={editor.draft.youtube_url ?? ""}
+                onChange={(e) => editor.setDraft((s) => ({ ...s, youtube_url: e.target.value }))}
+                placeholder="https://youtube.com/..."
               />
             </Field>
 
@@ -372,10 +469,27 @@ function OrganizationPreviewPanel({ invalidOrgRoute }: { invalidOrgRoute: boolea
         <>
           <div className="sidebar-header">
             <h2>Public Preview</h2>
-            <span className={`dot ${editor.draft.is_published ? "green" : "gray"}`} />
+            <div className="actions">
+              <span className={`dot ${editor.draft.is_published ? "green" : "gray"}`} />
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={editor.onRefreshOrganizationPreview}
+                disabled={typeof editor.selectedOrgId !== "number" || editor.previewRefreshState === "saving"}
+              >
+                {editor.previewRefreshState === "saving" ? "Henter preview..." : "Oppdater preview"}
+              </button>
+            </div>
           </div>
 
           <div className="preview-card">
+            {editor.selectedOrganization?.preview_image_url ? (
+              <img
+                src={editor.selectedOrganization.preview_image_url}
+                alt={editor.draft.name || "Preview"}
+                style={{ width: "100%", height: 180, objectFit: "cover", borderRadius: 10, marginBottom: 12 }}
+              />
+            ) : null}
             <h3>{editor.draft.name || "Ikke navngitt aktør"}</h3>
             <dl>
               <div>
@@ -397,6 +511,34 @@ function OrganizationPreviewPanel({ invalidOrgRoute }: { invalidOrgRoute: boolea
               <div>
                 <dt>Status</dt>
                 <dd>{editor.draft.is_published ? "Publisert" : "Ikke publisert"}</dd>
+              </div>
+              <div>
+                <dt>Primærlenke</dt>
+                <dd>{primaryLink(editor.draft) || "Ikke satt"}</dd>
+              </div>
+              <div>
+                <dt>Kildetype</dt>
+                <dd>{linkFieldLabel(editor.selectedOrganization?.primary_link_field) || "Ikke valgt"}</dd>
+              </div>
+              <div>
+                <dt>OG-tittel</dt>
+                <dd>{editor.selectedOrganization?.og_title || "Ikke hentet"}</dd>
+              </div>
+              <div>
+                <dt>OG-beskrivelse</dt>
+                <dd>{editor.selectedOrganization?.og_description || "Ikke hentet"}</dd>
+              </div>
+              <div>
+                <dt>Sist hentet</dt>
+                <dd>{editor.selectedOrganization?.og_last_fetched_at ? formatDateTime(editor.selectedOrganization.og_last_fetched_at) : "Aldri"}</dd>
+              </div>
+              <div>
+                <dt>Tags</dt>
+                <dd>{selectedNames(editor.tags, editor.draft.tag_ids) || "Ingen valgt"}</dd>
+              </div>
+              <div>
+                <dt>Underkategorier</dt>
+                <dd>{selectedSubcategoryNames(editor.subcategories, editor.draft.subcategory_ids) || "Ingen valgt"}</dd>
               </div>
             </dl>
             {editor.selectedOrganization?.active_people?.length ? (
@@ -429,4 +571,108 @@ function formatTime(iso: string): string {
     minute: "2-digit",
     second: "2-digit",
   });
+}
+
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("nb-NO", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function primaryLink(draft: {
+  website_url: string | null;
+  instagram_url: string | null;
+  tiktok_url: string | null;
+  linkedin_url: string | null;
+  facebook_url: string | null;
+  youtube_url: string | null;
+}): string | null {
+  return (
+    draft.website_url ||
+    draft.instagram_url ||
+    draft.tiktok_url ||
+    draft.linkedin_url ||
+    draft.facebook_url ||
+    draft.youtube_url ||
+    null
+  );
+}
+
+function linkFieldLabel(field: string | null | undefined): string | null {
+  switch (field) {
+    case "website_url":
+      return "Website";
+    case "instagram_url":
+      return "Instagram";
+    case "tiktok_url":
+      return "TikTok";
+    case "linkedin_url":
+      return "LinkedIn";
+    case "facebook_url":
+      return "Facebook";
+    case "youtube_url":
+      return "YouTube";
+    default:
+      return null;
+  }
+}
+
+function SelectionChecklist(props: {
+  title: string;
+  description: string;
+  options: Array<{ id: number; label: string; meta?: string }>;
+  selectedIds: number[];
+  onToggle: (id: number) => void;
+}) {
+  const { title, description, options, selectedIds, onToggle } = props;
+  return (
+    <div className="link-section">
+      <div className="sidebar-header">
+        <h2>{title}</h2>
+        <span className="meta">{selectedIds.length} valgt</span>
+      </div>
+      <p className="muted">{description}</p>
+      <div className="link-list">
+        {options.map((option) => (
+          <label key={option.id} className="link-row">
+            <div>
+              <div className="link-person">{option.label}</div>
+              {option.meta ? <div className="meta">{option.meta}</div> : null}
+            </div>
+            <label className="inline-check compact">
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(option.id)}
+                onChange={() => onToggle(option.id)}
+              />
+              <span>Valgt</span>
+            </label>
+          </label>
+        ))}
+        {options.length === 0 ? <div className="empty-state">Ingen valg tilgjengelig ennå.</div> : null}
+      </div>
+    </div>
+  );
+}
+
+function toggleId(values: number[], id: number): number[] {
+  return values.includes(id) ? values.filter((value) => value !== id) : [...values, id];
+}
+
+function selectedNames(options: Array<{ id: number; name: string }>, ids: number[]): string {
+  return options
+    .filter((item) => ids.includes(item.id))
+    .map((item) => item.name)
+    .join(", ");
+}
+
+function selectedSubcategoryNames(options: Array<{ id: number; name: string; category: { name: string } }>, ids: number[]): string {
+  return options
+    .filter((item) => ids.includes(item.id))
+    .map((item) => `${item.category.name}: ${item.name}`)
+    .join(", ");
 }

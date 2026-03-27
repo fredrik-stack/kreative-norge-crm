@@ -1,5 +1,14 @@
 from rest_framework import serializers
-from .models import Tenant, Organization, Person, OrganizationPerson
+from .models import (
+    Tenant,
+    Tag,
+    Category,
+    Subcategory,
+    Organization,
+    Person,
+    OrganizationPerson,
+    PersonContact,
+)
 
 
 class TenantSerializer(serializers.ModelSerializer):
@@ -8,8 +17,56 @@ class TenantSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "slug", "created_at"]
 
 
+class TagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tag
+        fields = ["id", "tenant", "name", "slug", "created_at"]
+        read_only_fields = ["tenant", "slug", "created_at"]
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ["id", "name", "slug", "created_at"]
+        read_only_fields = ["slug", "created_at"]
+
+
+class SubcategorySerializer(serializers.ModelSerializer):
+    category = CategorySerializer(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(),
+        source="category",
+        write_only=True,
+        required=False,
+    )
+
+    class Meta:
+        model = Subcategory
+        fields = ["id", "name", "slug", "created_at", "category", "category_id"]
+        read_only_fields = ["slug", "created_at"]
+
+
 class OrganizationSerializer(serializers.ModelSerializer):
     active_people = serializers.SerializerMethodField()
+    primary_link = serializers.SerializerMethodField()
+    primary_link_field = serializers.SerializerMethodField()
+    preview_image_url = serializers.SerializerMethodField()
+    tags = TagSerializer(many=True, read_only=True)
+    tag_ids = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Tag.objects.all(),
+        write_only=True,
+        source="tags",
+        required=False,
+    )
+    subcategories = SubcategorySerializer(many=True, read_only=True)
+    subcategory_ids = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Subcategory.objects.select_related("category").all(),
+        write_only=True,
+        source="subcategories",
+        required=False,
+    )
 
     class Meta:
         model = Organization
@@ -24,10 +81,53 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "note",
             "is_published",
             "publish_phone",
+            "website_url",
+            "facebook_url",
+            "instagram_url",
+            "tiktok_url",
+            "linkedin_url",
+            "youtube_url",
+            "og_title",
+            "og_description",
+            "og_image_url",
+            "og_last_fetched_at",
+            "primary_link",
+            "primary_link_field",
+            "preview_image_url",
+            "tags",
+            "tag_ids",
+            "subcategories",
+            "subcategory_ids",
             "created_at",
             "updated_at",
             "active_people",
         ]
+        read_only_fields = ["og_title", "og_description", "og_image_url", "og_last_fetched_at"]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        tenant_id = self._get_effective_tenant_id()
+        tags = attrs.get("tags")
+        if tenant_id is not None and tags is not None:
+            invalid = [tag.name for tag in tags if tag.tenant_id != tenant_id]
+            if invalid:
+                raise serializers.ValidationError(
+                    {"tag_ids": ["All tags must belong to the same tenant as the route."]}
+                )
+        return attrs
+
+    def _get_effective_tenant_id(self):
+        if self.instance is not None:
+            return self.instance.tenant_id
+        tenant = self.initial_data.get("tenant") if hasattr(self, "initial_data") else None
+        if tenant:
+            return int(tenant)
+        view = self.context.get("view")
+        if view is not None:
+            tenant_id = view.kwargs.get("tenant_id")
+            if tenant_id is not None:
+                return int(tenant_id)
+        return None
 
     def get_active_people(self, obj):
         qs = (
@@ -38,10 +138,14 @@ class OrganizationSerializer(serializers.ModelSerializer):
         )
         return OrganizationPersonNestedSerializer(qs, many=True).data
 
+    def get_primary_link(self, obj):
+        return obj.get_primary_link()
 
+    def get_primary_link_field(self, obj):
+        return obj.get_primary_link_field()
 
-from .models import Tenant, Organization, Person, OrganizationPerson, PersonContact
-
+    def get_preview_image_url(self, obj):
+        return obj.get_preview_image_url()
 
 class PersonContactSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
@@ -126,6 +230,22 @@ class PersonForOrganizationSerializer(serializers.ModelSerializer):
 
 class PersonSerializer(serializers.ModelSerializer):
     contacts = PersonContactSerializer(many=True, read_only=True)
+    tags = TagSerializer(many=True, read_only=True)
+    tag_ids = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Tag.objects.all(),
+        write_only=True,
+        source="tags",
+        required=False,
+    )
+    subcategories = SubcategorySerializer(many=True, read_only=True)
+    subcategory_ids = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Subcategory.objects.select_related("category").all(),
+        write_only=True,
+        source="subcategories",
+        required=False,
+    )
 
     class Meta:
         model = Person
@@ -135,6 +255,16 @@ class PersonSerializer(serializers.ModelSerializer):
             "full_name",
             "email",
             "phone",
+            "website_url",
+            "instagram_url",
+            "tiktok_url",
+            "linkedin_url",
+            "facebook_url",
+            "youtube_url",
+            "tags",
+            "tag_ids",
+            "subcategories",
+            "subcategory_ids",
             "municipality",
             "note",
             "created_at",
@@ -142,6 +272,30 @@ class PersonSerializer(serializers.ModelSerializer):
             "contacts",
         ]
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        tenant_id = self._get_effective_tenant_id()
+        tags = attrs.get("tags")
+        if tenant_id is not None and tags is not None:
+            invalid = [tag.name for tag in tags if tag.tenant_id != tenant_id]
+            if invalid:
+                raise serializers.ValidationError(
+                    {"tag_ids": ["All tags must belong to the same tenant as the route."]}
+                )
+        return attrs
+
+    def _get_effective_tenant_id(self):
+        if self.instance is not None:
+            return self.instance.tenant_id
+        tenant = self.initial_data.get("tenant") if hasattr(self, "initial_data") else None
+        if tenant:
+            return int(tenant)
+        view = self.context.get("view")
+        if view is not None:
+            tenant_id = view.kwargs.get("tenant_id")
+            if tenant_id is not None:
+                return int(tenant_id)
+        return None
 
 
 class OrganizationPersonSerializer(serializers.ModelSerializer):
@@ -210,6 +364,11 @@ class PublicPersonSerializer(serializers.ModelSerializer):
 
 class PublicOrganizationSerializer(serializers.ModelSerializer):
     active_people = serializers.SerializerMethodField()
+    primary_link = serializers.SerializerMethodField()
+    primary_link_field = serializers.SerializerMethodField()
+    preview_image_url = serializers.SerializerMethodField()
+    tags = TagSerializer(many=True, read_only=True)
+    subcategories = SubcategorySerializer(many=True, read_only=True)
 
     class Meta:
         model = Organization
@@ -221,6 +380,17 @@ class PublicOrganizationSerializer(serializers.ModelSerializer):
             "phone",
             "municipalities",
             "note",
+            "website_url",
+            "facebook_url",
+            "instagram_url",
+            "tiktok_url",
+            "linkedin_url",
+            "youtube_url",
+            "primary_link",
+            "primary_link_field",
+            "preview_image_url",
+            "tags",
+            "subcategories",
             "active_people",
         ]
 
@@ -244,6 +414,15 @@ class PublicOrganizationSerializer(serializers.ModelSerializer):
             }
             for link in qs
         ]
+
+    def get_primary_link(self, obj):
+        return obj.get_primary_link()
+
+    def get_primary_link_field(self, obj):
+        return obj.get_primary_link_field()
+
+    def get_preview_image_url(self, obj):
+        return obj.get_preview_image_url()
 
     def to_representation(self, instance):
         """

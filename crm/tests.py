@@ -1,8 +1,18 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
+from unittest.mock import patch
 from rest_framework.test import APIClient
 
-from .models import Organization, OrganizationPerson, Person, PersonContact, Tenant
+from .models import (
+    Organization,
+    OrganizationPerson,
+    Person,
+    PersonContact,
+    Tag,
+    Category,
+    Subcategory,
+    Tenant,
+)
 from .serializers import PersonSerializer
 
 
@@ -254,14 +264,208 @@ class PersonSerializerTests(TestCase):
             email="person@example.com",
             phone="+4798765432",
             municipality="Trondheim",
+            website_url="https://example.com",
+            instagram_url="https://instagram.com/personexample",
+            tiktok_url="https://tiktok.com/@personexample",
+            linkedin_url="https://linkedin.com/in/personexample",
+            facebook_url="https://facebook.com/personexample",
+            youtube_url="https://youtube.com/@personexample",
         )
 
         data = PersonSerializer(person).data
 
         self.assertIn("email", data)
         self.assertIn("phone", data)
+        self.assertIn("website_url", data)
+        self.assertIn("instagram_url", data)
+        self.assertIn("tiktok_url", data)
+        self.assertIn("linkedin_url", data)
+        self.assertIn("facebook_url", data)
+        self.assertIn("youtube_url", data)
         self.assertEqual(data["email"], "person@example.com")
         self.assertEqual(data["phone"], "+4798765432")
+        self.assertEqual(data["website_url"], "https://example.com")
+        self.assertEqual(data["instagram_url"], "https://instagram.com/personexample")
+        self.assertEqual(data["tiktok_url"], "https://tiktok.com/@personexample")
+        self.assertEqual(data["linkedin_url"], "https://linkedin.com/in/personexample")
+        self.assertEqual(data["facebook_url"], "https://facebook.com/personexample")
+        self.assertEqual(data["youtube_url"], "https://youtube.com/@personexample")
+
+
+class TagModelAndApiTests(AuthenticatedAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.tenant = Tenant.objects.create(name="Tag Tenant", slug="tag-tenant")
+        self.other_tenant = Tenant.objects.create(name="Other Tag Tenant", slug="other-tag-tenant")
+        self.primary_tag = Tag.objects.create(tenant=self.tenant, name="Scenekunst")
+        self.other_tag = Tag.objects.create(tenant=self.other_tenant, name="Film")
+
+    def tenant_tags_url(self, tenant_id: int | None = None) -> str:
+        return f"/api/tenants/{tenant_id or self.tenant.id}/tags/"
+
+    def test_generates_slug_on_create(self):
+        self.assertEqual(self.primary_tag.slug, "scenekunst")
+
+    def test_list_is_scoped_to_tenant(self):
+        response = self.client.get(self.tenant_tags_url())
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]["name"], "Scenekunst")
+
+    def test_create_sets_tenant_from_route(self):
+        response = self.client.post(
+            self.tenant_tags_url(),
+            {"name": "Musikk"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        created = Tag.objects.get(id=response.json()["id"])
+        self.assertEqual(created.tenant_id, self.tenant.id)
+        self.assertEqual(created.slug, "musikk")
+
+    def test_rejects_duplicate_name_in_same_tenant(self):
+        response = self.client.post(
+            self.tenant_tags_url(),
+            {"name": "Scenekunst"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_person_serializer_includes_tags(self):
+        person = Person.objects.create(tenant=self.tenant, full_name="Tag Person")
+        person.tags.add(self.primary_tag)
+
+        data = PersonSerializer(person).data
+
+        self.assertEqual(len(data["tags"]), 1)
+        self.assertEqual(data["tags"][0]["name"], "Scenekunst")
+
+
+class CategoryAndSubcategoryTests(AuthenticatedAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.category = Category.objects.create(name="Musikk")
+        self.subcategory = Subcategory.objects.create(category=self.category, name="Jazz")
+        self.other_subcategory = Subcategory.objects.create(category=self.category, name="Pop")
+        self.tenant = Tenant.objects.create(name="Category Tenant", slug="category-tenant")
+
+    def test_category_slug_is_generated(self):
+        self.assertEqual(self.category.slug, "musikk")
+
+    def test_subcategory_slug_is_generated(self):
+        self.assertEqual(self.subcategory.slug, "jazz")
+
+    def test_categories_endpoint_requires_authentication(self):
+        unauth_client = APIClient()
+        response = unauth_client.get("/api/categories/")
+        self.assertEqual(response.status_code, 403)
+
+    def test_categories_endpoint_lists_categories(self):
+        response = self.client.get("/api/categories/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]["name"], "Musikk")
+
+    def test_subcategories_endpoint_can_filter_by_category(self):
+        response = self.client.get("/api/subcategories/", {"category": self.category.id})
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(len(payload), 2)
+        self.assertTrue(all(item["category"]["id"] == self.category.id for item in payload))
+
+    def test_person_serializer_includes_subcategories(self):
+        person = Person.objects.create(tenant=self.tenant, full_name="Kategori Person")
+        person.subcategories.add(self.subcategory)
+
+        data = PersonSerializer(person).data
+
+        self.assertEqual(len(data["subcategories"]), 1)
+        self.assertEqual(data["subcategories"][0]["name"], "Jazz")
+        self.assertEqual(data["subcategories"][0]["category"]["name"], "Musikk")
+
+
+class OrganizationPreviewRefreshTests(AuthenticatedAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.tenant = Tenant.objects.create(name="Preview Tenant", slug="preview-tenant")
+        self.organization = Organization.objects.create(
+            tenant=self.tenant,
+            name="Preview Org",
+            website_url="https://example.com",
+        )
+
+    def test_refresh_preview_endpoint_updates_open_graph_fields(self):
+        with patch("crm.views.refresh_organization_open_graph") as refresh_mock:
+            refresh_mock.side_effect = self._fake_refresh
+            response = self.client.post(
+                f"/api/tenants/{self.tenant.id}/organizations/{self.organization.id}/refresh-preview/",
+                {},
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        payload = response.json()
+        self.assertEqual(payload["og_title"], "Preview Org OG")
+        self.assertEqual(payload["og_description"], "Beskrivelse fra Open Graph")
+        self.assertEqual(payload["og_image_url"], "https://cdn.example.com/preview.jpg")
+        self.assertEqual(payload["primary_link"], "https://example.com")
+        self.assertEqual(payload["primary_link_field"], "website_url")
+        refresh_mock.assert_called_once()
+
+    def _fake_refresh(self, organization, force=False):
+        organization.og_title = "Preview Org OG"
+        organization.og_description = "Beskrivelse fra Open Graph"
+        organization.og_image_url = "https://cdn.example.com/preview.jpg"
+        organization.og_last_fetched_at = organization.updated_at
+        organization.save(
+            update_fields=["og_title", "og_description", "og_image_url", "og_last_fetched_at"]
+        )
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class PublicActorSiteTests(TestCase):
+    def setUp(self):
+        self.category = Category.objects.create(name="Musikk")
+        self.subcategory = Subcategory.objects.create(category=self.category, name="Jazz")
+        self.tag = Tag.objects.create(tenant=Tenant.objects.create(name="Public Tenant", slug="public-tenant"), name="Etablert")
+        self.organization = Organization.objects.create(
+            tenant=self.tag.tenant,
+            name="Nordlyd",
+            org_number="123456789",
+            municipalities="Oslo",
+            note="Publisert aktør",
+            is_published=True,
+            website_url="https://example.com",
+        )
+        self.organization.tags.add(self.tag)
+        self.organization.subcategories.add(self.subcategory)
+
+        self.hidden_organization = Organization.objects.create(
+            tenant=self.tag.tenant,
+            name="Skjult aktør",
+            org_number="987654321",
+            is_published=False,
+        )
+
+    def test_public_actor_list_only_shows_published_actors(self):
+        response = self.client.get("/public/actors/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Nordlyd")
+        self.assertNotContains(response, "Skjult aktør")
+
+    def test_public_actor_list_can_filter_by_tag_and_category(self):
+        response = self.client.get("/public/actors/", {"tag": self.tag.slug, "category": self.category.slug})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Nordlyd")
+
+    def test_public_actor_detail_shows_tags_and_subcategories(self):
+        response = self.client.get(f"/public/actors/{self.organization.org_number}/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Etablert")
+        self.assertContains(response, "Musikk")
+        self.assertContains(response, "Jazz")
 
 
 class OrganizationPersonViewSetValidationTests(AuthenticatedAPITestCase):

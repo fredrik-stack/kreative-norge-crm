@@ -52,7 +52,10 @@ function PeopleSidebar({ navigate }: { navigate: (to: string) => void }) {
         <button
           type="button"
           className="ghost-button"
-          onClick={() => navigate("/people/new")}
+          onClick={() => {
+            editor.setSelectedPersonId("new");
+            navigate("/people/new");
+          }}
           disabled={!editor.tenantId}
         >
           Ny person
@@ -65,7 +68,10 @@ function PeopleSidebar({ navigate }: { navigate: (to: string) => void }) {
             key={person.id}
             type="button"
             className={`list-item ${editor.selectedPersonId === person.id ? "active" : ""}`}
-            onClick={() => navigate(`/people/${person.id}`)}
+            onClick={() => {
+              editor.setSelectedPersonId(person.id);
+              navigate(`/people/${person.id}`);
+            }}
           >
             <div className="list-item-title">{person.full_name}</div>
             <div className="list-item-sub">
@@ -113,7 +119,10 @@ function PeopleEditorPanel(props: {
               <button
                 type="button"
                 className="ghost-button"
-                onClick={() => navigate(`/people/${editor.persons[0].id}`)}
+                onClick={() => {
+                  editor.setSelectedPersonId(editor.persons[0].id);
+                  navigate(`/people/${editor.persons[0].id}`);
+                }}
               >
                 Gå til første person
               </button>
@@ -178,6 +187,97 @@ function PeopleEditorPanel(props: {
                 onChange={(e) => editor.setPersonDraft((s) => ({ ...s, note: e.target.value }))}
               />
             </Field>
+
+            <SelectionChecklist
+              title="Tags"
+              description="Bruk interne tags for å merke kompetanse, format eller status."
+              options={editor.tags.map((tag) => ({ id: tag.id, label: tag.name, meta: tag.slug }))}
+              selectedIds={editor.personDraft.tag_ids}
+              onToggle={(id) =>
+                editor.setPersonDraft((state) => ({
+                  ...state,
+                  tag_ids: toggleId(state.tag_ids, id),
+                }))
+              }
+            />
+
+            <SelectionChecklist
+              title="Kategorier og underkategorier"
+              description="Velg relevante underkategorier for personen."
+              options={editor.subcategories.map((item) => ({
+                id: item.id,
+                label: item.name,
+                meta: item.category.name,
+              }))}
+              selectedIds={editor.personDraft.subcategory_ids}
+              onToggle={(id) =>
+                editor.setPersonDraft((state) => ({
+                  ...state,
+                  subcategory_ids: toggleId(state.subcategory_ids, id),
+                }))
+              }
+            />
+
+            <div className="link-section">
+              <div className="sidebar-header">
+                <h2>Lenker og sosiale medier</h2>
+                <span className="meta">Brukes i offentlig profil senere</span>
+              </div>
+              <div className="grid two">
+                <Field label="Website URL" error={editor.personFieldErrors.website_url}>
+                  <input
+                    type="url"
+                    value={editor.personDraft.website_url ?? ""}
+                    onChange={(e) => editor.setPersonDraft((s) => ({ ...s, website_url: e.target.value }))}
+                    placeholder="https://..."
+                  />
+                </Field>
+                <Field label="Instagram URL" error={editor.personFieldErrors.instagram_url}>
+                  <input
+                    type="url"
+                    value={editor.personDraft.instagram_url ?? ""}
+                    onChange={(e) => editor.setPersonDraft((s) => ({ ...s, instagram_url: e.target.value }))}
+                    placeholder="https://instagram.com/..."
+                  />
+                </Field>
+              </div>
+              <div className="grid two">
+                <Field label="TikTok URL" error={editor.personFieldErrors.tiktok_url}>
+                  <input
+                    type="url"
+                    value={editor.personDraft.tiktok_url ?? ""}
+                    onChange={(e) => editor.setPersonDraft((s) => ({ ...s, tiktok_url: e.target.value }))}
+                    placeholder="https://tiktok.com/@..."
+                  />
+                </Field>
+                <Field label="LinkedIn URL" error={editor.personFieldErrors.linkedin_url}>
+                  <input
+                    type="url"
+                    value={editor.personDraft.linkedin_url ?? ""}
+                    onChange={(e) => editor.setPersonDraft((s) => ({ ...s, linkedin_url: e.target.value }))}
+                    placeholder="https://linkedin.com/in/..."
+                  />
+                </Field>
+              </div>
+              <div className="grid two">
+                <Field label="Facebook URL" error={editor.personFieldErrors.facebook_url}>
+                  <input
+                    type="url"
+                    value={editor.personDraft.facebook_url ?? ""}
+                    onChange={(e) => editor.setPersonDraft((s) => ({ ...s, facebook_url: e.target.value }))}
+                    placeholder="https://facebook.com/..."
+                  />
+                </Field>
+                <Field label="YouTube URL" error={editor.personFieldErrors.youtube_url}>
+                  <input
+                    type="url"
+                    value={editor.personDraft.youtube_url ?? ""}
+                    onChange={(e) => editor.setPersonDraft((s) => ({ ...s, youtube_url: e.target.value }))}
+                    placeholder="https://youtube.com/..."
+                  />
+                </Field>
+              </div>
+            </div>
 
             <div className="actions">
               <button
@@ -345,4 +445,46 @@ function formatTime(iso: string): string {
     minute: "2-digit",
     second: "2-digit",
   });
+}
+
+function SelectionChecklist(props: {
+  title: string;
+  description: string;
+  options: Array<{ id: number; label: string; meta?: string }>;
+  selectedIds: number[];
+  onToggle: (id: number) => void;
+}) {
+  const { title, description, options, selectedIds, onToggle } = props;
+  return (
+    <div className="link-section">
+      <div className="sidebar-header">
+        <h2>{title}</h2>
+        <span className="meta">{selectedIds.length} valgt</span>
+      </div>
+      <p className="muted">{description}</p>
+      <div className="link-list">
+        {options.map((option) => (
+          <label key={option.id} className="link-row">
+            <div>
+              <div className="link-person">{option.label}</div>
+              {option.meta ? <div className="meta">{option.meta}</div> : null}
+            </div>
+            <label className="inline-check compact">
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(option.id)}
+                onChange={() => onToggle(option.id)}
+              />
+              <span>Valgt</span>
+            </label>
+          </label>
+        ))}
+        {options.length === 0 ? <div className="empty-state">Ingen valg tilgjengelig ennå.</div> : null}
+      </div>
+    </div>
+  );
+}
+
+function toggleId(values: number[], id: number): number[] {
+  return values.includes(id) ? values.filter((value) => value !== id) : [...values, id];
 }

@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aktører - Public visning</title>
+  <style>
+    :root {
+      --bg: #f7f3ec;
+      --panel: rgba(255, 255, 255, 0.82);
+      --ink: #1f2937;
+      --muted: #5b6472;
+      --line: rgba(31, 41, 55, 0.12);
+      --accent: #b85c38;
+      --accent-soft: rgba(184, 92, 56, 0.12);
+      --shadow: 0 18px 48px rgba(36, 33, 28, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top left, rgba(184, 92, 56, 0.18), transparent 32%),
+        linear-gradient(180deg, #fbf8f3 0%, var(--bg) 100%);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { max-width: 1180px; margin: 0 auto; padding: 32px 20px 64px; }
+    .hero {
+      display: grid;
+      gap: 18px;
+      padding: 30px;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.74));
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      margin-bottom: 24px;
+    }
+    .eyebrow {
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      font-size: 12px;
+      color: var(--accent);
+      font-weight: 700;
+    }
+    h1 {
+      margin: 0;
+      font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+      font-size: clamp(2.4rem, 4vw, 4.6rem);
+      line-height: 0.95;
+      max-width: 10ch;
+    }
+    .hero p { margin: 0; color: var(--muted); max-width: 62ch; font-size: 16px; }
+    .filters {
+      display: grid;
+      gap: 14px;
+      margin-top: 8px;
+    }
+    .search-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .search-row input {
+      flex: 1 1 280px;
+      min-width: 0;
+      padding: 14px 16px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.92);
+      font-size: 15px;
+    }
+    .search-row button, .chip-link {
+      appearance: none;
+      border: 1px solid rgba(184, 92, 56, 0.22);
+      background: white;
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 12px 16px;
+      text-decoration: none;
+      font-size: 14px;
+      transition: transform .12s ease, background .12s ease;
+    }
+    .chip-link.active, .search-row button {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+    .chip-link:hover, .search-row button:hover { transform: translateY(-1px); }
+    .chip-group { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .chip-group strong { font-size: 14px; color: var(--muted); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 18px; }
+    .card {
+      display: grid;
+      text-decoration: none;
+      color: inherit;
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,0.7);
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+      transition: transform .16s ease, box-shadow .16s ease;
+    }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 22px 52px rgba(36, 33, 28, 0.16); }
+    .thumb { width: 100%; height: 210px; object-fit: cover; background: #e5dfd6; }
+    .body { display: grid; gap: 12px; padding: 18px; }
+    .card h2 {
+      margin: 0;
+      font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+      font-size: 1.7rem;
+      line-height: 1.02;
+    }
+    .meta { color: var(--muted); font-size: 14px; margin: 0; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(31, 41, 55, 0.06);
+      font-size: 12px;
+      color: var(--ink);
+    }
+    .pill.accent { background: var(--accent-soft); color: #8c3d1d; }
+    .footer-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .empty {
+      padding: 32px;
+      border-radius: 22px;
+      border: 1px dashed var(--line);
+      background: rgba(255,255,255,0.6);
+      color: var(--muted);
+    }
+    @media (max-width: 640px) {
+      main { padding: 20px 14px 48px; }
+      .hero { padding: 22px; border-radius: 22px; }
+      .card { border-radius: 20px; }
+      .thumb { height: 180px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <p class="eyebrow">Kreative Norge</p>
+      <h1>Publiserte aktører</h1>
+      <p>Dette er den offentlige oversikten bygget direkte fra CRM-dataen i editoren. Filtrer på navn, kategori eller tag for å finne relevante aktører raskt.</p>
+
+      <form class="filters" method="get">
+        <div class="search-row">
+          <input type="search" name="q" value="{{ query }}" placeholder="Søk etter navn..." />
+          {% if selected_tag %}<input type="hidden" name="tag" value="{{ selected_tag }}" />{% endif %}
+          {% if selected_category %}<input type="hidden" name="category" value="{{ selected_category }}" />{% endif %}
+          <button type="submit">Filtrer</button>
+        </div>
+      </form>
+
+      {% if available_categories %}
+        <div class="chip-group">
+          <strong>Kategorier</strong>
+          <a class="chip-link {% if not selected_category %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if selected_tag %}tag={{ selected_tag|urlencode }}{% endif %}">Alle</a>
+          {% for category in available_categories %}
+            <a class="chip-link {% if selected_category == category.slug %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}category={{ category.slug|urlencode }}{% if selected_tag %}&tag={{ selected_tag|urlencode }}{% endif %}">{{ category.name }}</a>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% if available_tags %}
+        <div class="chip-group">
+          <strong>Tags</strong>
+          <a class="chip-link {% if not selected_tag %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if selected_category %}category={{ selected_category|urlencode }}{% endif %}">Alle</a>
+          {% for tag in available_tags %}
+            <a class="chip-link {% if selected_tag == tag.slug %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}tag={{ tag.slug|urlencode }}{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}">{{ tag.name }}</a>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </section>
+
+    <div class="grid">
+      {% for actor in actors %}
+        <a class="card" href="/public/actors/{{ actor.org_number }}/">
+          {% if actor.get_preview_image_url %}
+            <img class="thumb" src="{{ actor.get_preview_image_url }}" alt="{{ actor.name }}" loading="lazy" />
+          {% else %}
+            <div class="thumb"></div>
+          {% endif %}
+          <div class="body">
+            <h2>{{ actor.name }}</h2>
+            <p class="meta">Org.nr: {{ actor.org_number|default:"-" }}</p>
+            <p class="meta">{{ actor.municipalities|default:"Ingen kommune registrert" }}</p>
+
+            {% if actor.subcategories.all or actor.tags.all %}
+              <div class="pill-row">
+                {% for subcategory in actor.subcategories.all %}
+                  <span class="pill accent">{{ subcategory.category.name }} · {{ subcategory.name }}</span>
+                {% endfor %}
+                {% for tag in actor.tags.all %}
+                  <span class="pill">{{ tag.name }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            <div class="footer-meta">
+              <span>{{ actor.org_people.count }} koblinger</span>
+              {% if actor.get_primary_link %}
+                <span>Primærlenke aktiv</span>
+              {% else %}
+                <span>Ingen primærlenke</span>
+              {% endif %}
+            </div>
+          </div>
+        </a>
+      {% empty %}
+        <div class="empty">
+          Ingen publiserte aktører matcher filteret ditt ennå.
+        </div>
+      {% endfor %}
+    </div>
+  </main>
+</body>
+</html>

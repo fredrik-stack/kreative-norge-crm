@@ -3,9 +3,11 @@ import { useDeferredValue, useEffect, useMemo, useState, useTransition } from "r
 import {
   ApiError,
   createOrganization,
+  getCategories,
   createOrganizationPerson,
   createPerson,
   createPersonContact,
+  getSubcategories,
   deleteOrganizationPerson,
   deletePerson,
   deletePersonContact,
@@ -13,16 +15,27 @@ import {
   getOrganizationPeople,
   getPersonContacts,
   getPersons,
+  getTags,
   getTenants,
   patchOrganization,
   patchOrganizationPerson,
   patchPerson,
   patchPersonContact,
+  refreshOrganizationPreview,
   type OrganizationPatch,
   type PersonPayload,
 } from "../api";
 import type { SaveState } from "../editor-utils";
-import type { Organization, OrganizationPerson, Person, PersonContact, Tenant } from "../types";
+import type {
+  Category,
+  Organization,
+  OrganizationPerson,
+  Person,
+  PersonContact,
+  Subcategory,
+  Tag,
+  Tenant,
+} from "../types";
 
 export type ContactDraft = {
   type: "EMAIL" | "PHONE";
@@ -30,8 +43,33 @@ export type ContactDraft = {
   is_primary: boolean;
   is_public: boolean;
 };
-type FormFieldErrors = Partial<Record<"org_number" | "email" | "phone", string>>;
-type PersonFieldErrors = Partial<Record<"email" | "phone", string>>;
+type FormFieldErrors = Partial<
+  Record<
+    | "org_number"
+    | "email"
+    | "phone"
+    | "website_url"
+    | "facebook_url"
+    | "instagram_url"
+    | "tiktok_url"
+    | "linkedin_url"
+    | "youtube_url",
+    string
+  >
+>;
+type PersonFieldErrors = Partial<
+  Record<
+    | "email"
+    | "phone"
+    | "website_url"
+    | "instagram_url"
+    | "tiktok_url"
+    | "linkedin_url"
+    | "facebook_url"
+    | "youtube_url",
+    string
+  >
+>;
 type ContactFieldErrors = Partial<Record<"value", string>>;
 
 const emptyDraft: OrganizationPatch = {
@@ -43,6 +81,14 @@ const emptyDraft: OrganizationPatch = {
   note: "",
   is_published: false,
   publish_phone: false,
+  website_url: "",
+  facebook_url: "",
+  instagram_url: "",
+  tiktok_url: "",
+  linkedin_url: "",
+  youtube_url: "",
+  tag_ids: [],
+  subcategory_ids: [],
 };
 
 const emptyPersonDraft: PersonPayload = {
@@ -51,6 +97,14 @@ const emptyPersonDraft: PersonPayload = {
   phone: "",
   municipality: "",
   note: "",
+  website_url: "",
+  instagram_url: "",
+  tiktok_url: "",
+  linkedin_url: "",
+  facebook_url: "",
+  youtube_url: "",
+  tag_ids: [],
+  subcategory_ids: [],
 };
 
 const emptyContactDraft: ContactDraft = {
@@ -65,6 +119,9 @@ export function useEditorData() {
   const [tenantId, setTenantId] = useState<number | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [persons, setPersons] = useState<Person[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [organizationPeople, setOrganizationPeople] = useState<OrganizationPerson[]>([]);
   const [personContacts, setPersonContacts] = useState<PersonContact[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<number | "new" | null>(null);
@@ -87,6 +144,7 @@ export function useEditorData() {
   const [contactFieldErrors, setContactFieldErrors] = useState<ContactFieldErrors>({});
   const [organizationLastSavedAt, setOrganizationLastSavedAt] = useState<string | null>(null);
   const [personLastSavedAt, setPersonLastSavedAt] = useState<string | null>(null);
+  const [previewRefreshState, setPreviewRefreshState] = useState<SaveState>("idle");
   const [tenantDataLoaded, setTenantDataLoaded] = useState(false);
   const [tenantDataLoading, setTenantDataLoading] = useState(false);
   const [personContactsLoading, setPersonContactsLoading] = useState(false);
@@ -95,11 +153,13 @@ export function useEditorData() {
   useEffect(() => {
     let cancelled = false;
     setError(null);
-    getTenants()
-      .then((data) => {
+    Promise.all([getTenants(), getCategories(), getSubcategories()])
+      .then(([tenantData, categoryData, subcategoryData]) => {
         if (cancelled) return;
-        setTenants(data);
-        if (data.length > 0) setTenantId((current) => current ?? data[0].id);
+        setTenants(tenantData);
+        setCategories(categoryData);
+        setSubcategories(subcategoryData);
+        if (tenantData.length > 0) setTenantId((current) => current ?? tenantData[0].id);
       })
       .catch((err: Error) => {
         if (!cancelled) setError(err.message);
@@ -119,11 +179,17 @@ export function useEditorData() {
     setTenantDataLoaded(false);
     setTenantDataLoading(true);
 
-    Promise.all([getOrganizations(tenantId), getPersons(tenantId), getOrganizationPeople(tenantId)])
-      .then(([orgs, people, links]) => {
+    Promise.all([
+      getOrganizations(tenantId),
+      getPersons(tenantId),
+      getTags(tenantId),
+      getOrganizationPeople(tenantId),
+    ])
+      .then(([orgs, people, tenantTags, links]) => {
         if (cancelled) return;
         setOrganizations(orgs);
         setPersons(people);
+        setTags(tenantTags);
         setOrganizationPeople(links);
         setSelectedPersonId((current) => current ?? people[0]?.id ?? "new");
         setLinkPersonId((current) => current ?? people[0]?.id ?? null);
@@ -183,6 +249,14 @@ export function useEditorData() {
       note: selectedOrganization.note ?? "",
       is_published: selectedOrganization.is_published,
       publish_phone: selectedOrganization.publish_phone,
+      website_url: selectedOrganization.website_url ?? "",
+      facebook_url: selectedOrganization.facebook_url ?? "",
+      instagram_url: selectedOrganization.instagram_url ?? "",
+      tiktok_url: selectedOrganization.tiktok_url ?? "",
+      linkedin_url: selectedOrganization.linkedin_url ?? "",
+      youtube_url: selectedOrganization.youtube_url ?? "",
+      tag_ids: selectedOrganization.tags.map((tag) => tag.id),
+      subcategory_ids: selectedOrganization.subcategories.map((item) => item.id),
     });
     setSaveState("idle");
     setOrganizationFieldErrors({});
@@ -206,6 +280,14 @@ export function useEditorData() {
       phone: selectedPerson.phone ?? "",
       municipality: selectedPerson.municipality ?? "",
       note: selectedPerson.note ?? "",
+      website_url: selectedPerson.website_url ?? "",
+      instagram_url: selectedPerson.instagram_url ?? "",
+      tiktok_url: selectedPerson.tiktok_url ?? "",
+      linkedin_url: selectedPerson.linkedin_url ?? "",
+      facebook_url: selectedPerson.facebook_url ?? "",
+      youtube_url: selectedPerson.youtube_url ?? "",
+      tag_ids: selectedPerson.tags.map((tag) => tag.id),
+      subcategory_ids: selectedPerson.subcategories.map((item) => item.id),
     });
     setPersonContacts(selectedPerson.contacts ?? []);
     setPersonSaveState("idle");
@@ -310,6 +392,14 @@ export function useEditorData() {
               note: selectedOrganization.note ?? "",
               is_published: selectedOrganization.is_published,
               publish_phone: selectedOrganization.publish_phone,
+              website_url: selectedOrganization.website_url ?? "",
+              facebook_url: selectedOrganization.facebook_url ?? "",
+              instagram_url: selectedOrganization.instagram_url ?? "",
+              tiktok_url: selectedOrganization.tiktok_url ?? "",
+              linkedin_url: selectedOrganization.linkedin_url ?? "",
+              youtube_url: selectedOrganization.youtube_url ?? "",
+              tag_ids: selectedOrganization.tags.map((tag) => tag.id),
+              subcategory_ids: selectedOrganization.subcategories.map((item) => item.id),
             }
           : emptyDraft;
     return !isEqualShallowOrganizationDraft(normalizeDraft(draft), normalizeDraft(baseline));
@@ -326,6 +416,14 @@ export function useEditorData() {
               phone: selectedPerson.phone ?? "",
               municipality: selectedPerson.municipality ?? "",
               note: selectedPerson.note ?? "",
+              website_url: selectedPerson.website_url ?? "",
+              instagram_url: selectedPerson.instagram_url ?? "",
+              tiktok_url: selectedPerson.tiktok_url ?? "",
+              linkedin_url: selectedPerson.linkedin_url ?? "",
+              facebook_url: selectedPerson.facebook_url ?? "",
+              youtube_url: selectedPerson.youtube_url ?? "",
+              tag_ids: selectedPerson.tags.map((tag) => tag.id),
+              subcategory_ids: selectedPerson.subcategories.map((item) => item.id),
             }
           : emptyPersonDraft;
     const personDirty = !isEqualShallowPersonDraft(normalizePersonDraft(personDraft), normalizePersonDraft(baseline));
@@ -347,6 +445,14 @@ export function useEditorData() {
               phone: selectedPerson.phone ?? "",
               municipality: selectedPerson.municipality ?? "",
               note: selectedPerson.note ?? "",
+              website_url: selectedPerson.website_url ?? "",
+              instagram_url: selectedPerson.instagram_url ?? "",
+              tiktok_url: selectedPerson.tiktok_url ?? "",
+              linkedin_url: selectedPerson.linkedin_url ?? "",
+              facebook_url: selectedPerson.facebook_url ?? "",
+              youtube_url: selectedPerson.youtube_url ?? "",
+              tag_ids: selectedPerson.tags.map((tag) => tag.id),
+              subcategory_ids: selectedPerson.subcategories.map((item) => item.id),
             }
           : emptyPersonDraft;
     return !isEqualShallowPersonDraft(normalizePersonDraft(personDraft), normalizePersonDraft(baseline));
@@ -429,6 +535,14 @@ export function useEditorData() {
         setOrganizationFieldErrors((current) => ({
           ...current,
           ...pickFieldErrors(err.data, ["org_number", "email", "phone"]),
+          ...pickFieldErrors(err.data, [
+            "website_url",
+            "facebook_url",
+            "instagram_url",
+            "tiktok_url",
+            "linkedin_url",
+            "youtube_url",
+          ]),
         }));
       }
       setSaveState("error");
@@ -440,6 +554,20 @@ export function useEditorData() {
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     await submitOrganizationDraft();
+  }
+
+  async function onRefreshOrganizationPreview() {
+    if (!tenantId || typeof selectedOrgId !== "number") return;
+    setPreviewRefreshState("saving");
+    setError(null);
+    try {
+      const updated = await refreshOrganizationPreview(tenantId, selectedOrgId);
+      setOrganizations((current) => current.map((org) => (org.id === updated.id ? updated : org)));
+      setPreviewRefreshState("saved");
+    } catch (err) {
+      setPreviewRefreshState("error");
+      setError(apiErrorMessage(err, "Kunne ikke oppdatere preview"));
+    }
   }
 
   async function onCreateLink(event: FormEvent) {
@@ -490,6 +618,14 @@ export function useEditorData() {
         setPersonFieldErrors((current) => ({
           ...current,
           ...pickFieldErrors(err.data, ["email", "phone"]),
+          ...pickFieldErrors(err.data, [
+            "website_url",
+            "instagram_url",
+            "tiktok_url",
+            "linkedin_url",
+            "facebook_url",
+            "youtube_url",
+          ]),
         }));
       }
       setPersonSaveState("error");
@@ -651,6 +787,14 @@ export function useEditorData() {
       note: selectedOrganization.note ?? "",
       is_published: selectedOrganization.is_published,
       publish_phone: selectedOrganization.publish_phone,
+      website_url: selectedOrganization.website_url ?? "",
+      facebook_url: selectedOrganization.facebook_url ?? "",
+      instagram_url: selectedOrganization.instagram_url ?? "",
+      tiktok_url: selectedOrganization.tiktok_url ?? "",
+      linkedin_url: selectedOrganization.linkedin_url ?? "",
+      youtube_url: selectedOrganization.youtube_url ?? "",
+      tag_ids: selectedOrganization.tags.map((tag) => tag.id),
+      subcategory_ids: selectedOrganization.subcategories.map((item) => item.id),
     });
     setSaveState("idle");
     setOrganizationFieldErrors({});
@@ -669,6 +813,14 @@ export function useEditorData() {
       phone: selectedPerson.phone ?? "",
       municipality: selectedPerson.municipality ?? "",
       note: selectedPerson.note ?? "",
+      website_url: selectedPerson.website_url ?? "",
+      instagram_url: selectedPerson.instagram_url ?? "",
+      tiktok_url: selectedPerson.tiktok_url ?? "",
+      linkedin_url: selectedPerson.linkedin_url ?? "",
+      facebook_url: selectedPerson.facebook_url ?? "",
+      youtube_url: selectedPerson.youtube_url ?? "",
+      tag_ids: selectedPerson.tags.map((tag) => tag.id),
+      subcategory_ids: selectedPerson.subcategories.map((item) => item.id),
     });
     setPersonSaveState("idle");
     setPersonFieldErrors({});
@@ -704,6 +856,9 @@ export function useEditorData() {
     applyTenantSelection,
     organizations,
     persons,
+    tags,
+    categories,
+    subcategories,
     personContacts,
     selectedOrgId,
     setSelectedOrgId,
@@ -719,6 +874,7 @@ export function useEditorData() {
     setPersonQuery,
     saveState,
     personSaveState,
+    previewRefreshState,
     error,
     setError,
     linkPersonId,
@@ -751,6 +907,7 @@ export function useEditorData() {
     selectedOrganizationLinks,
     availablePersonsForLink,
     onSubmit,
+    onRefreshOrganizationPreview,
     onCreateLink,
     onSubmitPerson,
     onDeletePerson,
@@ -772,6 +929,12 @@ function validateOrganizationDraft(draft: OrganizationPatch): FormFieldErrors {
   const orgNumber = (draft.org_number ?? "").trim();
   const email = (draft.email ?? "").trim();
   const phone = (draft.phone ?? "").trim();
+  const websiteUrl = (draft.website_url ?? "").trim();
+  const facebookUrl = (draft.facebook_url ?? "").trim();
+  const instagramUrl = (draft.instagram_url ?? "").trim();
+  const tiktokUrl = (draft.tiktok_url ?? "").trim();
+  const linkedinUrl = (draft.linkedin_url ?? "").trim();
+  const youtubeUrl = (draft.youtube_url ?? "").trim();
 
   if (orgNumber && !/^\d{9}$/.test(orgNumber.replace(/\s+/g, ""))) {
     errors.org_number = "Org.nr må være 9 sifre.";
@@ -782,6 +945,24 @@ function validateOrganizationDraft(draft: OrganizationPatch): FormFieldErrors {
   if (phone && !isLikelyValidPhone(phone)) {
     errors.phone = "Ugyldig telefonnummer.";
   }
+  if (websiteUrl && !isLikelyValidHttpUrl(websiteUrl)) {
+    errors.website_url = "Ugyldig URL.";
+  }
+  if (facebookUrl && !isLikelyValidHttpUrl(facebookUrl)) {
+    errors.facebook_url = "Ugyldig URL.";
+  }
+  if (instagramUrl && !isLikelyValidHttpUrl(instagramUrl)) {
+    errors.instagram_url = "Ugyldig URL.";
+  }
+  if (tiktokUrl && !isLikelyValidHttpUrl(tiktokUrl)) {
+    errors.tiktok_url = "Ugyldig URL.";
+  }
+  if (linkedinUrl && !isLikelyValidHttpUrl(linkedinUrl)) {
+    errors.linkedin_url = "Ugyldig URL.";
+  }
+  if (youtubeUrl && !isLikelyValidHttpUrl(youtubeUrl)) {
+    errors.youtube_url = "Ugyldig URL.";
+  }
   return errors;
 }
 
@@ -789,11 +970,35 @@ function validatePersonDraft(draft: PersonPayload): PersonFieldErrors {
   const errors: PersonFieldErrors = {};
   const email = (draft.email ?? "").trim();
   const phone = (draft.phone ?? "").trim();
+  const websiteUrl = (draft.website_url ?? "").trim();
+  const instagramUrl = (draft.instagram_url ?? "").trim();
+  const tiktokUrl = (draft.tiktok_url ?? "").trim();
+  const linkedinUrl = (draft.linkedin_url ?? "").trim();
+  const facebookUrl = (draft.facebook_url ?? "").trim();
+  const youtubeUrl = (draft.youtube_url ?? "").trim();
   if (email && !isValidEmail(email)) {
     errors.email = "Ugyldig e-postadresse.";
   }
   if (phone && !isLikelyValidPhone(phone)) {
     errors.phone = "Ugyldig telefonnummer.";
+  }
+  if (websiteUrl && !isLikelyValidHttpUrl(websiteUrl)) {
+    errors.website_url = "Ugyldig URL.";
+  }
+  if (instagramUrl && !isLikelyValidHttpUrl(instagramUrl)) {
+    errors.instagram_url = "Ugyldig URL.";
+  }
+  if (tiktokUrl && !isLikelyValidHttpUrl(tiktokUrl)) {
+    errors.tiktok_url = "Ugyldig URL.";
+  }
+  if (linkedinUrl && !isLikelyValidHttpUrl(linkedinUrl)) {
+    errors.linkedin_url = "Ugyldig URL.";
+  }
+  if (facebookUrl && !isLikelyValidHttpUrl(facebookUrl)) {
+    errors.facebook_url = "Ugyldig URL.";
+  }
+  if (youtubeUrl && !isLikelyValidHttpUrl(youtubeUrl)) {
+    errors.youtube_url = "Ugyldig URL.";
   }
   return errors;
 }
@@ -822,6 +1027,15 @@ function isLikelyValidPhone(value: string): boolean {
   const normalized = value.replace(/[^\d+]/g, "");
   const digits = normalized.replace(/\D/g, "");
   return digits.length >= 8 && digits.length <= 15;
+}
+
+function isLikelyValidHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 function pickFieldErrors<T extends string>(
@@ -881,6 +1095,14 @@ function normalizeDraft(draft: OrganizationPatch): OrganizationPatch {
     phone: nullableString(draft.phone),
     municipalities: draft.municipalities.trim(),
     note: nullableString(draft.note),
+    website_url: nullableString(draft.website_url),
+    facebook_url: nullableString(draft.facebook_url),
+    instagram_url: nullableString(draft.instagram_url),
+    tiktok_url: nullableString(draft.tiktok_url),
+    linkedin_url: nullableString(draft.linkedin_url),
+    youtube_url: nullableString(draft.youtube_url),
+    tag_ids: uniqueSortedIds(draft.tag_ids),
+    subcategory_ids: uniqueSortedIds(draft.subcategory_ids),
   };
 }
 
@@ -891,6 +1113,14 @@ function normalizePersonDraft(draft: PersonPayload): PersonPayload {
     phone: nullableString(draft.phone),
     municipality: draft.municipality.trim(),
     note: nullableString(draft.note),
+    website_url: nullableString(draft.website_url),
+    instagram_url: nullableString(draft.instagram_url),
+    tiktok_url: nullableString(draft.tiktok_url),
+    linkedin_url: nullableString(draft.linkedin_url),
+    facebook_url: nullableString(draft.facebook_url),
+    youtube_url: nullableString(draft.youtube_url),
+    tag_ids: uniqueSortedIds(draft.tag_ids),
+    subcategory_ids: uniqueSortedIds(draft.subcategory_ids),
   };
 }
 
@@ -913,7 +1143,15 @@ function isEqualShallowOrganizationDraft(a: OrganizationPatch, b: OrganizationPa
     a.municipalities === b.municipalities &&
     a.note === b.note &&
     a.is_published === b.is_published &&
-    a.publish_phone === b.publish_phone
+    a.publish_phone === b.publish_phone &&
+    a.website_url === b.website_url &&
+    a.facebook_url === b.facebook_url &&
+    a.instagram_url === b.instagram_url &&
+    a.tiktok_url === b.tiktok_url &&
+    a.linkedin_url === b.linkedin_url &&
+    a.youtube_url === b.youtube_url &&
+    isEqualIdList(a.tag_ids, b.tag_ids) &&
+    isEqualIdList(a.subcategory_ids, b.subcategory_ids)
   );
 }
 
@@ -923,7 +1161,15 @@ function isEqualShallowPersonDraft(a: PersonPayload, b: PersonPayload): boolean 
     a.email === b.email &&
     a.phone === b.phone &&
     a.municipality === b.municipality &&
-    a.note === b.note
+    a.note === b.note &&
+    a.website_url === b.website_url &&
+    a.instagram_url === b.instagram_url &&
+    a.tiktok_url === b.tiktok_url &&
+    a.linkedin_url === b.linkedin_url &&
+    a.facebook_url === b.facebook_url &&
+    a.youtube_url === b.youtube_url &&
+    isEqualIdList(a.tag_ids, b.tag_ids) &&
+    isEqualIdList(a.subcategory_ids, b.subcategory_ids)
   );
 }
 
@@ -931,4 +1177,15 @@ function nullableString(value: string | null): string | null {
   if (value == null) return null;
   const trimmed = value.trim();
   return trimmed === "" ? null : trimmed;
+}
+
+function uniqueSortedIds(values: number[]): number[] {
+  return [...new Set(values)].sort((a, b) => a - b);
+}
+
+function isEqualIdList(a: number[], b: number[]): boolean {
+  if (a.length !== b.length) return false;
+  const normalizedA = uniqueSortedIds(a);
+  const normalizedB = uniqueSortedIds(b);
+  return normalizedA.every((value, index) => value === normalizedB[index]);
 }

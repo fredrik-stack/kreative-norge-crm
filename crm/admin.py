@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.forms.models import BaseInlineFormSet
 
-from .models import Tenant, Organization, Person, OrganizationPerson, PersonContact
+from .models import Tenant, Tag, Category, Subcategory, Organization, Person, OrganizationPerson, PersonContact
 
 
 @admin.register(Tenant)
@@ -76,6 +76,7 @@ class OrganizationAdmin(admin.ModelAdmin):
     list_filter = ("tenant", "is_published")
     search_fields = ("name", "org_number", "email")
     inlines = [OrganizationPersonInline]
+    filter_horizontal = ("tags", "subcategories")
 
 
 @admin.register(Person)
@@ -84,6 +85,7 @@ class PersonAdmin(admin.ModelAdmin):
     list_filter = ("tenant",)
     search_fields = ("full_name", "email", "phone")
     inlines = [PersonContactInline]
+    filter_horizontal = ("tags", "subcategories")
 
 
 @admin.register(OrganizationPerson)
@@ -91,3 +93,23 @@ class OrganizationPersonAdmin(admin.ModelAdmin):
     list_display = ("id", "tenant", "organization", "person", "status", "publish_person", "created_at")
     list_filter = ("tenant", "status", "publish_person")
     search_fields = ("organization__name", "person__full_name", "person__email")
+
+
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "slug", "tenant", "created_at")
+    list_filter = ("tenant",)
+    search_fields = ("name", "slug")
+
+
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "slug", "created_at")
+    search_fields = ("name", "slug")
+
+
+@admin.register(Subcategory)
+class SubcategoryAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "slug", "category", "created_at")
+    list_filter = ("category",)
+    search_fields = ("name", "slug", "category__name")
