@@ -198,6 +198,26 @@ class Person(models.Model):
     def __str__(self) -> str:
         return self.full_name
 
+    def get_public_emails(self) -> list[str]:
+        public_emails = list(
+            self.contacts.filter(type="EMAIL", is_public=True)
+            .order_by("-is_primary", "id")
+            .values_list("value", flat=True)
+        )
+        if public_emails:
+            return public_emails
+        return [self.email] if self.email else []
+
+    def get_public_phones(self) -> list[str]:
+        public_phones = list(
+            self.contacts.filter(type="PHONE", is_public=True)
+            .order_by("-is_primary", "id")
+            .values_list("value", flat=True)
+        )
+        if public_phones:
+            return public_phones
+        return [self.phone] if self.phone else []
+
 class PersonContact(models.Model):
     CONTACT_TYPES = [
         ("EMAIL", "Email"),

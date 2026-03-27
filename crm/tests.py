@@ -441,6 +441,20 @@ class PublicActorSiteTests(TestCase):
         )
         self.organization.tags.add(self.tag)
         self.organization.subcategories.add(self.subcategory)
+        self.person = Person.objects.create(
+            tenant=self.tag.tenant,
+            full_name="Ada Artist",
+            email="ada@example.com",
+            phone="+4712345678",
+            municipality="Oslo",
+        )
+        self.link = OrganizationPerson.objects.create(
+            tenant=self.tag.tenant,
+            organization=self.organization,
+            person=self.person,
+            status="ACTIVE",
+            publish_person=True,
+        )
 
         self.hidden_organization = Organization.objects.create(
             tenant=self.tag.tenant,
@@ -466,6 +480,14 @@ class PublicActorSiteTests(TestCase):
         self.assertContains(response, "Etablert")
         self.assertContains(response, "Musikk")
         self.assertContains(response, "Jazz")
+
+    def test_public_actor_detail_falls_back_to_person_email_and_phone(self):
+        response = self.client.get(f"/public/actors/{self.organization.org_number}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Ada Artist")
+        self.assertContains(response, "EMAIL · ada@example.com")
+        self.assertContains(response, "PHONE · +4712345678")
 
 
 class OrganizationPersonViewSetValidationTests(AuthenticatedAPITestCase):

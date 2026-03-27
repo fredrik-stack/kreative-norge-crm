@@ -423,6 +423,17 @@ function OrganizationLinksPanel() {
 
                     <button
                       type="button"
+                      className="ghost-button"
+                      onClick={() => {
+                        editor.setSelectedPersonId(link.person);
+                        navigate(`/people/${link.person}`);
+                      }}
+                    >
+                      Rediger
+                    </button>
+
+                    <button
+                      type="button"
                       className="link-delete"
                       onClick={() => {
                         const personName = person?.full_name ?? `Person #${link.person}`;

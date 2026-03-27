@@ -189,15 +189,18 @@
               <article class="person-card">
                 <strong>{{ link.person.full_name }}</strong>
                 <p>{{ link.person.municipality|default:"Ingen kommune registrert" }}</p>
-                {% if link.person.contacts.all %}
-                  <div class="contacts">
-                    {% for contact in link.person.contacts.all %}
-                      {% if contact.is_public %}
-                        <span class="contact-pill">{{ contact.type }} · {{ contact.value }}</span>
-                      {% endif %}
-                    {% endfor %}
-                  </div>
-                {% endif %}
+                {% with public_emails=link.person.get_public_emails public_phones=link.person.get_public_phones %}
+                  {% if public_emails or public_phones %}
+                    <div class="contacts">
+                      {% for value in public_emails %}
+                        <span class="contact-pill">EMAIL · {{ value }}</span>
+                      {% endfor %}
+                      {% for value in public_phones %}
+                        <span class="contact-pill">PHONE · {{ value }}</span>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                {% endwith %}
               </article>
             {% endif %}
           {% empty %}
