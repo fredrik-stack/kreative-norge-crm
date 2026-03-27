@@ -347,6 +347,110 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
 
       {typeof editor.selectedOrgId === "number" ? (
         <>
+          <div className="link-section">
+            <div className="sidebar-header">
+              <h2>Opprett ny kontaktperson for denne aktøren</h2>
+              <span className={`save-pill ${editor.linkedPersonSaveState}`}>{saveLabel(editor.linkedPersonSaveState)}</span>
+            </div>
+            <p className="muted">
+              Denne flyten oppretter personen, lager første e-post/telefon hvis du fyller det ut, og knytter personen
+              direkte til aktøren.
+            </p>
+            <form className="editor-form" onSubmit={editor.onCreateLinkedPerson}>
+              <div className="grid two">
+                <Field label="Fullt navn" required>
+                  <input
+                    value={editor.linkedPersonDraft.full_name}
+                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, full_name: e.target.value }))}
+                    required
+                  />
+                </Field>
+                <Field label="Kommune">
+                  <input
+                    value={editor.linkedPersonDraft.municipality}
+                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, municipality: e.target.value }))}
+                  />
+                </Field>
+              </div>
+
+              <div className="grid two">
+                <Field label="E-post">
+                  <input
+                    type="email"
+                    value={editor.linkedPersonDraft.email}
+                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, email: e.target.value }))}
+                  />
+                </Field>
+                <Field label="Telefon">
+                  <input
+                    value={editor.linkedPersonDraft.phone}
+                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, phone: e.target.value }))}
+                  />
+                </Field>
+              </div>
+
+              <div className="grid two">
+                <label className="toggle-card">
+                  <input
+                    type="checkbox"
+                    checked={editor.linkedPersonDraft.publish_email}
+                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, publish_email: e.target.checked }))}
+                  />
+                  <div>
+                    <strong>Publiser e-post</strong>
+                    <p>Brukes hvis e-post legges inn nå.</p>
+                  </div>
+                </label>
+                <label className="toggle-card">
+                  <input
+                    type="checkbox"
+                    checked={editor.linkedPersonDraft.publish_phone}
+                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, publish_phone: e.target.checked }))}
+                  />
+                  <div>
+                    <strong>Publiser telefon</strong>
+                    <p>Brukes hvis telefon legges inn nå.</p>
+                  </div>
+                </label>
+              </div>
+
+              <div className="grid two">
+                <label className="toggle-card">
+                  <input
+                    type="checkbox"
+                    checked={editor.linkedPersonDraft.publish_person}
+                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, publish_person: e.target.checked }))}
+                  />
+                  <div>
+                    <strong>Vis personen offentlig</strong>
+                    <p>Skal denne personen vises som kontaktperson på aktørsiden?</p>
+                  </div>
+                </label>
+                <Field label="Status på kobling">
+                  <select
+                    value={editor.linkedPersonDraft.status}
+                    onChange={(e) =>
+                      editor.setLinkedPersonDraft((s) => ({ ...s, status: e.target.value as "ACTIVE" | "INACTIVE" }))
+                    }
+                  >
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="INACTIVE">INACTIVE</option>
+                  </select>
+                </Field>
+              </div>
+
+              <div className="actions">
+                <button
+                  type="submit"
+                  className="primary-button"
+                  disabled={!editor.linkedPersonDraft.full_name.trim() || editor.linkedPersonSaveState === "saving"}
+                >
+                  Opprett og knytt kontaktperson
+                </button>
+              </div>
+            </form>
+          </div>
+
           <form className="link-create" onSubmit={editor.onCreateLink}>
             <select
               value={editor.linkPersonId ?? ""}
@@ -387,7 +491,7 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
               className="ghost-button"
               disabled={!editor.linkPersonId || editor.availablePersonsForLink.length === 0}
             >
-              Knytt person
+              Knytt eksisterende person
             </button>
           </form>
 

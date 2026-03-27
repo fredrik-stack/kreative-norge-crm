@@ -43,6 +43,16 @@ export type ContactDraft = {
   is_primary: boolean;
   is_public: boolean;
 };
+export type LinkedPersonDraft = {
+  full_name: string;
+  municipality: string;
+  email: string;
+  phone: string;
+  publish_email: boolean;
+  publish_phone: boolean;
+  publish_person: boolean;
+  status: "ACTIVE" | "INACTIVE";
+};
 type FormFieldErrors = Partial<
   Record<
     | "org_number"
@@ -114,6 +124,17 @@ const emptyContactDraft: ContactDraft = {
   is_public: false,
 };
 
+const emptyLinkedPersonDraft: LinkedPersonDraft = {
+  full_name: "",
+  municipality: "",
+  email: "",
+  phone: "",
+  publish_email: true,
+  publish_phone: true,
+  publish_person: true,
+  status: "ACTIVE",
+};
+
 export function useEditorData() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [tenantId, setTenantId] = useState<number | null>(null);
@@ -139,6 +160,8 @@ export function useEditorData() {
   const [linkStatus, setLinkStatus] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
   const [linkPublishPerson, setLinkPublishPerson] = useState(true);
   const [contactDraft, setContactDraft] = useState<ContactDraft>(emptyContactDraft);
+  const [linkedPersonDraft, setLinkedPersonDraft] = useState<LinkedPersonDraft>(emptyLinkedPersonDraft);
+  const [linkedPersonSaveState, setLinkedPersonSaveState] = useState<SaveState>("idle");
   const [organizationFieldErrors, setOrganizationFieldErrors] = useState<FormFieldErrors>({});
   const [personFieldErrors, setPersonFieldErrors] = useState<PersonFieldErrors>({});
   const [contactFieldErrors, setContactFieldErrors] = useState<ContactFieldErrors>({});
@@ -589,6 +612,68 @@ export function useEditorData() {
     }
   }
 
+  async function onCreateLinkedPerson(event: FormEvent) {
+    event.preventDefault();
+    if (!tenantId || typeof selectedOrgId !== "number") return;
+
+    const fullName = linkedPersonDraft.full_name.trim();
+    if (!fullName) {
+      setError("Kontaktpersonen må ha navn.");
+      setLinkedPersonSaveState("error");
+      return;
+    }
+
+    setLinkedPersonSaveState("saving");
+    setError(null);
+
+    try {
+      const createdPerson = await createPerson(tenantId, {
+        ...emptyPersonDraft,
+        full_name: fullName,
+        municipality: linkedPersonDraft.municipality.trim(),
+        email: nullableString(linkedPersonDraft.email),
+        phone: nullableString(linkedPersonDraft.phone),
+      });
+
+      const emailValue = linkedPersonDraft.email.trim();
+      if (emailValue) {
+        await createPersonContact(tenantId, {
+          person: createdPerson.id,
+          type: "EMAIL",
+          value: emailValue,
+          is_primary: true,
+          is_public: linkedPersonDraft.publish_email,
+        });
+      }
+
+      const phoneValue = linkedPersonDraft.phone.trim();
+      if (phoneValue) {
+        await createPersonContact(tenantId, {
+          person: createdPerson.id,
+          type: "PHONE",
+          value: phoneValue,
+          is_primary: true,
+          is_public: linkedPersonDraft.publish_phone,
+        });
+      }
+
+      await createOrganizationPerson(tenantId, {
+        organization: selectedOrgId,
+        person: createdPerson.id,
+        status: linkedPersonDraft.status,
+        publish_person: linkedPersonDraft.publish_person,
+      });
+
+      await reloadPeopleAndLinks();
+      setLinkedPersonDraft(emptyLinkedPersonDraft);
+      setLinkedPersonSaveState("saved");
+      setSelectedPersonId(createdPerson.id);
+    } catch (err) {
+      setLinkedPersonSaveState("error");
+      setError(apiErrorMessage(err, "Kunne ikke opprette og knytte kontaktperson"));
+    }
+  }
+
   async function submitPersonDraft(): Promise<boolean> {
     if (!tenantId) return false;
     const nextErrors = validatePersonDraft(personDraft);
@@ -887,6 +972,9 @@ export function useEditorData() {
     setLinkPublishPerson,
     contactDraft,
     setContactDraft,
+    linkedPersonDraft,
+    setLinkedPersonDraft,
+    linkedPersonSaveState,
     organizationFieldErrors,
     personFieldErrors,
     contactFieldErrors,
@@ -911,6 +999,7 @@ export function useEditorData() {
     onSubmit,
     onRefreshOrganizationPreview,
     onCreateLink,
+    onCreateLinkedPerson,
     onSubmitPerson,
     onDeletePerson,
     onCreateContact,
