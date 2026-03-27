@@ -317,9 +317,13 @@ function PersonContactsPanel() {
   return (
     <div className="link-section">
       <div className="sidebar-header">
-        <h2>Personkontakter</h2>
-        <span className="meta">{editor.personContacts.length} kontakter</span>
+        <h2>Kontaktkanaler for valgt person</h2>
+        <span className="meta">{editor.personContacts.length} registrert</span>
       </div>
+      <p className="muted">
+        Her legger du inn faktiske kontaktkanaler for personen. <strong>Primær</strong> betyr foretrukket
+        kanal av den typen. <strong>Public</strong> betyr at kanalen kan vises på offentlig aktørside/API.
+      </p>
 
       {typeof editor.selectedPersonId === "number" ? (
         <>

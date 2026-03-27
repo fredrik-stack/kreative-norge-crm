@@ -265,6 +265,7 @@ export function useEditorData() {
   useEffect(() => {
     if (selectedPersonId === "new") {
       setPersonDraft(emptyPersonDraft);
+      setContactDraft(emptyContactDraft);
       setPersonSaveState("idle");
       setPersonContacts([]);
       setPersonFieldErrors({});
@@ -289,6 +290,7 @@ export function useEditorData() {
       tag_ids: selectedPerson.tags.map((tag) => tag.id),
       subcategory_ids: selectedPerson.subcategories.map((item) => item.id),
     });
+    setContactDraft(emptyContactDraft);
     setPersonContacts(selectedPerson.contacts ?? []);
     setPersonSaveState("idle");
     setPersonFieldErrors({});

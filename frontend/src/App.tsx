@@ -6,6 +6,7 @@ import {
   RouterProvider,
   Routes,
   createBrowserRouter,
+  useLocation,
 } from "react-router-dom";
 import { AuthGate } from "./components/AuthGate";
 import { ConfirmNavigationModal } from "./components/ConfirmNavigationModal";
@@ -26,6 +27,9 @@ function AppShell() {
 
 function EditorShell({ username, onLogout }: { username: string; onLogout: () => void }) {
   const editor = useEditorData();
+  const location = useLocation();
+  const onPeoplePage = location.pathname.startsWith("/people");
+  const onOrganizationsPage = location.pathname.startsWith("/organizations");
   const organizationsHref =
     editor.selectedOrgId === "new"
       ? "/organizations/new"
@@ -40,17 +44,23 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
         : "/people/new";
   const dirtySummary = useMemo(() => {
     const items: string[] = [];
-    if (editor.organizationHasUnsavedChanges) items.push("Aktørskjema");
-    if (editor.personDraftHasUnsavedChanges) items.push("Personskjema");
-    if (editor.contactDraftHasUnsavedChanges) items.push("Ny kontakt (ikke lagret)");
+    if (onOrganizationsPage && editor.organizationHasUnsavedChanges) items.push("Aktørskjema");
+    if (onPeoplePage && editor.personDraftHasUnsavedChanges) items.push("Personskjema");
+    if (onPeoplePage && editor.contactDraftHasUnsavedChanges) items.push("Ny kontakt (ikke lagret)");
     return items;
   }, [
     editor.contactDraftHasUnsavedChanges,
     editor.organizationHasUnsavedChanges,
     editor.personDraftHasUnsavedChanges,
+    onOrganizationsPage,
+    onPeoplePage,
   ]);
   const unsavedGuard = useUnsavedChangesGuard({
-    hasUnsavedChanges: editor.hasUnsavedChanges,
+    hasUnsavedChanges: onPeoplePage
+      ? editor.peopleHasUnsavedChanges
+      : onOrganizationsPage
+        ? editor.organizationHasUnsavedChanges
+        : editor.hasUnsavedChanges,
     tenants: editor.tenants,
     dirtySummary,
     applyTenantSelection: editor.applyTenantSelection,

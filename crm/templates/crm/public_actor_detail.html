@@ -111,11 +111,18 @@
     .person-card p { margin: 0 0 6px; color: var(--muted); }
     .contacts { display: flex; flex-wrap: wrap; gap: 8px; }
     .contact-pill {
+      display: inline-flex;
+      align-items: center;
       padding: 6px 10px;
       border-radius: 999px;
       font-size: 12px;
       background: rgba(184, 92, 56, 0.1);
       color: #8c3d1d;
+      text-decoration: none;
+      border: 1px solid rgba(184, 92, 56, 0.16);
+    }
+    .contact-pill:hover {
+      background: rgba(184, 92, 56, 0.18);
     }
     @media (max-width: 860px) {
       .hero-content, .section-grid { grid-template-columns: 1fr; }
@@ -193,10 +200,10 @@
                   {% if public_emails or public_phones %}
                     <div class="contacts">
                       {% for value in public_emails %}
-                        <span class="contact-pill">EMAIL · {{ value }}</span>
+                        <a class="contact-pill" href="mailto:{{ value }}">EMAIL · {{ value }}</a>
                       {% endfor %}
                       {% for value in public_phones %}
-                        <span class="contact-pill">PHONE · {{ value }}</span>
+                        <a class="contact-pill" href="tel:{{ value }}">PHONE · {{ value }}</a>
                       {% endfor %}
                     </div>
                   {% endif %}
