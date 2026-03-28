@@ -27,7 +27,8 @@ test("create organization and verify preview updates", async ({ page }) => {
   await expect(page.getByText(/Sist lagret/)).toBeVisible();
   await expect(page.locator(".panel.editor .editor-header h2")).toHaveText("Ny Kulturaktør");
 
-  await page.getByRole("textbox", { name: "Telefon" }).fill("+4711111111");
+  const organizationForm = page.locator(".panel.editor form").first();
+  await organizationForm.getByRole("textbox", { name: "Telefon" }).fill("+4711111111");
   await page.getByRole("checkbox", { name: /Publiser telefon/ }).check();
   await page.getByRole("button", { name: "Lagre endringer" }).click();
 

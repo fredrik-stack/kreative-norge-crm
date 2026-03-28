@@ -358,7 +358,7 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
             </p>
             <form className="editor-form" onSubmit={editor.onCreateLinkedPerson}>
               <div className="grid two">
-                <Field label="Fullt navn" required>
+                <Field label="Fullt navn" required error={editor.linkedPersonFieldErrors.full_name}>
                   <input
                     value={editor.linkedPersonDraft.full_name}
                     onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, full_name: e.target.value }))}
@@ -374,14 +374,14 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
               </div>
 
               <div className="grid two">
-                <Field label="E-post">
+                <Field label="E-post" error={editor.linkedPersonFieldErrors.email}>
                   <input
                     type="email"
                     value={editor.linkedPersonDraft.email}
                     onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, email: e.target.value }))}
                   />
                 </Field>
-                <Field label="Telefon">
+                <Field label="Telefon" error={editor.linkedPersonFieldErrors.phone}>
                   <input
                     value={editor.linkedPersonDraft.phone}
                     onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, phone: e.target.value }))}
@@ -397,7 +397,7 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
                     onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, publish_email: e.target.checked }))}
                   />
                   <div>
-                    <strong>Publiser e-post</strong>
+                    <strong>Gjør e-post offentlig</strong>
                     <p>Brukes hvis e-post legges inn nå.</p>
                   </div>
                 </label>
@@ -408,7 +408,7 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
                     onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, publish_phone: e.target.checked }))}
                   />
                   <div>
-                    <strong>Publiser telefon</strong>
+                    <strong>Gjør telefon offentlig</strong>
                     <p>Brukes hvis telefon legges inn nå.</p>
                   </div>
                 </label>

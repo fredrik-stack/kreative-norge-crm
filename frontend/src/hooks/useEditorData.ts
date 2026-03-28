@@ -81,6 +81,7 @@ type PersonFieldErrors = Partial<
   >
 >;
 type ContactFieldErrors = Partial<Record<"value", string>>;
+type LinkedPersonFieldErrors = Partial<Record<"full_name" | "email" | "phone", string>>;
 
 const emptyDraft: OrganizationPatch = {
   name: "",
@@ -165,6 +166,7 @@ export function useEditorData() {
   const [organizationFieldErrors, setOrganizationFieldErrors] = useState<FormFieldErrors>({});
   const [personFieldErrors, setPersonFieldErrors] = useState<PersonFieldErrors>({});
   const [contactFieldErrors, setContactFieldErrors] = useState<ContactFieldErrors>({});
+  const [linkedPersonFieldErrors, setLinkedPersonFieldErrors] = useState<LinkedPersonFieldErrors>({});
   const [organizationLastSavedAt, setOrganizationLastSavedAt] = useState<string | null>(null);
   const [personLastSavedAt, setPersonLastSavedAt] = useState<string | null>(null);
   const [previewRefreshState, setPreviewRefreshState] = useState<SaveState>("idle");
@@ -278,8 +280,8 @@ export function useEditorData() {
       tiktok_url: selectedOrganization.tiktok_url ?? "",
       linkedin_url: selectedOrganization.linkedin_url ?? "",
       youtube_url: selectedOrganization.youtube_url ?? "",
-      tag_ids: selectedOrganization.tags.map((tag) => tag.id),
-      subcategory_ids: selectedOrganization.subcategories.map((item) => item.id),
+      tag_ids: (selectedOrganization.tags ?? []).map((tag) => tag.id),
+      subcategory_ids: (selectedOrganization.subcategories ?? []).map((item) => item.id),
     });
     setSaveState("idle");
     setOrganizationFieldErrors({});
@@ -310,8 +312,8 @@ export function useEditorData() {
       linkedin_url: selectedPerson.linkedin_url ?? "",
       facebook_url: selectedPerson.facebook_url ?? "",
       youtube_url: selectedPerson.youtube_url ?? "",
-      tag_ids: selectedPerson.tags.map((tag) => tag.id),
-      subcategory_ids: selectedPerson.subcategories.map((item) => item.id),
+      tag_ids: (selectedPerson.tags ?? []).map((tag) => tag.id),
+      subcategory_ids: (selectedPerson.subcategories ?? []).map((item) => item.id),
     });
     setContactDraft(emptyContactDraft);
     setPersonContacts(selectedPerson.contacts ?? []);
@@ -423,8 +425,8 @@ export function useEditorData() {
               tiktok_url: selectedOrganization.tiktok_url ?? "",
               linkedin_url: selectedOrganization.linkedin_url ?? "",
               youtube_url: selectedOrganization.youtube_url ?? "",
-              tag_ids: selectedOrganization.tags.map((tag) => tag.id),
-              subcategory_ids: selectedOrganization.subcategories.map((item) => item.id),
+              tag_ids: (selectedOrganization.tags ?? []).map((tag) => tag.id),
+              subcategory_ids: (selectedOrganization.subcategories ?? []).map((item) => item.id),
             }
           : emptyDraft;
     return !isEqualShallowOrganizationDraft(normalizeDraft(draft), normalizeDraft(baseline));
@@ -447,8 +449,8 @@ export function useEditorData() {
               linkedin_url: selectedPerson.linkedin_url ?? "",
               facebook_url: selectedPerson.facebook_url ?? "",
               youtube_url: selectedPerson.youtube_url ?? "",
-              tag_ids: selectedPerson.tags.map((tag) => tag.id),
-              subcategory_ids: selectedPerson.subcategories.map((item) => item.id),
+              tag_ids: (selectedPerson.tags ?? []).map((tag) => tag.id),
+              subcategory_ids: (selectedPerson.subcategories ?? []).map((item) => item.id),
             }
           : emptyPersonDraft;
     const personDirty = !isEqualShallowPersonDraft(normalizePersonDraft(personDraft), normalizePersonDraft(baseline));
@@ -476,8 +478,8 @@ export function useEditorData() {
               linkedin_url: selectedPerson.linkedin_url ?? "",
               facebook_url: selectedPerson.facebook_url ?? "",
               youtube_url: selectedPerson.youtube_url ?? "",
-              tag_ids: selectedPerson.tags.map((tag) => tag.id),
-              subcategory_ids: selectedPerson.subcategories.map((item) => item.id),
+              tag_ids: (selectedPerson.tags ?? []).map((tag) => tag.id),
+              subcategory_ids: (selectedPerson.subcategories ?? []).map((item) => item.id),
             }
           : emptyPersonDraft;
     return !isEqualShallowPersonDraft(normalizePersonDraft(personDraft), normalizePersonDraft(baseline));
@@ -538,6 +540,7 @@ export function useEditorData() {
     setOrganizationFieldErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
       setSaveState("error");
+      setError("Rett feltene markert i rødt før du lagrer aktøren.");
       return false;
     }
     setSaveState("saving");
@@ -616,13 +619,15 @@ export function useEditorData() {
     event.preventDefault();
     if (!tenantId || typeof selectedOrgId !== "number") return;
 
-    const fullName = linkedPersonDraft.full_name.trim();
-    if (!fullName) {
-      setError("Kontaktpersonen må ha navn.");
+    const nextErrors = validateLinkedPersonDraft(linkedPersonDraft);
+    setLinkedPersonFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
       setLinkedPersonSaveState("error");
+      setError("Rett feltene markert i rødt før du oppretter kontaktpersonen.");
       return;
     }
 
+    const fullName = linkedPersonDraft.full_name.trim();
     setLinkedPersonSaveState("saving");
     setError(null);
 
@@ -666,9 +671,16 @@ export function useEditorData() {
 
       await reloadPeopleAndLinks();
       setLinkedPersonDraft(emptyLinkedPersonDraft);
+      setLinkedPersonFieldErrors({});
       setLinkedPersonSaveState("saved");
       setSelectedPersonId(createdPerson.id);
     } catch (err) {
+      if (err instanceof ApiError && err.status === 400) {
+        setLinkedPersonFieldErrors((current) => ({
+          ...current,
+          ...pickFieldErrors(err.data, ["full_name", "email", "phone"]),
+        }));
+      }
       setLinkedPersonSaveState("error");
       setError(apiErrorMessage(err, "Kunne ikke opprette og knytte kontaktperson"));
     }
@@ -680,6 +692,7 @@ export function useEditorData() {
     setPersonFieldErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
       setPersonSaveState("error");
+      setError("Rett feltene markert i rødt før du lagrer personen.");
       return false;
     }
     setPersonSaveState("saving");
@@ -742,7 +755,10 @@ export function useEditorData() {
     if (!tenantId || typeof selectedPersonId !== "number") return false;
     const nextErrors = validateContactDraft(contactDraft);
     setContactFieldErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return false;
+    if (Object.keys(nextErrors).length > 0) {
+      setError("Rett feltet markert i rødt før du lagrer kontaktkanalen.");
+      return false;
+    }
     try {
       setError(null);
       const created = await createPersonContact(tenantId, {
@@ -880,8 +896,8 @@ export function useEditorData() {
       tiktok_url: selectedOrganization.tiktok_url ?? "",
       linkedin_url: selectedOrganization.linkedin_url ?? "",
       youtube_url: selectedOrganization.youtube_url ?? "",
-      tag_ids: selectedOrganization.tags.map((tag) => tag.id),
-      subcategory_ids: selectedOrganization.subcategories.map((item) => item.id),
+      tag_ids: (selectedOrganization.tags ?? []).map((tag) => tag.id),
+      subcategory_ids: (selectedOrganization.subcategories ?? []).map((item) => item.id),
     });
     setSaveState("idle");
     setOrganizationFieldErrors({});
@@ -906,8 +922,8 @@ export function useEditorData() {
       linkedin_url: selectedPerson.linkedin_url ?? "",
       facebook_url: selectedPerson.facebook_url ?? "",
       youtube_url: selectedPerson.youtube_url ?? "",
-      tag_ids: selectedPerson.tags.map((tag) => tag.id),
-      subcategory_ids: selectedPerson.subcategories.map((item) => item.id),
+      tag_ids: (selectedPerson.tags ?? []).map((tag) => tag.id),
+      subcategory_ids: (selectedPerson.subcategories ?? []).map((item) => item.id),
     });
     setPersonSaveState("idle");
     setPersonFieldErrors({});
@@ -975,6 +991,7 @@ export function useEditorData() {
     linkedPersonDraft,
     setLinkedPersonDraft,
     linkedPersonSaveState,
+    linkedPersonFieldErrors,
     organizationFieldErrors,
     personFieldErrors,
     contactFieldErrors,
@@ -1107,6 +1124,25 @@ function validateContactDraft(draft: ContactDraft): ContactFieldErrors {
   if (draft.type === "PHONE" && !isLikelyValidPhone(value)) {
     errors.value = "Ugyldig telefonnummer.";
   }
+  return errors;
+}
+
+function validateLinkedPersonDraft(draft: LinkedPersonDraft): LinkedPersonFieldErrors {
+  const errors: LinkedPersonFieldErrors = {};
+  const fullName = draft.full_name.trim();
+  const email = draft.email.trim();
+  const phone = draft.phone.trim();
+
+  if (!fullName) {
+    errors.full_name = "Navn er påkrevd.";
+  }
+  if (email && !isValidEmail(email)) {
+    errors.email = "Ugyldig e-postadresse.";
+  }
+  if (phone && !isLikelyValidPhone(phone)) {
+    errors.phone = "Ugyldig telefonnummer.";
+  }
+
   return errors;
 }
 
