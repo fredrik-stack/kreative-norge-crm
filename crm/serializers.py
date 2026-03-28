@@ -126,7 +126,13 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "updated_at",
             "active_people",
         ]
-        read_only_fields = ["og_title", "og_description", "og_image_url", "og_last_fetched_at"]
+        read_only_fields = [
+            "tenant",
+            "og_title",
+            "og_description",
+            "og_image_url",
+            "og_last_fetched_at",
+        ]
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -295,6 +301,7 @@ class PersonSerializer(serializers.ModelSerializer):
             "updated_at",
             "contacts",
         ]
+        read_only_fields = ["tenant"]
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

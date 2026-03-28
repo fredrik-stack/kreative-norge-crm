@@ -424,6 +424,45 @@ class OrganizationPreviewRefreshTests(AuthenticatedAPITestCase):
         )
 
 
+class TenantScopedCreateTests(AuthenticatedAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.tenant = Tenant.objects.create(name="Scoped Tenant", slug="scoped-tenant")
+
+    def test_can_create_organization_without_tenant_in_payload(self):
+        response = self.client.post(
+            f"/api/tenants/{self.tenant.id}/organizations/",
+            {
+                "name": "Ny organisasjon",
+                "org_number": "123456789",
+                "municipalities": "Oslo",
+                "tag_ids": [],
+                "subcategory_ids": [],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        created = Organization.objects.get(id=response.json()["id"])
+        self.assertEqual(created.tenant_id, self.tenant.id)
+
+    def test_can_create_person_without_tenant_in_payload(self):
+        response = self.client.post(
+            f"/api/tenants/{self.tenant.id}/persons/",
+            {
+                "full_name": "Ny kontaktperson",
+                "municipality": "Oslo",
+                "tag_ids": [],
+                "subcategory_ids": [],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        created = Person.objects.get(id=response.json()["id"])
+        self.assertEqual(created.tenant_id, self.tenant.id)
+
+
 @override_settings(SECURE_SSL_REDIRECT=False)
 class PublicActorSiteTests(TestCase):
     def setUp(self):
