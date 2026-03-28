@@ -1210,6 +1210,13 @@ function extractApiBannerMessage(data: unknown): string | null {
   const nonField = normalizeBackendFieldMessage(source.non_field_errors);
   if (nonField) return nonField;
 
+  for (const [field, value] of Object.entries(source)) {
+    const message = normalizeBackendFieldMessage(value);
+    if (message) {
+      return `${field}: ${message}`;
+    }
+  }
+
   return null;
 }
 
