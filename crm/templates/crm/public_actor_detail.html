@@ -79,6 +79,27 @@
       font-size: 16px;
       letter-spacing: .02em;
     }
+    .section-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+    .section-head p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      max-width: 44ch;
+    }
+    .section-count {
+      white-space: nowrap;
+      border-radius: 999px;
+      padding: 7px 11px;
+      background: rgba(31, 41, 55, 0.06);
+      color: var(--muted);
+      font-size: 12px;
+    }
     .link-stack, .people-list { display: grid; gap: 10px; }
     .link-stack a {
       display: inline-flex;
@@ -101,33 +122,113 @@
       padding: 22px;
       box-shadow: 0 10px 26px rgba(40, 32, 24, 0.08);
     }
-    .person-card {
-      padding: 14px 16px;
-      border-radius: 18px;
-      background: rgba(31,41,55,0.04);
-      border: 1px solid rgba(31,41,55,0.08);
+    .people-list {
+      gap: 14px;
     }
-    .person-card strong { display: block; margin-bottom: 4px; }
-    .person-card p { margin: 0 0 6px; color: var(--muted); }
-    .contacts { display: flex; flex-wrap: wrap; gap: 8px; }
+    .person-card {
+      padding: 18px;
+      border-radius: 22px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.76)),
+        rgba(31,41,55,0.03);
+      border: 1px solid rgba(31,41,55,0.08);
+      display: grid;
+      gap: 14px;
+    }
+    .person-top {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 14px;
+      align-items: center;
+    }
+    .person-avatar {
+      width: 46px;
+      height: 46px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(184, 92, 56, 0.18), rgba(31, 41, 55, 0.1));
+      color: #8c3d1d;
+      display: grid;
+      place-items: center;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .person-title strong {
+      display: block;
+      margin-bottom: 2px;
+      font-size: 18px;
+    }
+    .person-title p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .person-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .person-meta span {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(31, 41, 55, 0.05);
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .contacts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
     .contact-pill {
       display: inline-flex;
       align-items: center;
-      padding: 6px 10px;
+      justify-content: center;
+      min-height: 42px;
+      padding: 10px 14px;
       border-radius: 999px;
-      font-size: 12px;
+      font-size: 13px;
+      font-weight: 600;
       background: rgba(184, 92, 56, 0.1);
       color: #8c3d1d;
       text-decoration: none;
       border: 1px solid rgba(184, 92, 56, 0.16);
+      transition: background .18s ease, transform .18s ease, border-color .18s ease;
     }
     .contact-pill:hover {
       background: rgba(184, 92, 56, 0.18);
+      border-color: rgba(184, 92, 56, 0.28);
+      transform: translateY(-1px);
+    }
+    .contact-pill.secondary {
+      background: rgba(31, 41, 55, 0.05);
+      border-color: rgba(31, 41, 55, 0.1);
+      color: var(--ink);
+    }
+    .contact-pill.secondary:hover {
+      background: rgba(31, 41, 55, 0.1);
+      border-color: rgba(31, 41, 55, 0.16);
+    }
+    .person-empty {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      padding: 2px 0 0;
     }
     @media (max-width: 860px) {
       .hero-content, .section-grid { grid-template-columns: 1fr; }
       .hero { height: 240px; }
       main { padding: 18px 14px 40px; }
+      .section-head {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .person-top {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -189,13 +290,28 @@
       </div>
 
       <div class="section">
-        <h2>Kontaktpersoner</h2>
+        <div class="section-head">
+          <div>
+            <h2>Kontaktpersoner</h2>
+            <p>Direkte kontaktpunkter som er publisert fra editoren. Bare kontaktmåter som er eksplisitt gjort offentlige vises her.</p>
+          </div>
+          <span class="section-count">{{ actor.org_people.all|length }} registrert</span>
+        </div>
         <div class="people-list">
           {% for link in actor.org_people.all %}
             {% if link.status == "ACTIVE" and link.publish_person %}
               <article class="person-card">
-                <strong>{{ link.person.full_name }}</strong>
-                <p>{{ link.person.municipality|default:"Ingen kommune registrert" }}</p>
+                <div class="person-top">
+                  <div class="person-avatar">{{ link.person.full_name|slice:":2"|upper }}</div>
+                  <div class="person-title">
+                    <strong>{{ link.person.full_name }}</strong>
+                    <p>Kontaktperson for {{ actor.name }}</p>
+                  </div>
+                </div>
+                <div class="person-meta">
+                  <span>{{ link.person.municipality|default:"Ingen kommune registrert" }}</span>
+                  <span>{{ link.get_status_display|default:link.status }}</span>
+                </div>
                 {% with public_emails=link.person.get_public_emails public_phones=link.person.get_public_phones %}
                   {% if public_emails or public_phones %}
                     <div class="contacts">
@@ -203,9 +319,11 @@
                         <a class="contact-pill" href="mailto:{{ value }}">EMAIL · {{ value }}</a>
                       {% endfor %}
                       {% for value in public_phones %}
-                        <a class="contact-pill" href="tel:{{ value }}">PHONE · {{ value }}</a>
+                        <a class="contact-pill secondary" href="tel:{{ value }}">PHONE · {{ value }}</a>
                       {% endfor %}
                     </div>
+                  {% else %}
+                    <p class="person-empty">Ingen offentlige kontaktmåter er publisert ennå.</p>
                   {% endif %}
                 {% endwith %}
               </article>
