@@ -25,5 +25,7 @@ test("shows backend validation error when creating person contact", async ({ pag
   await page.locator(".contact-create input[placeholder*='verdi']").fill("dupe@example.com");
   await page.getByRole("button", { name: "Legg til kontakt" }).click();
 
-  await expect(page.getByText("Denne kontaktverdien er allerede i bruk for valgt person.")).toBeVisible();
+  await expect(page.locator(".field-error.inline")).toHaveText(
+    "Denne kontaktverdien er allerede i bruk for valgt person.",
+  );
 });

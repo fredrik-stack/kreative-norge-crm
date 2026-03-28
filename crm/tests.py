@@ -520,13 +520,13 @@ class PublicActorSiteTests(TestCase):
         self.assertContains(response, "Musikk")
         self.assertContains(response, "Jazz")
 
-    def test_public_actor_detail_falls_back_to_person_email_and_phone(self):
+    def test_public_actor_detail_falls_back_to_person_email_but_not_phone(self):
         response = self.client.get(f"/public/actors/{self.organization.org_number}/")
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Ada Artist")
         self.assertContains(response, "EMAIL · ada@example.com")
-        self.assertContains(response, "PHONE · +4712345678")
+        self.assertNotContains(response, "PHONE · +4712345678")
 
 
 class OrganizationPersonViewSetValidationTests(AuthenticatedAPITestCase):
