@@ -109,6 +109,35 @@
     }
     .card:hover { transform: translateY(-4px); box-shadow: 0 22px 52px rgba(36, 33, 28, 0.16); }
     .thumb { width: 100%; height: 196px; object-fit: cover; background: #e5dfd6; }
+    .thumb-fallback {
+      height: 196px;
+      display: grid;
+      align-content: end;
+      padding: 16px;
+      background:
+        linear-gradient(180deg, rgba(22, 28, 36, 0.02), rgba(22, 28, 36, 0.42)),
+        radial-gradient(circle at top left, rgba(173, 91, 59, 0.22), transparent 34%),
+        linear-gradient(135deg, #ddd5ca 0%, #cfc6bb 48%, #e7e1d9 100%);
+      color: white;
+    }
+    .thumb-fallback span {
+      display: inline-flex;
+      width: fit-content;
+      margin-bottom: 8px;
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.14);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+    .thumb-fallback strong {
+      font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+      font-size: 1.2rem;
+      line-height: 0.98;
+      letter-spacing: -0.02em;
+      max-width: 10ch;
+    }
     .body { display: grid; gap: 10px; padding: 16px; }
     .card h2 {
       margin: 0;
@@ -147,7 +176,7 @@
       main { padding: 18px 14px 44px; }
       .hero { padding: 20px; border-radius: 20px; }
       .card { border-radius: 18px; }
-      .thumb { height: 170px; }
+      .thumb, .thumb-fallback { height: 170px; }
     }
   </style>
 </head>
@@ -191,10 +220,13 @@
     <div class="grid">
       {% for actor in actors %}
         <a class="card" href="/public/actors/{{ actor.org_number }}/">
-          {% if actor.get_preview_image_url %}
-            <img class="thumb" src="{{ actor.get_preview_image_url }}" alt="{{ actor.name }}" loading="lazy" />
+          {% if actor.og_image_url %}
+            <img class="thumb" src="{{ actor.og_image_url }}" alt="{{ actor.name }}" loading="lazy" />
           {% else %}
-            <div class="thumb"></div>
+            <div class="thumb-fallback">
+              <span>Kreative Norge</span>
+              <strong>{{ actor.name }}</strong>
+            </div>
           {% endif %}
           <div class="body">
             <h2>{{ actor.name }}</h2>

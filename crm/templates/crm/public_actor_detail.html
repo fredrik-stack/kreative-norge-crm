@@ -41,6 +41,35 @@
       margin-bottom: 20px;
     }
     .hero { width: 100%; height: 430px; object-fit: cover; background: #e7e1d9; display: block; }
+    .hero-fallback {
+      height: 430px;
+      display: grid;
+      align-content: end;
+      padding: 24px;
+      background:
+        linear-gradient(180deg, rgba(22, 28, 36, 0.02), rgba(22, 28, 36, 0.5)),
+        radial-gradient(circle at top left, rgba(173, 91, 59, 0.3), transparent 34%),
+        linear-gradient(135deg, #ddd5ca 0%, #cfc6bb 48%, #e7e1d9 100%);
+      color: white;
+    }
+    .hero-fallback span {
+      display: inline-flex;
+      width: fit-content;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.14);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .hero-fallback strong {
+      font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+      font-size: clamp(1.7rem, 3vw, 2.7rem);
+      line-height: 0.96;
+      letter-spacing: -0.03em;
+      max-width: 10ch;
+    }
     .hero-content {
       display: grid;
       grid-template-columns: 1.3fr .9fr;
@@ -203,7 +232,7 @@
     }
     @media (max-width: 860px) {
       .hero-content, .section-grid { grid-template-columns: 1fr; }
-      .hero { height: 260px; }
+      .hero, .hero-fallback { height: 260px; }
       main { padding: 18px 14px 40px; }
       .section-head {
         flex-direction: column;
@@ -216,10 +245,13 @@
   <main>
     <a class="back-link" href="/public/actors/">← Tilbake til aktører</a>
     <section class="hero-shell">
-      {% if actor.get_preview_image_url %}
-        <img class="hero" src="{{ actor.get_preview_image_url }}" alt="{{ actor.name }}" />
+      {% if actor.og_image_url %}
+        <img class="hero" src="{{ actor.og_image_url }}" alt="{{ actor.name }}" />
       {% else %}
-        <div class="hero"></div>
+        <div class="hero-fallback">
+          <span>Kreative Norge</span>
+          <strong>{{ actor.name }}</strong>
+        </div>
       {% endif %}
       <div class="hero-content">
         <div>
