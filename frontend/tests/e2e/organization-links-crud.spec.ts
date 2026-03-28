@@ -35,7 +35,7 @@ test("create, update and remove organization-person link", async ({ page }) => {
   await loginAsEditor(page);
 
   await expect(page.getByRole("heading", { name: "Personkoblinger" })).toBeVisible();
-  await page.getByRole("button", { name: "Knytt person" }).click();
+  await page.getByRole("button", { name: "Knytt eksisterende person" }).click();
 
   const row = page.locator(".link-row").filter({ hasText: "Ada Editor" }).first();
   await expect(row).toBeVisible();

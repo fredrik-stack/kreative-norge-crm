@@ -18,6 +18,30 @@ class TenantSerializer(serializers.ModelSerializer):
 
 
 class TagSerializer(serializers.ModelSerializer):
+    def validate_name(self, value):
+        tenant_id = self._get_effective_tenant_id()
+        normalized = value.strip()
+        if tenant_id is not None:
+          qs = Tag.objects.filter(tenant_id=tenant_id, name=normalized)
+          if self.instance is not None:
+              qs = qs.exclude(pk=self.instance.pk)
+          if qs.exists():
+              raise serializers.ValidationError("Tag with this name already exists for this tenant.")
+        return normalized
+
+    def _get_effective_tenant_id(self):
+        if self.instance is not None:
+            return self.instance.tenant_id
+        tenant = self.initial_data.get("tenant") if hasattr(self, "initial_data") else None
+        if tenant:
+            return int(tenant)
+        view = self.context.get("view")
+        if view is not None:
+            tenant_id = view.kwargs.get("tenant_id")
+            if tenant_id is not None:
+                return int(tenant_id)
+        return None
+
     class Meta:
         model = Tag
         fields = ["id", "tenant", "name", "slug", "created_at"]

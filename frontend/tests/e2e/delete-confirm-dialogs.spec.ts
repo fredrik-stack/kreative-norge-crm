@@ -109,7 +109,7 @@ test("shows confirm dialogs for deleting link, contact and person", async ({ pag
   await expect(page.getByText("Ada Editor")).toBeVisible();
 
   await page.getByRole("link", { name: /Personer/ }).click();
-  await expect(page.getByRole("heading", { name: "Personkontakter" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Kontaktkanaler for valgt person" })).toBeVisible();
   await expect(page.getByText("EMAIL · ada@example.com")).toBeVisible();
   await expect(page.locator(".loading-state.compact")).toHaveCount(0);
 
