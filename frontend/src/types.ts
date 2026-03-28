@@ -97,6 +97,7 @@ export type Organization = {
   phone: string | null;
   municipalities: string;
   note: string | null;
+  description: string | null;
   is_published: boolean;
   publish_phone: boolean;
   website_url: string | null;

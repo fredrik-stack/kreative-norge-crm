@@ -108,6 +108,7 @@ class Organization(models.Model):
     )
 
     note = models.TextField(null=True, blank=True)
+    description = models.TextField(null=True, blank=True)
 
     is_published = models.BooleanField(default=False)
     publish_phone = models.BooleanField(default=False)

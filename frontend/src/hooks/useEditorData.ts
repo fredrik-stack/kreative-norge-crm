@@ -90,6 +90,7 @@ const emptyDraft: OrganizationPatch = {
   phone: "",
   municipalities: "",
   note: "",
+  description: "",
   is_published: false,
   publish_phone: false,
   website_url: "",
@@ -272,6 +273,7 @@ export function useEditorData() {
       phone: selectedOrganization.phone ?? "",
       municipalities: selectedOrganization.municipalities ?? "",
       note: selectedOrganization.note ?? "",
+      description: selectedOrganization.description ?? "",
       is_published: selectedOrganization.is_published,
       publish_phone: selectedOrganization.publish_phone,
       website_url: selectedOrganization.website_url ?? "",
@@ -417,6 +419,7 @@ export function useEditorData() {
               phone: selectedOrganization.phone ?? "",
               municipalities: selectedOrganization.municipalities ?? "",
               note: selectedOrganization.note ?? "",
+              description: selectedOrganization.description ?? "",
               is_published: selectedOrganization.is_published,
               publish_phone: selectedOrganization.publish_phone,
               website_url: selectedOrganization.website_url ?? "",
@@ -888,6 +891,7 @@ export function useEditorData() {
       phone: selectedOrganization.phone ?? "",
       municipalities: selectedOrganization.municipalities ?? "",
       note: selectedOrganization.note ?? "",
+      description: selectedOrganization.description ?? "",
       is_published: selectedOrganization.is_published,
       publish_phone: selectedOrganization.publish_phone,
       website_url: selectedOrganization.website_url ?? "",
@@ -1229,6 +1233,7 @@ function normalizeDraft(draft: OrganizationPatch): OrganizationPatch {
     phone: nullableString(draft.phone),
     municipalities: draft.municipalities.trim(),
     note: nullableString(draft.note),
+    description: nullableString(draft.description),
     website_url: nullableString(draft.website_url),
     facebook_url: nullableString(draft.facebook_url),
     instagram_url: nullableString(draft.instagram_url),
@@ -1276,6 +1281,7 @@ function isEqualShallowOrganizationDraft(a: OrganizationPatch, b: OrganizationPa
     a.phone === b.phone &&
     a.municipalities === b.municipalities &&
     a.note === b.note &&
+    a.description === b.description &&
     a.is_published === b.is_published &&
     a.publish_phone === b.publish_phone &&
     a.website_url === b.website_url &&

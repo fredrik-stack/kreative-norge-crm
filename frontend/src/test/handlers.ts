@@ -69,6 +69,7 @@ export function resetMockEditorData() {
         phone: "+4712345678",
         municipalities: "Oslo",
         note: null,
+        description: "Demoaktør brukt i testoppsettet.",
         is_published: true,
         publish_phone: true,
         website_url: "https://example.com",

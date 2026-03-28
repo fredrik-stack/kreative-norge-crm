@@ -194,10 +194,23 @@ function OrganizationEditorPanel(props: {
 
             <Field label="Notat">
               <textarea
-                rows={4}
+                rows={3}
                 value={editor.draft.note ?? ""}
                 onChange={(e) => editor.setDraft((s) => ({ ...s, note: e.target.value }))}
+                placeholder="Interne kommentarer, status eller ting som ikke skal vises offentlig."
               />
+            </Field>
+
+            <Field label="Beskrivelse">
+              <textarea
+                rows={5}
+                value={editor.draft.description ?? ""}
+                onChange={(e) => editor.setDraft((s) => ({ ...s, description: e.target.value }))}
+                placeholder="Denne teksten vises offentlig under Profil på aktørsiden."
+              />
+              <p className="muted" style={{ margin: "6px 0 0" }}>
+                Dette feltet brukes i public-visningen under Profil-seksjonen.
+              </p>
             </Field>
 
             <SelectionChecklist
@@ -614,6 +627,10 @@ function OrganizationPreviewPanel({ invalidOrgRoute }: { invalidOrgRoute: boolea
               <div>
                 <dt>Kommune(r)</dt>
                 <dd>{editor.draft.municipalities || "Ikke satt"}</dd>
+              </div>
+              <div>
+                <dt>Beskrivelse (public)</dt>
+                <dd>{editor.draft.description || "Ikke satt"}</dd>
               </div>
               <div>
                 <dt>E-post</dt>

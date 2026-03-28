@@ -204,6 +204,7 @@ export type OrganizationPatch = Pick<
   | "phone"
   | "municipalities"
   | "note"
+  | "description"
   | "is_published"
   | "publish_phone"
   | "website_url"

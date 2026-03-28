@@ -23,6 +23,7 @@ type Organization = {
   phone: string | null;
   municipalities: string;
   note: string | null;
+  description: string | null;
   is_published: boolean;
   publish_phone: boolean;
    website_url: string | null;
@@ -122,6 +123,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         phone: "+4712345678",
         municipalities: "Oslo",
         note: null,
+        description: "Demoaktør brukt i testoppsettet.",
         is_published: true,
         publish_phone: true,
         website_url: "https://example.com",
@@ -256,6 +258,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         phone: payload.phone ?? null,
         municipalities: payload.municipalities ?? "",
         note: payload.note ?? null,
+        description: payload.description ?? null,
         is_published: Boolean(payload.is_published),
         publish_phone: Boolean(payload.publish_phone),
         website_url: payload.website_url ?? null,
@@ -327,6 +330,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
           : payload.youtube_url ? "youtube_url"
           : current.primary_link_field,
         preview_image_url: current.preview_image_url,
+        description: payload.description ?? current.description,
         tags: state.tags.filter((tag) => (payload as { tag_ids?: number[] }).tag_ids?.includes(tag.id) ?? current.tags.some((item) => item.id === tag.id)),
         subcategories: state.subcategories.filter((item) =>
           (payload as { subcategory_ids?: number[] }).subcategory_ids?.includes(item.id) ?? current.subcategories.some((existing) => existing.id === item.id),
