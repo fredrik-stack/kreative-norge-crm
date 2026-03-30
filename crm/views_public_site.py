@@ -1,6 +1,6 @@
 from django.views.generic import DetailView, ListView
 
-from .models import Category, Organization, Tag
+from .models import Category, Organization, Subcategory, Tag
 
 
 class PublicActorListView(ListView):
@@ -17,6 +17,7 @@ class PublicActorListView(ListView):
         query = (self.request.GET.get("q") or "").strip()
         tag_slug = (self.request.GET.get("tag") or "").strip()
         category_slug = (self.request.GET.get("category") or "").strip()
+        subcategory_slug = (self.request.GET.get("subcategory") or "").strip()
 
         if query:
             qs = qs.filter(name__icontains=query)
@@ -24,6 +25,8 @@ class PublicActorListView(ListView):
             qs = qs.filter(tags__slug=tag_slug)
         if category_slug:
             qs = qs.filter(subcategories__category__slug=category_slug)
+        if subcategory_slug:
+            qs = qs.filter(subcategories__slug=subcategory_slug)
 
         return qs.distinct()
 
@@ -32,12 +35,16 @@ class PublicActorListView(ListView):
         context["query"] = (self.request.GET.get("q") or "").strip()
         context["selected_tag"] = (self.request.GET.get("tag") or "").strip()
         context["selected_category"] = (self.request.GET.get("category") or "").strip()
+        context["selected_subcategory"] = (self.request.GET.get("subcategory") or "").strip()
         context["available_tags"] = Tag.objects.filter(
             organizations__is_published=True
         ).distinct().order_by("name")
         context["available_categories"] = Category.objects.filter(
             subcategories__organizations__is_published=True
         ).distinct().order_by("name")
+        context["available_subcategories"] = Subcategory.objects.filter(
+            organizations__is_published=True
+        ).select_related("category").distinct().order_by("category__name", "name")
         return context
 
 
