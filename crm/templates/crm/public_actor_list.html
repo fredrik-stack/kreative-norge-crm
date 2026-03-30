@@ -186,6 +186,16 @@
       margin-top: 2px;
     }
 
+    .filter-empty {
+      margin: 0;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.42);
+      border: 1px dashed rgba(79, 51, 44, 0.12);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
     .tag-chip {
       display: inline-flex;
       align-items: center;
@@ -206,7 +216,8 @@
 
     .results {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(302px, 302px));
+      justify-content: space-between;
       gap: 12px;
       margin-top: 18px;
     }
@@ -337,18 +348,6 @@
       color: var(--muted);
     }
 
-    @media (max-width: 1120px) {
-      .results {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
-    }
-
-    @media (max-width: 860px) {
-      .results {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-
     @media (max-width: 640px) {
       main {
         padding: 14px 12px 32px;
@@ -377,6 +376,7 @@
 
       .results {
         grid-template-columns: 1fr;
+        justify-content: stretch;
       }
     }
 
@@ -403,7 +403,7 @@
         </div>
       </form>
 
-      {% if available_categories %}
+      {% if available_categories or available_subcategories %}
         <div class="carousel" aria-label="Hovedkategorier">
           <a class="filter-pill all {% if not selected_category and not selected_subcategory %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if selected_tag %}tag={{ selected_tag|urlencode }}{% endif %}">Alle</a>
           {% for category in available_categories %}
@@ -413,6 +413,8 @@
             <a class="filter-pill subcategory {% if selected_subcategory == subcategory.slug %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}subcategory={{ subcategory.slug|urlencode }}{% if selected_tag %}&tag={{ selected_tag|urlencode }}{% endif %}">{{ subcategory.name }}</a>
           {% endfor %}
         </div>
+      {% else %}
+        <p class="filter-empty">Kategorier og underkategorier vises her når de er lagt inn i editoren.</p>
       {% endif %}
 
       {% if available_tags %}
@@ -422,6 +424,8 @@
             <a class="tag-chip {% if selected_tag == tag.slug %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}tag={{ tag.slug|urlencode }}{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}{% if selected_subcategory %}&subcategory={{ selected_subcategory|urlencode }}{% endif %}">{{ tag.name }}</a>
           {% endfor %}
         </div>
+      {% else %}
+        <p class="filter-empty">Tags vises her når de er lagt inn i editoren.</p>
       {% endif %}
     </section>
 
