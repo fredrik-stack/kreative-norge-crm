@@ -81,6 +81,8 @@ export function resetMockEditorData() {
         og_title: "Kreativ Demo AS",
         og_description: null,
         og_image_url: null,
+        thumbnail_image_url: null,
+        auto_thumbnail_url: null,
         og_last_fetched_at: null,
         primary_link: "https://example.com",
         primary_link_field: "website_url",
@@ -181,6 +183,8 @@ export const handlers = [
       og_title: `${current.name} preview`,
       og_description: "Open Graph metadata hentet fra primærlenke.",
       og_image_url: current.preview_image_url ?? current.og_image_url,
+      thumbnail_image_url: current.thumbnail_image_url,
+      auto_thumbnail_url: current.auto_thumbnail_url ?? current.preview_image_url ?? current.og_image_url,
       og_last_fetched_at: "2026-01-02T00:00:00Z",
     };
     organizationsByTenantState[tenantId] = list.map((item) => (item.id === organizationId ? updated : item));

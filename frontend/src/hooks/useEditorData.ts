@@ -63,7 +63,8 @@ type FormFieldErrors = Partial<
     | "instagram_url"
     | "tiktok_url"
     | "linkedin_url"
-    | "youtube_url",
+    | "youtube_url"
+    | "thumbnail_image_url",
     string
   >
 >;
@@ -99,6 +100,7 @@ const emptyDraft: OrganizationPatch = {
   tiktok_url: "",
   linkedin_url: "",
   youtube_url: "",
+  thumbnail_image_url: "",
   tag_ids: [],
   subcategory_ids: [],
 };
@@ -282,6 +284,7 @@ export function useEditorData() {
       tiktok_url: selectedOrganization.tiktok_url ?? "",
       linkedin_url: selectedOrganization.linkedin_url ?? "",
       youtube_url: selectedOrganization.youtube_url ?? "",
+      thumbnail_image_url: selectedOrganization.thumbnail_image_url ?? "",
       tag_ids: (selectedOrganization.tags ?? []).map((tag) => tag.id),
       subcategory_ids: (selectedOrganization.subcategories ?? []).map((item) => item.id),
     });
@@ -428,6 +431,7 @@ export function useEditorData() {
               tiktok_url: selectedOrganization.tiktok_url ?? "",
               linkedin_url: selectedOrganization.linkedin_url ?? "",
               youtube_url: selectedOrganization.youtube_url ?? "",
+              thumbnail_image_url: selectedOrganization.thumbnail_image_url ?? "",
               tag_ids: (selectedOrganization.tags ?? []).map((tag) => tag.id),
               subcategory_ids: (selectedOrganization.subcategories ?? []).map((item) => item.id),
             }
@@ -573,6 +577,7 @@ export function useEditorData() {
             "tiktok_url",
             "linkedin_url",
             "youtube_url",
+            "thumbnail_image_url",
           ]),
         }));
       }
@@ -900,6 +905,7 @@ export function useEditorData() {
       tiktok_url: selectedOrganization.tiktok_url ?? "",
       linkedin_url: selectedOrganization.linkedin_url ?? "",
       youtube_url: selectedOrganization.youtube_url ?? "",
+      thumbnail_image_url: selectedOrganization.thumbnail_image_url ?? "",
       tag_ids: (selectedOrganization.tags ?? []).map((tag) => tag.id),
       subcategory_ids: (selectedOrganization.subcategories ?? []).map((item) => item.id),
     });
@@ -1240,6 +1246,7 @@ function normalizeDraft(draft: OrganizationPatch): OrganizationPatch {
     tiktok_url: nullableString(draft.tiktok_url),
     linkedin_url: nullableString(draft.linkedin_url),
     youtube_url: nullableString(draft.youtube_url),
+    thumbnail_image_url: nullableString(draft.thumbnail_image_url),
     tag_ids: uniqueSortedIds(draft.tag_ids),
     subcategory_ids: uniqueSortedIds(draft.subcategory_ids),
   };
@@ -1290,6 +1297,7 @@ function isEqualShallowOrganizationDraft(a: OrganizationPatch, b: OrganizationPa
     a.tiktok_url === b.tiktok_url &&
     a.linkedin_url === b.linkedin_url &&
     a.youtube_url === b.youtube_url &&
+    a.thumbnail_image_url === b.thumbnail_image_url &&
     isEqualIdList(a.tag_ids, b.tag_ids) &&
     isEqualIdList(a.subcategory_ids, b.subcategory_ids)
   );

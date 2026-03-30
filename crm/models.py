@@ -123,6 +123,8 @@ class Organization(models.Model):
     og_title = models.CharField(max_length=255, null=True, blank=True)
     og_description = models.TextField(null=True, blank=True)
     og_image_url = models.URLField(null=True, blank=True)
+    thumbnail_image_url = models.URLField(null=True, blank=True)
+    auto_thumbnail_url = models.URLField(null=True, blank=True)
     og_last_fetched_at = models.DateTimeField(null=True, blank=True)
     tags = models.ManyToManyField(Tag, blank=True, related_name="organizations")
     subcategories = models.ManyToManyField(Subcategory, blank=True, related_name="organizations")
@@ -173,14 +175,16 @@ class Organization(models.Model):
     def get_preview_image_url(self) -> str | None:
         from .services.open_graph import fallback_preview_image
 
-        return self.og_image_url or fallback_preview_image(self.get_primary_link())
+        return self.get_public_image_url() or fallback_preview_image(self.get_primary_link())
 
     def get_public_image_url(self) -> str | None:
         from .services.open_graph import is_fallback_preview_image
 
-        if not self.og_image_url or is_fallback_preview_image(self.og_image_url):
-            return None
-        return self.og_image_url
+        for candidate in [self.thumbnail_image_url, self.auto_thumbnail_url, self.og_image_url]:
+            if not candidate or is_fallback_preview_image(candidate):
+                continue
+            return candidate
+        return None
 
 class Person(models.Model):
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="persons")

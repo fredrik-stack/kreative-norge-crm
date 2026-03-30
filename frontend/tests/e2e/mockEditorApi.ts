@@ -135,6 +135,8 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         og_title: "Kreativ Demo AS",
         og_description: null,
         og_image_url: null,
+        thumbnail_image_url: null,
+        auto_thumbnail_url: null,
         og_last_fetched_at: null,
         primary_link: "https://example.com",
         primary_link_field: "website_url",
@@ -270,6 +272,8 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         og_title: null,
         og_description: null,
         og_image_url: null,
+        thumbnail_image_url: payload.thumbnail_image_url ?? null,
+        auto_thumbnail_url: null,
         og_last_fetched_at: null,
         primary_link: payload.website_url ?? payload.instagram_url ?? payload.tiktok_url ?? payload.linkedin_url ?? payload.facebook_url ?? payload.youtube_url ?? null,
         primary_link_field:
@@ -351,6 +355,8 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         og_title: `${current.name} preview`,
         og_description: "Open Graph metadata hentet fra primærlenke.",
         og_image_url: current.preview_image_url ?? current.og_image_url ?? "https://example.com/preview.jpg",
+        thumbnail_image_url: current.thumbnail_image_url,
+        auto_thumbnail_url: current.auto_thumbnail_url ?? current.preview_image_url ?? current.og_image_url ?? "https://example.com/preview.jpg",
         preview_image_url: current.preview_image_url ?? current.og_image_url ?? "https://example.com/preview.jpg",
         og_last_fetched_at: now,
       };

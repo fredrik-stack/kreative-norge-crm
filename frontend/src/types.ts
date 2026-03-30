@@ -109,6 +109,8 @@ export type Organization = {
   og_title: string | null;
   og_description: string | null;
   og_image_url: string | null;
+  thumbnail_image_url: string | null;
+  auto_thumbnail_url: string | null;
   og_last_fetched_at: string | null;
   primary_link: string | null;
   primary_link_field: string | null;

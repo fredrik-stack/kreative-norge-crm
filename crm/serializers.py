@@ -115,6 +115,8 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "og_title",
             "og_description",
             "og_image_url",
+            "thumbnail_image_url",
+            "auto_thumbnail_url",
             "og_last_fetched_at",
             "primary_link",
             "primary_link_field",
@@ -132,6 +134,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "og_title",
             "og_description",
             "og_image_url",
+            "auto_thumbnail_url",
             "og_last_fetched_at",
         ]
 
@@ -418,6 +421,8 @@ class PublicOrganizationSerializer(serializers.ModelSerializer):
             "tiktok_url",
             "linkedin_url",
             "youtube_url",
+            "thumbnail_image_url",
+            "auto_thumbnail_url",
             "primary_link",
             "primary_link_field",
             "preview_image_url",

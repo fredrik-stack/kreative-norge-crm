@@ -301,6 +301,18 @@ function OrganizationEditorPanel(props: {
               />
             </Field>
 
+            <Field label="Manuell thumbnail URL" error={editor.organizationFieldErrors.thumbnail_image_url}>
+              <input
+                type="url"
+                value={editor.draft.thumbnail_image_url ?? ""}
+                onChange={(e) => editor.setDraft((s) => ({ ...s, thumbnail_image_url: e.target.value }))}
+                placeholder="https://..."
+              />
+              <p className="muted" style={{ margin: "6px 0 0" }}>
+                Bruk dette feltet hvis du vil overstyre automatisk valgt thumbnail på public-sidene.
+              </p>
+            </Field>
+
             <div className="toggle-grid">
               <label className="toggle-card">
                 <input
@@ -659,6 +671,14 @@ function OrganizationPreviewPanel({ invalidOrgRoute }: { invalidOrgRoute: boolea
               <div>
                 <dt>OG-beskrivelse</dt>
                 <dd>{editor.selectedOrganization?.og_description || "Ikke hentet"}</dd>
+              </div>
+              <div>
+                <dt>Automatisk thumbnail</dt>
+                <dd>{editor.selectedOrganization?.auto_thumbnail_url || "Ikke valgt"}</dd>
+              </div>
+              <div>
+                <dt>Manuell thumbnail</dt>
+                <dd>{editor.draft.thumbnail_image_url || "Ikke satt"}</dd>
               </div>
               <div>
                 <dt>Sist hentet</dt>

@@ -213,6 +213,7 @@ export type OrganizationPatch = Pick<
   | "tiktok_url"
   | "linkedin_url"
   | "youtube_url"
+  | "thumbnail_image_url"
 > & {
   tag_ids: number[];
   subcategory_ids: number[];

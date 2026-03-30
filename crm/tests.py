@@ -13,7 +13,7 @@ from .models import (
     Subcategory,
     Tenant,
 )
-from .services.open_graph import fallback_preview_image
+from .services.open_graph import ImageCandidate, choose_best_thumbnail, fallback_preview_image
 from .serializers import PersonSerializer
 
 
@@ -411,6 +411,7 @@ class OrganizationPreviewRefreshTests(AuthenticatedAPITestCase):
         self.assertEqual(payload["og_title"], "Preview Org OG")
         self.assertEqual(payload["og_description"], "Beskrivelse fra Open Graph")
         self.assertEqual(payload["og_image_url"], "https://cdn.example.com/preview.jpg")
+        self.assertEqual(payload["auto_thumbnail_url"], "https://cdn.example.com/thumbnail.jpg")
         self.assertEqual(payload["primary_link"], "https://example.com")
         self.assertEqual(payload["primary_link_field"], "website_url")
         refresh_mock.assert_called_once()
@@ -419,9 +420,10 @@ class OrganizationPreviewRefreshTests(AuthenticatedAPITestCase):
         organization.og_title = "Preview Org OG"
         organization.og_description = "Beskrivelse fra Open Graph"
         organization.og_image_url = "https://cdn.example.com/preview.jpg"
+        organization.auto_thumbnail_url = "https://cdn.example.com/thumbnail.jpg"
         organization.og_last_fetched_at = organization.updated_at
         organization.save(
-            update_fields=["og_title", "og_description", "og_image_url", "og_last_fetched_at"]
+            update_fields=["og_title", "og_description", "og_image_url", "auto_thumbnail_url", "og_last_fetched_at"]
         )
 
 
@@ -540,6 +542,30 @@ class PublicActorSiteTests(TestCase):
         self.assertEqual(detail_response.status_code, 200)
         self.assertNotContains(list_response, "google.com/s2/favicons")
         self.assertNotContains(detail_response, "google.com/s2/favicons")
+
+    def test_manual_thumbnail_override_wins_for_public_image(self):
+        self.organization.thumbnail_image_url = "https://cdn.example.com/manual-thumb.jpg"
+        self.organization.auto_thumbnail_url = "https://cdn.example.com/auto-thumb.jpg"
+        self.organization.og_image_url = "https://cdn.example.com/og.jpg"
+        self.organization.save(update_fields=["thumbnail_image_url", "auto_thumbnail_url", "og_image_url"])
+
+        response = self.client.get("/public/actors/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "https://cdn.example.com/manual-thumb.jpg")
+
+
+class ThumbnailSelectionTests(TestCase):
+    def test_choose_best_thumbnail_prefers_large_non_logo_candidate(self):
+        chosen = choose_best_thumbnail(
+            "https://example.com/about",
+            [
+                ImageCandidate(url="/assets/logo.png", source="img", width=320, height=120, alt="Logo"),
+                ImageCandidate(url="/media/portrait.jpg", source="img", width=1200, height=1200, alt="Artist"),
+            ],
+        )
+
+        self.assertEqual(chosen, "https://example.com/media/portrait.jpg")
 
 
 class OrganizationPersonViewSetValidationTests(AuthenticatedAPITestCase):

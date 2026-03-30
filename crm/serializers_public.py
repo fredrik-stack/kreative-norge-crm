@@ -49,6 +49,7 @@ class PublicActorSerializer(serializers.ModelSerializer):
     primary_link = serializers.SerializerMethodField()
     primary_link_field = serializers.SerializerMethodField()
     preview_image_url = serializers.SerializerMethodField()
+    thumbnail_image_url = serializers.SerializerMethodField()
     tags = PublicTagSerializer(many=True, read_only=True)
     subcategories = PublicSubcategorySerializer(many=True, read_only=True)
 
@@ -69,6 +70,7 @@ class PublicActorSerializer(serializers.ModelSerializer):
             "youtube_url",
             "primary_link",
             "primary_link_field",
+            "thumbnail_image_url",
             "preview_image_url",
             "tags",
             "subcategories",
@@ -99,6 +101,9 @@ class PublicActorSerializer(serializers.ModelSerializer):
 
     def get_preview_image_url(self, obj):
         return obj.get_preview_image_url()
+
+    def get_thumbnail_image_url(self, obj):
+        return obj.get_public_image_url()
 
     def get_people(self, obj):
         qs = (
