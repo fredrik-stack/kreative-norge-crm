@@ -36,15 +36,11 @@ class PublicActorListView(ListView):
         context["selected_tag"] = (self.request.GET.get("tag") or "").strip()
         context["selected_category"] = (self.request.GET.get("category") or "").strip()
         context["selected_subcategory"] = (self.request.GET.get("subcategory") or "").strip()
-        context["available_tags"] = Tag.objects.filter(
-            organizations__is_published=True
-        ).distinct().order_by("name")
-        context["available_categories"] = Category.objects.filter(
-            subcategories__organizations__is_published=True
-        ).distinct().order_by("name")
-        context["available_subcategories"] = Subcategory.objects.filter(
-            organizations__is_published=True
-        ).select_related("category").distinct().order_by("category__name", "name")
+        context["available_tags"] = Tag.objects.order_by("name")
+        context["available_categories"] = Category.objects.order_by("name")
+        context["available_subcategories"] = Subcategory.objects.select_related("category").order_by(
+            "category__name", "name"
+        )
         return context
 
 

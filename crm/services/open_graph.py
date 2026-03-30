@@ -63,6 +63,13 @@ def fallback_preview_image(link: str | None) -> str | None:
     return f"https://www.google.com/s2/favicons?domain={parsed.netloc}&sz=256"
 
 
+def is_fallback_preview_image(url: str | None) -> bool:
+    if not url:
+        return False
+    parsed = urlparse(url)
+    return parsed.netloc in {"www.google.com", "google.com"} and parsed.path.startswith("/s2/favicons")
+
+
 def fetch_open_graph(url: str, timeout_seconds: int = 4) -> OpenGraphData:
     request = Request(url, headers={"User-Agent": USER_AGENT})
     with urlopen(request, timeout=timeout_seconds) as response:
@@ -112,9 +119,9 @@ def refresh_organization_open_graph(
         og = fetch_open_graph(primary)
         organization.og_title = og.title
         organization.og_description = og.description
-        organization.og_image_url = og.image_url or fallback_preview_image(primary)
+        organization.og_image_url = og.image_url
     except Exception:
-        organization.og_image_url = fallback_preview_image(primary)
+        organization.og_image_url = None
         if not organization.og_title:
             organization.og_title = organization.name
     organization.og_last_fetched_at = now

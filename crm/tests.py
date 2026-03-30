@@ -13,6 +13,7 @@ from .models import (
     Subcategory,
     Tenant,
 )
+from .services.open_graph import fallback_preview_image
 from .serializers import PersonSerializer
 
 
@@ -517,7 +518,7 @@ class PublicActorSiteTests(TestCase):
         response = self.client.get(f"/public/actors/{self.organization.org_number}/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Etablert")
-        self.assertContains(response, "Musikk")
+        self.assertContains(response, "MUSIKK")
         self.assertContains(response, "Jazz")
 
     def test_public_actor_detail_falls_back_to_person_email_but_not_phone(self):
@@ -525,8 +526,20 @@ class PublicActorSiteTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Ada Artist")
-        self.assertContains(response, "EMAIL · ada@example.com")
-        self.assertNotContains(response, "PHONE · +4712345678")
+        self.assertContains(response, "ada@example.com")
+        self.assertNotContains(response, "+4712345678")
+
+    def test_public_actor_templates_ignore_favicon_fallback_urls(self):
+        self.organization.og_image_url = fallback_preview_image(self.organization.website_url)
+        self.organization.save(update_fields=["og_image_url"])
+
+        list_response = self.client.get("/public/actors/")
+        detail_response = self.client.get(f"/public/actors/{self.organization.org_number}/")
+
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertNotContains(list_response, "google.com/s2/favicons")
+        self.assertNotContains(detail_response, "google.com/s2/favicons")
 
 
 class OrganizationPersonViewSetValidationTests(AuthenticatedAPITestCase):

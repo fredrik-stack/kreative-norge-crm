@@ -39,7 +39,8 @@
     }
 
     main {
-      max-width: 1240px;
+      width: 100%;
+      max-width: 100%;
       margin: 0 auto;
       padding: 18px 14px 44px;
     }
@@ -52,11 +53,11 @@
 
     .hero h1 {
       margin: 0;
-      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif;
       font-size: clamp(2.3rem, 4vw, 3.5rem);
       line-height: 0.94;
       letter-spacing: -0.04em;
-      font-weight: 800;
+      font-weight: 700;
     }
 
     .hero-copy {
@@ -65,7 +66,6 @@
       font-size: 15px;
       line-height: 1.45;
       font-style: italic;
-      max-width: 72ch;
     }
 
     .search-shell {
@@ -379,6 +379,12 @@
         grid-template-columns: 1fr;
       }
     }
+
+    @media (min-width: 920px) {
+      .hero-copy {
+        white-space: nowrap;
+      }
+    }
   </style>
 </head>
 <body>
@@ -423,8 +429,8 @@
       <section class="results">
         {% for actor in actors %}
           <a class="card" href="/public/actors/{{ actor.org_number }}/">
-            {% if actor.og_image_url %}
-              <img class="thumb" src="{{ actor.og_image_url }}" alt="{{ actor.name }}" loading="lazy" />
+            {% if actor.get_public_image_url %}
+              <img class="thumb" src="{{ actor.get_public_image_url }}" alt="{{ actor.name }}" loading="lazy" />
             {% else %}
               <div class="thumb-fallback">
                 <span>{{ actor.name|truncatechars:18 }}</span>

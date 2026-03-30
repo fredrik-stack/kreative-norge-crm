@@ -175,6 +175,13 @@ class Organization(models.Model):
 
         return self.og_image_url or fallback_preview_image(self.get_primary_link())
 
+    def get_public_image_url(self) -> str | None:
+        from .services.open_graph import is_fallback_preview_image
+
+        if not self.og_image_url or is_fallback_preview_image(self.og_image_url):
+            return None
+        return self.og_image_url
+
 class Person(models.Model):
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="persons")
 
