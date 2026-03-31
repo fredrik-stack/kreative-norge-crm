@@ -20,7 +20,7 @@ const SUBCATEGORY_ORDER = [
   "Produsent",
   "Regi & Manus",
   "Foto/ Lys",
-  "Filmlyd",
+  "Lyd",
   "Produksjon",
   "Arenaer",
   "Visuell kunst",
@@ -258,10 +258,12 @@ function OrganizationEditorPanel(props: {
               description="Velg først en hovedkategori, og deretter en underkategori som hører til den."
               categories={editor.categories}
               subcategories={editor.subcategories}
+              selectedCategoryIds={editor.draft.category_ids}
               selectedIds={editor.draft.subcategory_ids}
-              onSelect={(subcategoryId) =>
+              onSelect={(categoryId, subcategoryId) =>
                 editor.setDraft((state) => ({
                   ...state,
+                  category_ids: categoryId ? [categoryId] : [],
                   subcategory_ids: subcategoryId ? [subcategoryId] : [],
                 }))
               }
@@ -713,7 +715,11 @@ function OrganizationPreviewPanel({ invalidOrgRoute }: { invalidOrgRoute: boolea
                 <dd>{selectedNames(editor.tags, editor.draft.tag_ids) || "Ingen valgt"}</dd>
               </div>
               <div>
-                <dt>Underkategorier</dt>
+                <dt>Kategori</dt>
+                <dd>{selectedNames(editor.categories, editor.draft.category_ids) || "Ingen valgt"}</dd>
+              </div>
+              <div>
+                <dt>Underkategori</dt>
                 <dd>{selectedSubcategoryNames(editor.subcategories, editor.draft.subcategory_ids) || "Ingen valgt"}</dd>
               </div>
             </dl>
@@ -840,18 +846,23 @@ function CategorySelectFields(props: {
   description: string;
   categories: Array<{ id: number; name: string }>;
   subcategories: Array<{ id: number; name: string; category: { id: number; name: string } }>;
+  selectedCategoryIds: number[];
   selectedIds: number[];
-  onSelect: (id: number | null) => void;
+  onSelect: (categoryId: number | null, subcategoryId: number | null) => void;
 }) {
-  const { title, description, categories, subcategories, selectedIds, onSelect } = props;
+  const { title, description, categories, subcategories, selectedCategoryIds, selectedIds, onSelect } = props;
   const categoryPositions = new Map<string, number>(CATEGORY_ORDER.map((name, index) => [name, index]));
   const subcategoryPositions = new Map<string, number>(SUBCATEGORY_ORDER.map((name, index) => [name, index]));
+  const allowedCategoryNames = new Set<string>(CATEGORY_ORDER);
+  const allowedSubcategoryNames = new Set<string>(SUBCATEGORY_ORDER);
   const selectedSubcategoryId = selectedIds[0] ?? null;
   const selectedSubcategory =
     selectedSubcategoryId !== null ? subcategories.find((item) => item.id === selectedSubcategoryId) ?? null : null;
-  const selectedCategoryId = selectedSubcategory?.category.id ?? null;
+  const selectedCategoryId = selectedCategoryIds[0] ?? selectedSubcategory?.category.id ?? null;
 
-  const sortedCategories = [...categories].sort(
+  const sortedCategories = [...categories]
+    .filter((category) => allowedCategoryNames.has(category.name))
+    .sort(
     (left, right) =>
       (categoryPositions.get(left.name) ?? Number.MAX_SAFE_INTEGER) -
         (categoryPositions.get(right.name) ?? Number.MAX_SAFE_INTEGER) || left.name.localeCompare(right.name),
@@ -861,7 +872,7 @@ function CategorySelectFields(props: {
     selectedCategoryId === null
       ? []
       : subcategories
-          .filter((item) => item.category.id === selectedCategoryId)
+          .filter((item) => item.category.id === selectedCategoryId && allowedSubcategoryNames.has(item.name))
           .sort(
             (left, right) =>
               (subcategoryPositions.get(left.name) ?? Number.MAX_SAFE_INTEGER) -
@@ -881,20 +892,7 @@ function CategorySelectFields(props: {
             value={selectedCategoryId ?? ""}
             onChange={(e) => {
               const nextCategoryId = e.target.value ? Number(e.target.value) : null;
-              if (nextCategoryId === null) {
-                onSelect(null);
-                return;
-              }
-              const firstSubcategory =
-                subcategories
-                  .filter((item) => item.category.id === nextCategoryId)
-                  .sort(
-                    (left, right) =>
-                      (subcategoryPositions.get(left.name) ?? Number.MAX_SAFE_INTEGER) -
-                        (subcategoryPositions.get(right.name) ?? Number.MAX_SAFE_INTEGER) ||
-                      left.name.localeCompare(right.name),
-                  )[0] ?? null;
-              onSelect(firstSubcategory?.id ?? null);
+              onSelect(nextCategoryId, null);
             }}
           >
             <option value="">Velg hovedkategori</option>
@@ -908,10 +906,16 @@ function CategorySelectFields(props: {
         <Field label="Underkategori">
           <select
             value={selectedSubcategoryId ?? ""}
-            onChange={(e) => onSelect(e.target.value ? Number(e.target.value) : null)}
+            onChange={(e) => onSelect(selectedCategoryId, e.target.value ? Number(e.target.value) : null)}
             disabled={selectedCategoryId === null}
           >
-            <option value="">{selectedCategoryId === null ? "Velg hovedkategori først" : "Velg underkategori"}</option>
+            <option value="">
+              {selectedCategoryId === null
+                ? "Velg hovedkategori først"
+                : availableSubcategories.length === 0
+                  ? "Ingen underkategorier"
+                  : "Ingen underkategori"}
+            </option>
             {availableSubcategories.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}

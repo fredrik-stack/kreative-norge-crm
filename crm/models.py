@@ -127,6 +127,7 @@ class Organization(models.Model):
     auto_thumbnail_url = models.URLField(null=True, blank=True)
     og_last_fetched_at = models.DateTimeField(null=True, blank=True)
     tags = models.ManyToManyField(Tag, blank=True, related_name="organizations")
+    categories = models.ManyToManyField(Category, blank=True, related_name="organizations")
     subcategories = models.ManyToManyField(Subcategory, blank=True, related_name="organizations")
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -202,6 +203,7 @@ class Person(models.Model):
     municipality = models.CharField(max_length=255, blank=True)
     note = models.TextField(null=True, blank=True)
     tags = models.ManyToManyField(Tag, blank=True, related_name="persons")
+    categories = models.ManyToManyField(Category, blank=True, related_name="persons")
     subcategories = models.ManyToManyField(Subcategory, blank=True, related_name="persons")
 
     created_at = models.DateTimeField(auto_now_add=True)

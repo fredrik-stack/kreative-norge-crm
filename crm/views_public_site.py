@@ -1,5 +1,6 @@
 import random
 
+from django.db.models import Q
 from django.utils.text import slugify
 from django.views.generic import DetailView, ListView
 
@@ -23,7 +24,7 @@ SUBCATEGORY_ORDER = [
     "Produsent",
     "Regi & Manus",
     "Foto/ Lys",
-    "Filmlyd",
+    "Lyd",
     "Produksjon",
     "Arenaer",
     "Visuell kunst",
@@ -44,7 +45,7 @@ class PublicActorListView(ListView):
     def get_queryset(self):
         qs = (
             Organization.objects.filter(is_published=True)
-            .prefetch_related("tags", "subcategories__category", "org_people__person__contacts")
+            .prefetch_related("tags", "categories", "subcategories__category", "org_people__person__contacts")
             .order_by("name")
         )
 
@@ -58,7 +59,7 @@ class PublicActorListView(ListView):
         if tag_slug:
             qs = qs.filter(tags__slug=tag_slug)
         if category_slug:
-            qs = qs.filter(subcategories__category__slug=category_slug)
+            qs = qs.filter(Q(categories__slug=category_slug) | Q(subcategories__category__slug=category_slug))
         if subcategory_slug:
             qs = qs.filter(subcategories__slug=subcategory_slug)
 
@@ -88,6 +89,6 @@ class PublicActorDetailView(DetailView):
     def get_queryset(self):
         return (
             Organization.objects.filter(is_published=True)
-            .prefetch_related("tags", "subcategories__category", "org_people__person__contacts")
+            .prefetch_related("tags", "categories", "subcategories__category", "org_people__person__contacts")
             .order_by("name")
         )

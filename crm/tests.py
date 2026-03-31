@@ -360,7 +360,7 @@ class CategoryAndSubcategoryTests(AuthenticatedAPITestCase):
     def test_seeded_categories_are_available(self):
         self.assertTrue(Category.objects.filter(name="Musikk").exists())
         self.assertTrue(Subcategory.objects.filter(name="Artister & Band").exists())
-        self.assertTrue(Subcategory.objects.filter(name="Filmlyd").exists())
+        self.assertTrue(Subcategory.objects.filter(name="Lyd").exists())
 
     def test_categories_endpoint_requires_authentication(self):
         unauth_client = APIClient()
@@ -444,6 +444,7 @@ class TenantScopedCreateTests(AuthenticatedAPITestCase):
                 "org_number": "123456789",
                 "municipalities": "Oslo",
                 "tag_ids": [],
+                "category_ids": [],
                 "subcategory_ids": [],
             },
             format="json",
@@ -460,6 +461,7 @@ class TenantScopedCreateTests(AuthenticatedAPITestCase):
                 "full_name": "Ny kontaktperson",
                 "municipality": "Oslo",
                 "tag_ids": [],
+                "category_ids": [],
                 "subcategory_ids": [],
             },
             format="json",
@@ -468,6 +470,42 @@ class TenantScopedCreateTests(AuthenticatedAPITestCase):
         self.assertEqual(response.status_code, 201, response.content)
         created = Person.objects.get(id=response.json()["id"])
         self.assertEqual(created.tenant_id, self.tenant.id)
+
+    def test_can_create_organization_with_category_only(self):
+        category = Category.objects.create(name="Kun kategori")
+        response = self.client.post(
+            f"/api/tenants/{self.tenant.id}/organizations/",
+            {
+                "name": "Kategori uten underkategori",
+                "category_ids": [category.id],
+                "subcategory_ids": [],
+                "tag_ids": [],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        created = Organization.objects.get(id=response.json()["id"])
+        self.assertEqual(list(created.categories.values_list("name", flat=True)), ["Kun kategori"])
+        self.assertEqual(created.subcategories.count(), 0)
+
+    def test_can_create_person_with_category_only(self):
+        category = Category.objects.create(name="Kun personkategori")
+        response = self.client.post(
+            f"/api/tenants/{self.tenant.id}/persons/",
+            {
+                "full_name": "Kategori-person",
+                "category_ids": [category.id],
+                "subcategory_ids": [],
+                "tag_ids": [],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        created = Person.objects.get(id=response.json()["id"])
+        self.assertEqual(list(created.categories.values_list("name", flat=True)), ["Kun personkategori"])
+        self.assertEqual(created.subcategories.count(), 0)
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -486,6 +524,7 @@ class PublicActorSiteTests(TestCase):
             website_url="https://example.com",
         )
         self.organization.tags.add(self.tag)
+        self.organization.categories.add(self.category)
         self.organization.subcategories.add(self.subcategory)
         self.person = Person.objects.create(
             tenant=self.tag.tenant,
@@ -540,7 +579,7 @@ class PublicActorSiteTests(TestCase):
                 "Produsent",
                 "Regi & Manus",
                 "Foto/ Lys",
-                "Filmlyd",
+                "Lyd",
                 "Produksjon",
                 "Arenaer",
                 "Visuell kunst",

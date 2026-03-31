@@ -102,6 +102,7 @@ const emptyDraft: OrganizationPatch = {
   youtube_url: "",
   thumbnail_image_url: "",
   tag_ids: [],
+  category_ids: [],
   subcategory_ids: [],
 };
 
@@ -118,6 +119,7 @@ const emptyPersonDraft: PersonPayload = {
   facebook_url: "",
   youtube_url: "",
   tag_ids: [],
+  category_ids: [],
   subcategory_ids: [],
 };
 
@@ -286,6 +288,7 @@ export function useEditorData() {
       youtube_url: selectedOrganization.youtube_url ?? "",
       thumbnail_image_url: selectedOrganization.thumbnail_image_url ?? "",
       tag_ids: (selectedOrganization.tags ?? []).map((tag) => tag.id),
+      category_ids: deriveCategoryIds((selectedOrganization.categories ?? []), (selectedOrganization.subcategories ?? [])),
       subcategory_ids: (selectedOrganization.subcategories ?? []).map((item) => item.id),
     });
     setSaveState("idle");
@@ -318,6 +321,7 @@ export function useEditorData() {
       facebook_url: selectedPerson.facebook_url ?? "",
       youtube_url: selectedPerson.youtube_url ?? "",
       tag_ids: (selectedPerson.tags ?? []).map((tag) => tag.id),
+      category_ids: deriveCategoryIds((selectedPerson.categories ?? []), (selectedPerson.subcategories ?? [])),
       subcategory_ids: (selectedPerson.subcategories ?? []).map((item) => item.id),
     });
     setContactDraft(emptyContactDraft);
@@ -433,6 +437,7 @@ export function useEditorData() {
               youtube_url: selectedOrganization.youtube_url ?? "",
               thumbnail_image_url: selectedOrganization.thumbnail_image_url ?? "",
               tag_ids: (selectedOrganization.tags ?? []).map((tag) => tag.id),
+              category_ids: deriveCategoryIds((selectedOrganization.categories ?? []), (selectedOrganization.subcategories ?? [])),
               subcategory_ids: (selectedOrganization.subcategories ?? []).map((item) => item.id),
             }
           : emptyDraft;
@@ -457,6 +462,7 @@ export function useEditorData() {
               facebook_url: selectedPerson.facebook_url ?? "",
               youtube_url: selectedPerson.youtube_url ?? "",
               tag_ids: (selectedPerson.tags ?? []).map((tag) => tag.id),
+              category_ids: deriveCategoryIds((selectedPerson.categories ?? []), (selectedPerson.subcategories ?? [])),
               subcategory_ids: (selectedPerson.subcategories ?? []).map((item) => item.id),
             }
           : emptyPersonDraft;
@@ -486,6 +492,7 @@ export function useEditorData() {
               facebook_url: selectedPerson.facebook_url ?? "",
               youtube_url: selectedPerson.youtube_url ?? "",
               tag_ids: (selectedPerson.tags ?? []).map((tag) => tag.id),
+              category_ids: deriveCategoryIds((selectedPerson.categories ?? []), (selectedPerson.subcategories ?? [])),
               subcategory_ids: (selectedPerson.subcategories ?? []).map((item) => item.id),
             }
           : emptyPersonDraft;
@@ -907,6 +914,7 @@ export function useEditorData() {
       youtube_url: selectedOrganization.youtube_url ?? "",
       thumbnail_image_url: selectedOrganization.thumbnail_image_url ?? "",
       tag_ids: (selectedOrganization.tags ?? []).map((tag) => tag.id),
+      category_ids: deriveCategoryIds((selectedOrganization.categories ?? []), (selectedOrganization.subcategories ?? [])),
       subcategory_ids: (selectedOrganization.subcategories ?? []).map((item) => item.id),
     });
     setSaveState("idle");
@@ -933,6 +941,7 @@ export function useEditorData() {
       facebook_url: selectedPerson.facebook_url ?? "",
       youtube_url: selectedPerson.youtube_url ?? "",
       tag_ids: (selectedPerson.tags ?? []).map((tag) => tag.id),
+      category_ids: deriveCategoryIds((selectedPerson.categories ?? []), (selectedPerson.subcategories ?? [])),
       subcategory_ids: (selectedPerson.subcategories ?? []).map((item) => item.id),
     });
     setPersonSaveState("idle");
@@ -1248,6 +1257,7 @@ function normalizeDraft(draft: OrganizationPatch): OrganizationPatch {
     youtube_url: nullableString(draft.youtube_url),
     thumbnail_image_url: nullableString(draft.thumbnail_image_url),
     tag_ids: uniqueSortedIds(draft.tag_ids),
+    category_ids: uniqueSortedIds(draft.category_ids),
     subcategory_ids: uniqueSortedIds(draft.subcategory_ids),
   };
 }
@@ -1266,6 +1276,7 @@ function normalizePersonDraft(draft: PersonPayload): PersonPayload {
     facebook_url: nullableString(draft.facebook_url),
     youtube_url: nullableString(draft.youtube_url),
     tag_ids: uniqueSortedIds(draft.tag_ids),
+    category_ids: uniqueSortedIds(draft.category_ids),
     subcategory_ids: uniqueSortedIds(draft.subcategory_ids),
   };
 }
@@ -1299,6 +1310,7 @@ function isEqualShallowOrganizationDraft(a: OrganizationPatch, b: OrganizationPa
     a.youtube_url === b.youtube_url &&
     a.thumbnail_image_url === b.thumbnail_image_url &&
     isEqualIdList(a.tag_ids, b.tag_ids) &&
+    isEqualIdList(a.category_ids, b.category_ids) &&
     isEqualIdList(a.subcategory_ids, b.subcategory_ids)
   );
 }
@@ -1317,6 +1329,7 @@ function isEqualShallowPersonDraft(a: PersonPayload, b: PersonPayload): boolean 
     a.facebook_url === b.facebook_url &&
     a.youtube_url === b.youtube_url &&
     isEqualIdList(a.tag_ids, b.tag_ids) &&
+    isEqualIdList(a.category_ids, b.category_ids) &&
     isEqualIdList(a.subcategory_ids, b.subcategory_ids)
   );
 }
@@ -1329,6 +1342,19 @@ function nullableString(value: string | null): string | null {
 
 function uniqueSortedIds(values: number[]): number[] {
   return [...new Set(values)].sort((a, b) => a - b);
+}
+
+function deriveCategoryIds(
+  categories: Array<{ id: number }> | undefined,
+  subcategories: Array<{ category: { id: number } }> | undefined,
+): number[] {
+  if (categories && categories.length > 0) {
+    return uniqueSortedIds(categories.map((category) => category.id));
+  }
+  if (subcategories && subcategories.length > 0) {
+    return uniqueSortedIds(subcategories.map((subcategory) => subcategory.category.id));
+  }
+  return [];
 }
 
 function isEqualIdList(a: number[], b: number[]): boolean {

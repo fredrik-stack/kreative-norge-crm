@@ -216,6 +216,7 @@ export type OrganizationPatch = Pick<
   | "thumbnail_image_url"
 > & {
   tag_ids: number[];
+  category_ids: number[];
   subcategory_ids: number[];
 };
 
@@ -232,6 +233,7 @@ export type PersonPayload = {
   facebook_url: string | null;
   youtube_url: string | null;
   tag_ids: number[];
+  category_ids: number[];
   subcategory_ids: number[];
 };
 

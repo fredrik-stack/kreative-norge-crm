@@ -61,6 +61,7 @@ export type Person = {
   facebook_url: string | null;
   youtube_url: string | null;
   tags: Tag[];
+  categories: Category[];
   subcategories: Subcategory[];
   created_at: string;
   updated_at: string;
@@ -116,6 +117,7 @@ export type Organization = {
   primary_link_field: string | null;
   preview_image_url: string | null;
   tags: Tag[];
+  categories: Category[];
   subcategories: Subcategory[];
   created_at: string;
   updated_at: string;

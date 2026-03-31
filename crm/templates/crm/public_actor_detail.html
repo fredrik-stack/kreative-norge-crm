@@ -359,8 +359,10 @@
         </div>
 
         <div class="hero-meta">
+          {% for category in actor.categories.all %}
+            <span class="pill category">{{ category.name|upper }}</span>
+          {% endfor %}
           {% for subcategory in actor.subcategories.all %}
-            <span class="pill category">{{ subcategory.category.name|upper }}</span>
             <span class="pill subcategory">{{ subcategory.name }}</span>
           {% endfor %}
           {% for tag in actor.tags.all %}

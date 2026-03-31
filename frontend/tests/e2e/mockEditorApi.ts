@@ -40,6 +40,7 @@ type Organization = {
    primary_link_field: string | null;
    preview_image_url: string | null;
    tags: Tag[];
+   categories: Category[];
    subcategories: Subcategory[];
   created_at: string;
   updated_at: string;
@@ -60,6 +61,7 @@ type Person = {
   facebook_url: string | null;
   youtube_url: string | null;
   tags: Tag[];
+  categories: Category[];
   subcategories: Subcategory[];
   created_at: string;
   updated_at: string;
@@ -142,6 +144,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         primary_link_field: "website_url",
         preview_image_url: "https://example.com/favicon.ico",
         tags: [],
+        categories: [],
         subcategories: [],
         created_at: now,
         updated_at: now,
@@ -164,6 +167,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         facebook_url: null,
         youtube_url: null,
         tags: [],
+        categories: [],
         subcategories: [],
         created_at: now,
         updated_at: now,
@@ -286,6 +290,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
           : null,
         preview_image_url: null,
         tags: state.tags.filter((tag) => (payload as { tag_ids?: number[] }).tag_ids?.includes(tag.id)),
+        categories: state.categories.filter((category) => (payload as { category_ids?: number[] }).category_ids?.includes(category.id)),
         subcategories: state.subcategories.filter((item) =>
           (payload as { subcategory_ids?: number[] }).subcategory_ids?.includes(item.id),
         ),
@@ -336,6 +341,9 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         preview_image_url: current.preview_image_url,
         description: payload.description ?? current.description,
         tags: state.tags.filter((tag) => (payload as { tag_ids?: number[] }).tag_ids?.includes(tag.id) ?? current.tags.some((item) => item.id === tag.id)),
+        categories: state.categories.filter((category) =>
+          (payload as { category_ids?: number[] }).category_ids?.includes(category.id) ?? current.categories.some((item) => item.id === category.id),
+        ),
         subcategories: state.subcategories.filter((item) =>
           (payload as { subcategory_ids?: number[] }).subcategory_ids?.includes(item.id) ?? current.subcategories.some((existing) => existing.id === item.id),
         ),
@@ -396,6 +404,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         facebook_url: payload.facebook_url ?? null,
         youtube_url: payload.youtube_url ?? null,
         tags: state.tags.filter((tag) => (payload as { tag_ids?: number[] }).tag_ids?.includes(tag.id)),
+        categories: state.categories.filter((category) => (payload as { category_ids?: number[] }).category_ids?.includes(category.id)),
         subcategories: state.subcategories.filter((item) =>
           (payload as { subcategory_ids?: number[] }).subcategory_ids?.includes(item.id),
         ),
@@ -425,6 +434,9 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         ...state.persons[idx],
         ...payload,
         tags: state.tags.filter((tag) => (payload as { tag_ids?: number[] }).tag_ids?.includes(tag.id) ?? state.persons[idx].tags.some((item) => item.id === tag.id)),
+        categories: state.categories.filter((category) =>
+          (payload as { category_ids?: number[] }).category_ids?.includes(category.id) ?? state.persons[idx].categories.some((item) => item.id === category.id),
+        ),
         subcategories: state.subcategories.filter((item) =>
           (payload as { subcategory_ids?: number[] }).subcategory_ids?.includes(item.id) ??
           state.persons[idx].subcategories.some((existing) => existing.id === item.id),

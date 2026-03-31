@@ -83,6 +83,14 @@ class OrganizationSerializer(serializers.ModelSerializer):
         source="tags",
         required=False,
     )
+    categories = CategorySerializer(many=True, read_only=True)
+    category_ids = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Category.objects.all(),
+        write_only=True,
+        source="categories",
+        required=False,
+    )
     subcategories = SubcategorySerializer(many=True, read_only=True)
     subcategory_ids = serializers.PrimaryKeyRelatedField(
         many=True,
@@ -123,6 +131,8 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "preview_image_url",
             "tags",
             "tag_ids",
+            "categories",
+            "category_ids",
             "subcategories",
             "subcategory_ids",
             "created_at",
@@ -142,12 +152,26 @@ class OrganizationSerializer(serializers.ModelSerializer):
         attrs = super().validate(attrs)
         tenant_id = self._get_effective_tenant_id()
         tags = attrs.get("tags")
+        categories = attrs.get("categories")
+        subcategories = attrs.get("subcategories")
         if tenant_id is not None and tags is not None:
             invalid = [tag.name for tag in tags if tag.tenant_id != tenant_id]
             if invalid:
                 raise serializers.ValidationError(
                     {"tag_ids": ["All tags must belong to the same tenant as the route."]}
                 )
+
+        category_set = set(categories) if categories is not None else set(getattr(self.instance, "categories", []).all() if self.instance else [])
+        subcategory_set = set(subcategories) if subcategories is not None else set(getattr(self.instance, "subcategories", []).all() if self.instance else [])
+
+        inferred_categories = {subcategory.category for subcategory in subcategory_set}
+        if category_set and inferred_categories and not inferred_categories.issubset(category_set):
+            raise serializers.ValidationError(
+                {"subcategory_ids": ["Selected underkategorier must belong to the selected hovedkategori."]}
+            )
+
+        if categories is not None or subcategories is not None:
+            attrs["categories"] = list(category_set | inferred_categories)
         return attrs
 
     def _get_effective_tenant_id(self):
@@ -272,6 +296,14 @@ class PersonSerializer(serializers.ModelSerializer):
         source="tags",
         required=False,
     )
+    categories = CategorySerializer(many=True, read_only=True)
+    category_ids = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Category.objects.all(),
+        write_only=True,
+        source="categories",
+        required=False,
+    )
     subcategories = SubcategorySerializer(many=True, read_only=True)
     subcategory_ids = serializers.PrimaryKeyRelatedField(
         many=True,
@@ -297,6 +329,8 @@ class PersonSerializer(serializers.ModelSerializer):
             "youtube_url",
             "tags",
             "tag_ids",
+            "categories",
+            "category_ids",
             "subcategories",
             "subcategory_ids",
             "municipality",
@@ -311,12 +345,26 @@ class PersonSerializer(serializers.ModelSerializer):
         attrs = super().validate(attrs)
         tenant_id = self._get_effective_tenant_id()
         tags = attrs.get("tags")
+        categories = attrs.get("categories")
+        subcategories = attrs.get("subcategories")
         if tenant_id is not None and tags is not None:
             invalid = [tag.name for tag in tags if tag.tenant_id != tenant_id]
             if invalid:
                 raise serializers.ValidationError(
                     {"tag_ids": ["All tags must belong to the same tenant as the route."]}
                 )
+
+        category_set = set(categories) if categories is not None else set(getattr(self.instance, "categories", []).all() if self.instance else [])
+        subcategory_set = set(subcategories) if subcategories is not None else set(getattr(self.instance, "subcategories", []).all() if self.instance else [])
+
+        inferred_categories = {subcategory.category for subcategory in subcategory_set}
+        if category_set and inferred_categories and not inferred_categories.issubset(category_set):
+            raise serializers.ValidationError(
+                {"subcategory_ids": ["Selected underkategorier must belong to the selected hovedkategori."]}
+            )
+
+        if categories is not None or subcategories is not None:
+            attrs["categories"] = list(category_set | inferred_categories)
         return attrs
 
     def _get_effective_tenant_id(self):
@@ -403,6 +451,7 @@ class PublicOrganizationSerializer(serializers.ModelSerializer):
     primary_link_field = serializers.SerializerMethodField()
     preview_image_url = serializers.SerializerMethodField()
     tags = TagSerializer(many=True, read_only=True)
+    categories = CategorySerializer(many=True, read_only=True)
     subcategories = SubcategorySerializer(many=True, read_only=True)
 
     class Meta:
@@ -427,6 +476,7 @@ class PublicOrganizationSerializer(serializers.ModelSerializer):
             "primary_link_field",
             "preview_image_url",
             "tags",
+            "categories",
             "subcategories",
             "active_people",
         ]

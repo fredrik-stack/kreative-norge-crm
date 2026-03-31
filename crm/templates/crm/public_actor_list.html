@@ -452,8 +452,10 @@
               </div>
 
               <div class="meta-row">
+                {% for category in actor.categories.all %}
+                  <span class="mini-pill category">{{ category.name|upper }}</span>
+                {% endfor %}
                 {% for subcategory in actor.subcategories.all %}
-                  <span class="mini-pill category">{{ subcategory.category.name|upper }}</span>
                   <span class="mini-pill subcategory">{{ subcategory.name }}</span>
                 {% endfor %}
                 {% for tag in actor.tags.all %}

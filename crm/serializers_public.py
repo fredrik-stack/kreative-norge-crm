@@ -51,6 +51,7 @@ class PublicActorSerializer(serializers.ModelSerializer):
     preview_image_url = serializers.SerializerMethodField()
     thumbnail_image_url = serializers.SerializerMethodField()
     tags = PublicTagSerializer(many=True, read_only=True)
+    categories = PublicCategorySerializer(many=True, read_only=True)
     subcategories = PublicSubcategorySerializer(many=True, read_only=True)
 
     class Meta:
@@ -73,6 +74,7 @@ class PublicActorSerializer(serializers.ModelSerializer):
             "thumbnail_image_url",
             "preview_image_url",
             "tags",
+            "categories",
             "subcategories",
             "people",
         )
