@@ -1,8 +1,9 @@
 import random
 
+from django.utils.text import slugify
 from django.views.generic import DetailView, ListView
 
-from .models import Category, Organization, Subcategory, Tag
+from .models import Organization, Tag
 
 
 CATEGORY_ORDER = [
@@ -31,6 +32,9 @@ SUBCATEGORY_ORDER = [
     "Teater",
     "Dans",
 ]
+
+CATEGORY_OPTIONS = [{"name": name, "slug": slugify(name)} for name in CATEGORY_ORDER]
+SUBCATEGORY_OPTIONS = [{"name": name, "slug": slugify(name)} for name in SUBCATEGORY_ORDER]
 
 
 class PublicActorListView(ListView):
@@ -66,35 +70,12 @@ class PublicActorListView(ListView):
         context["selected_tag"] = (self.request.GET.get("tag") or "").strip()
         context["selected_category"] = (self.request.GET.get("category") or "").strip()
         context["selected_subcategory"] = (self.request.GET.get("subcategory") or "").strip()
-        categories = list(Category.objects.all())
-        subcategories = list(Subcategory.objects.select_related("category"))
         tags = list(Tag.objects.order_by("name"))
-
-        category_positions = {name: index for index, name in enumerate(CATEGORY_ORDER)}
-        subcategory_positions = {name: index for index, name in enumerate(SUBCATEGORY_ORDER)}
-
-        categories.sort(
-            key=lambda category: (
-                category_positions.get(category.name, len(CATEGORY_ORDER)),
-                category.name.lower(),
-            )
-        )
-        subcategories = [
-            subcategory
-            for subcategory in subcategories
-            if subcategory.name in subcategory_positions
-        ]
-        subcategories.sort(
-            key=lambda subcategory: (
-                subcategory_positions.get(subcategory.name, len(SUBCATEGORY_ORDER)),
-                subcategory.name.lower(),
-            )
-        )
         random.shuffle(tags)
 
         context["available_tags"] = tags
-        context["available_categories"] = categories
-        context["available_subcategories"] = subcategories
+        context["available_categories"] = CATEGORY_OPTIONS
+        context["available_subcategories"] = SUBCATEGORY_OPTIONS
         return context
 
 

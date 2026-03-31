@@ -527,11 +527,11 @@ class PublicActorSiteTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            [category.name for category in response.context["available_categories"][:6]],
+            [category["name"] for category in response.context["available_categories"][:6]],
             ["Musikk", "Film", "Kunst & Design", "Scenekunst", "Kreativ teknologi", "Litteratur"],
         )
         self.assertEqual(
-            [subcategory.name for subcategory in response.context["available_subcategories"][:15]],
+            [subcategory["name"] for subcategory in response.context["available_subcategories"][:15]],
             [
                 "Artister & Band",
                 "Konsertarrangører",

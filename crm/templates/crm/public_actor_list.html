@@ -138,8 +138,12 @@
       gap: 10px;
       overflow-x: auto;
       padding: 4px 0 8px;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
       scrollbar-width: thin;
       scroll-snap-type: x proximity;
+      cursor: grab;
+      user-select: none;
     }
 
     .carousel::-webkit-scrollbar {
@@ -149,6 +153,10 @@
     .carousel::-webkit-scrollbar-thumb {
       background: rgba(79, 51, 44, 0.18);
       border-radius: 999px;
+    }
+
+    .carousel.is-dragging {
+      cursor: grabbing;
     }
 
     .filter-pill {
@@ -480,6 +488,42 @@
       input.addEventListener("input", resetIfCleared);
       input.addEventListener("change", resetIfCleared);
       input.addEventListener("keyup", resetIfCleared);
+    })();
+
+    (function () {
+      const carousels = document.querySelectorAll(".carousel");
+      carousels.forEach((carousel) => {
+        let isDragging = false;
+        let startX = 0;
+        let startScrollLeft = 0;
+
+        carousel.addEventListener("pointerdown", (event) => {
+          isDragging = true;
+          startX = event.clientX;
+          startScrollLeft = carousel.scrollLeft;
+          carousel.classList.add("is-dragging");
+          carousel.setPointerCapture(event.pointerId);
+        });
+
+        carousel.addEventListener("pointermove", (event) => {
+          if (!isDragging) return;
+          const delta = event.clientX - startX;
+          carousel.scrollLeft = startScrollLeft - delta;
+        });
+
+        function stopDragging(event) {
+          if (!isDragging) return;
+          isDragging = false;
+          carousel.classList.remove("is-dragging");
+          if (event && carousel.hasPointerCapture(event.pointerId)) {
+            carousel.releasePointerCapture(event.pointerId);
+          }
+        }
+
+        carousel.addEventListener("pointerup", stopDragging);
+        carousel.addEventListener("pointercancel", stopDragging);
+        carousel.addEventListener("pointerleave", stopDragging);
+      });
     })();
   </script>
 </body>
