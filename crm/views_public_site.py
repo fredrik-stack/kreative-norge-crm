@@ -79,6 +79,11 @@ class PublicActorListView(ListView):
                 category.name.lower(),
             )
         )
+        subcategories = [
+            subcategory
+            for subcategory in subcategories
+            if subcategory.name in subcategory_positions
+        ]
         subcategories.sort(
             key=lambda subcategory: (
                 subcategory_positions.get(subcategory.name, len(SUBCATEGORY_ORDER)),

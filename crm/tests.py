@@ -521,6 +521,8 @@ class PublicActorSiteTests(TestCase):
         self.assertContains(response, "Nordlyd")
 
     def test_public_actor_list_context_uses_expected_category_and_subcategory_order(self):
+        extra_category = Category.objects.create(name="Ekstra kategori")
+        Subcategory.objects.create(category=extra_category, name="Ekstra underkategori")
         response = self.client.get("/public/actors/")
 
         self.assertEqual(response.status_code, 200)
