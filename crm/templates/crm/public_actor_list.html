@@ -401,31 +401,21 @@
         </div>
       </form>
 
-      {% if available_categories %}
-        <div class="carousel" aria-label="Hovedkategorier">
-          <a class="filter-pill all {% if not selected_category %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if selected_tag %}tag={{ selected_tag|urlencode }}{% endif %}{% if selected_subcategory %}&subcategory={{ selected_subcategory|urlencode }}{% endif %}">Alle hovedkategorier</a>
+      {% if available_categories or available_subcategories %}
+        <div class="carousel" aria-label="Kategorier og underkategorier">
           {% for category in available_categories %}
             <a class="filter-pill category {% if selected_category == category.slug %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}category={{ category.slug|urlencode }}{% if selected_tag %}&tag={{ selected_tag|urlencode }}{% endif %}{% if selected_subcategory %}&subcategory={{ selected_subcategory|urlencode }}{% endif %}">{{ category.name|upper }}</a>
           {% endfor %}
-        </div>
-      {% else %}
-        <p class="filter-empty">Hovedkategorier vises her når de er lagt inn i editoren.</p>
-      {% endif %}
-
-      {% if available_subcategories %}
-        <div class="carousel" aria-label="Underkategorier">
-          <a class="filter-pill all {% if not selected_subcategory %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if selected_tag %}tag={{ selected_tag|urlencode }}{% endif %}{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}">Alle underkategorier</a>
           {% for subcategory in available_subcategories %}
             <a class="filter-pill subcategory {% if selected_subcategory == subcategory.slug %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}subcategory={{ subcategory.slug|urlencode }}{% if selected_tag %}&tag={{ selected_tag|urlencode }}{% endif %}{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}">{{ subcategory.name }}</a>
           {% endfor %}
         </div>
       {% else %}
-        <p class="filter-empty">Underkategorier vises her når de er lagt inn i editoren.</p>
+        <p class="filter-empty">Kategorier og underkategorier vises her når de er lagt inn i editoren.</p>
       {% endif %}
 
       {% if available_tags %}
         <div class="carousel" aria-label="Tags">
-          <a class="filter-pill all {% if not selected_tag %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if selected_category %}category={{ selected_category|urlencode }}&{% endif %}{% if selected_subcategory %}subcategory={{ selected_subcategory|urlencode }}{% endif %}">Alle tags</a>
           {% for tag in available_tags %}
             <a class="filter-pill {% if selected_tag == tag.slug %}active{% endif %}" style="background:{% if selected_tag == tag.slug %}var(--tag-active){% else %}var(--tag-bg){% endif %};" href="?{% if query %}q={{ query|urlencode }}&{% endif %}tag={{ tag.slug|urlencode }}{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}{% if selected_subcategory %}&subcategory={{ selected_subcategory|urlencode }}{% endif %}">{{ tag.name }}</a>
           {% endfor %}

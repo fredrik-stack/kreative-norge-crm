@@ -1,6 +1,36 @@
+import random
+
 from django.views.generic import DetailView, ListView
 
 from .models import Category, Organization, Subcategory, Tag
+
+
+CATEGORY_ORDER = [
+    "Musikk",
+    "Film",
+    "Kunst & Design",
+    "Scenekunst",
+    "Kreativ teknologi",
+    "Litteratur",
+]
+
+SUBCATEGORY_ORDER = [
+    "Artister & Band",
+    "Konsertarrangører",
+    "Musikere",
+    "Musikkbransjen",
+    "Produsent",
+    "Regi & Manus",
+    "Foto/ Lys",
+    "Filmlyd",
+    "Produksjon",
+    "Arenaer",
+    "Visuell kunst",
+    "Grafisk design",
+    "Klesdesign",
+    "Teater",
+    "Dans",
+]
 
 
 class PublicActorListView(ListView):
@@ -36,11 +66,30 @@ class PublicActorListView(ListView):
         context["selected_tag"] = (self.request.GET.get("tag") or "").strip()
         context["selected_category"] = (self.request.GET.get("category") or "").strip()
         context["selected_subcategory"] = (self.request.GET.get("subcategory") or "").strip()
-        context["available_tags"] = Tag.objects.order_by("name")
-        context["available_categories"] = Category.objects.order_by("name")
-        context["available_subcategories"] = Subcategory.objects.select_related("category").order_by(
-            "category__name", "name"
+        categories = list(Category.objects.all())
+        subcategories = list(Subcategory.objects.select_related("category"))
+        tags = list(Tag.objects.order_by("name"))
+
+        category_positions = {name: index for index, name in enumerate(CATEGORY_ORDER)}
+        subcategory_positions = {name: index for index, name in enumerate(SUBCATEGORY_ORDER)}
+
+        categories.sort(
+            key=lambda category: (
+                category_positions.get(category.name, len(CATEGORY_ORDER)),
+                category.name.lower(),
+            )
         )
+        subcategories.sort(
+            key=lambda subcategory: (
+                subcategory_positions.get(subcategory.name, len(SUBCATEGORY_ORDER)),
+                subcategory.name.lower(),
+            )
+        )
+        random.shuffle(tags)
+
+        context["available_tags"] = tags
+        context["available_categories"] = categories
+        context["available_subcategories"] = subcategories
         return context
 
 

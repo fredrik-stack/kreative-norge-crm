@@ -360,6 +360,7 @@ class CategoryAndSubcategoryTests(AuthenticatedAPITestCase):
     def test_seeded_categories_are_available(self):
         self.assertTrue(Category.objects.filter(name="Musikk").exists())
         self.assertTrue(Subcategory.objects.filter(name="Artister & Band").exists())
+        self.assertTrue(Subcategory.objects.filter(name="Filmlyd").exists())
 
     def test_categories_endpoint_requires_authentication(self):
         unauth_client = APIClient()
@@ -518,6 +519,35 @@ class PublicActorSiteTests(TestCase):
         response = self.client.get("/public/actors/", {"tag": self.tag.slug, "category": self.category.slug})
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Nordlyd")
+
+    def test_public_actor_list_context_uses_expected_category_and_subcategory_order(self):
+        response = self.client.get("/public/actors/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [category.name for category in response.context["available_categories"][:6]],
+            ["Musikk", "Film", "Kunst & Design", "Scenekunst", "Kreativ teknologi", "Litteratur"],
+        )
+        self.assertEqual(
+            [subcategory.name for subcategory in response.context["available_subcategories"][:15]],
+            [
+                "Artister & Band",
+                "Konsertarrangører",
+                "Musikere",
+                "Musikkbransjen",
+                "Produsent",
+                "Regi & Manus",
+                "Foto/ Lys",
+                "Filmlyd",
+                "Produksjon",
+                "Arenaer",
+                "Visuell kunst",
+                "Grafisk design",
+                "Klesdesign",
+                "Teater",
+                "Dans",
+            ],
+        )
 
     def test_public_actor_detail_shows_tags_and_subcategories(self):
         response = self.client.get(f"/public/actors/{self.organization.org_number}/")

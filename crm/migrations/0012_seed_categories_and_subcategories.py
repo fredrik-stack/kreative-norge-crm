@@ -13,7 +13,7 @@ SEED_CATEGORIES = {
         "Produsent",
         "Regi & Manus",
         "Foto/ Lys",
-        "Lyd",
+        "Filmlyd",
         "Produksjon",
         "Arenaer",
     ],
