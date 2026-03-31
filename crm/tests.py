@@ -346,16 +346,20 @@ class TagModelAndApiTests(AuthenticatedAPITestCase):
 class CategoryAndSubcategoryTests(AuthenticatedAPITestCase):
     def setUp(self):
         super().setUp()
-        self.category = Category.objects.create(name="Musikk")
-        self.subcategory = Subcategory.objects.create(category=self.category, name="Jazz")
-        self.other_subcategory = Subcategory.objects.create(category=self.category, name="Pop")
+        self.category = Category.objects.create(name="Testkategori")
+        self.subcategory = Subcategory.objects.create(category=self.category, name="Testunderkategori")
+        self.other_subcategory = Subcategory.objects.create(category=self.category, name="Annen underkategori")
         self.tenant = Tenant.objects.create(name="Category Tenant", slug="category-tenant")
 
     def test_category_slug_is_generated(self):
-        self.assertEqual(self.category.slug, "musikk")
+        self.assertEqual(self.category.slug, "testkategori")
 
     def test_subcategory_slug_is_generated(self):
-        self.assertEqual(self.subcategory.slug, "jazz")
+        self.assertEqual(self.subcategory.slug, "testunderkategori")
+
+    def test_seeded_categories_are_available(self):
+        self.assertTrue(Category.objects.filter(name="Musikk").exists())
+        self.assertTrue(Subcategory.objects.filter(name="Artister & Band").exists())
 
     def test_categories_endpoint_requires_authentication(self):
         unauth_client = APIClient()
@@ -366,8 +370,7 @@ class CategoryAndSubcategoryTests(AuthenticatedAPITestCase):
         response = self.client.get("/api/categories/")
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertEqual(len(payload), 1)
-        self.assertEqual(payload[0]["name"], "Musikk")
+        self.assertTrue(any(item["name"] == "Testkategori" for item in payload))
 
     def test_subcategories_endpoint_can_filter_by_category(self):
         response = self.client.get("/api/subcategories/", {"category": self.category.id})
@@ -383,8 +386,8 @@ class CategoryAndSubcategoryTests(AuthenticatedAPITestCase):
         data = PersonSerializer(person).data
 
         self.assertEqual(len(data["subcategories"]), 1)
-        self.assertEqual(data["subcategories"][0]["name"], "Jazz")
-        self.assertEqual(data["subcategories"][0]["category"]["name"], "Musikk")
+        self.assertEqual(data["subcategories"][0]["name"], "Testunderkategori")
+        self.assertEqual(data["subcategories"][0]["category"]["name"], "Testkategori")
 
 
 class OrganizationPreviewRefreshTests(AuthenticatedAPITestCase):
@@ -469,8 +472,8 @@ class TenantScopedCreateTests(AuthenticatedAPITestCase):
 @override_settings(SECURE_SSL_REDIRECT=False)
 class PublicActorSiteTests(TestCase):
     def setUp(self):
-        self.category = Category.objects.create(name="Musikk")
-        self.subcategory = Subcategory.objects.create(category=self.category, name="Jazz")
+        self.category = Category.objects.create(name="Publik kategori")
+        self.subcategory = Subcategory.objects.create(category=self.category, name="Publik underkategori")
         self.tag = Tag.objects.create(tenant=Tenant.objects.create(name="Public Tenant", slug="public-tenant"), name="Etablert")
         self.organization = Organization.objects.create(
             tenant=self.tag.tenant,
@@ -520,8 +523,8 @@ class PublicActorSiteTests(TestCase):
         response = self.client.get(f"/public/actors/{self.organization.org_number}/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Etablert")
-        self.assertContains(response, "MUSIKK")
-        self.assertContains(response, "Jazz")
+        self.assertContains(response, "PUBLIK KATEGORI")
+        self.assertContains(response, "Publik underkategori")
 
     def test_public_actor_detail_falls_back_to_person_email_but_not_phone(self):
         response = self.client.get(f"/public/actors/{self.organization.org_number}/")
