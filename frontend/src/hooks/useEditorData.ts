@@ -449,7 +449,7 @@ export function useEditorData() {
     const baselineTagInput = formatTagInput(selectedOrganization?.tags ?? []);
     return (
       !isEqualShallowOrganizationDraft(normalizeDraft(draft), normalizeDraft(baseline)) ||
-      normalizeTagInput(organizationTagInput) !== baselineTagInput
+      isDifferentTagInput(organizationTagInput, baselineTagInput)
     );
   }, [draft, organizationTagInput, selectedOrgId, selectedOrganization]);
 
@@ -478,7 +478,7 @@ export function useEditorData() {
     const baselineTagInput = formatTagInput(selectedPerson?.tags ?? []);
     const personDirty =
       !isEqualShallowPersonDraft(normalizePersonDraft(personDraft), normalizePersonDraft(baseline)) ||
-      normalizeTagInput(personTagInput) !== baselineTagInput;
+      isDifferentTagInput(personTagInput, baselineTagInput);
     const contactDirty =
       contactDraft.value.trim() !== "" ||
       contactDraft.type !== emptyContactDraft.type ||
@@ -511,7 +511,7 @@ export function useEditorData() {
     const baselineTagInput = formatTagInput(selectedPerson?.tags ?? []);
     return (
       !isEqualShallowPersonDraft(normalizePersonDraft(personDraft), normalizePersonDraft(baseline)) ||
-      normalizeTagInput(personTagInput) !== baselineTagInput
+      isDifferentTagInput(personTagInput, baselineTagInput)
     );
   }, [personDraft, personTagInput, selectedPerson, selectedPersonId]);
   const contactDraftHasUnsavedChanges =
@@ -590,6 +590,7 @@ export function useEditorData() {
       } else {
         throw new Error("Ingen organisasjon valgt");
       }
+      setDraft((current) => ({ ...current, tag_ids: resolvedTagIds }));
       setTags(await getTags(tenantId));
       setOrganizationTagInput(normalizeTagInput(organizationTagInput));
       setSaveState("saved");
@@ -753,6 +754,7 @@ export function useEditorData() {
       } else {
         throw new Error("Ingen person valgt");
       }
+      setPersonDraft((current) => ({ ...current, tag_ids: resolvedTagIds }));
       setTags(await getTags(tenantId));
       setPersonTagInput(normalizeTagInput(personTagInput));
       setPersonSaveState("saved");
@@ -1437,6 +1439,17 @@ function normalizeTagInput(value: string): string {
 
 function formatTagInput(tags: Array<{ name: string }>): string {
   return normalizeTagInput(tags.map((tag) => tag.name).join(", "));
+}
+
+function isDifferentTagInput(a: string, b: string): boolean {
+  return normalizeTagSetInput(a) !== normalizeTagSetInput(b);
+}
+
+function normalizeTagSetInput(value: string): string {
+  return parseTagNames(value)
+    .map((item) => item.toLocaleLowerCase("nb"))
+    .sort((left, right) => left.localeCompare(right, "nb"))
+    .join(",");
 }
 
 function isEqualIdList(a: number[], b: number[]): boolean {
