@@ -360,7 +360,7 @@ class CategoryAndSubcategoryTests(AuthenticatedAPITestCase):
     def test_seeded_categories_are_available(self):
         self.assertTrue(Category.objects.filter(name="Musikk").exists())
         self.assertTrue(Subcategory.objects.filter(name="Artister & Band").exists())
-        self.assertTrue(Subcategory.objects.filter(name="Lyd").exists())
+        self.assertTrue(Subcategory.objects.filter(name="Filmlyd").exists())
 
     def test_categories_endpoint_requires_authentication(self):
         unauth_client = APIClient()
@@ -579,7 +579,7 @@ class PublicActorSiteTests(TestCase):
                 "Produsent",
                 "Regi & Manus",
                 "Foto/ Lys",
-                "Lyd",
+                "Filmlyd",
                 "Produksjon",
                 "Arenaer",
                 "Visuell kunst",

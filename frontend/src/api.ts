@@ -135,6 +135,16 @@ export async function getTags(tenantId: number): Promise<Tag[]> {
   return isPaginated(data) ? data.results : data;
 }
 
+export async function createTag(
+  tenantId: number,
+  payload: Pick<Tag, "name">,
+): Promise<Tag> {
+  return request<Tag>(`/api/tenants/${tenantId}/tags/`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function getCategories(): Promise<Category[]> {
   const data = await request<Category[] | Paginated<Category>>("/api/categories/");
   return isPaginated(data) ? data.results : data;

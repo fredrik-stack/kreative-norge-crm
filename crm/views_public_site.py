@@ -24,7 +24,7 @@ SUBCATEGORY_ORDER = [
     "Produsent",
     "Regi & Manus",
     "Foto/ Lys",
-    "Lyd",
+    "Filmlyd",
     "Produksjon",
     "Arenaer",
     "Visuell kunst",

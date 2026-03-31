@@ -198,6 +198,26 @@ export const handlers = [
     return HttpResponse.json(tagsByTenantState[tenantId] ?? []);
   }),
 
+  http.post("/api/tenants/:tenantId/tags/", async ({ params, request }) => {
+    const tenantId = Number(params.tenantId);
+    const body = (await request.json()) as { name?: string };
+    const current = tagsByTenantState[tenantId] ?? [];
+    const normalized = (body.name ?? "").trim();
+    const existing = current.find((tag) => tag.name.toLowerCase() === normalized.toLowerCase());
+    if (existing) {
+      return HttpResponse.json(existing);
+    }
+    const created = {
+      id: Math.max(0, ...current.map((tag) => tag.id)) + 1,
+      tenant: tenantId,
+      name: normalized,
+      slug: normalized.toLowerCase().replace(/\s+/g, "-"),
+      created_at: "2026-01-01T00:00:00Z",
+    };
+    tagsByTenantState[tenantId] = [...current, created];
+    return HttpResponse.json(created, { status: 201 });
+  }),
+
   http.get("/api/categories/", () => {
     return HttpResponse.json(categoriesState);
   }),

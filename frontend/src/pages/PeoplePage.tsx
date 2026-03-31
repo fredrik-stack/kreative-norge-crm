@@ -20,7 +20,7 @@ const SUBCATEGORY_ORDER = [
   "Produsent",
   "Regi & Manus",
   "Foto/ Lys",
-  "Lyd",
+  "Filmlyd",
   "Produksjon",
   "Arenaer",
   "Visuell kunst",
@@ -215,19 +215,6 @@ function PeopleEditorPanel(props: {
               />
             </Field>
 
-            <SelectionChecklist
-              title="Tags"
-              description="Bruk interne tags for å merke kompetanse, format eller status."
-              options={editor.tags.map((tag) => ({ id: tag.id, label: tag.name, meta: tag.slug }))}
-              selectedIds={editor.personDraft.tag_ids}
-              onToggle={(id) =>
-                editor.setPersonDraft((state) => ({
-                  ...state,
-                  tag_ids: toggleId(state.tag_ids, id),
-                }))
-              }
-            />
-
             <CategorySelectFields
               title="Kategori og underkategori"
               description="Velg først en hovedkategori, og deretter en underkategori som hører til den."
@@ -243,6 +230,17 @@ function PeopleEditorPanel(props: {
                 }))
               }
             />
+
+            <Field label="Tags">
+              <input
+                value={editor.personTagInput}
+                onChange={(e) => editor.setPersonTagInput(e.target.value)}
+                placeholder="f.eks. live, management, booking"
+              />
+              <p className="muted" style={{ margin: "6px 0 0" }}>
+                Skriv egne tags separert med komma. Maks 5 tags.
+              </p>
+            </Field>
 
             <div className="link-section">
               <div className="sidebar-header">
@@ -477,44 +475,6 @@ function formatTime(iso: string): string {
   });
 }
 
-function SelectionChecklist(props: {
-  title: string;
-  description: string;
-  options: Array<{ id: number; label: string; meta?: string }>;
-  selectedIds: number[];
-  onToggle: (id: number) => void;
-}) {
-  const { title, description, options, selectedIds, onToggle } = props;
-  return (
-    <div className="link-section">
-      <div className="sidebar-header">
-        <h2>{title}</h2>
-        <span className="meta">{selectedIds.length} valgt</span>
-      </div>
-      <p className="muted">{description}</p>
-      <div className="link-list">
-        {options.map((option) => (
-          <label key={option.id} className="link-row">
-            <div>
-              <div className="link-person">{option.label}</div>
-              {option.meta ? <div className="meta">{option.meta}</div> : null}
-            </div>
-            <label className="inline-check compact">
-              <input
-                type="checkbox"
-                checked={selectedIds.includes(option.id)}
-                onChange={() => onToggle(option.id)}
-              />
-              <span>Valgt</span>
-            </label>
-          </label>
-        ))}
-        {options.length === 0 ? <div className="empty-state">Ingen valg tilgjengelig ennå.</div> : null}
-      </div>
-    </div>
-  );
-}
-
 function CategorySelectFields(props: {
   title: string;
   description: string;
@@ -600,8 +560,4 @@ function CategorySelectFields(props: {
       </div>
     </div>
   );
-}
-
-function toggleId(values: number[], id: number): number[] {
-  return values.includes(id) ? values.filter((value) => value !== id) : [...values, id];
 }

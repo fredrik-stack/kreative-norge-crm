@@ -2,6 +2,7 @@ import type { FormEvent } from "react";
 import { useDeferredValue, useEffect, useMemo, useState, useTransition } from "react";
 import {
   ApiError,
+  createTag,
   createOrganization,
   getCategories,
   createOrganizationPerson,
@@ -155,6 +156,8 @@ export function useEditorData() {
   const [selectedPersonId, setSelectedPersonId] = useState<number | "new" | null>(null);
   const [draft, setDraft] = useState<OrganizationPatch>(emptyDraft);
   const [personDraft, setPersonDraft] = useState<PersonPayload>(emptyPersonDraft);
+  const [organizationTagInput, setOrganizationTagInput] = useState("");
+  const [personTagInput, setPersonTagInput] = useState("");
   const [query, setQuery] = useState("");
   const [personQuery, setPersonQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
@@ -291,6 +294,7 @@ export function useEditorData() {
       category_ids: deriveCategoryIds((selectedOrganization.categories ?? []), (selectedOrganization.subcategories ?? [])),
       subcategory_ids: (selectedOrganization.subcategories ?? []).map((item) => item.id),
     });
+    setOrganizationTagInput(formatTagInput(selectedOrganization.tags ?? []));
     setSaveState("idle");
     setOrganizationFieldErrors({});
   }, [selectedOrgId, selectedOrganization]);
@@ -324,6 +328,7 @@ export function useEditorData() {
       category_ids: deriveCategoryIds((selectedPerson.categories ?? []), (selectedPerson.subcategories ?? [])),
       subcategory_ids: (selectedPerson.subcategories ?? []).map((item) => item.id),
     });
+    setPersonTagInput(formatTagInput(selectedPerson.tags ?? []));
     setContactDraft(emptyContactDraft);
     setPersonContacts(selectedPerson.contacts ?? []);
     setPersonSaveState("idle");
@@ -441,8 +446,12 @@ export function useEditorData() {
               subcategory_ids: (selectedOrganization.subcategories ?? []).map((item) => item.id),
             }
           : emptyDraft;
-    return !isEqualShallowOrganizationDraft(normalizeDraft(draft), normalizeDraft(baseline));
-  }, [draft, selectedOrgId, selectedOrganization]);
+    const baselineTagInput = formatTagInput(selectedOrganization?.tags ?? []);
+    return (
+      !isEqualShallowOrganizationDraft(normalizeDraft(draft), normalizeDraft(baseline)) ||
+      normalizeTagInput(organizationTagInput) !== baselineTagInput
+    );
+  }, [draft, organizationTagInput, selectedOrgId, selectedOrganization]);
 
   const peopleHasUnsavedChanges = useMemo(() => {
     const baseline =
@@ -466,14 +475,17 @@ export function useEditorData() {
               subcategory_ids: (selectedPerson.subcategories ?? []).map((item) => item.id),
             }
           : emptyPersonDraft;
-    const personDirty = !isEqualShallowPersonDraft(normalizePersonDraft(personDraft), normalizePersonDraft(baseline));
+    const baselineTagInput = formatTagInput(selectedPerson?.tags ?? []);
+    const personDirty =
+      !isEqualShallowPersonDraft(normalizePersonDraft(personDraft), normalizePersonDraft(baseline)) ||
+      normalizeTagInput(personTagInput) !== baselineTagInput;
     const contactDirty =
       contactDraft.value.trim() !== "" ||
       contactDraft.type !== emptyContactDraft.type ||
       contactDraft.is_primary !== emptyContactDraft.is_primary ||
       contactDraft.is_public !== emptyContactDraft.is_public;
     return personDirty || contactDirty;
-  }, [contactDraft, personDraft, selectedPerson, selectedPersonId]);
+  }, [contactDraft, personDraft, personTagInput, selectedPerson, selectedPersonId]);
   const personDraftHasUnsavedChanges = useMemo(() => {
     const baseline =
       selectedPersonId === "new"
@@ -496,8 +508,12 @@ export function useEditorData() {
               subcategory_ids: (selectedPerson.subcategories ?? []).map((item) => item.id),
             }
           : emptyPersonDraft;
-    return !isEqualShallowPersonDraft(normalizePersonDraft(personDraft), normalizePersonDraft(baseline));
-  }, [personDraft, selectedPerson, selectedPersonId]);
+    const baselineTagInput = formatTagInput(selectedPerson?.tags ?? []);
+    return (
+      !isEqualShallowPersonDraft(normalizePersonDraft(personDraft), normalizePersonDraft(baseline)) ||
+      normalizeTagInput(personTagInput) !== baselineTagInput
+    );
+  }, [personDraft, personTagInput, selectedPerson, selectedPersonId]);
   const contactDraftHasUnsavedChanges =
     contactDraft.value.trim() !== "" ||
     contactDraft.type !== emptyContactDraft.type ||
@@ -560,15 +576,22 @@ export function useEditorData() {
     setSaveState("saving");
     setError(null);
     try {
+      const resolvedTagIds = await resolveTagIdsForInput(tenantId, organizationTagInput);
+      const payload = normalizeDraft({
+        ...draft,
+        tag_ids: resolvedTagIds,
+      });
       if (selectedOrgId === "new") {
-        const created = await createOrganization(tenantId, normalizeDraft(draft));
+        const created = await createOrganization(tenantId, payload);
         await reloadOrganizations(created.id);
       } else if (typeof selectedOrgId === "number") {
-        await patchOrganization(tenantId, selectedOrgId, normalizeDraft(draft));
+        await patchOrganization(tenantId, selectedOrgId, payload);
         await reloadOrganizations(selectedOrgId);
       } else {
         throw new Error("Ingen organisasjon valgt");
       }
+      setTags(await getTags(tenantId));
+      setOrganizationTagInput(normalizeTagInput(organizationTagInput));
       setSaveState("saved");
       setOrganizationLastSavedAt(new Date().toISOString());
       return true;
@@ -713,18 +736,25 @@ export function useEditorData() {
     setPersonSaveState("saving");
     setError(null);
     try {
+      const resolvedTagIds = await resolveTagIdsForInput(tenantId, personTagInput);
+      const payload = normalizePersonDraft({
+        ...personDraft,
+        tag_ids: resolvedTagIds,
+      });
       if (selectedPersonId === "new") {
-        const created = await createPerson(tenantId, normalizePersonDraft(personDraft));
+        const created = await createPerson(tenantId, payload);
         await reloadPeopleAndLinks();
         setSelectedPersonId(created.id);
       } else if (typeof selectedPersonId === "number") {
-        const updated = await patchPerson(tenantId, selectedPersonId, normalizePersonDraft(personDraft));
+        const updated = await patchPerson(tenantId, selectedPersonId, payload);
         setPersons((current) =>
           current.map((person) => (person.id === updated.id ? { ...person, ...updated } : person)),
         );
       } else {
         throw new Error("Ingen person valgt");
       }
+      setTags(await getTags(tenantId));
+      setPersonTagInput(normalizeTagInput(personTagInput));
       setPersonSaveState("saved");
       setPersonLastSavedAt(new Date().toISOString());
       return true;
@@ -917,6 +947,7 @@ export function useEditorData() {
       category_ids: deriveCategoryIds((selectedOrganization.categories ?? []), (selectedOrganization.subcategories ?? [])),
       subcategory_ids: (selectedOrganization.subcategories ?? []).map((item) => item.id),
     });
+    setOrganizationTagInput(formatTagInput(selectedOrganization.tags ?? []));
     setSaveState("idle");
     setOrganizationFieldErrors({});
   }
@@ -944,6 +975,7 @@ export function useEditorData() {
       category_ids: deriveCategoryIds((selectedPerson.categories ?? []), (selectedPerson.subcategories ?? [])),
       subcategory_ids: (selectedPerson.subcategories ?? []).map((item) => item.id),
     });
+    setPersonTagInput(formatTagInput(selectedPerson.tags ?? []));
     setPersonSaveState("idle");
     setPersonFieldErrors({});
   }
@@ -988,8 +1020,12 @@ export function useEditorData() {
     setSelectedPersonId,
     draft,
     setDraft,
+    organizationTagInput,
+    setOrganizationTagInput,
     personDraft,
     setPersonDraft,
+    personTagInput,
+    setPersonTagInput,
     query,
     setQuery,
     personQuery,
@@ -1355,6 +1391,52 @@ function deriveCategoryIds(
     return uniqueSortedIds(subcategories.map((subcategory) => subcategory.category.id));
   }
   return [];
+}
+
+async function resolveTagIdsForInput(
+  tenantId: number,
+  rawInput: string,
+): Promise<number[]> {
+  const names = parseTagNames(rawInput);
+  if (names.length > 5) {
+    throw new Error("Du kan legge inn maks 5 tags.");
+  }
+  if (names.length === 0) return [];
+
+  const existing = await getTags(tenantId);
+  const byLowerName = new Map(existing.map((tag) => [tag.name.trim().toLowerCase(), tag]));
+  const resolved: Tag[] = [];
+
+  for (const name of names) {
+    const lower = name.toLowerCase();
+    const existingTag = byLowerName.get(lower);
+    if (existingTag) {
+      resolved.push(existingTag);
+      continue;
+    }
+    const created = await createTag(tenantId, { name });
+    byLowerName.set(lower, created);
+    resolved.push(created);
+  }
+
+  return uniqueSortedIds(resolved.map((tag) => tag.id));
+}
+
+function parseTagNames(value: string): string[] {
+  return [...new Set(
+    value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean),
+  )].slice(0, 5);
+}
+
+function normalizeTagInput(value: string): string {
+  return parseTagNames(value).join(", ");
+}
+
+function formatTagInput(tags: Array<{ name: string }>): string {
+  return normalizeTagInput(tags.map((tag) => tag.name).join(", "));
 }
 
 function isEqualIdList(a: number[], b: number[]): boolean {

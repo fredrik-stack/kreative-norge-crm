@@ -240,7 +240,30 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
   });
 
   await page.route("**/api/tenants/1/tags/", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(state.tags) });
+    if (route.request().method() === "GET") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(state.tags) });
+      return;
+    }
+    if (route.request().method() === "POST") {
+      const payload = route.request().postDataJSON() as { name?: string };
+      const normalized = (payload.name ?? "").trim();
+      const existing = state.tags.find((tag) => tag.name.toLowerCase() === normalized.toLowerCase());
+      if (existing) {
+        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(existing) });
+        return;
+      }
+      const created: Tag = {
+        id: Math.max(0, ...state.tags.map((tag) => tag.id)) + 1,
+        tenant: 1,
+        name: normalized,
+        slug: normalized.toLowerCase().replace(/\s+/g, "-"),
+        created_at: now,
+      };
+      state.tags.push(created);
+      await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(created) });
+      return;
+    }
+    await route.fallback();
   });
 
   await page.route("**/api/tenants/1/organizations/", async (route) => {
