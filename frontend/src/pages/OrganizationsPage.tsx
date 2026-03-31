@@ -253,16 +253,16 @@ function OrganizationEditorPanel(props: {
               }
             />
 
-            <CategorySelectionPanel
-              title="Kategorier og underkategorier"
-              description="Velg underkategorier under riktig hovedkategori. Dette styrer både filtrering og offentlig visning."
+            <CategorySelectFields
+              title="Kategori og underkategori"
+              description="Velg først en hovedkategori, og deretter en underkategori som hører til den."
               categories={editor.categories}
               subcategories={editor.subcategories}
               selectedIds={editor.draft.subcategory_ids}
-              onToggle={(id) =>
+              onSelect={(subcategoryId) =>
                 editor.setDraft((state) => ({
                   ...state,
-                  subcategory_ids: toggleId(state.subcategory_ids, id),
+                  subcategory_ids: subcategoryId ? [subcategoryId] : [],
                 }))
               }
             />
@@ -835,17 +835,21 @@ function SelectionChecklist(props: {
   );
 }
 
-function CategorySelectionPanel(props: {
+function CategorySelectFields(props: {
   title: string;
   description: string;
   categories: Array<{ id: number; name: string }>;
   subcategories: Array<{ id: number; name: string; category: { id: number; name: string } }>;
   selectedIds: number[];
-  onToggle: (id: number) => void;
+  onSelect: (id: number | null) => void;
 }) {
-  const { title, description, categories, subcategories, selectedIds, onToggle } = props;
+  const { title, description, categories, subcategories, selectedIds, onSelect } = props;
   const categoryPositions = new Map<string, number>(CATEGORY_ORDER.map((name, index) => [name, index]));
   const subcategoryPositions = new Map<string, number>(SUBCATEGORY_ORDER.map((name, index) => [name, index]));
+  const selectedSubcategoryId = selectedIds[0] ?? null;
+  const selectedSubcategory =
+    selectedSubcategoryId !== null ? subcategories.find((item) => item.id === selectedSubcategoryId) ?? null : null;
+  const selectedCategoryId = selectedSubcategory?.category.id ?? null;
 
   const sortedCategories = [...categories].sort(
     (left, right) =>
@@ -853,57 +857,68 @@ function CategorySelectionPanel(props: {
         (categoryPositions.get(right.name) ?? Number.MAX_SAFE_INTEGER) || left.name.localeCompare(right.name),
   );
 
-  const grouped = sortedCategories
-    .map((category) => ({
-      category,
-      items: subcategories
-        .filter((item) => item.category.id === category.id)
-        .sort(
-          (left, right) =>
-            (subcategoryPositions.get(left.name) ?? Number.MAX_SAFE_INTEGER) -
-              (subcategoryPositions.get(right.name) ?? Number.MAX_SAFE_INTEGER) || left.name.localeCompare(right.name),
-        ),
-    }))
-    .filter((group) => group.items.length > 0);
+  const availableSubcategories =
+    selectedCategoryId === null
+      ? []
+      : subcategories
+          .filter((item) => item.category.id === selectedCategoryId)
+          .sort(
+            (left, right) =>
+              (subcategoryPositions.get(left.name) ?? Number.MAX_SAFE_INTEGER) -
+                (subcategoryPositions.get(right.name) ?? Number.MAX_SAFE_INTEGER) || left.name.localeCompare(right.name),
+          );
 
   return (
     <div className="link-section">
       <div className="sidebar-header">
         <h2>{title}</h2>
-        <span className="meta">{selectedIds.length} valgt</span>
+        <span className="meta">{selectedSubcategory ? selectedSubcategory.name : "Ingen valgt"}</span>
       </div>
       <p className="muted">{description}</p>
-      <div className="link-list">
-        {grouped.map((group) => (
-          <div key={group.category.id} className="link-row" style={{ display: "block" }}>
-            <div style={{ marginBottom: 10 }}>
-              <div className="link-person">{group.category.name}</div>
-              <div className="meta">{group.items.length} underkategorier</div>
-            </div>
-            <div style={{ display: "grid", gap: 8 }}>
-              {group.items.map((item) => (
-                <label
-                  key={item.id}
-                  className="link-row"
-                  style={{ padding: "10px 12px", borderRadius: 12, background: "rgba(255,255,255,0.35)" }}
-                >
-                  <div>
-                    <div className="link-person">{item.name}</div>
-                  </div>
-                  <label className="inline-check compact">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(item.id)}
-                      onChange={() => onToggle(item.id)}
-                    />
-                    <span>Valgt</span>
-                  </label>
-                </label>
-              ))}
-            </div>
-          </div>
-        ))}
-        {grouped.length === 0 ? <div className="empty-state">Ingen kategorier tilgjengelig ennå.</div> : null}
+      <div className="grid two">
+        <Field label="Hovedkategori">
+          <select
+            value={selectedCategoryId ?? ""}
+            onChange={(e) => {
+              const nextCategoryId = e.target.value ? Number(e.target.value) : null;
+              if (nextCategoryId === null) {
+                onSelect(null);
+                return;
+              }
+              const firstSubcategory =
+                subcategories
+                  .filter((item) => item.category.id === nextCategoryId)
+                  .sort(
+                    (left, right) =>
+                      (subcategoryPositions.get(left.name) ?? Number.MAX_SAFE_INTEGER) -
+                        (subcategoryPositions.get(right.name) ?? Number.MAX_SAFE_INTEGER) ||
+                      left.name.localeCompare(right.name),
+                  )[0] ?? null;
+              onSelect(firstSubcategory?.id ?? null);
+            }}
+          >
+            <option value="">Velg hovedkategori</option>
+            {sortedCategories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Underkategori">
+          <select
+            value={selectedSubcategoryId ?? ""}
+            onChange={(e) => onSelect(e.target.value ? Number(e.target.value) : null)}
+            disabled={selectedCategoryId === null}
+          >
+            <option value="">{selectedCategoryId === null ? "Velg hovedkategori først" : "Velg underkategori"}</option>
+            {availableSubcategories.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </Field>
       </div>
     </div>
   );
