@@ -60,6 +60,12 @@
       font-weight: 700;
     }
 
+    .title-link {
+      color: inherit;
+      text-decoration: none;
+      width: fit-content;
+    }
+
     .hero-copy {
       margin: 0;
       color: var(--muted);
@@ -390,12 +396,12 @@
 <body>
   <main>
     <section class="hero">
-      <h1>Kreative Norge</h1>
+      <a class="title-link" href="/public/actors/"><h1>Kreative Norge</h1></a>
       <p class="hero-copy">En oversikt over de kulturelle og kreative næringene i Norge. Filtrer på navn, kategori eller tag for å finne relevante aktører raskt.</p>
 
-      <form method="get">
+      <form method="get" action="/public/actors/">
         <div class="search-shell">
-          <input type="search" name="q" value="{{ query }}" placeholder="Søk etter navn..." />
+          <input id="actor-search" type="search" name="q" value="{{ query }}" placeholder="Søk etter navn..." />
           {% if selected_tag %}<input type="hidden" name="tag" value="{{ selected_tag }}" />{% endif %}
           {% if selected_category %}<input type="hidden" name="category" value="{{ selected_category }}" />{% endif %}
           {% if selected_subcategory %}<input type="hidden" name="subcategory" value="{{ selected_subcategory }}" />{% endif %}
@@ -466,5 +472,20 @@
       </div>
     {% endif %}
   </main>
+  <script>
+    (function () {
+      const input = document.getElementById("actor-search");
+      if (!input) return;
+
+      function resetIfCleared() {
+        if (input.value === "") {
+          window.location.href = "/public/actors/";
+        }
+      }
+
+      input.addEventListener("search", resetIfCleared);
+      input.addEventListener("input", resetIfCleared);
+    })();
+  </script>
 </body>
 </html>
