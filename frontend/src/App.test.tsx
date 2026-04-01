@@ -38,6 +38,6 @@ describe("App integration", () => {
     await waitFor(() => {
       expect(screen.getByText("Du har ulagrede endringer i aktørskjemaet.")).toBeInTheDocument();
     });
-    expect(screen.getByRole("link", { name: /Aktører \*/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Oversikt" })).toBeInTheDocument();
   });
 });

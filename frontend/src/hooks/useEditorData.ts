@@ -158,8 +158,13 @@ export function useEditorData() {
   const [personDraft, setPersonDraft] = useState<PersonPayload>(emptyPersonDraft);
   const [organizationTagInput, setOrganizationTagInput] = useState("");
   const [personTagInput, setPersonTagInput] = useState("");
+  const [overviewQuery, setOverviewQuery] = useState("");
+  const [overviewCategorySlug, setOverviewCategorySlug] = useState("");
+  const [overviewSubcategorySlug, setOverviewSubcategorySlug] = useState("");
+  const [overviewTagSlug, setOverviewTagSlug] = useState("");
   const [query, setQuery] = useState("");
   const [personQuery, setPersonQuery] = useState("");
+  const deferredOverviewQuery = useDeferredValue(overviewQuery);
   const deferredQuery = useDeferredValue(query);
   const deferredPersonQuery = useDeferredValue(personQuery);
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -372,6 +377,46 @@ export function useEditorData() {
   }, [organizations, deferredQuery]);
 
   const personsById = useMemo(() => new Map(persons.map((person) => [person.id, person])), [persons]);
+
+  const filteredOverviewSubcategories = useMemo(() => {
+    if (!overviewCategorySlug) return subcategories;
+    return subcategories.filter((subcategory) => subcategory.category.slug === overviewCategorySlug);
+  }, [overviewCategorySlug, subcategories]);
+
+  const filteredOverviewOrganizations = useMemo(() => {
+    return organizations.filter((organization) =>
+      matchesOrganizationOverviewFilter({
+        organization,
+        query: deferredOverviewQuery,
+        categorySlug: overviewCategorySlug,
+        subcategorySlug: overviewSubcategorySlug,
+        tagSlug: overviewTagSlug,
+      }),
+    );
+  }, [deferredOverviewQuery, organizations, overviewCategorySlug, overviewSubcategorySlug, overviewTagSlug]);
+
+  const filteredOverviewPersons = useMemo(() => {
+    return persons.filter((person) =>
+      matchesPersonOverviewFilter({
+        person,
+        query: deferredOverviewQuery,
+        categorySlug: overviewCategorySlug,
+        subcategorySlug: overviewSubcategorySlug,
+        tagSlug: overviewTagSlug,
+      }),
+    );
+  }, [deferredOverviewQuery, overviewCategorySlug, overviewSubcategorySlug, overviewTagSlug, persons]);
+
+  const overviewFilterSummary = useMemo(
+    () =>
+      describeOverviewFilters({
+        query: overviewQuery,
+        categorySlug: overviewCategorySlug,
+        subcategorySlug: overviewSubcategorySlug,
+        tagSlug: overviewTagSlug,
+      }),
+    [overviewCategorySlug, overviewQuery, overviewSubcategorySlug, overviewTagSlug],
+  );
 
   const visiblePersons = useMemo(() => {
     const q = deferredPersonQuery.trim().toLowerCase();
@@ -1028,6 +1073,18 @@ export function useEditorData() {
     setPersonDraft,
     personTagInput,
     setPersonTagInput,
+    overviewQuery,
+    setOverviewQuery,
+    overviewCategorySlug,
+    setOverviewCategorySlug,
+    overviewSubcategorySlug,
+    setOverviewSubcategorySlug,
+    overviewTagSlug,
+    setOverviewTagSlug,
+    filteredOverviewSubcategories,
+    filteredOverviewOrganizations,
+    filteredOverviewPersons,
+    overviewFilterSummary,
     query,
     setQuery,
     personQuery,
@@ -1457,4 +1514,101 @@ function isEqualIdList(a: number[], b: number[]): boolean {
   const normalizedA = uniqueSortedIds(a);
   const normalizedB = uniqueSortedIds(b);
   return normalizedA.every((value, index) => value === normalizedB[index]);
+}
+
+function matchesOrganizationOverviewFilter(input: {
+  organization: Organization;
+  query: string;
+  categorySlug: string;
+  subcategorySlug: string;
+  tagSlug: string;
+}): boolean {
+  const { organization, query, categorySlug, subcategorySlug, tagSlug } = input;
+  if (categorySlug && !(organization.categories ?? []).some((category) => category.slug === categorySlug)) {
+    return false;
+  }
+  if (subcategorySlug && !(organization.subcategories ?? []).some((subcategory) => subcategory.slug === subcategorySlug)) {
+    return false;
+  }
+  if (tagSlug && !(organization.tags ?? []).some((tag) => tag.slug === tagSlug)) {
+    return false;
+  }
+
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return true;
+
+  const haystack = [
+    organization.name,
+    organization.org_number ?? "",
+    organization.email ?? "",
+    organization.phone ?? "",
+    organization.municipalities ?? "",
+    organization.note ?? "",
+    organization.description ?? "",
+    ...(organization.tags ?? []).map((tag) => tag.name),
+    ...(organization.categories ?? []).map((category) => category.name),
+    ...(organization.subcategories ?? []).map((subcategory) => subcategory.name),
+    ...((organization.active_people ?? []).map((link) => link.person?.full_name ?? "")),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(normalizedQuery);
+}
+
+function matchesPersonOverviewFilter(input: {
+  person: Person;
+  query: string;
+  categorySlug: string;
+  subcategorySlug: string;
+  tagSlug: string;
+}): boolean {
+  const { person, query, categorySlug, subcategorySlug, tagSlug } = input;
+  if (categorySlug && !(person.categories ?? []).some((category) => category.slug === categorySlug)) {
+    return false;
+  }
+  if (subcategorySlug && !(person.subcategories ?? []).some((subcategory) => subcategory.slug === subcategorySlug)) {
+    return false;
+  }
+  if (tagSlug && !(person.tags ?? []).some((tag) => tag.slug === tagSlug)) {
+    return false;
+  }
+
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return true;
+
+  const haystack = [
+    person.full_name,
+    person.email ?? "",
+    person.phone ?? "",
+    person.municipality ?? "",
+    person.note ?? "",
+    ...(person.tags ?? []).map((tag) => tag.name),
+    ...(person.categories ?? []).map((category) => category.name),
+    ...(person.subcategories ?? []).map((subcategory) => subcategory.name),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(normalizedQuery);
+}
+
+function describeOverviewFilters(input: {
+  query: string;
+  categorySlug: string;
+  subcategorySlug: string;
+  tagSlug: string;
+}): string | null {
+  const { query, categorySlug, subcategorySlug, tagSlug } = input;
+  const parts: string[] = [];
+  if (query.trim()) parts.push(`søk "${query.trim()}"`);
+  if (categorySlug) parts.push(`hovedkategori ${humanizeSlug(categorySlug)}`);
+  if (subcategorySlug) parts.push(`underkategori ${humanizeSlug(subcategorySlug)}`);
+  if (tagSlug) parts.push(`tag ${humanizeSlug(tagSlug)}`);
+  if (parts.length === 0) return null;
+  return `Viser kort filtrert på ${parts.join(", ")}.`;
+}
+
+function humanizeSlug(value: string): string {
+  return value.replace(/-/g, " ");
 }

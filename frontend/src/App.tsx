@@ -8,11 +8,13 @@ import {
   Routes,
   createBrowserRouter,
   useLocation,
+  useNavigate,
 } from "react-router-dom";
 import { AuthGate } from "./components/AuthGate";
 import { ConfirmNavigationModal } from "./components/ConfirmNavigationModal";
 import { useUnsavedChangesGuard } from "./hooks/useUnsavedChangesGuard";
 import { EditorProvider } from "./context/EditorContext";
+import { EditorOverviewPage } from "./pages/EditorOverviewPage";
 import { OrganizationsPage } from "./pages/OrganizationsPage";
 import { PeoplePage } from "./pages/PeoplePage";
 import { useEditorData } from "./hooks/useEditorData";
@@ -29,8 +31,16 @@ function AppShell() {
 function EditorShell({ username, onLogout }: { username: string; onLogout: () => void }) {
   const editor = useEditorData();
   const location = useLocation();
+  const navigate = useNavigate();
+  const onOverviewPage = location.pathname === "/organizations" || location.pathname === "/" || location.pathname === "/people";
   const onPeoplePage = location.pathname.startsWith("/people");
   const onOrganizationsPage = location.pathname.startsWith("/organizations");
+  const peopleHref =
+    editor.selectedPersonId === "new"
+      ? "/people/new"
+      : typeof editor.selectedPersonId === "number"
+        ? `/people/${editor.selectedPersonId}`
+        : "/people/new";
   const dirtySummary = useMemo(() => {
     const items: string[] = [];
     if (onOrganizationsPage && editor.organizationHasUnsavedChanges) items.push("Aktørskjema");
@@ -66,9 +76,67 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
               Editor CRM
             </Link>
           </h1>
-          <p className="hero-copy">
-            Redaktørflate for aktører og personer, med oversikter som gjør det enklere å finne fram før du redigerer.
-          </p>
+          {onOverviewPage ? (
+            <div className="hero-controls">
+              <input
+                className="search-input"
+                placeholder="Søk navn, kommune, kategori eller tag..."
+                value={editor.overviewQuery}
+                onChange={(e) => editor.setOverviewQuery(e.target.value)}
+              />
+              <div className="hero-filter-grid">
+                <select
+                  value={editor.overviewCategorySlug}
+                  onChange={(e) => {
+                    editor.setOverviewCategorySlug(e.target.value);
+                    editor.setOverviewSubcategorySlug("");
+                  }}
+                >
+                  <option value="">Alle hovedkategorier</option>
+                  {editor.categories.map((category) => (
+                    <option key={category.id} value={category.slug}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={editor.overviewSubcategorySlug}
+                  onChange={(e) => editor.setOverviewSubcategorySlug(e.target.value)}
+                  disabled={!editor.overviewCategorySlug}
+                >
+                  <option value="">
+                    {editor.overviewCategorySlug ? "Alle underkategorier" : "Velg hovedkategori først"}
+                  </option>
+                  {editor.filteredOverviewSubcategories.map((subcategory) => (
+                    <option key={subcategory.id} value={subcategory.slug}>
+                      {subcategory.name}
+                    </option>
+                  ))}
+                </select>
+                <select value={editor.overviewTagSlug} onChange={(e) => editor.setOverviewTagSlug(e.target.value)}>
+                  <option value="">Alle tags</option>
+                  {editor.tags.map((tag) => (
+                    <option key={tag.id} value={tag.slug}>
+                      {tag.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {editor.overviewFilterSummary ? <div className="filter-summary">{editor.overviewFilterSummary}</div> : null}
+              <div className="hero-actions">
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => {
+                    editor.setSelectedOrgId("new");
+                    navigate("/organizations/new");
+                  }}
+                >
+                  Ny organisasjon
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
         <div className="hero-card">
           <label className="field-label" htmlFor="tenant-select">
@@ -92,9 +160,9 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
           </select>
           <nav className="top-nav" aria-label="Hovednavigasjon">
             <NavLink to="/organizations" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
-              Aktører{editor.organizationHasUnsavedChanges ? " *" : ""}
+              Oversikt
             </NavLink>
-            <NavLink to="/people" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
+            <NavLink to={peopleHref} className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
               Personer{editor.peopleHasUnsavedChanges ? " *" : ""}
             </NavLink>
           </nav>
@@ -112,9 +180,9 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
       <EditorProvider value={editor}>
         <Routes>
           <Route path="/" element={<Navigate to="/organizations" replace />} />
-          <Route path="/organizations" element={<OrganizationsPage />} />
+          <Route path="/organizations" element={<EditorOverviewPage />} />
           <Route path="/organizations/:orgId" element={<OrganizationsPage />} />
-          <Route path="/people" element={<PeoplePage />} />
+          <Route path="/people" element={<EditorOverviewPage />} />
           <Route path="/people/:personId" element={<PeoplePage />} />
         </Routes>
       </EditorProvider>

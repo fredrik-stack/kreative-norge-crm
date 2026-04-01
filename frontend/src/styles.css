@@ -53,6 +53,10 @@ button {
   align-items: start;
 }
 
+.editor-overview-layout {
+  margin-top: 1rem;
+}
+
 .people-sidebar,
 .people-editor {
   padding: 0.9rem;
@@ -98,6 +102,25 @@ button {
   color: var(--muted);
   max-width: 68ch;
   line-height: 1.45;
+}
+
+.hero-controls {
+  margin-top: 0.9rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.hero-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
 .hero-card {
@@ -169,6 +192,10 @@ button {
 .overview-panel {
   grid-column: 2 / -1;
   padding: 1rem;
+}
+
+.overview-panel.unified {
+  grid-column: auto;
 }
 
 .sidebar-header {
@@ -503,6 +530,26 @@ select,
   border: 1px solid var(--line);
 }
 
+.editor-card.public-like {
+  cursor: pointer;
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.editor-card.public-like:hover {
+  transform: translateY(-1px);
+  border-color: rgba(12, 122, 91, 0.24);
+  box-shadow: 0 12px 30px rgba(14, 17, 13, 0.06);
+}
+
+.editor-card.expanded {
+  grid-template-columns: 96px minmax(0, 1fr);
+}
+
+.editor-card.expanded .editor-card-thumb {
+  width: 96px;
+  height: 96px;
+}
+
 .editor-card-thumb {
   width: 84px;
   height: 84px;
@@ -811,6 +858,10 @@ select,
 
 @media (max-width: 800px) {
   .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-filter-grid {
     grid-template-columns: 1fr;
   }
 
