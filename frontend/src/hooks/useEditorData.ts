@@ -1057,6 +1057,7 @@ export function useEditorData() {
     applyTenantSelection,
     organizations,
     persons,
+    organizationPeople,
     tags,
     categories,
     subcategories,

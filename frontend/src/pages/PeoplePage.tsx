@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Field } from "../components/Field";
 import { useEditor } from "../context/EditorContext";
 import { saveLabel } from "../editor-utils";
@@ -32,9 +32,6 @@ const SUBCATEGORY_ORDER = [
 
 export function PeoplePage() {
   const editor = useEditor();
-  const [selectedCategorySlug, setSelectedCategorySlug] = useState("");
-  const [selectedSubcategorySlug, setSelectedSubcategorySlug] = useState("");
-  const [selectedTagSlug, setSelectedTagSlug] = useState("");
   const { navigate, paramValue: personId } = useRouteSyncedSelection({
     routeParam: "personId",
     basePath: "/people",
@@ -55,55 +52,20 @@ export function PeoplePage() {
     !personRouteIsNew &&
     (!personRouteIsNumeric || !editor.persons.some((person) => person.id === personRouteParsed));
 
-  const filteredSubcategories = useMemo(() => {
-    if (!selectedCategorySlug) return editor.subcategories;
-    return editor.subcategories.filter((subcategory) => subcategory.category.slug === selectedCategorySlug);
-  }, [editor.subcategories, selectedCategorySlug]);
+  const filterSummary = editor.overviewFilterSummary;
 
-  const filteredPersons = useMemo(
-    () =>
-      editor.persons.filter((person) =>
-        matchesPersonFilters({
-          person,
-          query: editor.personQuery,
-          categorySlug: selectedCategorySlug,
-          subcategorySlug: selectedSubcategorySlug,
-          tagSlug: selectedTagSlug,
-        }),
-      ),
-    [editor.personQuery, editor.persons, selectedCategorySlug, selectedSubcategorySlug, selectedTagSlug],
-  );
-
-  const filterSummary = describeEditorFilterState({
-    query: editor.personQuery,
-    categorySlug: selectedCategorySlug,
-    subcategorySlug: selectedSubcategorySlug,
-    tagSlug: selectedTagSlug,
-    entityLabel: "personer",
-  });
+  if (inOverviewMode) {
+    return (
+      <main className="editor-overview-layout">
+        <PeopleOverviewPanel persons={editor.filteredOverviewPersons} navigate={navigate} filterSummary={filterSummary} />
+      </main>
+    );
+  }
 
   return (
     <section className="people-workspace">
-      <PeopleSidebar
-        navigate={navigate}
-        persons={filteredPersons}
-        selectedCategorySlug={selectedCategorySlug}
-        selectedSubcategorySlug={selectedSubcategorySlug}
-        selectedTagSlug={selectedTagSlug}
-        filteredSubcategories={filteredSubcategories}
-        filterSummary={filterSummary}
-        onCategoryChange={(value) => {
-          setSelectedCategorySlug(value);
-          setSelectedSubcategorySlug("");
-        }}
-        onSubcategoryChange={setSelectedSubcategorySlug}
-        onTagChange={setSelectedTagSlug}
-      />
-      {inOverviewMode ? (
-        <PeopleOverviewPanel persons={filteredPersons} navigate={navigate} filterSummary={filterSummary} />
-      ) : (
-        <PeopleEditorPanel navigate={navigate} personId={personId} invalidPersonRoute={invalidPersonRoute} />
-      )}
+      <PeopleSidebar navigate={navigate} persons={editor.persons} />
+      <PeopleEditorPanel navigate={navigate} personId={personId} invalidPersonRoute={invalidPersonRoute} />
     </section>
   );
 }
@@ -111,27 +73,8 @@ export function PeoplePage() {
 function PeopleSidebar(props: {
   navigate: (to: string) => void;
   persons: ReturnType<typeof useEditor>["persons"];
-  selectedCategorySlug: string;
-  selectedSubcategorySlug: string;
-  selectedTagSlug: string;
-  filteredSubcategories: ReturnType<typeof useEditor>["subcategories"];
-  filterSummary: string | null;
-  onCategoryChange: (value: string) => void;
-  onSubcategoryChange: (value: string) => void;
-  onTagChange: (value: string) => void;
 }) {
-  const {
-    navigate,
-    persons,
-    selectedCategorySlug,
-    selectedSubcategorySlug,
-    selectedTagSlug,
-    filteredSubcategories,
-    filterSummary,
-    onCategoryChange,
-    onSubcategoryChange,
-    onTagChange,
-  } = props;
+  const { navigate, persons } = props;
   const editor = useEditor();
   return (
     <aside className="panel people-sidebar">
@@ -141,56 +84,6 @@ function PeopleSidebar(props: {
           {editor.persons.length} stk
           {editor.peopleHasUnsavedChanges ? " · ulagret" : ""}
         </span>
-      </div>
-      <div className="people-sidebar-actions">
-        <input
-          className="search-input"
-          placeholder="Søk navn, kommune, kategori, tag..."
-          value={editor.personQuery}
-          onChange={(e) => editor.setPersonQuery(e.target.value)}
-        />
-        <div className="filter-stack">
-          <select value={selectedCategorySlug} onChange={(e) => onCategoryChange(e.target.value)}>
-            <option value="">Alle hovedkategorier</option>
-            {sortedCategories(editor.categories).map((category) => (
-              <option key={category.id} value={category.slug}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-          <select
-            value={selectedSubcategorySlug}
-            onChange={(e) => onSubcategoryChange(e.target.value)}
-            disabled={!selectedCategorySlug}
-          >
-            <option value="">{selectedCategorySlug ? "Alle underkategorier" : "Velg hovedkategori først"}</option>
-            {sortedSubcategories(filteredSubcategories).map((subcategory) => (
-              <option key={subcategory.id} value={subcategory.slug}>
-                {subcategory.name}
-              </option>
-            ))}
-          </select>
-          <select value={selectedTagSlug} onChange={(e) => onTagChange(e.target.value)}>
-            <option value="">Alle tags</option>
-            {sortedTags(editor.tags).map((tag) => (
-              <option key={tag.id} value={tag.slug}>
-                {tag.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        {filterSummary ? <div className="filter-summary">{filterSummary}</div> : null}
-        <button
-          type="button"
-          className="ghost-button"
-          onClick={() => {
-            editor.setSelectedPersonId("new");
-            navigate("/people/new");
-          }}
-          disabled={!editor.tenantId}
-        >
-          Ny person
-        </button>
       </div>
       <div className="list">
         {editor.tenantDataLoading ? <div className="loading-state">Laster personer...</div> : null}
@@ -226,61 +119,104 @@ function PeopleOverviewPanel(props: {
 }) {
   const { persons, navigate, filterSummary } = props;
   const editor = useEditor();
+  const organizationsById = useMemo(() => new Map(editor.organizations.map((organization) => [organization.id, organization])), [editor.organizations]);
+  const linkedOrganizationsByPersonId = useMemo(() => {
+    const grouped = new Map<number, Array<{ id: number; name: string }>>();
+    for (const link of editor.organizationPeople) {
+      const organization = organizationsById.get(link.organization);
+      if (!organization) continue;
+      const current = grouped.get(link.person) ?? [];
+      current.push({ id: organization.id, name: organization.name });
+      grouped.set(link.person, current);
+    }
+    return grouped;
+  }, [editor.organizationPeople, organizationsById]);
 
   return (
     <section className="panel overview-panel">
       <div className="sidebar-header">
         <div>
           <p className="eyebrow small">Oversikt</p>
-          <h2>Personkort</h2>
+          <h2>Personer</h2>
         </div>
         <span className="meta">{persons.length} synlige</span>
       </div>
       <p className="muted">
-        Her ser du alle personer i en mer lesbar kortvisning. Velg <strong>Rediger</strong> når du vil åpne skjemaet.
+        Her ser du alle personer i en tabellvisning som gjør det enklere å skanne mange navn, organisasjoner og kontaktpunkter.
       </p>
       {filterSummary ? <div className="filter-summary">{filterSummary}</div> : null}
-      <div className="editor-card-grid">
-        {persons.map((person) => (
-          <article key={person.id} className="editor-card">
-            <div className="editor-card-thumb editor-card-thumb-fallback person">
-              <span>{person.full_name.slice(0, 2).toUpperCase()}</span>
-            </div>
-            <div className="editor-card-body">
-              <div className="editor-card-head">
-                <h3>{person.full_name}</h3>
-                <span className="meta">{person.municipality || "Ingen kommune"}</span>
-              </div>
-              <div className="meta-row">
-                {person.categories.map((category) => (
-                  <span key={category.id} className="mini-pill category">{category.name.toUpperCase()}</span>
-                ))}
-                {person.subcategories.map((subcategory) => (
-                  <span key={subcategory.id} className="mini-pill subcategory">{subcategory.name}</span>
-                ))}
-                {person.tags.map((tag) => (
-                  <span key={tag.id} className="mini-pill tag">{tag.name}</span>
-                ))}
-              </div>
-              <p className="muted editor-card-copy">
-                {person.email || person.phone || person.note || "Ingen kontaktinfo lagt inn ennå."}
-              </p>
-              <div className="editor-card-actions">
-                <span className="save-pill idle">Intern profil</span>
-                <button
-                  type="button"
-                  className="ghost-button"
-                  onClick={() => {
-                    editor.setSelectedPersonId(person.id);
-                    navigate(`/people/${person.id}`);
-                  }}
-                >
-                  Rediger
-                </button>
-              </div>
-            </div>
-          </article>
-        ))}
+      <div className="overview-table-wrap">
+        <table className="overview-table">
+          <thead>
+            <tr>
+              <th>Navn</th>
+              <th>Organisasjon / bedrift</th>
+              <th>Primærlenke</th>
+              <th>E-post</th>
+              <th>Telefon</th>
+              <th>Kommune</th>
+              <th>Kategori</th>
+              <th>Tags</th>
+            </tr>
+          </thead>
+          <tbody>
+            {persons.map((person) => {
+              const linkedOrganizations = linkedOrganizationsByPersonId.get(person.id) ?? [];
+              const primaryLink = getPersonPrimaryLink(person);
+              return (
+                <tr key={person.id}>
+                  <td>
+                    <button
+                      type="button"
+                      className="table-link"
+                      onClick={() => {
+                        editor.setSelectedPersonId(person.id);
+                        navigate(`/people/${person.id}`);
+                      }}
+                    >
+                      {person.full_name}
+                    </button>
+                  </td>
+                  <td>
+                    {linkedOrganizations.length > 0 ? (
+                      <div className="table-linked-items">
+                        {linkedOrganizations.map((organization) => (
+                          <button
+                            key={`${person.id}-${organization.id}`}
+                            type="button"
+                            className="table-link secondary"
+                            onClick={() => {
+                              editor.setSelectedOrgId(organization.id);
+                              navigate(`/organizations/${organization.id}`);
+                            }}
+                          >
+                            {organization.name}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="meta">Ikke knyttet til aktør</span>
+                    )}
+                  </td>
+                  <td>
+                    {primaryLink ? (
+                      <a href={primaryLink} target="_blank" rel="noreferrer">
+                        {truncateLink(primaryLink)}
+                      </a>
+                    ) : (
+                      <span className="meta">—</span>
+                    )}
+                  </td>
+                  <td>{person.email || "—"}</td>
+                  <td>{person.phone || "—"}</td>
+                  <td>{person.municipality || "—"}</td>
+                  <td>{formatPersonCategoryLabel(person)}</td>
+                  <td>{person.tags.length > 0 ? person.tags.map((tag) => tag.name).join(", ") : "—"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
       {persons.length === 0 ? <div className="empty-state">Ingen personer matcher filtreringen.</div> : null}
     </section>
@@ -762,6 +698,41 @@ function sortedSubcategories(
 
 function sortedTags(tags: Array<{ id: number; name: string; slug: string }>) {
   return [...tags].sort((left, right) => left.name.localeCompare(right.name, "nb"));
+}
+
+function getPersonPrimaryLink(person: {
+  website_url: string | null;
+  instagram_url: string | null;
+  tiktok_url: string | null;
+  linkedin_url: string | null;
+  facebook_url: string | null;
+  youtube_url: string | null;
+}) {
+  return (
+    person.website_url ||
+    person.instagram_url ||
+    person.tiktok_url ||
+    person.linkedin_url ||
+    person.facebook_url ||
+    person.youtube_url ||
+    null
+  );
+}
+
+function truncateLink(value: string) {
+  return value.length > 38 ? `${value.slice(0, 35)}...` : value;
+}
+
+function formatPersonCategoryLabel(person: {
+  categories: Array<{ name: string }>;
+  subcategories: Array<{ name: string }>;
+}) {
+  const category = person.categories[0]?.name;
+  const subcategory = person.subcategories[0]?.name;
+  if (category && subcategory) return `${category} > ${subcategory}`;
+  if (category) return category;
+  if (subcategory) return subcategory;
+  return "—";
 }
 
 function matchesPersonFilters(input: {

@@ -32,9 +32,6 @@ const SUBCATEGORY_ORDER = [
 
 export function OrganizationsPage() {
   const editor = useEditor();
-  const [selectedCategorySlug, setSelectedCategorySlug] = useState("");
-  const [selectedSubcategorySlug, setSelectedSubcategorySlug] = useState("");
-  const [selectedTagSlug, setSelectedTagSlug] = useState("");
   const { navigate, paramValue: orgId } = useRouteSyncedSelection({
     routeParam: "orgId",
     basePath: "/organizations",
@@ -54,62 +51,27 @@ export function OrganizationsPage() {
     !orgRouteIsNew &&
     (!orgRouteIsNumeric || !editor.organizations.some((org) => org.id === orgRouteParsed));
 
-  const filteredOrganizations = useMemo(
-    () =>
-      editor.organizations.filter((org) =>
-        matchesOrganizationFilters({
-          organization: org,
-          query: editor.query,
-          categorySlug: selectedCategorySlug,
-          subcategorySlug: selectedSubcategorySlug,
-          tagSlug: selectedTagSlug,
-          personNames:
-            (org.active_people ?? [])
-              .map((link) => link.person?.full_name ?? "")
-              .filter(Boolean),
-        }),
-      ),
-    [editor.organizations, editor.query, selectedCategorySlug, selectedSubcategorySlug, selectedTagSlug],
-  );
+  const filterSummary = editor.overviewFilterSummary;
 
-  const filteredSubcategories = useMemo(() => {
-    if (!selectedCategorySlug) return editor.subcategories;
-    return editor.subcategories.filter((subcategory) => subcategory.category.slug === selectedCategorySlug);
-  }, [editor.subcategories, selectedCategorySlug]);
-
-  const filterSummary = describeEditorFilterState({
-    query: editor.query,
-    categorySlug: selectedCategorySlug,
-    subcategorySlug: selectedSubcategorySlug,
-    tagSlug: selectedTagSlug,
-    entityLabel: "aktører",
-  });
+  if (inOverviewMode) {
+    return (
+      <main className="editor-overview-layout">
+        <OrganizationOverviewPanel
+          organizations={editor.filteredOverviewOrganizations}
+          navigate={navigate}
+          filterSummary={filterSummary}
+        />
+      </main>
+    );
+  }
 
   return (
     <main className="workspace">
-      <OrganizationsSidebar
-        navigate={navigate}
-        organizations={filteredOrganizations}
-        selectedCategorySlug={selectedCategorySlug}
-        selectedSubcategorySlug={selectedSubcategorySlug}
-        selectedTagSlug={selectedTagSlug}
-        filteredSubcategories={filteredSubcategories}
-        filterSummary={filterSummary}
-        onCategoryChange={(value) => {
-          setSelectedCategorySlug(value);
-          setSelectedSubcategorySlug("");
-        }}
-        onSubcategoryChange={setSelectedSubcategorySlug}
-        onTagChange={setSelectedTagSlug}
-      />
-      {inOverviewMode ? (
-        <OrganizationOverviewPanel organizations={filteredOrganizations} navigate={navigate} filterSummary={filterSummary} />
-      ) : (
-        <>
-          <OrganizationEditorPanel navigate={navigate} orgId={orgId} invalidOrgRoute={invalidOrgRoute} />
-          <OrganizationPreviewPanel invalidOrgRoute={invalidOrgRoute} />
-        </>
-      )}
+      <OrganizationsSidebar navigate={navigate} organizations={editor.organizations} />
+      <>
+        <OrganizationEditorPanel navigate={navigate} orgId={orgId} invalidOrgRoute={invalidOrgRoute} />
+        <OrganizationPreviewPanel invalidOrgRoute={invalidOrgRoute} />
+      </>
     </main>
   );
 }
@@ -117,27 +79,8 @@ export function OrganizationsPage() {
 function OrganizationsSidebar(props: {
   navigate: (to: string) => void;
   organizations: ReturnType<typeof useEditor>["organizations"];
-  selectedCategorySlug: string;
-  selectedSubcategorySlug: string;
-  selectedTagSlug: string;
-  filteredSubcategories: ReturnType<typeof useEditor>["subcategories"];
-  filterSummary: string | null;
-  onCategoryChange: (value: string) => void;
-  onSubcategoryChange: (value: string) => void;
-  onTagChange: (value: string) => void;
 }) {
-  const {
-    navigate,
-    organizations,
-    selectedCategorySlug,
-    selectedSubcategorySlug,
-    selectedTagSlug,
-    filteredSubcategories,
-    filterSummary,
-    onCategoryChange,
-    onSubcategoryChange,
-    onTagChange,
-  } = props;
+  const { navigate, organizations } = props;
   const editor = useEditor();
   return (
     <aside className="sidebar panel">
@@ -147,56 +90,6 @@ function OrganizationsSidebar(props: {
           {editor.organizations.length} stk
           {editor.organizationHasUnsavedChanges ? " · ulagret" : ""}
         </span>
-      </div>
-      <div className="people-sidebar-actions">
-        <input
-          className="search-input"
-          placeholder="Søk navn, kommune, kategori, tag..."
-          value={editor.query}
-          onChange={(e) => editor.setQuery(e.target.value)}
-        />
-        <div className="filter-stack">
-          <select value={selectedCategorySlug} onChange={(e) => onCategoryChange(e.target.value)}>
-            <option value="">Alle hovedkategorier</option>
-            {sortedCategories(editor.categories).map((category) => (
-              <option key={category.id} value={category.slug}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-          <select
-            value={selectedSubcategorySlug}
-            onChange={(e) => onSubcategoryChange(e.target.value)}
-            disabled={!selectedCategorySlug}
-          >
-            <option value="">{selectedCategorySlug ? "Alle underkategorier" : "Velg hovedkategori først"}</option>
-            {sortedSubcategories(filteredSubcategories).map((subcategory) => (
-              <option key={subcategory.id} value={subcategory.slug}>
-                {subcategory.name}
-              </option>
-            ))}
-          </select>
-          <select value={selectedTagSlug} onChange={(e) => onTagChange(e.target.value)}>
-            <option value="">Alle tags</option>
-            {sortedTags(editor.tags).map((tag) => (
-              <option key={tag.id} value={tag.slug}>
-                {tag.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        {filterSummary ? <div className="filter-summary">{filterSummary}</div> : null}
-        <button
-          type="button"
-          className="ghost-button"
-          onClick={() => {
-            editor.setSelectedOrgId("new");
-            navigate("/organizations/new");
-          }}
-          disabled={!editor.tenantId}
-        >
-          Ny organisasjon
-        </button>
       </div>
 
       <div className="list">
@@ -233,6 +126,7 @@ function OrganizationOverviewPanel(props: {
 }) {
   const { organizations, navigate, filterSummary } = props;
   const editor = useEditor();
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   return (
     <section className="panel overview-panel">
@@ -244,12 +138,20 @@ function OrganizationOverviewPanel(props: {
         <span className="meta">{organizations.length} synlige</span>
       </div>
       <p className="muted">
-        Her ser du alle aktører i en mer lesbar kortvisning. Velg <strong>Rediger</strong> når du vil åpne skjemaet.
+        Her ser du alle aktører i en mer lesbar kortvisning. Klikk på et kort for å åpne all informasjon, og bruk{" "}
+        <strong>Rediger</strong> når du vil åpne skjemaet.
       </p>
       {filterSummary ? <div className="filter-summary">{filterSummary}</div> : null}
       <div className="editor-card-grid">
-        {organizations.map((organization) => (
-          <article key={organization.id} className="editor-card">
+        {organizations.map((organization) => {
+          const expanded = expandedId === organization.id;
+          const externalLinks = getOrganizationLinkRows(organization);
+          return (
+          <article
+            key={organization.id}
+            className={`editor-card public-like ${expanded ? "expanded" : ""}`}
+            onClick={() => setExpandedId(expanded ? null : organization.id)}
+          >
             {organization.preview_image_url ? (
               <img
                 src={organization.preview_image_url}
@@ -280,6 +182,79 @@ function OrganizationOverviewPanel(props: {
               <p className="muted editor-card-copy">
                 {organization.description || organization.note || "Ingen beskrivelse lagt inn ennå."}
               </p>
+              {expanded ? (
+                <>
+                  <div className="editor-detail-grid">
+                    <div>
+                      <span className="meta">E-post</span>
+                      <strong>{organization.email || "—"}</strong>
+                    </div>
+                    <div>
+                      <span className="meta">Org.nr</span>
+                      <strong>{organization.org_number || "—"}</strong>
+                    </div>
+                    <div>
+                      <span className="meta">Primærlenke</span>
+                      {organization.primary_link ? (
+                        <a
+                          href={organization.primary_link}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          {organization.primary_link}
+                        </a>
+                      ) : (
+                        <strong>—</strong>
+                      )}
+                    </div>
+                  </div>
+                  {externalLinks.length > 0 ? (
+                    <div className="editor-detail-section">
+                      <h4>Lenker</h4>
+                      <div className="editor-link-list">
+                        {externalLinks.map((link) => (
+                          <a
+                            key={`${organization.id}-${link.label}`}
+                            href={link.href}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            {link.label}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  <div className="editor-detail-section">
+                    <h4>Kontaktpersoner</h4>
+                    {organization.active_people && organization.active_people.length > 0 ? (
+                      <div className="editor-contact-list">
+                        {organization.active_people.map((link) => (
+                          <div key={link.id} className="editor-contact-card">
+                            <strong>{link.person?.full_name || "Ukjent person"}</strong>
+                            <span className="meta">{link.person?.municipality || "Ingen kommune"}</span>
+                            {(link.person?.public_contacts ?? []).length > 0 ? (
+                              <div className="editor-inline-links">
+                                {(link.person?.public_contacts ?? []).map((contact, index) => (
+                                  <span key={`${link.id}-${contact.type}-${index}`}>
+                                    {contact.type}: {contact.value}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="meta">Ingen offentlig kontaktinfo</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="empty-state compact">Ingen kontaktpersoner knyttet til aktøren.</div>
+                    )}
+                  </div>
+                </>
+              ) : null}
               <div className="editor-card-actions">
                 <span className={`save-pill ${organization.is_published ? "saved" : "idle"}`}>
                   {organization.is_published ? "Publisert" : "Kun intern"}
@@ -287,7 +262,8 @@ function OrganizationOverviewPanel(props: {
                 <button
                   type="button"
                   className="ghost-button"
-                  onClick={() => {
+                  onClick={(event) => {
+                    event.stopPropagation();
                     editor.setSelectedOrgId(organization.id);
                     navigate(`/organizations/${organization.id}`);
                   }}
@@ -297,7 +273,7 @@ function OrganizationOverviewPanel(props: {
               </div>
             </div>
           </article>
-        ))}
+        )})}
       </div>
       {organizations.length === 0 ? <div className="empty-state">Ingen aktører matcher filtreringen.</div> : null}
     </section>
@@ -1073,6 +1049,24 @@ function selectedSubcategoryNames(options: Array<{ id: number; name: string; cat
     .filter((item) => ids.includes(item.id))
     .map((item) => `${item.category.name}: ${item.name}`)
     .join(", ");
+}
+
+function getOrganizationLinkRows(organization: {
+  website_url: string | null;
+  instagram_url: string | null;
+  tiktok_url: string | null;
+  linkedin_url: string | null;
+  facebook_url: string | null;
+  youtube_url: string | null;
+}) {
+  return [
+    { label: "Nettside", href: organization.website_url },
+    { label: "Instagram", href: organization.instagram_url },
+    { label: "TikTok", href: organization.tiktok_url },
+    { label: "LinkedIn", href: organization.linkedin_url },
+    { label: "Facebook", href: organization.facebook_url },
+    { label: "YouTube", href: organization.youtube_url },
+  ].filter((link): link is { label: string; href: string } => Boolean(link.href));
 }
 
 function sortedCategories(categories: Array<{ id: number; name: string; slug: string }>) {

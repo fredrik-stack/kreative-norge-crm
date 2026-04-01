@@ -14,10 +14,10 @@ import { AuthGate } from "./components/AuthGate";
 import { ConfirmNavigationModal } from "./components/ConfirmNavigationModal";
 import { useUnsavedChangesGuard } from "./hooks/useUnsavedChangesGuard";
 import { EditorProvider } from "./context/EditorContext";
-import { EditorOverviewPage } from "./pages/EditorOverviewPage";
 import { OrganizationsPage } from "./pages/OrganizationsPage";
 import { PeoplePage } from "./pages/PeoplePage";
 import { useEditorData } from "./hooks/useEditorData";
+import { sortedCategories, sortedSubcategories, sortedTags } from "./editorTaxonomy";
 
 export default function App() {
   const router = useMemo(() => createBrowserRouter([{ path: "*", element: <AppShell /> }]), []);
@@ -32,9 +32,19 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
   const editor = useEditorData();
   const location = useLocation();
   const navigate = useNavigate();
-  const onOverviewPage = location.pathname === "/organizations" || location.pathname === "/" || location.pathname === "/people";
+  const isOrganizationsOverview = location.pathname === "/organizations" || location.pathname === "/";
+  const isPeopleOverview = location.pathname === "/people";
+  const onOverviewPage = isOrganizationsOverview || isPeopleOverview;
   const onPeoplePage = location.pathname.startsWith("/people");
   const onOrganizationsPage = location.pathname.startsWith("/organizations");
+  const overviewEntityLabel = isPeopleOverview ? "personer" : "aktører";
+  const overviewFilterSummary = buildEditorOverviewFilterSummary({
+    entityLabel: overviewEntityLabel,
+    query: editor.overviewQuery,
+    categorySlug: editor.overviewCategorySlug,
+    subcategorySlug: editor.overviewSubcategorySlug,
+    tagSlug: editor.overviewTagSlug,
+  });
   const peopleHref =
     editor.selectedPersonId === "new"
       ? "/people/new"
@@ -93,7 +103,7 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
                   }}
                 >
                   <option value="">Alle hovedkategorier</option>
-                  {editor.categories.map((category) => (
+                  {sortedCategories(editor.categories).map((category) => (
                     <option key={category.id} value={category.slug}>
                       {category.name}
                     </option>
@@ -107,7 +117,7 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
                   <option value="">
                     {editor.overviewCategorySlug ? "Alle underkategorier" : "Velg hovedkategori først"}
                   </option>
-                  {editor.filteredOverviewSubcategories.map((subcategory) => (
+                  {sortedSubcategories(editor.filteredOverviewSubcategories).map((subcategory) => (
                     <option key={subcategory.id} value={subcategory.slug}>
                       {subcategory.name}
                     </option>
@@ -115,24 +125,29 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
                 </select>
                 <select value={editor.overviewTagSlug} onChange={(e) => editor.setOverviewTagSlug(e.target.value)}>
                   <option value="">Alle tags</option>
-                  {editor.tags.map((tag) => (
+                  {sortedTags(editor.tags).map((tag) => (
                     <option key={tag.id} value={tag.slug}>
                       {tag.name}
                     </option>
                   ))}
                 </select>
               </div>
-              {editor.overviewFilterSummary ? <div className="filter-summary">{editor.overviewFilterSummary}</div> : null}
+              {overviewFilterSummary ? <div className="filter-summary">{overviewFilterSummary}</div> : null}
               <div className="hero-actions">
                 <button
                   type="button"
                   className="primary-button"
                   onClick={() => {
+                    if (isPeopleOverview) {
+                      editor.setSelectedPersonId("new");
+                      navigate("/people/new");
+                      return;
+                    }
                     editor.setSelectedOrgId("new");
                     navigate("/organizations/new");
                   }}
                 >
-                  Ny organisasjon
+                  {isPeopleOverview ? "Ny person" : "Ny organisasjon"}
                 </button>
               </div>
             </div>
@@ -159,8 +174,8 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
             ))}
           </select>
           <nav className="top-nav" aria-label="Hovednavigasjon">
-            <NavLink to="/organizations" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
-              Oversikt
+            <NavLink to="/organizations" end className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
+              Aktører{editor.organizationHasUnsavedChanges && !onPeoplePage ? " *" : ""}
             </NavLink>
             <NavLink to={peopleHref} className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
               Personer{editor.peopleHasUnsavedChanges ? " *" : ""}
@@ -180,9 +195,9 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
       <EditorProvider value={editor}>
         <Routes>
           <Route path="/" element={<Navigate to="/organizations" replace />} />
-          <Route path="/organizations" element={<EditorOverviewPage />} />
+          <Route path="/organizations" element={<OrganizationsPage />} />
           <Route path="/organizations/:orgId" element={<OrganizationsPage />} />
-          <Route path="/people" element={<EditorOverviewPage />} />
+          <Route path="/people" element={<PeoplePage />} />
           <Route path="/people/:personId" element={<PeoplePage />} />
         </Routes>
       </EditorProvider>
@@ -190,4 +205,25 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
       <ConfirmNavigationModal {...unsavedGuard.modal} />
     </div>
   );
+}
+
+function buildEditorOverviewFilterSummary(input: {
+  entityLabel: string;
+  query: string;
+  categorySlug: string;
+  subcategorySlug: string;
+  tagSlug: string;
+}): string | null {
+  const { entityLabel, query, categorySlug, subcategorySlug, tagSlug } = input;
+  const parts: string[] = [];
+  if (query.trim()) parts.push(`søk "${query.trim()}"`);
+  if (categorySlug) parts.push(`hovedkategori ${humanizeSlug(categorySlug)}`);
+  if (subcategorySlug) parts.push(`underkategori ${humanizeSlug(subcategorySlug)}`);
+  if (tagSlug) parts.push(`tag ${humanizeSlug(tagSlug)}`);
+  if (parts.length === 0) return null;
+  return `Viser ${entityLabel} filtrert på ${parts.join(", ")}.`;
+}
+
+function humanizeSlug(value: string) {
+  return value.replace(/-/g, " ");
 }
