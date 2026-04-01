@@ -17,7 +17,7 @@ import { EditorProvider } from "./context/EditorContext";
 import { OrganizationsPage } from "./pages/OrganizationsPage";
 import { PeoplePage } from "./pages/PeoplePage";
 import { useEditorData } from "./hooks/useEditorData";
-import { sortedCategories, sortedSubcategories, sortedTags } from "./editorTaxonomy";
+import { filterSubcategoriesForCategory, sortedCategories, sortedTags } from "./editorTaxonomy";
 
 export default function App() {
   const router = useMemo(() => createBrowserRouter([{ path: "*", element: <AppShell /> }]), []);
@@ -45,12 +45,6 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
     subcategorySlug: editor.overviewSubcategorySlug,
     tagSlug: editor.overviewTagSlug,
   });
-  const peopleHref =
-    editor.selectedPersonId === "new"
-      ? "/people/new"
-      : typeof editor.selectedPersonId === "number"
-        ? `/people/${editor.selectedPersonId}`
-        : "/people/new";
   const dirtySummary = useMemo(() => {
     const items: string[] = [];
     if (onOrganizationsPage && editor.organizationHasUnsavedChanges) items.push("Aktørskjema");
@@ -117,7 +111,7 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
                   <option value="">
                     {editor.overviewCategorySlug ? "Alle underkategorier" : "Velg hovedkategori først"}
                   </option>
-                  {sortedSubcategories(editor.filteredOverviewSubcategories).map((subcategory) => (
+                  {filterSubcategoriesForCategory(editor.subcategories, editor.overviewCategorySlug).map((subcategory) => (
                     <option key={subcategory.id} value={subcategory.slug}>
                       {subcategory.name}
                     </option>
@@ -177,7 +171,7 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
             <NavLink to="/organizations" end className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
               Aktører{editor.organizationHasUnsavedChanges && !onPeoplePage ? " *" : ""}
             </NavLink>
-            <NavLink to={peopleHref} className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
+            <NavLink to="/people" end className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
               Personer{editor.peopleHasUnsavedChanges ? " *" : ""}
             </NavLink>
           </nav>

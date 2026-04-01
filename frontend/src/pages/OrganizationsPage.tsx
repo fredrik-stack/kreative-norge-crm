@@ -1,34 +1,9 @@
 import { useMemo, useState } from "react";
 import { Field } from "../components/Field";
 import { useEditor } from "../context/EditorContext";
+import { filterSubcategoriesForCategory, sortedCategories as sortCategoriesByTaxonomy } from "../editorTaxonomy";
 import { saveLabel } from "../editor-utils";
 import { useRouteSyncedSelection } from "../hooks/useRouteSyncedSelection";
-
-const CATEGORY_ORDER = [
-  "Musikk",
-  "Film",
-  "Kunst & Design",
-  "Scenekunst",
-  "Kreativ teknologi",
-  "Litteratur",
-] as const;
-
-const SUBCATEGORY_ORDER = [
-  "Artister & Band",
-  "Konsertarrangører",
-  "Musikere",
-  "Musikkbransjen",
-  "Produsent",
-  "Regi & Manus",
-  "Foto/ Lys",
-  "Filmlyd",
-  "Filmproduksjon",
-  "Visuell kunst",
-  "Grafisk design",
-  "Klesdesign",
-  "Teater",
-  "Dans",
-] as const;
 
 export function OrganizationsPage() {
   const editor = useEditor();
@@ -179,11 +154,11 @@ function OrganizationOverviewPanel(props: {
                   <span key={tag.id} className="mini-pill tag">{tag.name}</span>
                 ))}
               </div>
-              <p className="muted editor-card-copy">
-                {organization.description || organization.note || "Ingen beskrivelse lagt inn ennå."}
-              </p>
               {expanded ? (
                 <>
+                  <p className="muted editor-card-copy">
+                    {organization.description || organization.note || "Ingen beskrivelse lagt inn ennå."}
+                  </p>
                   <div className="editor-detail-grid">
                     <div>
                       <span className="meta">E-post</span>
@@ -952,40 +927,23 @@ function linkFieldLabel(field: string | null | undefined): string | null {
 function CategorySelectFields(props: {
   title: string;
   description: string;
-  categories: Array<{ id: number; name: string }>;
-  subcategories: Array<{ id: number; name: string; category: { id: number; name: string } }>;
+  categories: Array<{ id: number; name: string; slug: string }>;
+  subcategories: Array<{ id: number; name: string; slug: string; category: { id: number; name: string; slug: string } }>;
   selectedCategoryIds: number[];
   selectedIds: number[];
   onSelect: (categoryId: number | null, subcategoryId: number | null) => void;
 }) {
   const { title, description, categories, subcategories, selectedCategoryIds, selectedIds, onSelect } = props;
-  const categoryPositions = new Map<string, number>(CATEGORY_ORDER.map((name, index) => [name, index]));
-  const subcategoryPositions = new Map<string, number>(SUBCATEGORY_ORDER.map((name, index) => [name, index]));
-  const allowedCategoryNames = new Set<string>(CATEGORY_ORDER);
-  const allowedSubcategoryNames = new Set<string>(SUBCATEGORY_ORDER);
   const selectedSubcategoryId = selectedIds[0] ?? null;
   const selectedSubcategory =
     selectedSubcategoryId !== null ? subcategories.find((item) => item.id === selectedSubcategoryId) ?? null : null;
   const selectedCategoryId = selectedCategoryIds[0] ?? selectedSubcategory?.category.id ?? null;
+  const selectedCategory = selectedCategoryId !== null ? categories.find((item) => item.id === selectedCategoryId) ?? null : null;
 
-  const sortedCategories = [...categories]
-    .filter((category) => allowedCategoryNames.has(category.name))
-    .sort(
-    (left, right) =>
-      (categoryPositions.get(left.name) ?? Number.MAX_SAFE_INTEGER) -
-        (categoryPositions.get(right.name) ?? Number.MAX_SAFE_INTEGER) || left.name.localeCompare(right.name),
-  );
+  const sortedCategories = sortCategoriesByTaxonomy(categories);
 
   const availableSubcategories =
-    selectedCategoryId === null
-      ? []
-      : subcategories
-          .filter((item) => item.category.id === selectedCategoryId && allowedSubcategoryNames.has(item.name))
-          .sort(
-            (left, right) =>
-              (subcategoryPositions.get(left.name) ?? Number.MAX_SAFE_INTEGER) -
-                (subcategoryPositions.get(right.name) ?? Number.MAX_SAFE_INTEGER) || left.name.localeCompare(right.name),
-          );
+    selectedCategory === null ? [] : filterSubcategoriesForCategory(subcategories, selectedCategory.slug);
 
   return (
     <div className="link-section">
@@ -1067,36 +1025,6 @@ function getOrganizationLinkRows(organization: {
     { label: "Facebook", href: organization.facebook_url },
     { label: "YouTube", href: organization.youtube_url },
   ].filter((link): link is { label: string; href: string } => Boolean(link.href));
-}
-
-function sortedCategories(categories: Array<{ id: number; name: string; slug: string }>) {
-  const positions = new Map<string, number>(CATEGORY_ORDER.map((name, index) => [name, index]));
-  const allowed = new Set<string>(CATEGORY_ORDER);
-  return [...categories]
-    .filter((category) => allowed.has(category.name))
-    .sort(
-      (left, right) =>
-        (positions.get(left.name) ?? Number.MAX_SAFE_INTEGER) -
-          (positions.get(right.name) ?? Number.MAX_SAFE_INTEGER) || left.name.localeCompare(right.name, "nb"),
-    );
-}
-
-function sortedSubcategories(
-  subcategories: Array<{ id: number; name: string; slug: string; category: { id: number; name: string; slug: string } }>,
-) {
-  const positions = new Map<string, number>(SUBCATEGORY_ORDER.map((name, index) => [name, index]));
-  const allowed = new Set<string>(SUBCATEGORY_ORDER);
-  return [...subcategories]
-    .filter((subcategory) => allowed.has(subcategory.name))
-    .sort(
-      (left, right) =>
-        (positions.get(left.name) ?? Number.MAX_SAFE_INTEGER) -
-          (positions.get(right.name) ?? Number.MAX_SAFE_INTEGER) || left.name.localeCompare(right.name, "nb"),
-    );
-}
-
-function sortedTags(tags: Array<{ id: number; name: string; slug: string }>) {
-  return [...tags].sort((left, right) => left.name.localeCompare(right.name, "nb"));
 }
 
 function matchesOrganizationFilters(input: {

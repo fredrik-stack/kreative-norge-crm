@@ -1,34 +1,9 @@
 import { useMemo } from "react";
 import { Field } from "../components/Field";
 import { useEditor } from "../context/EditorContext";
+import { filterSubcategoriesForCategory, sortedCategories as sortCategoriesByTaxonomy } from "../editorTaxonomy";
 import { saveLabel } from "../editor-utils";
 import { useRouteSyncedSelection } from "../hooks/useRouteSyncedSelection";
-
-const CATEGORY_ORDER = [
-  "Musikk",
-  "Film",
-  "Kunst & Design",
-  "Scenekunst",
-  "Kreativ teknologi",
-  "Litteratur",
-] as const;
-
-const SUBCATEGORY_ORDER = [
-  "Artister & Band",
-  "Konsertarrangører",
-  "Musikere",
-  "Musikkbransjen",
-  "Produsent",
-  "Regi & Manus",
-  "Foto/ Lys",
-  "Filmlyd",
-  "Filmproduksjon",
-  "Visuell kunst",
-  "Grafisk design",
-  "Klesdesign",
-  "Teater",
-  "Dans",
-] as const;
 
 export function PeoplePage() {
   const editor = useEditor();
@@ -211,7 +186,7 @@ function PeopleOverviewPanel(props: {
                   <td>{person.phone || "—"}</td>
                   <td>{person.municipality || "—"}</td>
                   <td>{formatPersonCategoryLabel(person)}</td>
-                  <td>{person.tags.length > 0 ? person.tags.map((tag) => tag.name).join(", ") : "—"}</td>
+                  <td>{person.tags && person.tags.length > 0 ? person.tags.map((tag) => tag.name).join(", ") : "—"}</td>
                 </tr>
               );
             })}
@@ -586,40 +561,23 @@ function formatTime(iso: string): string {
 function CategorySelectFields(props: {
   title: string;
   description: string;
-  categories: Array<{ id: number; name: string }>;
-  subcategories: Array<{ id: number; name: string; category: { id: number; name: string } }>;
+  categories: Array<{ id: number; name: string; slug: string }>;
+  subcategories: Array<{ id: number; name: string; slug: string; category: { id: number; name: string; slug: string } }>;
   selectedCategoryIds: number[];
   selectedIds: number[];
   onSelect: (categoryId: number | null, subcategoryId: number | null) => void;
 }) {
   const { title, description, categories, subcategories, selectedCategoryIds, selectedIds, onSelect } = props;
-  const categoryPositions = new Map<string, number>(CATEGORY_ORDER.map((name, index) => [name, index]));
-  const subcategoryPositions = new Map<string, number>(SUBCATEGORY_ORDER.map((name, index) => [name, index]));
-  const allowedCategoryNames = new Set<string>(CATEGORY_ORDER);
-  const allowedSubcategoryNames = new Set<string>(SUBCATEGORY_ORDER);
   const selectedSubcategoryId = selectedIds[0] ?? null;
   const selectedSubcategory =
     selectedSubcategoryId !== null ? subcategories.find((item) => item.id === selectedSubcategoryId) ?? null : null;
   const selectedCategoryId = selectedCategoryIds[0] ?? selectedSubcategory?.category.id ?? null;
+  const selectedCategory = selectedCategoryId !== null ? categories.find((item) => item.id === selectedCategoryId) ?? null : null;
 
-  const sortedCategories = [...categories]
-    .filter((category) => allowedCategoryNames.has(category.name))
-    .sort(
-    (left, right) =>
-      (categoryPositions.get(left.name) ?? Number.MAX_SAFE_INTEGER) -
-        (categoryPositions.get(right.name) ?? Number.MAX_SAFE_INTEGER) || left.name.localeCompare(right.name),
-  );
+  const sortedCategories = sortCategoriesByTaxonomy(categories);
 
   const availableSubcategories =
-    selectedCategoryId === null
-      ? []
-      : subcategories
-          .filter((item) => item.category.id === selectedCategoryId && allowedSubcategoryNames.has(item.name))
-          .sort(
-            (left, right) =>
-              (subcategoryPositions.get(left.name) ?? Number.MAX_SAFE_INTEGER) -
-                (subcategoryPositions.get(right.name) ?? Number.MAX_SAFE_INTEGER) || left.name.localeCompare(right.name),
-          );
+    selectedCategory === null ? [] : filterSubcategoriesForCategory(subcategories, selectedCategory.slug);
 
   return (
     <div className="link-section">
@@ -670,36 +628,6 @@ function CategorySelectFields(props: {
   );
 }
 
-function sortedCategories(categories: Array<{ id: number; name: string; slug: string }>) {
-  const positions = new Map<string, number>(CATEGORY_ORDER.map((name, index) => [name, index]));
-  const allowed = new Set<string>(CATEGORY_ORDER);
-  return [...categories]
-    .filter((category) => allowed.has(category.name))
-    .sort(
-      (left, right) =>
-        (positions.get(left.name) ?? Number.MAX_SAFE_INTEGER) -
-          (positions.get(right.name) ?? Number.MAX_SAFE_INTEGER) || left.name.localeCompare(right.name, "nb"),
-    );
-}
-
-function sortedSubcategories(
-  subcategories: Array<{ id: number; name: string; slug: string; category: { id: number; name: string; slug: string } }>,
-) {
-  const positions = new Map<string, number>(SUBCATEGORY_ORDER.map((name, index) => [name, index]));
-  const allowed = new Set<string>(SUBCATEGORY_ORDER);
-  return [...subcategories]
-    .filter((subcategory) => allowed.has(subcategory.name))
-    .sort(
-      (left, right) =>
-        (positions.get(left.name) ?? Number.MAX_SAFE_INTEGER) -
-          (positions.get(right.name) ?? Number.MAX_SAFE_INTEGER) || left.name.localeCompare(right.name, "nb"),
-    );
-}
-
-function sortedTags(tags: Array<{ id: number; name: string; slug: string }>) {
-  return [...tags].sort((left, right) => left.name.localeCompare(right.name, "nb"));
-}
-
 function getPersonPrimaryLink(person: {
   website_url: string | null;
   instagram_url: string | null;
@@ -724,11 +652,11 @@ function truncateLink(value: string) {
 }
 
 function formatPersonCategoryLabel(person: {
-  categories: Array<{ name: string }>;
-  subcategories: Array<{ name: string }>;
+  categories?: Array<{ name: string }>;
+  subcategories?: Array<{ name: string }>;
 }) {
-  const category = person.categories[0]?.name;
-  const subcategory = person.subcategories[0]?.name;
+  const category = person.categories?.[0]?.name;
+  const subcategory = person.subcategories?.[0]?.name;
   if (category && subcategory) return `${category} > ${subcategory}`;
   if (category) return category;
   if (subcategory) return subcategory;
