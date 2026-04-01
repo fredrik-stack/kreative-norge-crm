@@ -101,7 +101,8 @@ function OrganizationOverviewPanel(props: {
 }) {
   const { organizations, navigate, filterSummary } = props;
   const editor = useEditor();
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [modalOrgId, setModalOrgId] = useState<number | null>(null);
+  const activeOrganization = modalOrgId ? organizations.find((organization) => organization.id === modalOrgId) ?? null : null;
 
   return (
     <section className="panel overview-panel">
@@ -119,13 +120,11 @@ function OrganizationOverviewPanel(props: {
       {filterSummary ? <div className="filter-summary">{filterSummary}</div> : null}
       <div className="editor-card-grid">
         {organizations.map((organization) => {
-          const expanded = expandedId === organization.id;
-          const externalLinks = getOrganizationLinkRows(organization);
           return (
           <article
             key={organization.id}
-            className={`editor-card public-like ${expanded ? "expanded" : ""}`}
-            onClick={() => setExpandedId(expanded ? null : organization.id)}
+            className="editor-card public-like"
+            onClick={() => setModalOrgId(organization.id)}
           >
             {organization.preview_image_url ? (
               <img
@@ -154,82 +153,6 @@ function OrganizationOverviewPanel(props: {
                   <span key={tag.id} className="mini-pill tag">{tag.name}</span>
                 ))}
               </div>
-              {expanded ? (
-                <>
-                  <p className="muted editor-card-copy">
-                    {organization.description || organization.note || "Ingen beskrivelse lagt inn ennå."}
-                  </p>
-                  <div className="editor-detail-grid">
-                    <div>
-                      <span className="meta">E-post</span>
-                      <strong>{organization.email || "—"}</strong>
-                    </div>
-                    <div>
-                      <span className="meta">Org.nr</span>
-                      <strong>{organization.org_number || "—"}</strong>
-                    </div>
-                    <div>
-                      <span className="meta">Primærlenke</span>
-                      {organization.primary_link ? (
-                        <a
-                          href={organization.primary_link}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          {organization.primary_link}
-                        </a>
-                      ) : (
-                        <strong>—</strong>
-                      )}
-                    </div>
-                  </div>
-                  {externalLinks.length > 0 ? (
-                    <div className="editor-detail-section">
-                      <h4>Lenker</h4>
-                      <div className="editor-link-list">
-                        {externalLinks.map((link) => (
-                          <a
-                            key={`${organization.id}-${link.label}`}
-                            href={link.href}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(event) => event.stopPropagation()}
-                          >
-                            {link.label}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                  <div className="editor-detail-section">
-                    <h4>Kontaktpersoner</h4>
-                    {organization.active_people && organization.active_people.length > 0 ? (
-                      <div className="editor-contact-list">
-                        {organization.active_people.map((link) => (
-                          <div key={link.id} className="editor-contact-card">
-                            <strong>{link.person?.full_name || "Ukjent person"}</strong>
-                            <span className="meta">{link.person?.municipality || "Ingen kommune"}</span>
-                            {(link.person?.public_contacts ?? []).length > 0 ? (
-                              <div className="editor-inline-links">
-                                {(link.person?.public_contacts ?? []).map((contact, index) => (
-                                  <span key={`${link.id}-${contact.type}-${index}`}>
-                                    {contact.type}: {contact.value}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="meta">Ingen offentlig kontaktinfo</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="empty-state compact">Ingen kontaktpersoner knyttet til aktøren.</div>
-                    )}
-                  </div>
-                </>
-              ) : null}
               <div className="editor-card-actions">
                 <span className={`save-pill ${organization.is_published ? "saved" : "idle"}`}>
                   {organization.is_published ? "Publisert" : "Kun intern"}
@@ -251,7 +174,138 @@ function OrganizationOverviewPanel(props: {
         )})}
       </div>
       {organizations.length === 0 ? <div className="empty-state">Ingen aktører matcher filtreringen.</div> : null}
+      {activeOrganization ? (
+        <OrganizationOverviewModal
+          organization={activeOrganization}
+          onClose={() => setModalOrgId(null)}
+          onEdit={() => {
+            editor.setSelectedOrgId(activeOrganization.id);
+            navigate(`/organizations/${activeOrganization.id}`);
+          }}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function OrganizationOverviewModal(props: {
+  organization: ReturnType<typeof useEditor>["organizations"][number];
+  onClose: () => void;
+  onEdit: () => void;
+}) {
+  const { organization, onClose, onEdit } = props;
+  const externalLinks = getOrganizationLinkRows(organization);
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <div className="detail-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+        <div className="sidebar-header">
+          <div>
+            <p className="eyebrow small">Aktørkort</p>
+            <h2>{organization.name}</h2>
+          </div>
+          <button type="button" className="ghost-button" onClick={onClose}>
+            Lukk
+          </button>
+        </div>
+        <div className="editor-card modal-card">
+          {organization.preview_image_url ? (
+            <img src={organization.preview_image_url} alt={organization.name} className="editor-card-thumb modal-thumb" />
+          ) : (
+            <div className="editor-card-thumb editor-card-thumb-fallback modal-thumb">
+              <span>{organization.name.slice(0, 2).toUpperCase()}</span>
+            </div>
+          )}
+          <div className="editor-card-body">
+            <div className="editor-card-head">
+              <div>
+                <h3>{organization.name}</h3>
+                <span className="meta">{organization.municipalities || "Ingen kommune"}</span>
+              </div>
+              <span className={`save-pill ${organization.is_published ? "saved" : "idle"}`}>
+                {organization.is_published ? "Publisert" : "Kun intern"}
+              </span>
+            </div>
+            <div className="meta-row">
+              {organization.categories.map((category) => (
+                <span key={category.id} className="mini-pill category">{category.name.toUpperCase()}</span>
+              ))}
+              {organization.subcategories.map((subcategory) => (
+                <span key={subcategory.id} className="mini-pill subcategory">{subcategory.name}</span>
+              ))}
+              {organization.tags.map((tag) => (
+                <span key={tag.id} className="mini-pill tag">{tag.name}</span>
+              ))}
+            </div>
+            <p className="muted editor-card-copy">
+              {organization.description || organization.note || "Ingen beskrivelse lagt inn ennå."}
+            </p>
+            <div className="editor-detail-grid">
+              <div>
+                <span className="meta">E-post</span>
+                <strong>{organization.email || "—"}</strong>
+              </div>
+              <div>
+                <span className="meta">Org.nr</span>
+                <strong>{organization.org_number || "—"}</strong>
+              </div>
+              <div>
+                <span className="meta">Primærlenke</span>
+                {organization.primary_link ? (
+                  <a href={organization.primary_link} target="_blank" rel="noreferrer">
+                    {organization.primary_link}
+                  </a>
+                ) : (
+                  <strong>—</strong>
+                )}
+              </div>
+            </div>
+            {externalLinks.length > 0 ? (
+              <div className="editor-detail-section">
+                <h4>Lenker</h4>
+                <div className="editor-link-list">
+                  {externalLinks.map((link) => (
+                    <a key={`${organization.id}-${link.label}`} href={link.href} target="_blank" rel="noreferrer">
+                      {link.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            <div className="editor-detail-section">
+              <h4>Kontaktpersoner</h4>
+              {organization.active_people && organization.active_people.length > 0 ? (
+                <div className="editor-contact-list">
+                  {organization.active_people.map((link) => (
+                    <div key={link.id} className="editor-contact-card">
+                      <strong>{link.person?.full_name || "Ukjent person"}</strong>
+                      <span className="meta">{link.person?.municipality || "Ingen kommune"}</span>
+                      {(link.person?.public_contacts ?? []).length > 0 ? (
+                        <div className="editor-inline-links">
+                          {(link.person?.public_contacts ?? []).map((contact, index) => (
+                            <span key={`${link.id}-${contact.type}-${index}`}>
+                              {contact.type}: {contact.value}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="meta">Ingen offentlig kontaktinfo</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-state compact">Ingen kontaktpersoner knyttet til aktøren.</div>
+              )}
+            </div>
+            <div className="actions">
+              <button type="button" className="primary-button" onClick={onEdit}>
+                Rediger
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

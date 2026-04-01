@@ -396,6 +396,14 @@ export function useEditorData() {
   }, [deferredOverviewQuery, organizations, overviewCategorySlug, overviewSubcategorySlug, overviewTagSlug]);
 
   const filteredOverviewPersons = useMemo(() => {
+    const linkedOrganizationsByPersonId = new Map<number, string[]>();
+    for (const link of organizationPeople) {
+      const organization = organizations.find((item) => item.id === link.organization);
+      if (!organization) continue;
+      const current = linkedOrganizationsByPersonId.get(link.person) ?? [];
+      current.push(organization.name);
+      linkedOrganizationsByPersonId.set(link.person, current);
+    }
     return persons.filter((person) =>
       matchesPersonOverviewFilter({
         person,
@@ -403,9 +411,10 @@ export function useEditorData() {
         categorySlug: overviewCategorySlug,
         subcategorySlug: overviewSubcategorySlug,
         tagSlug: overviewTagSlug,
+        linkedOrganizationNames: linkedOrganizationsByPersonId.get(person.id) ?? [],
       }),
     );
-  }, [deferredOverviewQuery, overviewCategorySlug, overviewSubcategorySlug, overviewTagSlug, persons]);
+  }, [deferredOverviewQuery, organizationPeople, organizations, overviewCategorySlug, overviewSubcategorySlug, overviewTagSlug, persons]);
 
   const overviewFilterSummary = useMemo(
     () =>
@@ -1050,6 +1059,13 @@ export function useEditorData() {
     setSelectedPersonId(null);
   }
 
+  function resetOverviewFilters() {
+    setOverviewQuery("");
+    setOverviewCategorySlug("");
+    setOverviewSubcategorySlug("");
+    setOverviewTagSlug("");
+  }
+
   return {
     tenants,
     tenantId,
@@ -1082,6 +1098,7 @@ export function useEditorData() {
     setOverviewSubcategorySlug,
     overviewTagSlug,
     setOverviewTagSlug,
+    resetOverviewFilters,
     filteredOverviewSubcategories,
     filteredOverviewOrganizations,
     filteredOverviewPersons,
@@ -1546,10 +1563,20 @@ function matchesOrganizationOverviewFilter(input: {
     organization.municipalities ?? "",
     organization.note ?? "",
     organization.description ?? "",
+    organization.website_url ?? "",
+    organization.instagram_url ?? "",
+    organization.tiktok_url ?? "",
+    organization.linkedin_url ?? "",
+    organization.facebook_url ?? "",
+    organization.youtube_url ?? "",
+    organization.primary_link ?? "",
     ...(organization.tags ?? []).map((tag) => tag.name),
     ...(organization.categories ?? []).map((category) => category.name),
     ...(organization.subcategories ?? []).map((subcategory) => subcategory.name),
     ...((organization.active_people ?? []).map((link) => link.person?.full_name ?? "")),
+    ...((organization.active_people ?? []).flatMap((link) =>
+      (link.person?.public_contacts ?? []).map((contact) => contact.value ?? ""),
+    )),
   ]
     .join(" ")
     .toLowerCase();
@@ -1563,8 +1590,9 @@ function matchesPersonOverviewFilter(input: {
   categorySlug: string;
   subcategorySlug: string;
   tagSlug: string;
+  linkedOrganizationNames: string[];
 }): boolean {
-  const { person, query, categorySlug, subcategorySlug, tagSlug } = input;
+  const { person, query, categorySlug, subcategorySlug, tagSlug, linkedOrganizationNames } = input;
   if (categorySlug && !(person.categories ?? []).some((category) => category.slug === categorySlug)) {
     return false;
   }
@@ -1584,9 +1612,16 @@ function matchesPersonOverviewFilter(input: {
     person.phone ?? "",
     person.municipality ?? "",
     person.note ?? "",
+    person.website_url ?? "",
+    person.instagram_url ?? "",
+    person.tiktok_url ?? "",
+    person.linkedin_url ?? "",
+    person.facebook_url ?? "",
+    person.youtube_url ?? "",
     ...(person.tags ?? []).map((tag) => tag.name),
     ...(person.categories ?? []).map((category) => category.name),
     ...(person.subcategories ?? []).map((subcategory) => subcategory.name),
+    ...linkedOrganizationNames,
   ]
     .join(" ")
     .toLowerCase();

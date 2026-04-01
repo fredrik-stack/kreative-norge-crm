@@ -36,7 +36,7 @@ async function clickUntilConfirmIncrements(
   throw new Error("Confirm dialog was not triggered after retries");
 }
 
-test("shows confirm dialogs for deleting link, contact and person", async ({ page }) => {
+test("shows confirm dialogs for deleting link and person", async ({ page }) => {
   await page.addInitScript(() => {
     (window as Window & { __confirmMessages?: string[] }).__confirmMessages = [];
     window.confirm = (message?: string) => {
@@ -110,25 +110,6 @@ test("shows confirm dialogs for deleting link, contact and person", async ({ pag
 
   await page.getByRole("link", { name: /Personer/ }).click();
   await page.getByRole("button", { name: "Ada Editor" }).click();
-  await expect(page.getByRole("heading", { name: "Kontaktkanaler for valgt person" })).toBeVisible();
-  await expect(page.getByText("EMAIL · ada@example.com")).toBeVisible();
-  await expect(page.locator(".loading-state.compact")).toHaveCount(0);
-
-  count = await confirmMessageCount(page);
-  count = await clickUntilConfirmIncrements(page, async () => {
-    await page
-      .locator(".link-row")
-      .filter({ hasText: "EMAIL · ada@example.com" })
-      .first()
-      .getByRole("button", { name: "Fjern" })
-      .dispatchEvent("click");
-  }, count);
-  expect(await latestConfirmMessage(page)).toContain("Slette kontakt EMAIL");
-
-  await expect(page.getByText("EMAIL · ada@example.com")).toBeVisible();
-
-  count = await confirmMessageCount(page);
-  await expect(page.locator(".loading-state.compact")).toHaveCount(0);
   count = await clickUntilConfirmIncrements(page, async () => {
     await page.evaluate(() => {
       const button = Array.from(document.querySelectorAll("button")).find(

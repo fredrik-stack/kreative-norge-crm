@@ -70,13 +70,25 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
     saveAllPendingChanges: editor.saveAllPendingChanges,
   });
 
+  const goToEditorHome = () => {
+    editor.resetOverviewFilters();
+    navigate("/organizations");
+  };
+
   return (
     <div className="app-shell">
       <header className="hero">
         <div>
           <p className="eyebrow">Kreative Norge</p>
           <h1>
-            <Link to="/organizations" className="editor-title-link">
+            <Link
+              to="/organizations"
+              className="editor-title-link"
+              onClick={(event) => {
+                event.preventDefault();
+                goToEditorHome();
+              }}
+            >
               Editor CRM
             </Link>
           </h1>
@@ -84,6 +96,7 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
             <div className="hero-controls">
               <input
                 className="search-input"
+                type="search"
                 placeholder="Søk navn, kommune, kategori eller tag..."
                 value={editor.overviewQuery}
                 onChange={(e) => editor.setOverviewQuery(e.target.value)}
@@ -142,6 +155,9 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
                   }}
                 >
                   {isPeopleOverview ? "Ny person" : "Ny organisasjon"}
+                </button>
+                <button type="button" className="ghost-button" onClick={goToEditorHome}>
+                  Nullstill
                 </button>
               </div>
             </div>

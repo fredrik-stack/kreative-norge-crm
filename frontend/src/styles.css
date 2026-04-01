@@ -40,15 +40,15 @@ button {
 }
 
 .app-shell {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 1.25rem;
+  width: 100%;
+  margin: 0;
+  padding: clamp(0.9rem, 1.5vw, 1.25rem);
 }
 
 .people-workspace {
   margin-top: 1rem;
   display: grid;
-  grid-template-columns: 340px 1fr;
+  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
 }
@@ -123,6 +123,10 @@ button {
   flex-wrap: wrap;
 }
 
+.hero-actions .ghost-button {
+  min-width: 110px;
+}
+
 .hero-card {
   display: grid;
   gap: 0.65rem;
@@ -167,7 +171,7 @@ button {
 
 .workspace {
   display: grid;
-  grid-template-columns: 340px minmax(420px, 1fr) 360px;
+  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr) minmax(300px, 360px);
   gap: 1rem;
   align-items: start;
 }
@@ -721,6 +725,28 @@ select,
   flex-wrap: wrap;
 }
 
+.detail-modal {
+  width: min(1080px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 20px;
+  box-shadow: 0 24px 80px rgba(14, 17, 13, 0.25);
+  padding: 1rem;
+}
+
+.modal-card {
+  grid-template-columns: 160px minmax(0, 1fr);
+  margin-top: 0.75rem;
+}
+
+.modal-thumb {
+  width: 160px;
+  height: 160px;
+  border-radius: 18px;
+}
+
 .route-missing {
   padding: 0.9rem;
   border: 1px dashed var(--line);
@@ -931,7 +957,7 @@ select,
 
 @media (max-width: 1200px) {
   .workspace {
-    grid-template-columns: 290px 1fr;
+    grid-template-columns: minmax(260px, 300px) 1fr;
   }
 
   .preview {
@@ -943,7 +969,7 @@ select,
   }
 
   .people-workspace {
-    grid-template-columns: 290px 1fr;
+    grid-template-columns: minmax(260px, 300px) 1fr;
   }
 }
 
@@ -966,6 +992,15 @@ select,
 
   .overview-panel {
     grid-column: auto;
+  }
+
+  .modal-card {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-thumb {
+    width: 100%;
+    height: 220px;
   }
 
   .grid.two,

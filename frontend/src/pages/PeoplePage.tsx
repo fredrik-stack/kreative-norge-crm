@@ -125,6 +125,7 @@ function PeopleOverviewPanel(props: {
           <thead>
             <tr>
               <th>Navn</th>
+              <th>Tittel</th>
               <th>Organisasjon / bedrift</th>
               <th>Primærlenke</th>
               <th>E-post</th>
@@ -151,6 +152,9 @@ function PeopleOverviewPanel(props: {
                     >
                       {person.full_name}
                     </button>
+                  </td>
+                  <td>
+                    <span className="meta">—</span>
                   </td>
                   <td>
                     {linkedOrganizations.length > 0 ? (
@@ -182,7 +186,7 @@ function PeopleOverviewPanel(props: {
                       <span className="meta">—</span>
                     )}
                   </td>
-                  <td>{person.email || "—"}</td>
+                  <td>{person.email ? <a href={`mailto:${person.email}`}>{person.email}</a> : "—"}</td>
                   <td>{person.phone || "—"}</td>
                   <td>{person.municipality || "—"}</td>
                   <td>{formatPersonCategoryLabel(person)}</td>
@@ -412,141 +416,9 @@ function PeopleEditorPanel(props: {
             </div>
           </form>
 
-          <PersonContactsPanel />
         </>
       )}
     </section>
-  );
-}
-
-function PersonContactsPanel() {
-  const editor = useEditor();
-  return (
-    <div className="link-section">
-      <div className="sidebar-header">
-        <h2>Kontaktkanaler for valgt person</h2>
-        <span className="meta">{editor.personContacts.length} registrert</span>
-      </div>
-      <p className="muted">
-        Her legger du inn faktiske kontaktkanaler for personen. <strong>Primær</strong> betyr foretrukket
-        kanal av den typen. <strong>Public</strong> betyr at kanalen kan vises på offentlig aktørside/API.
-      </p>
-
-      {typeof editor.selectedPersonId === "number" ? (
-        <>
-          {editor.personContactsLoading ? <div className="loading-state compact">Laster kontakter...</div> : null}
-          <form className="contact-create" onSubmit={editor.onCreateContact}>
-            <select
-              value={editor.contactDraft.type}
-              onChange={(e) =>
-                editor.setContactDraft((s) => ({ ...s, type: e.target.value as "EMAIL" | "PHONE" }))
-              }
-            >
-              <option value="EMAIL">EMAIL</option>
-              <option value="PHONE">PHONE</option>
-            </select>
-            <input
-              className={editor.contactFieldErrors.value ? "input-error" : undefined}
-              placeholder="verdi (epost eller telefon)"
-              value={editor.contactDraft.value}
-              onChange={(e) => editor.setContactDraft((s) => ({ ...s, value: e.target.value }))}
-            />
-            {editor.contactFieldErrors.value ? (
-              <span className="field-error inline">{editor.contactFieldErrors.value}</span>
-            ) : null}
-            <label className="inline-check compact">
-              <input
-                type="checkbox"
-                checked={editor.contactDraft.is_primary}
-                onChange={(e) => editor.setContactDraft((s) => ({ ...s, is_primary: e.target.checked }))}
-              />
-              <span>Primær</span>
-            </label>
-            <label className="inline-check compact">
-              <input
-                type="checkbox"
-                checked={editor.contactDraft.is_public}
-                onChange={(e) => editor.setContactDraft((s) => ({ ...s, is_public: e.target.checked }))}
-              />
-              <span>Public</span>
-            </label>
-            <button type="submit" className="ghost-button" disabled={!editor.contactDraft.value.trim()}>
-              Legg til kontakt
-            </button>
-          </form>
-
-          <div className="link-list">
-            {editor.personContacts.map((contact) => (
-              <div key={contact.id} className="link-row">
-                <div>
-                  <div className="link-person">
-                    {contact.type} · {contact.value}
-                  </div>
-                  <div className="meta">
-                    {contact.is_primary ? "Primær" : "Sekundær"} · {contact.is_public ? "Public" : "Intern"}
-                  </div>
-                </div>
-
-                <div className="link-controls">
-                  <select
-                    value={contact.type}
-                    onChange={(e) => editor.updateContact(contact.id, { type: e.target.value as "EMAIL" | "PHONE" })}
-                  >
-                    <option value="EMAIL">EMAIL</option>
-                    <option value="PHONE">PHONE</option>
-                  </select>
-                  <input
-                    className="contact-inline-input"
-                    value={contact.value}
-                    onChange={(e) =>
-                      editor.setPersonContacts((current) =>
-                        current.map((c) => (c.id === contact.id ? { ...c, value: e.target.value } : c)),
-                      )
-                    }
-                    onBlur={(e) => {
-                      const next = e.target.value.trim();
-                      if (next) editor.updateContact(contact.id, { value: next });
-                    }}
-                  />
-                  <label className="inline-check compact">
-                    <input
-                      type="checkbox"
-                      checked={contact.is_primary}
-                      onChange={(e) => editor.updateContact(contact.id, { is_primary: e.target.checked })}
-                    />
-                    <span>Primær</span>
-                  </label>
-                  <label className="inline-check compact">
-                    <input
-                      type="checkbox"
-                      checked={contact.is_public}
-                      onChange={(e) => editor.updateContact(contact.id, { is_public: e.target.checked })}
-                    />
-                    <span>Public</span>
-                  </label>
-                  <button
-                    type="button"
-                    className="link-delete"
-                    onClick={() => {
-                      if (window.confirm(`Slette kontakt ${contact.type} · ${contact.value}?`)) {
-                        editor.removeContact(contact.id);
-                      }
-                    }}
-                  >
-                    Fjern
-                  </button>
-                </div>
-              </div>
-            ))}
-            {!editor.personContactsLoading && editor.personContacts.length === 0 ? (
-              <div className="empty-state">Ingen kontakter registrert for valgt person.</div>
-            ) : null}
-          </div>
-        </>
-      ) : (
-        <div className="empty-state">Velg eller opprett en person for å administrere kontakter.</div>
-      )}
-    </div>
   );
 }
 
