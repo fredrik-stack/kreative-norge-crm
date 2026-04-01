@@ -580,8 +580,7 @@ class PublicActorSiteTests(TestCase):
                 "Regi & Manus",
                 "Foto/ Lys",
                 "Filmlyd",
-                "Produksjon",
-                "Arenaer",
+                "Filmproduksjon",
                 "Visuell kunst",
                 "Grafisk design",
                 "Klesdesign",
@@ -589,6 +588,36 @@ class PublicActorSiteTests(TestCase):
                 "Dans",
             ],
         )
+
+    def test_public_actor_list_searches_municipality_category_subcategory_and_tag(self):
+        response = self.client.get("/public/actors/", {"q": "Oslo"})
+        self.assertContains(response, "Nordlyd")
+
+        response = self.client.get("/public/actors/", {"q": "Publik kategori"})
+        self.assertContains(response, "Nordlyd")
+
+        response = self.client.get("/public/actors/", {"q": "Publik underkategori"})
+        self.assertContains(response, "Nordlyd")
+
+        response = self.client.get("/public/actors/", {"q": "Etablert"})
+        self.assertContains(response, "Nordlyd")
+
+    def test_public_actor_list_dedupes_available_tags_by_name(self):
+        other_tenant = Tenant.objects.create(name="Annen tenant", slug="annen-tenant")
+        duplicate_tag = Tag.objects.create(tenant=other_tenant, name="Etablert", slug="etablert")
+        other_org = Organization.objects.create(
+            tenant=other_tenant,
+            name="Synlig aktør",
+            org_number="111222333",
+            is_published=True,
+        )
+        other_org.tags.add(duplicate_tag)
+
+        response = self.client.get("/public/actors/")
+
+        self.assertEqual(response.status_code, 200)
+        available_names = [tag.name for tag in response.context["available_tags"]]
+        self.assertEqual(available_names.count("Etablert"), 1)
 
     def test_public_actor_detail_shows_tags_and_subcategories(self):
         response = self.client.get(f"/public/actors/{self.organization.org_number}/")

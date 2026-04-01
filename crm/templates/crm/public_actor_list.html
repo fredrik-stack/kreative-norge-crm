@@ -75,6 +75,17 @@
       font-style: italic;
     }
 
+    .filter-summary {
+      margin: -2px 0 2px;
+      padding: 10px 14px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.52);
+      border: 1px solid rgba(79, 51, 44, 0.09);
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
     .search-shell {
       display: flex;
       gap: 10px;
@@ -400,7 +411,7 @@
 
       <form method="get" action="/public/actors/">
         <div class="search-shell">
-          <input id="actor-search" type="search" name="q" value="{{ query }}" placeholder="Søk etter navn..." />
+          <input id="actor-search" type="search" name="q" value="{{ query }}" placeholder="Søk etter navn, kommune, kategori eller tag..." />
           {% if selected_tag %}<input type="hidden" name="tag" value="{{ selected_tag }}" />{% endif %}
           {% if selected_category %}<input type="hidden" name="category" value="{{ selected_category }}" />{% endif %}
           {% if selected_subcategory %}<input type="hidden" name="subcategory" value="{{ selected_subcategory }}" />{% endif %}
@@ -409,10 +420,14 @@
         </div>
       </form>
 
+      {% if active_filter_summary %}
+        <p class="filter-summary">{{ active_filter_summary }}</p>
+      {% endif %}
+
       {% if available_categories or available_subcategories %}
         <div class="carousel" aria-label="Kategorier og underkategorier">
           {% for category in available_categories %}
-            <a class="filter-pill category {% if selected_category == category.slug %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}category={{ category.slug|urlencode }}{% if selected_tag %}&tag={{ selected_tag|urlencode }}{% endif %}{% if selected_subcategory %}&subcategory={{ selected_subcategory|urlencode }}{% endif %}">{{ category.name|upper }}</a>
+            <a class="filter-pill category {% if selected_category == category.slug %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}category={{ category.slug|urlencode }}{% if selected_tag %}&tag={{ selected_tag|urlencode }}{% endif %}">{{ category.name|upper }}</a>
           {% endfor %}
           {% for subcategory in available_subcategories %}
             <a class="filter-pill subcategory {% if selected_subcategory == subcategory.slug %}active{% endif %}" href="?{% if query %}q={{ query|urlencode }}&{% endif %}subcategory={{ subcategory.slug|urlencode }}{% if selected_tag %}&tag={{ selected_tag|urlencode }}{% endif %}{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}">{{ subcategory.name }}</a>
@@ -495,36 +510,47 @@
     (function () {
       const carousels = document.querySelectorAll(".carousel");
       carousels.forEach((carousel) => {
-        let isDragging = false;
+        let isPointerDown = false;
+        let didDrag = false;
         let startX = 0;
         let startScrollLeft = 0;
+        let suppressClick = false;
 
         carousel.addEventListener("pointerdown", (event) => {
-          isDragging = true;
+          isPointerDown = true;
+          didDrag = false;
           startX = event.clientX;
           startScrollLeft = carousel.scrollLeft;
-          carousel.classList.add("is-dragging");
-          carousel.setPointerCapture(event.pointerId);
         });
 
         carousel.addEventListener("pointermove", (event) => {
-          if (!isDragging) return;
+          if (!isPointerDown) return;
           const delta = event.clientX - startX;
+          if (Math.abs(delta) < 6) return;
+          didDrag = true;
+          carousel.classList.add("is-dragging");
           carousel.scrollLeft = startScrollLeft - delta;
         });
 
-        function stopDragging(event) {
-          if (!isDragging) return;
-          isDragging = false;
+        function stopDragging() {
+          if (!isPointerDown) return;
+          isPointerDown = false;
           carousel.classList.remove("is-dragging");
-          if (event && carousel.hasPointerCapture(event.pointerId)) {
-            carousel.releasePointerCapture(event.pointerId);
+          if (didDrag) {
+            suppressClick = true;
+            window.setTimeout(() => {
+              suppressClick = false;
+            }, 120);
           }
         }
 
         carousel.addEventListener("pointerup", stopDragging);
         carousel.addEventListener("pointercancel", stopDragging);
         carousel.addEventListener("pointerleave", stopDragging);
+        carousel.addEventListener("click", (event) => {
+          if (!suppressClick) return;
+          event.preventDefault();
+        }, true);
       });
     })();
   </script>

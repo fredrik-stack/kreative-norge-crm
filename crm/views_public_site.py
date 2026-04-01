@@ -25,8 +25,7 @@ SUBCATEGORY_ORDER = [
     "Regi & Manus",
     "Foto/ Lys",
     "Filmlyd",
-    "Produksjon",
-    "Arenaer",
+    "Filmproduksjon",
     "Visuell kunst",
     "Grafisk design",
     "Klesdesign",
@@ -55,7 +54,14 @@ class PublicActorListView(ListView):
         subcategory_slug = (self.request.GET.get("subcategory") or "").strip()
 
         if query:
-            qs = qs.filter(name__icontains=query)
+            qs = qs.filter(
+                Q(name__icontains=query)
+                | Q(org_number__icontains=query)
+                | Q(municipalities__icontains=query)
+                | Q(categories__name__icontains=query)
+                | Q(subcategories__name__icontains=query)
+                | Q(tags__name__icontains=query)
+            )
         if tag_slug:
             qs = qs.filter(tags__slug=tag_slug)
         if category_slug:
@@ -71,12 +77,22 @@ class PublicActorListView(ListView):
         context["selected_tag"] = (self.request.GET.get("tag") or "").strip()
         context["selected_category"] = (self.request.GET.get("category") or "").strip()
         context["selected_subcategory"] = (self.request.GET.get("subcategory") or "").strip()
-        tags = list(Tag.objects.order_by("name"))
+        tags = dedupe_tags(
+            Tag.objects.filter(organizations__is_published=True)
+            .order_by("name")
+            .distinct()
+        )
         random.shuffle(tags)
 
         context["available_tags"] = tags
         context["available_categories"] = CATEGORY_OPTIONS
         context["available_subcategories"] = SUBCATEGORY_OPTIONS
+        context["active_filter_summary"] = build_filter_summary(
+            query=context["query"],
+            category_slug=context["selected_category"],
+            subcategory_slug=context["selected_subcategory"],
+            tag_slug=context["selected_tag"],
+        )
         return context
 
 
@@ -92,3 +108,34 @@ class PublicActorDetailView(DetailView):
             .prefetch_related("tags", "categories", "subcategories__category", "org_people__person__contacts")
             .order_by("name")
         )
+
+
+def dedupe_tags(tags):
+    unique_tags = []
+    seen_names = set()
+    for tag in tags:
+        key = tag.name.strip().lower()
+        if key in seen_names:
+            continue
+        seen_names.add(key)
+        unique_tags.append(tag)
+    return unique_tags
+
+
+def build_filter_summary(*, query: str, category_slug: str, subcategory_slug: str, tag_slug: str) -> str | None:
+    parts: list[str] = []
+    if query:
+        parts.append(f'søk "{query}"')
+    if category_slug:
+        parts.append(f"hovedkategori {humanize_slug(category_slug)}")
+    if subcategory_slug:
+        parts.append(f"underkategori {humanize_slug(subcategory_slug)}")
+    if tag_slug:
+        parts.append(f"tag {humanize_slug(tag_slug)}")
+    if not parts:
+        return None
+    return "Viser filtrerte aktører basert på " + ", ".join(parts) + "."
+
+
+def humanize_slug(value: str) -> str:
+    return value.replace("-", " ")
