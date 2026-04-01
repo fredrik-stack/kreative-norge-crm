@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { Field } from "../components/Field";
 import { useEditor } from "../context/EditorContext";
 import { saveLabel } from "../editor-utils";
@@ -31,13 +32,18 @@ const SUBCATEGORY_ORDER = [
 
 export function OrganizationsPage() {
   const editor = useEditor();
+  const [selectedCategorySlug, setSelectedCategorySlug] = useState("");
+  const [selectedSubcategorySlug, setSelectedSubcategorySlug] = useState("");
+  const [selectedTagSlug, setSelectedTagSlug] = useState("");
   const { navigate, paramValue: orgId } = useRouteSyncedSelection({
     routeParam: "orgId",
     basePath: "/organizations",
     selectedId: editor.selectedOrgId,
     setSelectedId: editor.setSelectedOrgId,
+    syncWhenParamMissing: false,
   });
 
+  const inOverviewMode = !orgId;
   const orgRouteIsNew = orgId === "new";
   const orgRouteParsed = orgId && !orgRouteIsNew ? Number(orgId) : null;
   const orgRouteIsNumeric = typeof orgRouteParsed === "number" && !Number.isNaN(orgRouteParsed);
@@ -48,16 +54,90 @@ export function OrganizationsPage() {
     !orgRouteIsNew &&
     (!orgRouteIsNumeric || !editor.organizations.some((org) => org.id === orgRouteParsed));
 
+  const filteredOrganizations = useMemo(
+    () =>
+      editor.organizations.filter((org) =>
+        matchesOrganizationFilters({
+          organization: org,
+          query: editor.query,
+          categorySlug: selectedCategorySlug,
+          subcategorySlug: selectedSubcategorySlug,
+          tagSlug: selectedTagSlug,
+          personNames:
+            (org.active_people ?? [])
+              .map((link) => link.person?.full_name ?? "")
+              .filter(Boolean),
+        }),
+      ),
+    [editor.organizations, editor.query, selectedCategorySlug, selectedSubcategorySlug, selectedTagSlug],
+  );
+
+  const filteredSubcategories = useMemo(() => {
+    if (!selectedCategorySlug) return editor.subcategories;
+    return editor.subcategories.filter((subcategory) => subcategory.category.slug === selectedCategorySlug);
+  }, [editor.subcategories, selectedCategorySlug]);
+
+  const filterSummary = describeEditorFilterState({
+    query: editor.query,
+    categorySlug: selectedCategorySlug,
+    subcategorySlug: selectedSubcategorySlug,
+    tagSlug: selectedTagSlug,
+    entityLabel: "aktører",
+  });
+
   return (
     <main className="workspace">
-      <OrganizationsSidebar navigate={navigate} />
-      <OrganizationEditorPanel navigate={navigate} orgId={orgId} invalidOrgRoute={invalidOrgRoute} />
-      <OrganizationPreviewPanel invalidOrgRoute={invalidOrgRoute} />
+      <OrganizationsSidebar
+        navigate={navigate}
+        organizations={filteredOrganizations}
+        selectedCategorySlug={selectedCategorySlug}
+        selectedSubcategorySlug={selectedSubcategorySlug}
+        selectedTagSlug={selectedTagSlug}
+        filteredSubcategories={filteredSubcategories}
+        filterSummary={filterSummary}
+        onCategoryChange={(value) => {
+          setSelectedCategorySlug(value);
+          setSelectedSubcategorySlug("");
+        }}
+        onSubcategoryChange={setSelectedSubcategorySlug}
+        onTagChange={setSelectedTagSlug}
+      />
+      {inOverviewMode ? (
+        <OrganizationOverviewPanel organizations={filteredOrganizations} navigate={navigate} filterSummary={filterSummary} />
+      ) : (
+        <>
+          <OrganizationEditorPanel navigate={navigate} orgId={orgId} invalidOrgRoute={invalidOrgRoute} />
+          <OrganizationPreviewPanel invalidOrgRoute={invalidOrgRoute} />
+        </>
+      )}
     </main>
   );
 }
 
-function OrganizationsSidebar({ navigate }: { navigate: (to: string) => void }) {
+function OrganizationsSidebar(props: {
+  navigate: (to: string) => void;
+  organizations: ReturnType<typeof useEditor>["organizations"];
+  selectedCategorySlug: string;
+  selectedSubcategorySlug: string;
+  selectedTagSlug: string;
+  filteredSubcategories: ReturnType<typeof useEditor>["subcategories"];
+  filterSummary: string | null;
+  onCategoryChange: (value: string) => void;
+  onSubcategoryChange: (value: string) => void;
+  onTagChange: (value: string) => void;
+}) {
+  const {
+    navigate,
+    organizations,
+    selectedCategorySlug,
+    selectedSubcategorySlug,
+    selectedTagSlug,
+    filteredSubcategories,
+    filterSummary,
+    onCategoryChange,
+    onSubcategoryChange,
+    onTagChange,
+  } = props;
   const editor = useEditor();
   return (
     <aside className="sidebar panel">
@@ -71,10 +151,41 @@ function OrganizationsSidebar({ navigate }: { navigate: (to: string) => void }) 
       <div className="people-sidebar-actions">
         <input
           className="search-input"
-          placeholder="Søk navn, orgnr, kommune..."
+          placeholder="Søk navn, kommune, kategori, tag..."
           value={editor.query}
           onChange={(e) => editor.setQuery(e.target.value)}
         />
+        <div className="filter-stack">
+          <select value={selectedCategorySlug} onChange={(e) => onCategoryChange(e.target.value)}>
+            <option value="">Alle hovedkategorier</option>
+            {sortedCategories(editor.categories).map((category) => (
+              <option key={category.id} value={category.slug}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={selectedSubcategorySlug}
+            onChange={(e) => onSubcategoryChange(e.target.value)}
+            disabled={!selectedCategorySlug}
+          >
+            <option value="">{selectedCategorySlug ? "Alle underkategorier" : "Velg hovedkategori først"}</option>
+            {sortedSubcategories(filteredSubcategories).map((subcategory) => (
+              <option key={subcategory.id} value={subcategory.slug}>
+                {subcategory.name}
+              </option>
+            ))}
+          </select>
+          <select value={selectedTagSlug} onChange={(e) => onTagChange(e.target.value)}>
+            <option value="">Alle tags</option>
+            {sortedTags(editor.tags).map((tag) => (
+              <option key={tag.id} value={tag.slug}>
+                {tag.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        {filterSummary ? <div className="filter-summary">{filterSummary}</div> : null}
         <button
           type="button"
           className="ghost-button"
@@ -90,7 +201,7 @@ function OrganizationsSidebar({ navigate }: { navigate: (to: string) => void }) 
 
       <div className="list">
         {editor.tenantDataLoading ? <div className="loading-state">Laster aktører...</div> : null}
-        {editor.visibleOrganizations.map((org) => (
+        {organizations.map((org) => (
           <button
             key={org.id}
             type="button"
@@ -107,11 +218,89 @@ function OrganizationsSidebar({ navigate }: { navigate: (to: string) => void }) 
             </div>
           </button>
         ))}
-        {!editor.tenantDataLoading && editor.visibleOrganizations.length === 0 ? (
+        {!editor.tenantDataLoading && organizations.length === 0 ? (
           <div className="empty-state">Ingen treff for søket.</div>
         ) : null}
       </div>
     </aside>
+  );
+}
+
+function OrganizationOverviewPanel(props: {
+  organizations: ReturnType<typeof useEditor>["organizations"];
+  navigate: (to: string) => void;
+  filterSummary: string | null;
+}) {
+  const { organizations, navigate, filterSummary } = props;
+  const editor = useEditor();
+
+  return (
+    <section className="panel overview-panel">
+      <div className="sidebar-header">
+        <div>
+          <p className="eyebrow small">Oversikt</p>
+          <h2>Aktørkort</h2>
+        </div>
+        <span className="meta">{organizations.length} synlige</span>
+      </div>
+      <p className="muted">
+        Her ser du alle aktører i en mer lesbar kortvisning. Velg <strong>Rediger</strong> når du vil åpne skjemaet.
+      </p>
+      {filterSummary ? <div className="filter-summary">{filterSummary}</div> : null}
+      <div className="editor-card-grid">
+        {organizations.map((organization) => (
+          <article key={organization.id} className="editor-card">
+            {organization.preview_image_url ? (
+              <img
+                src={organization.preview_image_url}
+                alt={organization.name}
+                className="editor-card-thumb"
+              />
+            ) : (
+              <div className="editor-card-thumb editor-card-thumb-fallback">
+                <span>{organization.name.slice(0, 2).toUpperCase()}</span>
+              </div>
+            )}
+            <div className="editor-card-body">
+              <div className="editor-card-head">
+                <h3>{organization.name}</h3>
+                <span className="meta">{organization.municipalities || "Ingen kommune"}</span>
+              </div>
+              <div className="meta-row">
+                {organization.categories.map((category) => (
+                  <span key={category.id} className="mini-pill category">{category.name.toUpperCase()}</span>
+                ))}
+                {organization.subcategories.map((subcategory) => (
+                  <span key={subcategory.id} className="mini-pill subcategory">{subcategory.name}</span>
+                ))}
+                {organization.tags.map((tag) => (
+                  <span key={tag.id} className="mini-pill tag">{tag.name}</span>
+                ))}
+              </div>
+              <p className="muted editor-card-copy">
+                {organization.description || organization.note || "Ingen beskrivelse lagt inn ennå."}
+              </p>
+              <div className="editor-card-actions">
+                <span className={`save-pill ${organization.is_published ? "saved" : "idle"}`}>
+                  {organization.is_published ? "Publisert" : "Kun intern"}
+                </span>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => {
+                    editor.setSelectedOrgId(organization.id);
+                    navigate(`/organizations/${organization.id}`);
+                  }}
+                >
+                  Rediger
+                </button>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+      {organizations.length === 0 ? <div className="empty-state">Ingen aktører matcher filtreringen.</div> : null}
+    </section>
   );
 }
 
@@ -322,18 +511,6 @@ function OrganizationEditorPanel(props: {
                 onChange={(e) => editor.setDraft((s) => ({ ...s, youtube_url: e.target.value }))}
                 placeholder="https://youtube.com/..."
               />
-            </Field>
-
-            <Field label="Manuell thumbnail URL" error={editor.organizationFieldErrors.thumbnail_image_url}>
-              <input
-                type="url"
-                value={editor.draft.thumbnail_image_url ?? ""}
-                onChange={(e) => editor.setDraft((s) => ({ ...s, thumbnail_image_url: e.target.value }))}
-                placeholder="https://..."
-              />
-              <p className="muted" style={{ margin: "6px 0 0" }}>
-                Bruk dette feltet hvis du vil overstyre automatisk valgt thumbnail på public-sidene.
-              </p>
             </Field>
 
             <div className="toggle-grid">
@@ -700,10 +877,6 @@ function OrganizationPreviewPanel({ invalidOrgRoute }: { invalidOrgRoute: boolea
                 <dd>{editor.selectedOrganization?.auto_thumbnail_url || "Ikke valgt"}</dd>
               </div>
               <div>
-                <dt>Manuell thumbnail</dt>
-                <dd>{editor.draft.thumbnail_image_url || "Ikke satt"}</dd>
-              </div>
-              <div>
                 <dt>Sist hentet</dt>
                 <dd>{editor.selectedOrganization?.og_last_fetched_at ? formatDateTime(editor.selectedOrganization.og_last_fetched_at) : "Aldri"}</dd>
               </div>
@@ -900,4 +1073,106 @@ function selectedSubcategoryNames(options: Array<{ id: number; name: string; cat
     .filter((item) => ids.includes(item.id))
     .map((item) => `${item.category.name}: ${item.name}`)
     .join(", ");
+}
+
+function sortedCategories(categories: Array<{ id: number; name: string; slug: string }>) {
+  const positions = new Map<string, number>(CATEGORY_ORDER.map((name, index) => [name, index]));
+  const allowed = new Set<string>(CATEGORY_ORDER);
+  return [...categories]
+    .filter((category) => allowed.has(category.name))
+    .sort(
+      (left, right) =>
+        (positions.get(left.name) ?? Number.MAX_SAFE_INTEGER) -
+          (positions.get(right.name) ?? Number.MAX_SAFE_INTEGER) || left.name.localeCompare(right.name, "nb"),
+    );
+}
+
+function sortedSubcategories(
+  subcategories: Array<{ id: number; name: string; slug: string; category: { id: number; name: string; slug: string } }>,
+) {
+  const positions = new Map<string, number>(SUBCATEGORY_ORDER.map((name, index) => [name, index]));
+  const allowed = new Set<string>(SUBCATEGORY_ORDER);
+  return [...subcategories]
+    .filter((subcategory) => allowed.has(subcategory.name))
+    .sort(
+      (left, right) =>
+        (positions.get(left.name) ?? Number.MAX_SAFE_INTEGER) -
+          (positions.get(right.name) ?? Number.MAX_SAFE_INTEGER) || left.name.localeCompare(right.name, "nb"),
+    );
+}
+
+function sortedTags(tags: Array<{ id: number; name: string; slug: string }>) {
+  return [...tags].sort((left, right) => left.name.localeCompare(right.name, "nb"));
+}
+
+function matchesOrganizationFilters(input: {
+  organization: {
+    name: string;
+    org_number: string | null;
+    email: string | null;
+    phone: string | null;
+    municipalities: string;
+    note: string | null;
+    description: string | null;
+    tags: Array<{ slug: string; name: string }>;
+    categories: Array<{ slug: string; name: string }>;
+    subcategories: Array<{ slug: string; name: string }>;
+  };
+  query: string;
+  categorySlug: string;
+  subcategorySlug: string;
+  tagSlug: string;
+  personNames: string[];
+}) {
+  const { organization, query, categorySlug, subcategorySlug, tagSlug, personNames } = input;
+  const normalizedQuery = query.trim().toLowerCase();
+  if (categorySlug && !organization.categories.some((category) => category.slug === categorySlug)) {
+    return false;
+  }
+  if (subcategorySlug && !organization.subcategories.some((subcategory) => subcategory.slug === subcategorySlug)) {
+    return false;
+  }
+  if (tagSlug && !organization.tags.some((tag) => tag.slug === tagSlug)) {
+    return false;
+  }
+  if (!normalizedQuery) return true;
+
+  const haystack = [
+    organization.name,
+    organization.org_number ?? "",
+    organization.email ?? "",
+    organization.phone ?? "",
+    organization.municipalities ?? "",
+    organization.note ?? "",
+    organization.description ?? "",
+    ...organization.tags.map((tag) => tag.name),
+    ...organization.categories.map((category) => category.name),
+    ...organization.subcategories.map((subcategory) => subcategory.name),
+    ...personNames,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(normalizedQuery);
+}
+
+function describeEditorFilterState(input: {
+  query: string;
+  categorySlug: string;
+  subcategorySlug: string;
+  tagSlug: string;
+  entityLabel: string;
+}) {
+  const { query, categorySlug, subcategorySlug, tagSlug, entityLabel } = input;
+  const parts: string[] = [];
+  if (query.trim()) parts.push(`søk "${query.trim()}"`);
+  if (categorySlug) parts.push(`hovedkategori ${humanizeSlug(categorySlug)}`);
+  if (subcategorySlug) parts.push(`underkategori ${humanizeSlug(subcategorySlug)}`);
+  if (tagSlug) parts.push(`tag ${humanizeSlug(tagSlug)}`);
+  if (parts.length === 0) return null;
+  return `Viser ${entityLabel} filtrert på ${parts.join(", ")}.`;
+}
+
+function humanizeSlug(value: string) {
+  return value.replace(/-/g, " ");
 }

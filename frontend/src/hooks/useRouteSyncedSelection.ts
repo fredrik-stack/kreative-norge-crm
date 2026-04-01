@@ -7,8 +7,9 @@ export function useRouteSyncedSelection(options: {
   basePath: string;
   selectedId: number | "new" | null;
   setSelectedId: Dispatch<SetStateAction<number | "new" | null>>;
+  syncWhenParamMissing?: boolean;
 }) {
-  const { routeParam, basePath, selectedId, setSelectedId } = options;
+  const { routeParam, basePath, selectedId, setSelectedId, syncWhenParamMissing = true } = options;
   const navigate = useNavigate();
   const params = useParams();
   const paramValue = params[routeParam];
@@ -33,11 +34,12 @@ export function useRouteSyncedSelection(options: {
           ? `${basePath}/${selectedId}`
           : null;
     if (!target) return;
+    if (!paramValue && !syncWhenParamMissing) return;
     const current = paramValue ? `${basePath}/${paramValue}` : null;
     if (current !== target) {
       navigate(target, { replace: true });
     }
-  }, [basePath, navigate, paramValue, selectedId]);
+  }, [basePath, navigate, paramValue, selectedId, syncWhenParamMissing]);
 
   return { navigate, paramValue };
 }

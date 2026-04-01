@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { Field } from "../components/Field";
 import { useEditor } from "../context/EditorContext";
 import { saveLabel } from "../editor-utils";
@@ -31,13 +32,18 @@ const SUBCATEGORY_ORDER = [
 
 export function PeoplePage() {
   const editor = useEditor();
+  const [selectedCategorySlug, setSelectedCategorySlug] = useState("");
+  const [selectedSubcategorySlug, setSelectedSubcategorySlug] = useState("");
+  const [selectedTagSlug, setSelectedTagSlug] = useState("");
   const { navigate, paramValue: personId } = useRouteSyncedSelection({
     routeParam: "personId",
     basePath: "/people",
     selectedId: editor.selectedPersonId,
     setSelectedId: editor.setSelectedPersonId,
+    syncWhenParamMissing: false,
   });
 
+  const inOverviewMode = !personId;
   const personRouteIsNew = personId === "new";
   const personRouteParsed = personId && !personRouteIsNew ? Number(personId) : null;
   const personRouteIsNumeric =
@@ -49,15 +55,83 @@ export function PeoplePage() {
     !personRouteIsNew &&
     (!personRouteIsNumeric || !editor.persons.some((person) => person.id === personRouteParsed));
 
+  const filteredSubcategories = useMemo(() => {
+    if (!selectedCategorySlug) return editor.subcategories;
+    return editor.subcategories.filter((subcategory) => subcategory.category.slug === selectedCategorySlug);
+  }, [editor.subcategories, selectedCategorySlug]);
+
+  const filteredPersons = useMemo(
+    () =>
+      editor.persons.filter((person) =>
+        matchesPersonFilters({
+          person,
+          query: editor.personQuery,
+          categorySlug: selectedCategorySlug,
+          subcategorySlug: selectedSubcategorySlug,
+          tagSlug: selectedTagSlug,
+        }),
+      ),
+    [editor.personQuery, editor.persons, selectedCategorySlug, selectedSubcategorySlug, selectedTagSlug],
+  );
+
+  const filterSummary = describeEditorFilterState({
+    query: editor.personQuery,
+    categorySlug: selectedCategorySlug,
+    subcategorySlug: selectedSubcategorySlug,
+    tagSlug: selectedTagSlug,
+    entityLabel: "personer",
+  });
+
   return (
     <section className="people-workspace">
-      <PeopleSidebar navigate={navigate} />
-      <PeopleEditorPanel navigate={navigate} personId={personId} invalidPersonRoute={invalidPersonRoute} />
+      <PeopleSidebar
+        navigate={navigate}
+        persons={filteredPersons}
+        selectedCategorySlug={selectedCategorySlug}
+        selectedSubcategorySlug={selectedSubcategorySlug}
+        selectedTagSlug={selectedTagSlug}
+        filteredSubcategories={filteredSubcategories}
+        filterSummary={filterSummary}
+        onCategoryChange={(value) => {
+          setSelectedCategorySlug(value);
+          setSelectedSubcategorySlug("");
+        }}
+        onSubcategoryChange={setSelectedSubcategorySlug}
+        onTagChange={setSelectedTagSlug}
+      />
+      {inOverviewMode ? (
+        <PeopleOverviewPanel persons={filteredPersons} navigate={navigate} filterSummary={filterSummary} />
+      ) : (
+        <PeopleEditorPanel navigate={navigate} personId={personId} invalidPersonRoute={invalidPersonRoute} />
+      )}
     </section>
   );
 }
 
-function PeopleSidebar({ navigate }: { navigate: (to: string) => void }) {
+function PeopleSidebar(props: {
+  navigate: (to: string) => void;
+  persons: ReturnType<typeof useEditor>["persons"];
+  selectedCategorySlug: string;
+  selectedSubcategorySlug: string;
+  selectedTagSlug: string;
+  filteredSubcategories: ReturnType<typeof useEditor>["subcategories"];
+  filterSummary: string | null;
+  onCategoryChange: (value: string) => void;
+  onSubcategoryChange: (value: string) => void;
+  onTagChange: (value: string) => void;
+}) {
+  const {
+    navigate,
+    persons,
+    selectedCategorySlug,
+    selectedSubcategorySlug,
+    selectedTagSlug,
+    filteredSubcategories,
+    filterSummary,
+    onCategoryChange,
+    onSubcategoryChange,
+    onTagChange,
+  } = props;
   const editor = useEditor();
   return (
     <aside className="panel people-sidebar">
@@ -71,10 +145,41 @@ function PeopleSidebar({ navigate }: { navigate: (to: string) => void }) {
       <div className="people-sidebar-actions">
         <input
           className="search-input"
-          placeholder="Søk navn, e-post, telefon..."
+          placeholder="Søk navn, kommune, kategori, tag..."
           value={editor.personQuery}
           onChange={(e) => editor.setPersonQuery(e.target.value)}
         />
+        <div className="filter-stack">
+          <select value={selectedCategorySlug} onChange={(e) => onCategoryChange(e.target.value)}>
+            <option value="">Alle hovedkategorier</option>
+            {sortedCategories(editor.categories).map((category) => (
+              <option key={category.id} value={category.slug}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={selectedSubcategorySlug}
+            onChange={(e) => onSubcategoryChange(e.target.value)}
+            disabled={!selectedCategorySlug}
+          >
+            <option value="">{selectedCategorySlug ? "Alle underkategorier" : "Velg hovedkategori først"}</option>
+            {sortedSubcategories(filteredSubcategories).map((subcategory) => (
+              <option key={subcategory.id} value={subcategory.slug}>
+                {subcategory.name}
+              </option>
+            ))}
+          </select>
+          <select value={selectedTagSlug} onChange={(e) => onTagChange(e.target.value)}>
+            <option value="">Alle tags</option>
+            {sortedTags(editor.tags).map((tag) => (
+              <option key={tag.id} value={tag.slug}>
+                {tag.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        {filterSummary ? <div className="filter-summary">{filterSummary}</div> : null}
         <button
           type="button"
           className="ghost-button"
@@ -89,7 +194,7 @@ function PeopleSidebar({ navigate }: { navigate: (to: string) => void }) {
       </div>
       <div className="list">
         {editor.tenantDataLoading ? <div className="loading-state">Laster personer...</div> : null}
-        {editor.visiblePersons.map((person) => (
+        {persons.map((person) => (
           <button
             key={person.id}
             type="button"
@@ -106,11 +211,79 @@ function PeopleSidebar({ navigate }: { navigate: (to: string) => void }) {
             </div>
           </button>
         ))}
-        {!editor.tenantDataLoading && editor.visiblePersons.length === 0 ? (
+        {!editor.tenantDataLoading && persons.length === 0 ? (
           <div className="empty-state">Ingen personer funnet.</div>
         ) : null}
       </div>
     </aside>
+  );
+}
+
+function PeopleOverviewPanel(props: {
+  persons: ReturnType<typeof useEditor>["persons"];
+  navigate: (to: string) => void;
+  filterSummary: string | null;
+}) {
+  const { persons, navigate, filterSummary } = props;
+  const editor = useEditor();
+
+  return (
+    <section className="panel overview-panel">
+      <div className="sidebar-header">
+        <div>
+          <p className="eyebrow small">Oversikt</p>
+          <h2>Personkort</h2>
+        </div>
+        <span className="meta">{persons.length} synlige</span>
+      </div>
+      <p className="muted">
+        Her ser du alle personer i en mer lesbar kortvisning. Velg <strong>Rediger</strong> når du vil åpne skjemaet.
+      </p>
+      {filterSummary ? <div className="filter-summary">{filterSummary}</div> : null}
+      <div className="editor-card-grid">
+        {persons.map((person) => (
+          <article key={person.id} className="editor-card">
+            <div className="editor-card-thumb editor-card-thumb-fallback person">
+              <span>{person.full_name.slice(0, 2).toUpperCase()}</span>
+            </div>
+            <div className="editor-card-body">
+              <div className="editor-card-head">
+                <h3>{person.full_name}</h3>
+                <span className="meta">{person.municipality || "Ingen kommune"}</span>
+              </div>
+              <div className="meta-row">
+                {person.categories.map((category) => (
+                  <span key={category.id} className="mini-pill category">{category.name.toUpperCase()}</span>
+                ))}
+                {person.subcategories.map((subcategory) => (
+                  <span key={subcategory.id} className="mini-pill subcategory">{subcategory.name}</span>
+                ))}
+                {person.tags.map((tag) => (
+                  <span key={tag.id} className="mini-pill tag">{tag.name}</span>
+                ))}
+              </div>
+              <p className="muted editor-card-copy">
+                {person.email || person.phone || person.note || "Ingen kontaktinfo lagt inn ennå."}
+              </p>
+              <div className="editor-card-actions">
+                <span className="save-pill idle">Intern profil</span>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => {
+                    editor.setSelectedPersonId(person.id);
+                    navigate(`/people/${person.id}`);
+                  }}
+                >
+                  Rediger
+                </button>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+      {persons.length === 0 ? <div className="empty-state">Ingen personer matcher filtreringen.</div> : null}
+    </section>
   );
 }
 
@@ -559,4 +732,100 @@ function CategorySelectFields(props: {
       </div>
     </div>
   );
+}
+
+function sortedCategories(categories: Array<{ id: number; name: string; slug: string }>) {
+  const positions = new Map<string, number>(CATEGORY_ORDER.map((name, index) => [name, index]));
+  const allowed = new Set<string>(CATEGORY_ORDER);
+  return [...categories]
+    .filter((category) => allowed.has(category.name))
+    .sort(
+      (left, right) =>
+        (positions.get(left.name) ?? Number.MAX_SAFE_INTEGER) -
+          (positions.get(right.name) ?? Number.MAX_SAFE_INTEGER) || left.name.localeCompare(right.name, "nb"),
+    );
+}
+
+function sortedSubcategories(
+  subcategories: Array<{ id: number; name: string; slug: string; category: { id: number; name: string; slug: string } }>,
+) {
+  const positions = new Map<string, number>(SUBCATEGORY_ORDER.map((name, index) => [name, index]));
+  const allowed = new Set<string>(SUBCATEGORY_ORDER);
+  return [...subcategories]
+    .filter((subcategory) => allowed.has(subcategory.name))
+    .sort(
+      (left, right) =>
+        (positions.get(left.name) ?? Number.MAX_SAFE_INTEGER) -
+          (positions.get(right.name) ?? Number.MAX_SAFE_INTEGER) || left.name.localeCompare(right.name, "nb"),
+    );
+}
+
+function sortedTags(tags: Array<{ id: number; name: string; slug: string }>) {
+  return [...tags].sort((left, right) => left.name.localeCompare(right.name, "nb"));
+}
+
+function matchesPersonFilters(input: {
+  person: {
+    full_name: string;
+    email: string | null;
+    phone: string | null;
+    municipality: string;
+    note: string | null;
+    tags: Array<{ slug: string; name: string }>;
+    categories: Array<{ slug: string; name: string }>;
+    subcategories: Array<{ slug: string; name: string }>;
+  };
+  query: string;
+  categorySlug: string;
+  subcategorySlug: string;
+  tagSlug: string;
+}) {
+  const { person, query, categorySlug, subcategorySlug, tagSlug } = input;
+  const normalizedQuery = query.trim().toLowerCase();
+  if (categorySlug && !person.categories.some((category) => category.slug === categorySlug)) {
+    return false;
+  }
+  if (subcategorySlug && !person.subcategories.some((subcategory) => subcategory.slug === subcategorySlug)) {
+    return false;
+  }
+  if (tagSlug && !person.tags.some((tag) => tag.slug === tagSlug)) {
+    return false;
+  }
+  if (!normalizedQuery) return true;
+
+  const haystack = [
+    person.full_name,
+    person.email ?? "",
+    person.phone ?? "",
+    person.municipality ?? "",
+    person.note ?? "",
+    ...person.tags.map((tag) => tag.name),
+    ...person.categories.map((category) => category.name),
+    ...person.subcategories.map((subcategory) => subcategory.name),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(normalizedQuery);
+}
+
+function describeEditorFilterState(input: {
+  query: string;
+  categorySlug: string;
+  subcategorySlug: string;
+  tagSlug: string;
+  entityLabel: string;
+}) {
+  const { query, categorySlug, subcategorySlug, tagSlug, entityLabel } = input;
+  const parts: string[] = [];
+  if (query.trim()) parts.push(`søk "${query.trim()}"`);
+  if (categorySlug) parts.push(`hovedkategori ${humanizeSlug(categorySlug)}`);
+  if (subcategorySlug) parts.push(`underkategori ${humanizeSlug(subcategorySlug)}`);
+  if (tagSlug) parts.push(`tag ${humanizeSlug(tagSlug)}`);
+  if (parts.length === 0) return null;
+  return `Viser ${entityLabel} filtrert på ${parts.join(", ")}.`;
+}
+
+function humanizeSlug(value: string) {
+  return value.replace(/-/g, " ");
 }

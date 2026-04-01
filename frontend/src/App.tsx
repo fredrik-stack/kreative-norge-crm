@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import {
+  Link,
   NavLink,
   Navigate,
   Route,
@@ -30,18 +31,6 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
   const location = useLocation();
   const onPeoplePage = location.pathname.startsWith("/people");
   const onOrganizationsPage = location.pathname.startsWith("/organizations");
-  const organizationsHref =
-    editor.selectedOrgId === "new"
-      ? "/organizations/new"
-      : typeof editor.selectedOrgId === "number"
-        ? `/organizations/${editor.selectedOrgId}`
-        : "/organizations/new";
-  const peopleHref =
-    editor.selectedPersonId === "new"
-      ? "/people/new"
-      : typeof editor.selectedPersonId === "number"
-        ? `/people/${editor.selectedPersonId}`
-        : "/people/new";
   const dirtySummary = useMemo(() => {
     const items: string[] = [];
     if (onOrganizationsPage && editor.organizationHasUnsavedChanges) items.push("Aktørskjema");
@@ -72,9 +61,13 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
       <header className="hero">
         <div>
           <p className="eyebrow">Kreative Norge</p>
-          <h1>Editor UI MVP</h1>
+          <h1>
+            <Link to="/organizations" className="editor-title-link">
+              Editor CRM
+            </Link>
+          </h1>
           <p className="hero-copy">
-            Moderne redaktørflate for tenant-baserte aktører. Nå delt i egne sider for aktører og personer.
+            Redaktørflate for aktører og personer, med oversikter som gjør det enklere å finne fram før du redigerer.
           </p>
         </div>
         <div className="hero-card">
@@ -98,10 +91,10 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
             ))}
           </select>
           <nav className="top-nav" aria-label="Hovednavigasjon">
-            <NavLink to={organizationsHref} className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
+            <NavLink to="/organizations" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
               Aktører{editor.organizationHasUnsavedChanges ? " *" : ""}
             </NavLink>
-            <NavLink to={peopleHref} className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
+            <NavLink to="/people" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
               Personer{editor.peopleHasUnsavedChanges ? " *" : ""}
             </NavLink>
           </nav>
@@ -119,9 +112,9 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
       <EditorProvider value={editor}>
         <Routes>
           <Route path="/" element={<Navigate to="/organizations" replace />} />
-          <Route path="/organizations" element={<Navigate to="/organizations/new" replace />} />
+          <Route path="/organizations" element={<OrganizationsPage />} />
           <Route path="/organizations/:orgId" element={<OrganizationsPage />} />
-          <Route path="/people" element={<Navigate to="/people/new" replace />} />
+          <Route path="/people" element={<PeoplePage />} />
           <Route path="/people/:personId" element={<PeoplePage />} />
         </Routes>
       </EditorProvider>
