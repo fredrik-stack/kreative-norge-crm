@@ -589,7 +589,7 @@ class PublicActorSiteTests(TestCase):
             ],
         )
 
-    def test_public_actor_list_searches_municipality_category_subcategory_and_tag(self):
+    def test_public_actor_list_searches_public_text_fields(self):
         response = self.client.get("/public/actors/", {"q": "Oslo"})
         self.assertContains(response, "Nordlyd")
 
@@ -600,6 +600,14 @@ class PublicActorSiteTests(TestCase):
         self.assertContains(response, "Nordlyd")
 
         response = self.client.get("/public/actors/", {"q": "Etablert"})
+        self.assertContains(response, "Nordlyd")
+
+        self.organization.description = "Et sterkt miljø for nordnorsk jazz og samtidsmusikk."
+        self.organization.save(update_fields=["description"])
+        response = self.client.get("/public/actors/", {"q": "nordnorsk jazz"})
+        self.assertContains(response, "Nordlyd")
+
+        response = self.client.get("/public/actors/", {"q": "Ada Artist"})
         self.assertContains(response, "Nordlyd")
 
     def test_public_actor_list_dedupes_available_tags_by_name(self):

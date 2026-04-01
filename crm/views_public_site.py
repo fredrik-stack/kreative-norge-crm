@@ -58,9 +58,11 @@ class PublicActorListView(ListView):
                 Q(name__icontains=query)
                 | Q(org_number__icontains=query)
                 | Q(municipalities__icontains=query)
+                | Q(description__icontains=query)
                 | Q(categories__name__icontains=query)
                 | Q(subcategories__name__icontains=query)
                 | Q(tags__name__icontains=query)
+                | Q(org_people__publish_person=True, org_people__person__full_name__icontains=query)
             )
         if tag_slug:
             qs = qs.filter(tags__slug=tag_slug)
