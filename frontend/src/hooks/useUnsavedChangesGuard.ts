@@ -8,8 +8,9 @@ export function useUnsavedChangesGuard(params: {
   dirtySummary: string[];
   applyTenantSelection: (tenantId: number | null) => void;
   saveAllPendingChanges: () => Promise<boolean>;
+  discardAllPendingChanges: () => void;
 }) {
-  const { hasUnsavedChanges, tenants, dirtySummary, applyTenantSelection, saveAllPendingChanges } =
+  const { hasUnsavedChanges, tenants, dirtySummary, applyTenantSelection, saveAllPendingChanges, discardAllPendingChanges } =
     params;
   const blocker = useBlocker(hasUnsavedChanges);
   const [pendingTenantId, setPendingTenantId] = useState<number | null>(null);
@@ -103,6 +104,7 @@ export function useUnsavedChangesGuard(params: {
   }
 
   function onDiscardAndContinue() {
+    discardAllPendingChanges();
     if (showRouteBlockModal) blocker.proceed?.();
     if (showTenantBlockModal) {
       applyTenantSelection(pendingTenantId);

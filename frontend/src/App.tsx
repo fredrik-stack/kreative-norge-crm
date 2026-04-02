@@ -68,6 +68,7 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
     dirtySummary,
     applyTenantSelection: editor.applyTenantSelection,
     saveAllPendingChanges: editor.saveAllPendingChanges,
+    discardAllPendingChanges: editor.discardAllPendingChanges,
   });
 
   const goToEditorHome = () => {

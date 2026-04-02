@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Field } from "../components/Field";
 import { useEditor } from "../context/EditorContext";
 import { filterSubcategoriesForCategory, sortedCategories as sortCategoriesByTaxonomy } from "../editorTaxonomy";
@@ -157,7 +158,7 @@ function OrganizationOverviewModal(props: {
     }
     return grouped;
   }, [editor.personContacts]);
-  return (
+  const modal = (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <div className="detail-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
         <div className="sidebar-header">
@@ -275,6 +276,7 @@ function OrganizationOverviewModal(props: {
       </div>
     </div>
   );
+  return createPortal(modal, document.body);
 }
 
 function OrganizationEditorPanel(props: {
@@ -423,6 +425,11 @@ function OrganizationEditorPanel(props: {
                 onChange={(e) => editor.setOrganizationTagInput(e.target.value)}
                 placeholder="f.eks. live, management, booking"
               />
+              <TagSuggestions
+                value={editor.organizationTagInput}
+                tags={editor.tags}
+                onSelect={(nextValue) => editor.setOrganizationTagInput(nextValue)}
+              />
               <p className="muted" style={{ margin: "6px 0 0" }}>
                 Skriv egne tags separert med komma. Maks 5 tags.
               </p>
@@ -539,7 +546,7 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
   const [linkQuery, setLinkQuery] = useState("");
   const filteredAvailablePersons = useMemo(() => {
     const normalizedQuery = linkQuery.trim().toLowerCase();
-    if (!normalizedQuery) return editor.availablePersonsForLink.slice(0, 12);
+    if (!normalizedQuery) return [];
     return editor.availablePersonsForLink
       .filter((person) =>
         [person.full_name, person.email ?? "", person.phone ?? "", person.municipality ?? ""]
@@ -666,7 +673,7 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
             <div className="link-search-panel">
               <input
                 type="search"
-                className="search-input"
+                className="search-input link-search-input"
                 value={linkQuery}
                 onChange={(event) => setLinkQuery(event.target.value)}
                 placeholder="Søk etter person å knytte til aktøren"
@@ -674,6 +681,8 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
               />
               {editor.availablePersonsForLink.length === 0 ? (
                 <div className="empty-state compact">Alle personer er allerede koblet til denne aktøren.</div>
+              ) : !linkQuery.trim() ? (
+                <div className="empty-state compact">Skriv navn, kommune, e-post eller telefon for å finne riktig person.</div>
               ) : (
                 <div className="link-search-results">
                   {filteredAvailablePersons.length > 0 ? (
@@ -1136,6 +1145,57 @@ function getEditorVisibleContacts(
     unique.set(`${contact.type}-${contact.value}`, contact);
   }
   return [...unique.values()];
+}
+
+function TagSuggestions(props: {
+  value: string;
+  tags: Array<{ id: number; name: string }>;
+  onSelect: (nextValue: string) => void;
+}) {
+  const { value, tags, onSelect } = props;
+  const suggestions = getTagSuggestions(value, tags);
+  if (suggestions.length === 0) return null;
+
+  return (
+    <div className="tag-suggestions" role="listbox" aria-label="Eksisterende tags">
+      {suggestions.map((tag) => (
+        <button
+          key={tag.id}
+          type="button"
+          className="mini-pill tag suggestion-chip"
+          onClick={() => onSelect(applyTagSuggestion(value, tag.name))}
+        >
+          {tag.name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function getTagSuggestions(value: string, tags: Array<{ id: number; name: string }>) {
+  const parsed = value.split(",");
+  const activeTerm = (parsed[parsed.length - 1] ?? "").trim().toLocaleLowerCase("nb");
+  const chosen = new Set(
+    parsed
+      .slice(0, -1)
+      .map((item) => item.trim().toLocaleLowerCase("nb"))
+      .filter(Boolean),
+  );
+  if (!activeTerm) return [];
+  return tags
+    .filter((tag) => !chosen.has(tag.name.toLocaleLowerCase("nb")))
+    .filter((tag) => tag.name.toLocaleLowerCase("nb").includes(activeTerm))
+    .slice(0, 6);
+}
+
+function applyTagSuggestion(currentValue: string, tagName: string) {
+  const parts = currentValue
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return tagName;
+  parts[parts.length - 1] = tagName;
+  return parts.join(", ");
 }
 
 function matchesOrganizationFilters(input: {

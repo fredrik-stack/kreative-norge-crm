@@ -29,6 +29,7 @@ describe("useUnsavedChangesGuard", () => {
   it("opens tenant confirmation modal when changing tenant with unsaved changes", () => {
     const applyTenantSelection = vi.fn();
     const saveAllPendingChanges = vi.fn().mockResolvedValue(true);
+    const discardAllPendingChanges = vi.fn();
 
     const { result } = renderHook(() =>
       useUnsavedChangesGuard({
@@ -37,6 +38,7 @@ describe("useUnsavedChangesGuard", () => {
         dirtySummary: ["Personskjema"],
         applyTenantSelection,
         saveAllPendingChanges,
+        discardAllPendingChanges,
       }),
     );
 
@@ -53,6 +55,7 @@ describe("useUnsavedChangesGuard", () => {
 
   it("can discard and continue tenant switch", () => {
     const applyTenantSelection = vi.fn();
+    const discardAllPendingChanges = vi.fn();
 
     const { result } = renderHook(() =>
       useUnsavedChangesGuard({
@@ -61,6 +64,7 @@ describe("useUnsavedChangesGuard", () => {
         dirtySummary: [],
         applyTenantSelection,
         saveAllPendingChanges: vi.fn().mockResolvedValue(true),
+        discardAllPendingChanges,
       }),
     );
 
@@ -72,5 +76,6 @@ describe("useUnsavedChangesGuard", () => {
     });
 
     expect(applyTenantSelection).toHaveBeenCalledWith(3);
+    expect(discardAllPendingChanges).toHaveBeenCalled();
   });
 });

@@ -464,14 +464,8 @@ export function useEditorData() {
 
   useEffect(() => {
     if (typeof selectedOrgId !== "number") return;
-    if (availablePersonsForLink.length === 0) {
-      setLinkPersonId(null);
-      return;
-    }
     setLinkPersonId((current) =>
-      current && availablePersonsForLink.some((person) => person.id === current)
-        ? current
-        : availablePersonsForLink[0].id,
+      current && availablePersonsForLink.some((person) => person.id === current) ? current : null,
     );
   }, [availablePersonsForLink, selectedOrgId]);
 
@@ -1059,6 +1053,21 @@ export function useEditorData() {
     return ok;
   }
 
+  function discardAllPendingChanges() {
+    onResetOrganizationDraft();
+    onResetPersonDraft();
+    setContactDraft(emptyContactDraft);
+    setContactFieldErrors({});
+    setLinkedPersonDraft(emptyLinkedPersonDraft);
+    setLinkedPersonFieldErrors({});
+    setLinkedPersonSaveState("idle");
+    setOrganizationFieldErrors({});
+    setPersonFieldErrors({});
+    setSaveState("idle");
+    setPersonSaveState("idle");
+    setError(null);
+  }
+
   function applyTenantSelection(nextTenantId: number | null) {
     setTenantId(nextTenantId);
     setSelectedOrgId(null);
@@ -1141,6 +1150,7 @@ export function useEditorData() {
     peopleHasUnsavedChanges,
     hasUnsavedChanges,
     saveAllPendingChanges,
+    discardAllPendingChanges,
     tenantDataLoaded,
     tenantDataLoading,
     personContactsLoading,

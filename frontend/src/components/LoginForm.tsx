@@ -22,7 +22,7 @@ export function LoginForm(props: {
       <div className="panel auth-panel">
         <p className="eyebrow">Kreative Norge</p>
         <h1>Logg inn</h1>
-        <p className="muted">Editor UI krever innlogging.</p>
+        <p className="muted">Editor CRM krever innlogging.</p>
         {error ? <div className="banner error">{error}</div> : null}
         <form className="editor-form" onSubmit={onSubmit}>
           <label className="field">

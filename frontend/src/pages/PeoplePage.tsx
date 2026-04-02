@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Field } from "../components/Field";
 import { useEditor } from "../context/EditorContext";
 import { filterSubcategoriesForCategory, sortedCategories as sortCategoriesByTaxonomy } from "../editorTaxonomy";
@@ -182,8 +183,7 @@ function PersonOverviewModal(props: {
 }) {
   const { person, linkedOrganizations, onClose, onEdit, onOpenOrganization } = props;
   const externalLinks = getPersonLinkRows(person);
-
-  return (
+  const modal = (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <div className="detail-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
         <div className="sidebar-header">
@@ -195,10 +195,7 @@ function PersonOverviewModal(props: {
             Lukk
           </button>
         </div>
-        <div className="editor-card modal-card person-modal-card">
-          <div className="editor-card-thumb editor-card-thumb-fallback person modal-thumb">
-            <span>{person.full_name.slice(0, 2).toUpperCase()}</span>
-          </div>
+        <div className="editor-card modal-card person-modal-card no-thumb">
           <div className="editor-card-body">
             <div className="editor-card-head">
               <div>
@@ -282,6 +279,7 @@ function PersonOverviewModal(props: {
       </div>
     </div>
   );
+  return createPortal(modal, document.body);
 }
 
 function PeopleEditorPanel(props: {
@@ -415,6 +413,11 @@ function PeopleEditorPanel(props: {
                 value={editor.personTagInput}
                 onChange={(e) => editor.setPersonTagInput(e.target.value)}
                 placeholder="f.eks. live, management, booking"
+              />
+              <TagSuggestions
+                value={editor.personTagInput}
+                tags={editor.tags}
+                onSelect={(nextValue) => editor.setPersonTagInput(nextValue)}
               />
               <p className="muted" style={{ margin: "6px 0 0" }}>
                 Skriv egne tags separert med komma. Maks 5 tags.
@@ -631,6 +634,57 @@ function getPersonLinkRows(person: {
 
 function truncateLink(value: string) {
   return value.length > 38 ? `${value.slice(0, 35)}...` : value;
+}
+
+function TagSuggestions(props: {
+  value: string;
+  tags: Array<{ id: number; name: string }>;
+  onSelect: (nextValue: string) => void;
+}) {
+  const { value, tags, onSelect } = props;
+  const suggestions = getTagSuggestions(value, tags);
+  if (suggestions.length === 0) return null;
+
+  return (
+    <div className="tag-suggestions" role="listbox" aria-label="Eksisterende tags">
+      {suggestions.map((tag) => (
+        <button
+          key={tag.id}
+          type="button"
+          className="mini-pill tag suggestion-chip"
+          onClick={() => onSelect(applyTagSuggestion(value, tag.name))}
+        >
+          {tag.name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function getTagSuggestions(value: string, tags: Array<{ id: number; name: string }>) {
+  const parsed = value.split(",");
+  const activeTerm = (parsed[parsed.length - 1] ?? "").trim().toLocaleLowerCase("nb");
+  const chosen = new Set(
+    parsed
+      .slice(0, -1)
+      .map((item) => item.trim().toLocaleLowerCase("nb"))
+      .filter(Boolean),
+  );
+  if (!activeTerm) return [];
+  return tags
+    .filter((tag) => !chosen.has(tag.name.toLocaleLowerCase("nb")))
+    .filter((tag) => tag.name.toLocaleLowerCase("nb").includes(activeTerm))
+    .slice(0, 6);
+}
+
+function applyTagSuggestion(currentValue: string, tagName: string) {
+  const parts = currentValue
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return tagName;
+  parts[parts.length - 1] = tagName;
+  return parts.join(", ");
 }
 
 function formatPersonCategoryLabel(person: {

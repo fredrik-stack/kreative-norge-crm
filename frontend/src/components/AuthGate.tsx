@@ -53,6 +53,7 @@ export function AuthGate(props: {
     setLoginBusy(true);
     try {
       const next = await loginSession(loginForm.username, loginForm.password);
+      window.history.replaceState({}, "", "/organizations");
       setSession(next);
       setLoginForm((s) => ({ ...s, password: "" }));
     } catch (err) {
@@ -84,7 +85,7 @@ export function AuthGate(props: {
       <div className="app-shell">
         <div className="panel auth-panel">
           <p className="eyebrow">Kreative Norge</p>
-          <h1>Editor UI</h1>
+          <h1>Editor CRM</h1>
           <p className="muted">Sjekker innloggingsstatus...</p>
         </div>
       </div>
