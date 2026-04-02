@@ -145,8 +145,30 @@ function PeopleOverviewPanel(props: {
                   <td>{person.email ? <a href={`mailto:${person.email}`}>{person.email}</a> : "—"}</td>
                   <td>{person.phone ? <a href={`tel:${person.phone}`}>{person.phone}</a> : "—"}</td>
                   <td>{person.municipality || "—"}</td>
-                  <td>{formatPersonCategoryLabel(person)}</td>
-                  <td>{person.tags && person.tags.length > 0 ? person.tags.map((tag) => tag.name).join(", ") : "—"}</td>
+                  <td>
+                    <div className="table-pill-stack">
+                      {person.categories.map((category) => (
+                        <span key={category.id} className="mini-pill category">{category.name.toUpperCase()}</span>
+                      ))}
+                      {person.subcategories.map((subcategory) => (
+                        <span key={subcategory.id} className="mini-pill subcategory">{subcategory.name}</span>
+                      ))}
+                      {person.categories.length === 0 && person.subcategories.length === 0 ? (
+                        <span className="meta">—</span>
+                      ) : null}
+                    </div>
+                  </td>
+                  <td>
+                    {person.tags && person.tags.length > 0 ? (
+                      <div className="table-pill-stack">
+                        {person.tags.map((tag) => (
+                          <span key={tag.id} className="mini-pill tag">{tag.name}</span>
+                        ))}
+                      </div>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                 </tr>
               );
             })}
@@ -710,18 +732,6 @@ function getPersonLinkRows(person: {
 
 function truncateLink(value: string) {
   return value.length > 38 ? `${value.slice(0, 35)}...` : value;
-}
-
-function formatPersonCategoryLabel(person: {
-  categories?: Array<{ name: string }>;
-  subcategories?: Array<{ name: string }>;
-}) {
-  const category = person.categories?.[0]?.name;
-  const subcategory = person.subcategories?.[0]?.name;
-  if (category && subcategory) return `${category} > ${subcategory}`;
-  if (category) return category;
-  if (subcategory) return subcategory;
-  return "—";
 }
 
 function matchesPersonFilters(input: {
