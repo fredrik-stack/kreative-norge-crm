@@ -46,6 +46,7 @@ export type ContactDraft = {
 };
 export type LinkedPersonDraft = {
   full_name: string;
+  title: string;
   municipality: string;
   email: string;
   phone: string;
@@ -134,6 +135,7 @@ const emptyContactDraft: ContactDraft = {
 
 const emptyLinkedPersonDraft: LinkedPersonDraft = {
   full_name: "",
+  title: "",
   municipality: "",
   email: "",
   phone: "",
@@ -728,7 +730,7 @@ export function useEditorData() {
       const createdPerson = await createPerson(tenantId, {
         ...emptyPersonDraft,
         full_name: fullName,
-        title: null,
+        title: nullableString(linkedPersonDraft.title),
         municipality: linkedPersonDraft.municipality.trim(),
         email: nullableString(linkedPersonDraft.email),
         phone: nullableString(linkedPersonDraft.phone),
