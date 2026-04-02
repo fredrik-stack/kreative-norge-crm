@@ -983,19 +983,31 @@ select,
     padding: 1.15rem;
   }
 
-  .modal-sections {
+  .person-modal-card .modal-sections {
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
     align-items: start;
   }
 
-  .modal-sections > :first-child,
-  .modal-sections > :last-child {
+  .person-modal-card .modal-sections > :first-child,
+  .person-modal-card .modal-sections > :last-child {
     grid-column: 1;
   }
 
-  .modal-sections > :nth-child(2),
-  .modal-sections > :nth-child(3) {
+  .person-modal-card .modal-sections > :nth-child(2),
+  .person-modal-card .modal-sections > :nth-child(3) {
     grid-column: 2;
+  }
+
+  .detail-modal .editor-card-head h3 {
+    font-size: 1.1rem;
+  }
+
+  .detail-modal .editor-card-body {
+    gap: 0.65rem;
+  }
+
+  .detail-modal .editor-detail-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   }
 }
 
