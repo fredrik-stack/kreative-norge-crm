@@ -195,14 +195,17 @@ function PersonOverviewModal(props: {
         </div>
         <div className="editor-card modal-card person-modal-card no-thumb modal-shell">
           <div className="editor-card-body">
-            <div className="editor-card-head">
+            <div className="editor-card-head person-modal-head">
               <div>
                 <h3>{person.full_name}</h3>
-                <span className="meta">
-                  {person.title || "Ingen tittel"}
-                  {person.municipality ? ` · ${person.municipality}` : ""}
-                </span>
+                <div className="person-modal-meta">
+                  <span className="person-modal-role">{person.title || "Ingen tittel"}</span>
+                  {person.municipality ? <span className="meta">{person.municipality}</span> : null}
+                </div>
               </div>
+              <span className={`save-pill ${linkedOrganizations.length > 0 ? "saved" : "idle"}`}>
+                {linkedOrganizations.length > 0 ? "Knyttet" : "Frittstående"}
+              </span>
             </div>
             <div className="meta-row">
               {person.categories.map((category) => (

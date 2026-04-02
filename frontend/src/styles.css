@@ -212,6 +212,10 @@ button {
   padding: 1rem;
 }
 
+.people-editor {
+  padding: 1rem;
+}
+
 .overview-panel {
   grid-column: 2 / -1;
   padding: 1rem;
@@ -751,7 +755,7 @@ select,
 
 .overview-table th,
 .overview-table td {
-  padding: 0.8rem 0.85rem;
+  padding: 0.72rem 0.8rem;
   text-align: left;
   vertical-align: top;
   border-bottom: 1px solid rgba(217, 215, 205, 0.8);
@@ -927,6 +931,24 @@ select,
   background: rgba(245, 244, 238, 0.7);
 }
 
+.person-modal-head {
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid rgba(217, 215, 205, 0.75);
+}
+
+.person-modal-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-top: 0.18rem;
+}
+
+.person-modal-role {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
 .modal-section-header {
   display: flex;
   align-items: center;
@@ -978,6 +1000,34 @@ select,
 }
 
 @media (min-width: 960px) {
+  .app-shell {
+    padding: 1rem 1.1rem 1.2rem;
+  }
+
+  .hero {
+    grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.75fr);
+    gap: 0.9rem;
+  }
+
+  .hero > div,
+  .panel {
+    border-radius: 18px;
+  }
+
+  .overview-panel,
+  .editor,
+  .people-editor {
+    padding: 0.95rem;
+  }
+
+  .editor-card-grid {
+    gap: 0.8rem;
+  }
+
+  .overview-table-wrap {
+    margin-top: 0.85rem;
+  }
+
   .detail-modal {
     width: min(1160px, calc(100vw - 3rem));
     padding: 1.15rem;
@@ -1008,6 +1058,11 @@ select,
 
   .detail-modal .editor-detail-grid {
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  .detail-modal .editor-link-list,
+  .detail-modal .table-linked-items {
+    gap: 0.4rem;
   }
 }
 
