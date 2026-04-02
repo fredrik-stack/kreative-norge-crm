@@ -189,7 +189,7 @@ function OrganizationOverviewModal(props: {
   const modal = (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <div className="detail-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
-        <div className="sidebar-header">
+        <div className="sidebar-header modal-header">
           <div>
             <p className="eyebrow small">Aktørkort</p>
             <h2>{organization.name}</h2>
@@ -198,7 +198,7 @@ function OrganizationOverviewModal(props: {
             Lukk
           </button>
         </div>
-        <div className="editor-card modal-card">
+        <div className="editor-card modal-card modal-shell">
           {organization.preview_image_url ? (
             <img src={organization.preview_image_url} alt={organization.name} className="editor-card-thumb modal-thumb" />
           ) : (
@@ -227,76 +227,103 @@ function OrganizationOverviewModal(props: {
                 <span key={tag.id} className="mini-pill tag">{tag.name}</span>
               ))}
             </div>
-            <p className="muted editor-card-copy">
-              {organization.description || organization.note || "Ingen beskrivelse lagt inn ennå."}
-            </p>
-            <div className="editor-detail-grid">
-              <div>
-                <span className="meta">E-post</span>
-                {organization.email ? <a href={`mailto:${organization.email}`}>{organization.email}</a> : <strong>—</strong>}
-              </div>
-              <div>
-                <span className="meta">Org.nr</span>
-                <strong>{organization.org_number || "—"}</strong>
-              </div>
-              <div>
-                <span className="meta">Primærlenke</span>
-                {organization.primary_link ? (
-                  <a href={organization.primary_link} target="_blank" rel="noreferrer">
-                    {organization.primary_link}
-                  </a>
-                ) : (
-                  <strong>—</strong>
-                )}
-              </div>
-            </div>
-            {externalLinks.length > 0 ? (
-              <div className="editor-detail-section">
-                <h4>Lenker</h4>
-                <div className="editor-link-list">
-                  {externalLinks.map((link) => (
-                    <a key={`${organization.id}-${link.label}`} href={link.href} target="_blank" rel="noreferrer">
-                      {link.label}
-                    </a>
-                  ))}
+            <div className="modal-sections">
+              <section className="editor-detail-section modal-section-card">
+                <div className="modal-section-header">
+                  <h4>Profil</h4>
                 </div>
-              </div>
-            ) : null}
-            <div className="editor-detail-section">
-              <h4>Kontaktpersoner</h4>
-              {organization.active_people && organization.active_people.length > 0 ? (
-                <div className="editor-contact-list">
-                  {organization.active_people.map((link) => {
-                    const visibleContacts = getEditorVisibleContacts(link, editor.personsById, contactsByPersonId);
-                    return (
-                      <div key={link.id} className="editor-contact-card">
-                        <strong>{link.person?.full_name || "Ukjent person"}</strong>
-                        <span className="meta">
-                          {[link.person?.title || null, link.person?.municipality || null].filter(Boolean).join(" · ") || "Ingen kommune"}
-                        </span>
-                        {visibleContacts.length > 0 ? (
-                          <div className="editor-inline-links">
-                            {visibleContacts.map((contact, index) => (
-                              <a
-                                key={`${link.id}-${contact.type}-${index}-${contact.value}`}
-                                href={contact.type === "EMAIL" ? `mailto:${contact.value}` : `tel:${contact.value}`}
-                              >
-                                {contact.value}
-                              </a>
-                            ))}
+                <p className="muted editor-card-copy">
+                  {organization.description || organization.note || "Ingen beskrivelse lagt inn ennå."}
+                </p>
+              </section>
+
+              <section className="editor-detail-section modal-section-card">
+                <div className="modal-section-header">
+                  <h4>Kontakt</h4>
+                </div>
+                <div className="editor-detail-grid modal-detail-grid">
+                  <div>
+                    <span className="meta">E-post</span>
+                    {organization.email ? <a href={`mailto:${organization.email}`}>{organization.email}</a> : <strong>—</strong>}
+                  </div>
+                  <div>
+                    <span className="meta">Org.nr</span>
+                    <strong>{organization.org_number || "—"}</strong>
+                  </div>
+                  <div>
+                    <span className="meta">Primærlenke</span>
+                    {organization.primary_link ? (
+                      <a href={organization.primary_link} target="_blank" rel="noreferrer">
+                        {organization.primary_link}
+                      </a>
+                    ) : (
+                      <strong>—</strong>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              {externalLinks.length > 0 ? (
+                <section className="editor-detail-section modal-section-card">
+                  <div className="modal-section-header">
+                    <h4>Lenker</h4>
+                    <span className="meta">{externalLinks.length} lenker</span>
+                  </div>
+                  <div className="editor-link-list modal-link-list">
+                    {externalLinks.map((link) => (
+                      <a key={`${organization.id}-${link.label}`} href={link.href} target="_blank" rel="noreferrer">
+                        {link.label}
+                      </a>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              <section className="editor-detail-section modal-section-card">
+                <div className="modal-section-header">
+                  <h4>Kontaktpersoner</h4>
+                  <span className="meta">{organization.active_people?.length ?? 0} personer</span>
+                </div>
+                {organization.active_people && organization.active_people.length > 0 ? (
+                  <div className="editor-contact-list modal-contact-list">
+                    {organization.active_people.map((link) => {
+                      const visibleContacts = getEditorVisibleContacts(link, editor.personsById, contactsByPersonId);
+                      return (
+                        <div key={link.id} className="editor-contact-card modal-contact-card">
+                          <div className="modal-contact-header">
+                            <strong>{link.person?.full_name || "Ukjent person"}</strong>
+                            <span className="meta">{link.person?.municipality || "Ingen kommune"}</span>
                           </div>
-                        ) : (
-                          <span className="meta">Ingen offentlig kontaktinfo</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="empty-state compact">Ingen kontaktpersoner knyttet til aktøren.</div>
-              )}
+                          <span className="meta">
+                            {link.person?.title || "Ingen tittel"}
+                          </span>
+                          {visibleContacts.length > 0 ? (
+                            <div className="editor-inline-links modal-contact-actions">
+                              {visibleContacts.map((contact, index) => (
+                                <a
+                                  key={`${link.id}-${contact.type}-${index}-${contact.value}`}
+                                  href={contact.type === "EMAIL" ? `mailto:${contact.value}` : `tel:${contact.value}`}
+                                >
+                                  {contact.value}
+                                </a>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="meta">Ingen offentlig kontaktinfo</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="empty-state compact">Ingen kontaktpersoner knyttet til aktøren.</div>
+                )}
+              </section>
             </div>
-            <div className="actions">
+            <div className="actions modal-footer">
+              <button type="button" className="ghost-button compact-button" onClick={onClose}>
+                Lukk
+              </button>
               <button type="button" className="primary-button compact-button" onClick={onEdit}>
                 Rediger
               </button>
@@ -613,6 +640,16 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
                     required
                   />
                 </Field>
+                <Field label="Tittel">
+                  <input
+                    value={editor.linkedPersonDraft.title}
+                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, title: e.target.value }))}
+                    placeholder="f.eks. daglig leder, booking eller produsent"
+                  />
+                </Field>
+              </div>
+
+              <div className="grid two">
                 <Field label="Kommune">
                   <input
                     value={editor.linkedPersonDraft.municipality}

@@ -185,7 +185,7 @@ function PersonOverviewModal(props: {
   const modal = (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <div className="detail-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
-        <div className="sidebar-header">
+        <div className="sidebar-header modal-header">
           <div>
             <p className="eyebrow small">Personkort</p>
             <h2>{person.full_name}</h2>
@@ -194,7 +194,7 @@ function PersonOverviewModal(props: {
             Lukk
           </button>
         </div>
-        <div className="editor-card modal-card person-modal-card no-thumb">
+        <div className="editor-card modal-card person-modal-card no-thumb modal-shell">
           <div className="editor-card-body">
             <div className="editor-card-head">
               <div>
@@ -216,30 +216,47 @@ function PersonOverviewModal(props: {
                 <span key={tag.id} className="mini-pill tag">{tag.name}</span>
               ))}
             </div>
-            <p className="muted editor-card-copy">{person.note || "Ingen notat lagt inn ennå."}</p>
-            <div className="editor-detail-grid">
-              <div>
-                <span className="meta">E-post</span>
-                {person.email ? <a href={`mailto:${person.email}`}>{person.email}</a> : <strong>—</strong>}
-              </div>
-              <div>
-                <span className="meta">Telefon</span>
-                {person.phone ? <a href={`tel:${person.phone}`}>{person.phone}</a> : <strong>—</strong>}
-              </div>
-              <div>
-                <span className="meta">Primærlenke</span>
-                {getPersonPrimaryLink(person) ? (
-                  <a href={getPersonPrimaryLink(person)!} target="_blank" rel="noreferrer">
-                    {truncateLink(getPersonPrimaryLink(person)!)}
-                  </a>
-                ) : (
-                  <strong>—</strong>
-                )}
-              </div>
-              <div>
-                <span className="meta">Knyttet til</span>
+            <div className="modal-sections">
+              <section className="editor-detail-section modal-section-card">
+                <div className="modal-section-header">
+                  <h4>Profil</h4>
+                </div>
+                <p className="muted editor-card-copy">{person.note || "Ingen notat lagt inn ennå."}</p>
+              </section>
+
+              <section className="editor-detail-section modal-section-card">
+                <div className="modal-section-header">
+                  <h4>Kontakt</h4>
+                </div>
+                <div className="editor-detail-grid modal-detail-grid">
+                  <div>
+                    <span className="meta">E-post</span>
+                    {person.email ? <a href={`mailto:${person.email}`}>{person.email}</a> : <strong>—</strong>}
+                  </div>
+                  <div>
+                    <span className="meta">Telefon</span>
+                    {person.phone ? <a href={`tel:${person.phone}`}>{person.phone}</a> : <strong>—</strong>}
+                  </div>
+                  <div>
+                    <span className="meta">Primærlenke</span>
+                    {getPersonPrimaryLink(person) ? (
+                      <a href={getPersonPrimaryLink(person)!} target="_blank" rel="noreferrer">
+                        {truncateLink(getPersonPrimaryLink(person)!)}
+                      </a>
+                    ) : (
+                      <strong>—</strong>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              <section className="editor-detail-section modal-section-card">
+                <div className="modal-section-header">
+                  <h4>Knyttet til</h4>
+                  <span className="meta">{linkedOrganizations.length} aktører</span>
+                </div>
                 {linkedOrganizations.length > 0 ? (
-                  <div className="table-linked-items">
+                  <div className="table-linked-items modal-linked-items">
                     {linkedOrganizations.map((organization) => (
                       <button
                         key={`${person.id}-${organization.id}`}
@@ -254,22 +271,29 @@ function PersonOverviewModal(props: {
                 ) : (
                   <strong>—</strong>
                 )}
-              </div>
+              </section>
+
+              {externalLinks.length > 0 ? (
+                <section className="editor-detail-section modal-section-card">
+                  <div className="modal-section-header">
+                    <h4>Lenker</h4>
+                    <span className="meta">{externalLinks.length} lenker</span>
+                  </div>
+                  <div className="editor-link-list modal-link-list">
+                    {externalLinks.map((link) => (
+                      <a key={`${person.id}-${link.label}`} href={link.href} target="_blank" rel="noreferrer">
+                        {link.label}
+                      </a>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
             </div>
-            {externalLinks.length > 0 ? (
-              <div className="editor-detail-section">
-                <h4>Lenker</h4>
-                <div className="editor-link-list">
-                  {externalLinks.map((link) => (
-                    <a key={`${person.id}-${link.label}`} href={link.href} target="_blank" rel="noreferrer">
-                      {link.label}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-            <div className="actions">
-              <button type="button" className="primary-button" onClick={onEdit}>
+            <div className="actions modal-footer">
+              <button type="button" className="ghost-button compact-button" onClick={onClose}>
+                Lukk
+              </button>
+              <button type="button" className="primary-button compact-button" onClick={onEdit}>
                 Rediger
               </button>
             </div>

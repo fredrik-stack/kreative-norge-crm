@@ -127,6 +127,10 @@ button {
   min-width: 110px;
 }
 
+.overview-tag-search {
+  display: block;
+}
+
 .hero-card {
   display: grid;
   gap: 0.65rem;
@@ -227,7 +231,8 @@ button {
 .search-input,
 select,
 .field input,
-.field textarea {
+.field textarea,
+.overview-tag-search input {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -759,6 +764,14 @@ select,
   padding: 1rem;
 }
 
+.modal-header {
+  margin-bottom: 0.9rem;
+}
+
+.modal-shell {
+  gap: 1rem;
+}
+
 .modal-card {
   grid-template-columns: 160px minmax(0, 1fr);
   margin-top: 0.75rem;
@@ -857,6 +870,68 @@ select,
 
 .person-modal-card.no-thumb {
   grid-template-columns: minmax(0, 1fr);
+}
+
+.modal-sections {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.modal-section-card {
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(217, 215, 205, 0.85);
+  border-radius: 16px;
+  background: rgba(245, 244, 238, 0.7);
+}
+
+.modal-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.15rem;
+}
+
+.modal-section-header h4 {
+  margin: 0;
+}
+
+.modal-detail-grid {
+  margin-top: 0.15rem;
+}
+
+.modal-link-list a,
+.modal-contact-actions a,
+.modal-linked-items .table-link {
+  border-radius: 999px;
+  padding: 0.42rem 0.7rem;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(217, 215, 205, 0.92);
+  text-decoration: none;
+}
+
+.modal-contact-list {
+  gap: 0.7rem;
+}
+
+.modal-contact-card {
+  gap: 0.45rem;
+}
+
+.modal-contact-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.modal-contact-actions {
+  margin-top: 0.1rem;
+}
+
+.modal-footer {
+  justify-content: flex-end;
+  padding-top: 0.2rem;
 }
 
 .confirm-modal {
