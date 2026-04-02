@@ -138,6 +138,7 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
                 </select>
                 <div className="overview-tag-search">
                   <input
+                    className="search-input"
                     list="editor-overview-tags"
                     value={overviewTagQuery}
                     placeholder="Søk tag"
