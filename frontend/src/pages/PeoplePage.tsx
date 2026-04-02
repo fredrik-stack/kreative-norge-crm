@@ -165,8 +165,7 @@ function PeopleOverviewPanel(props: {
             navigate(`/people/${activePerson.id}`);
           }}
           onOpenOrganization={(organizationId) => {
-            editor.setSelectedOrgId(organizationId);
-            navigate(`/organizations/${organizationId}`);
+            navigate(`/organizations?openOrg=${organizationId}`);
           }}
         />
       ) : null}
@@ -614,28 +613,6 @@ function getPersonPrimaryLink(person: {
   );
 }
 
-function getPersonLinkRows(person: {
-  website_url: string | null;
-  instagram_url: string | null;
-  tiktok_url: string | null;
-  linkedin_url: string | null;
-  facebook_url: string | null;
-  youtube_url: string | null;
-}) {
-  return [
-    { label: "Nettside", href: person.website_url },
-    { label: "Instagram", href: person.instagram_url },
-    { label: "TikTok", href: person.tiktok_url },
-    { label: "LinkedIn", href: person.linkedin_url },
-    { label: "Facebook", href: person.facebook_url },
-    { label: "YouTube", href: person.youtube_url },
-  ].filter((link): link is { label: string; href: string } => Boolean(link.href));
-}
-
-function truncateLink(value: string) {
-  return value.length > 38 ? `${value.slice(0, 35)}...` : value;
-}
-
 function TagSuggestions(props: {
   value: string;
   tags: Array<{ id: number; name: string }>;
@@ -685,6 +662,28 @@ function applyTagSuggestion(currentValue: string, tagName: string) {
   if (parts.length === 0) return tagName;
   parts[parts.length - 1] = tagName;
   return parts.join(", ");
+}
+
+function getPersonLinkRows(person: {
+  website_url: string | null;
+  instagram_url: string | null;
+  tiktok_url: string | null;
+  linkedin_url: string | null;
+  facebook_url: string | null;
+  youtube_url: string | null;
+}) {
+  return [
+    { label: "Nettside", href: person.website_url },
+    { label: "Instagram", href: person.instagram_url },
+    { label: "TikTok", href: person.tiktok_url },
+    { label: "LinkedIn", href: person.linkedin_url },
+    { label: "Facebook", href: person.facebook_url },
+    { label: "YouTube", href: person.youtube_url },
+  ].filter((link): link is { label: string; href: string } => Boolean(link.href));
+}
+
+function truncateLink(value: string) {
+  return value.length > 38 ? `${value.slice(0, 35)}...` : value;
 }
 
 function formatPersonCategoryLabel(person: {

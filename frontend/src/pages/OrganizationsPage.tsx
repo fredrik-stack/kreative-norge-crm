@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { useLocation } from "react-router-dom";
 import { Field } from "../components/Field";
 import { useEditor } from "../context/EditorContext";
 import { filterSubcategoriesForCategory, sortedCategories as sortCategoriesByTaxonomy } from "../editorTaxonomy";
@@ -8,6 +9,7 @@ import { useRouteSyncedSelection } from "../hooks/useRouteSyncedSelection";
 
 export function OrganizationsPage() {
   const editor = useEditor();
+  const location = useLocation();
   const { navigate, paramValue: orgId } = useRouteSyncedSelection({
     routeParam: "orgId",
     basePath: "/organizations",
@@ -28,6 +30,19 @@ export function OrganizationsPage() {
     (!orgRouteIsNumeric || !editor.organizations.some((org) => org.id === orgRouteParsed));
 
   const filterSummary = editor.overviewFilterSummary;
+  const [overviewModalOrgId, setOverviewModalOrgId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (orgId) return;
+    const params = new URLSearchParams(location.search);
+    const openOrg = params.get("openOrg");
+    if (!openOrg) {
+      setOverviewModalOrgId(null);
+      return;
+    }
+    const parsed = Number(openOrg);
+    if (!Number.isNaN(parsed)) setOverviewModalOrgId(parsed);
+  }, [location.search, orgId]);
 
   if (inOverviewMode) {
     return (
@@ -36,6 +51,18 @@ export function OrganizationsPage() {
           organizations={editor.filteredOverviewOrganizations}
           navigate={navigate}
           filterSummary={filterSummary}
+          modalOrgId={overviewModalOrgId}
+          onModalOrgIdChange={(nextId) => {
+            setOverviewModalOrgId(nextId);
+            const params = new URLSearchParams(location.search);
+            if (nextId === null) {
+              params.delete("openOrg");
+            } else {
+              params.set("openOrg", String(nextId));
+            }
+            const nextSearch = params.toString();
+            navigate(nextSearch ? `/organizations?${nextSearch}` : "/organizations");
+          }}
         />
       </main>
     );
@@ -55,10 +82,11 @@ function OrganizationOverviewPanel(props: {
   organizations: ReturnType<typeof useEditor>["organizations"];
   navigate: (to: string) => void;
   filterSummary: string | null;
+  modalOrgId: number | null;
+  onModalOrgIdChange: (nextId: number | null) => void;
 }) {
-  const { organizations, navigate, filterSummary } = props;
+  const { organizations, navigate, filterSummary, modalOrgId, onModalOrgIdChange } = props;
   const editor = useEditor();
-  const [modalOrgId, setModalOrgId] = useState<number | null>(null);
   const activeOrganization = modalOrgId ? organizations.find((organization) => organization.id === modalOrgId) ?? null : null;
 
   return (
@@ -82,7 +110,7 @@ function OrganizationOverviewPanel(props: {
           <article
             key={organization.id}
             className="editor-card public-like"
-            onClick={() => setModalOrgId(organization.id)}
+            onClick={() => onModalOrgIdChange(organization.id)}
           >
             {organization.preview_image_url ? (
               <img
@@ -129,7 +157,7 @@ function OrganizationOverviewPanel(props: {
       {activeOrganization ? (
         <OrganizationOverviewModal
           organization={activeOrganization}
-          onClose={() => setModalOrgId(null)}
+          onClose={() => onModalOrgIdChange(null)}
           onEdit={() => {
             editor.setSelectedOrgId(activeOrganization.id);
             navigate(`/organizations/${activeOrganization.id}`);
@@ -243,7 +271,9 @@ function OrganizationOverviewModal(props: {
                     return (
                       <div key={link.id} className="editor-contact-card">
                         <strong>{link.person?.full_name || "Ukjent person"}</strong>
-                        <span className="meta">{link.person?.municipality || "Ingen kommune"}</span>
+                        <span className="meta">
+                          {[link.person?.title || null, link.person?.municipality || null].filter(Boolean).join(" · ") || "Ingen kommune"}
+                        </span>
                         {visibleContacts.length > 0 ? (
                           <div className="editor-inline-links">
                             {visibleContacts.map((contact, index) => (

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Link,
   NavLink,
@@ -37,6 +37,7 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
   const onOverviewPage = isOrganizationsOverview || isPeopleOverview;
   const onPeoplePage = location.pathname.startsWith("/people");
   const onOrganizationsPage = location.pathname.startsWith("/organizations");
+  const [overviewTagQuery, setOverviewTagQuery] = useState("");
   const overviewEntityLabel = isPeopleOverview ? "personer" : "aktører";
   const overviewFilterSummary = buildEditorOverviewFilterSummary({
     entityLabel: overviewEntityLabel,
@@ -75,6 +76,10 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
     editor.resetOverviewFilters();
     navigate("/organizations");
   };
+
+  useEffect(() => {
+    setOverviewTagQuery(editor.tags.find((tag) => tag.slug === editor.overviewTagSlug)?.name ?? "");
+  }, [editor.overviewTagSlug, editor.tags]);
 
   return (
     <div className="app-shell">
@@ -131,14 +136,25 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
                     </option>
                   ))}
                 </select>
-                <select value={editor.overviewTagSlug} onChange={(e) => editor.setOverviewTagSlug(e.target.value)}>
-                  <option value="">Alle tags</option>
-                  {sortedTags(editor.tags).map((tag) => (
-                    <option key={tag.id} value={tag.slug}>
-                      {tag.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="overview-tag-search">
+                  <input
+                    list="editor-overview-tags"
+                    value={overviewTagQuery}
+                    placeholder="Søk tag"
+                    onChange={(e) => {
+                      const nextValue = e.target.value;
+                      setOverviewTagQuery(nextValue);
+                      const raw = nextValue.trim().toLocaleLowerCase("nb");
+                      const match = editor.tags.find((tag) => tag.name.toLocaleLowerCase("nb") === raw);
+                      editor.setOverviewTagSlug(match?.slug ?? "");
+                    }}
+                  />
+                  <datalist id="editor-overview-tags">
+                    {sortedTags(editor.tags).map((tag) => (
+                      <option key={tag.id} value={tag.name} />
+                    ))}
+                  </datalist>
+                </div>
               </div>
               {overviewFilterSummary ? <div className="filter-summary">{overviewFilterSummary}</div> : null}
               <div className="hero-actions">

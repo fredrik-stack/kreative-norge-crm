@@ -279,7 +279,7 @@ class PersonForOrganizationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Person
-        fields = ["id", "full_name", "municipality", "public_contacts"]
+        fields = ["id", "full_name", "title", "municipality", "public_contacts"]
 
     def get_public_contacts(self, obj):
         qs = obj.contacts.filter(is_public=True).order_by("-is_primary", "type", "value")

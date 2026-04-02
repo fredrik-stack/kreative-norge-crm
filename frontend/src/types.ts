@@ -36,6 +36,7 @@ export type OrganizationPersonNested = {
   person?: {
     id: number;
     full_name: string;
+    title?: string | null;
     municipality: string;
     public_contacts: Array<{
       id?: number;

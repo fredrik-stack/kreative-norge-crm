@@ -273,6 +273,7 @@ export function useEditorData() {
   useEffect(() => {
     if (selectedOrgId === "new") {
       setDraft(emptyDraft);
+      setOrganizationTagInput("");
       setSaveState("idle");
       setOrganizationFieldErrors({});
       return;
@@ -308,6 +309,7 @@ export function useEditorData() {
   useEffect(() => {
     if (selectedPersonId === "new") {
       setPersonDraft(emptyPersonDraft);
+      setPersonTagInput("");
       setContactDraft(emptyContactDraft);
       setPersonSaveState("idle");
       setPersonContacts([]);
