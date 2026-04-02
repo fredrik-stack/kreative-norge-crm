@@ -38,6 +38,7 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
   const onPeoplePage = location.pathname.startsWith("/people");
   const onOrganizationsPage = location.pathname.startsWith("/organizations");
   const [overviewTagQuery, setOverviewTagQuery] = useState("");
+  const [tagSearchFocused, setTagSearchFocused] = useState(false);
   const overviewEntityLabel = isPeopleOverview ? "personer" : "aktører";
   const overviewFilterSummary = buildEditorOverviewFilterSummary({
     entityLabel: overviewEntityLabel,
@@ -81,6 +82,14 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
     setOverviewTagQuery(editor.tags.find((tag) => tag.slug === editor.overviewTagSlug)?.name ?? "");
   }, [editor.overviewTagSlug, editor.tags]);
 
+  const overviewTagSuggestions = useMemo(() => {
+    const query = overviewTagQuery.trim().toLocaleLowerCase("nb");
+    if (!query) return [];
+    return sortedTags(editor.tags)
+      .filter((tag) => tag.name.toLocaleLowerCase("nb").includes(query))
+      .slice(0, 8);
+  }, [overviewTagQuery, editor.tags]);
+
   return (
     <div className="app-shell">
       <header className="hero">
@@ -109,6 +118,7 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
               />
               <div className="hero-filter-grid">
                 <select
+                  className="overview-select"
                   value={editor.overviewCategorySlug}
                   onChange={(e) => {
                     editor.setOverviewCategorySlug(e.target.value);
@@ -123,6 +133,7 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
                   ))}
                 </select>
                 <select
+                  className="overview-select"
                   value={editor.overviewSubcategorySlug}
                   onChange={(e) => editor.setOverviewSubcategorySlug(e.target.value)}
                   disabled={!editor.overviewCategorySlug}
@@ -139,9 +150,12 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
                 <div className="overview-tag-search">
                   <input
                     className="search-input"
-                    list="editor-overview-tags"
                     value={overviewTagQuery}
                     placeholder="Søk tag"
+                    onFocus={() => setTagSearchFocused(true)}
+                    onBlur={() => {
+                      window.setTimeout(() => setTagSearchFocused(false), 120);
+                    }}
                     onChange={(e) => {
                       const nextValue = e.target.value;
                       setOverviewTagQuery(nextValue);
@@ -150,11 +164,25 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
                       editor.setOverviewTagSlug(match?.slug ?? "");
                     }}
                   />
-                  <datalist id="editor-overview-tags">
-                    {sortedTags(editor.tags).map((tag) => (
-                      <option key={tag.id} value={tag.name} />
-                    ))}
-                  </datalist>
+                  {tagSearchFocused && overviewTagSuggestions.length > 0 ? (
+                    <div className="overview-tag-suggestions" role="listbox" aria-label="Tag-forslag">
+                      {overviewTagSuggestions.map((tag) => (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          className="overview-tag-suggestion"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => {
+                            setOverviewTagQuery(tag.name);
+                            editor.setOverviewTagSlug(tag.slug);
+                            setTagSearchFocused(false);
+                          }}
+                        >
+                          {tag.name}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </div>
               {overviewFilterSummary ? <div className="filter-summary">{overviewFilterSummary}</div> : null}

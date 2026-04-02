@@ -122,8 +122,7 @@ function PeopleOverviewPanel(props: {
                             type="button"
                             className="table-link secondary"
                             onClick={() => {
-                              editor.setSelectedOrgId(organization.id);
-                              navigate(`/organizations/${organization.id}`);
+                              navigate(`/organizations?openOrg=${organization.id}`);
                             }}
                           >
                             {organization.name}
