@@ -221,10 +221,6 @@ button {
   padding: 1rem;
 }
 
-.overview-panel.unified {
-  grid-column: auto;
-}
-
 .sidebar-header {
   display: flex;
   align-items: center;
@@ -617,15 +613,6 @@ select,
   transform: translateY(-1px);
   border-color: rgba(12, 122, 91, 0.24);
   box-shadow: 0 12px 30px rgba(14, 17, 13, 0.06);
-}
-
-.editor-card.expanded {
-  grid-template-columns: 96px minmax(0, 1fr);
-}
-
-.editor-card.expanded .editor-card-thumb {
-  width: 96px;
-  height: 96px;
 }
 
 .editor-card-thumb {
