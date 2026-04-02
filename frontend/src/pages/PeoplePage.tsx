@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Field } from "../components/Field";
 import { useEditor } from "../context/EditorContext";
 import { filterSubcategoriesForCategory, sortedCategories as sortCategoriesByTaxonomy } from "../editorTaxonomy";
@@ -38,52 +38,9 @@ export function PeoplePage() {
   }
 
   return (
-    <section className="people-workspace">
-      <PeopleSidebar navigate={navigate} persons={editor.persons} />
+    <section className="people-workspace no-sidebar">
       <PeopleEditorPanel navigate={navigate} personId={personId} invalidPersonRoute={invalidPersonRoute} />
     </section>
-  );
-}
-
-function PeopleSidebar(props: {
-  navigate: (to: string) => void;
-  persons: ReturnType<typeof useEditor>["persons"];
-}) {
-  const { navigate, persons } = props;
-  const editor = useEditor();
-  return (
-    <aside className="panel people-sidebar">
-      <div className="sidebar-header">
-        <h2>Personer</h2>
-        <span className="meta">
-          {editor.persons.length} stk
-          {editor.peopleHasUnsavedChanges ? " · ulagret" : ""}
-        </span>
-      </div>
-      <div className="list">
-        {editor.tenantDataLoading ? <div className="loading-state">Laster personer...</div> : null}
-        {persons.map((person) => (
-          <button
-            key={person.id}
-            type="button"
-            className={`list-item ${editor.selectedPersonId === person.id ? "active" : ""}`}
-            onClick={() => {
-              editor.setSelectedPersonId(person.id);
-              navigate(`/people/${person.id}`);
-            }}
-          >
-            <div className="list-item-title">{person.full_name}</div>
-            <div className="list-item-sub">
-              <span>{person.email || person.phone || "Ingen kontakt"}</span>
-              <span>{person.municipality || "Ingen kommune"}</span>
-            </div>
-          </button>
-        ))}
-        {!editor.tenantDataLoading && persons.length === 0 ? (
-          <div className="empty-state">Ingen personer funnet.</div>
-        ) : null}
-      </div>
-    </aside>
   );
 }
 
@@ -94,6 +51,7 @@ function PeopleOverviewPanel(props: {
 }) {
   const { persons, navigate, filterSummary } = props;
   const editor = useEditor();
+  const [modalPersonId, setModalPersonId] = useState<number | null>(null);
   const organizationsById = useMemo(() => new Map(editor.organizations.map((organization) => [organization.id, organization])), [editor.organizations]);
   const linkedOrganizationsByPersonId = useMemo(() => {
     const grouped = new Map<number, Array<{ id: number; name: string }>>();
@@ -106,6 +64,7 @@ function PeopleOverviewPanel(props: {
     }
     return grouped;
   }, [editor.organizationPeople, organizationsById]);
+  const activePerson = modalPersonId ? persons.find((person) => person.id === modalPersonId) ?? null : null;
 
   return (
     <section className="panel overview-panel">
@@ -145,16 +104,13 @@ function PeopleOverviewPanel(props: {
                     <button
                       type="button"
                       className="table-link"
-                      onClick={() => {
-                        editor.setSelectedPersonId(person.id);
-                        navigate(`/people/${person.id}`);
-                      }}
+                      onClick={() => setModalPersonId(person.id)}
                     >
                       {person.full_name}
                     </button>
                   </td>
                   <td>
-                    <span className="meta">—</span>
+                    {person.title || <span className="meta">—</span>}
                   </td>
                   <td>
                     {linkedOrganizations.length > 0 ? (
@@ -187,7 +143,7 @@ function PeopleOverviewPanel(props: {
                     )}
                   </td>
                   <td>{person.email ? <a href={`mailto:${person.email}`}>{person.email}</a> : "—"}</td>
-                  <td>{person.phone || "—"}</td>
+                  <td>{person.phone ? <a href={`tel:${person.phone}`}>{person.phone}</a> : "—"}</td>
                   <td>{person.municipality || "—"}</td>
                   <td>{formatPersonCategoryLabel(person)}</td>
                   <td>{person.tags && person.tags.length > 0 ? person.tags.map((tag) => tag.name).join(", ") : "—"}</td>
@@ -198,7 +154,133 @@ function PeopleOverviewPanel(props: {
         </table>
       </div>
       {persons.length === 0 ? <div className="empty-state">Ingen personer matcher filtreringen.</div> : null}
+      {activePerson ? (
+        <PersonOverviewModal
+          person={activePerson}
+          linkedOrganizations={linkedOrganizationsByPersonId.get(activePerson.id) ?? []}
+          onClose={() => setModalPersonId(null)}
+          onEdit={() => {
+            editor.setSelectedPersonId(activePerson.id);
+            navigate(`/people/${activePerson.id}`);
+          }}
+          onOpenOrganization={(organizationId) => {
+            editor.setSelectedOrgId(organizationId);
+            navigate(`/organizations/${organizationId}`);
+          }}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function PersonOverviewModal(props: {
+  person: ReturnType<typeof useEditor>["persons"][number];
+  linkedOrganizations: Array<{ id: number; name: string }>;
+  onClose: () => void;
+  onEdit: () => void;
+  onOpenOrganization: (organizationId: number) => void;
+}) {
+  const { person, linkedOrganizations, onClose, onEdit, onOpenOrganization } = props;
+  const externalLinks = getPersonLinkRows(person);
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <div className="detail-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+        <div className="sidebar-header">
+          <div>
+            <p className="eyebrow small">Personkort</p>
+            <h2>{person.full_name}</h2>
+          </div>
+          <button type="button" className="ghost-button" onClick={onClose}>
+            Lukk
+          </button>
+        </div>
+        <div className="editor-card modal-card person-modal-card">
+          <div className="editor-card-thumb editor-card-thumb-fallback person modal-thumb">
+            <span>{person.full_name.slice(0, 2).toUpperCase()}</span>
+          </div>
+          <div className="editor-card-body">
+            <div className="editor-card-head">
+              <div>
+                <h3>{person.full_name}</h3>
+                <span className="meta">
+                  {person.title || "Ingen tittel"}
+                  {person.municipality ? ` · ${person.municipality}` : ""}
+                </span>
+              </div>
+            </div>
+            <div className="meta-row">
+              {person.categories.map((category) => (
+                <span key={category.id} className="mini-pill category">{category.name.toUpperCase()}</span>
+              ))}
+              {person.subcategories.map((subcategory) => (
+                <span key={subcategory.id} className="mini-pill subcategory">{subcategory.name}</span>
+              ))}
+              {person.tags.map((tag) => (
+                <span key={tag.id} className="mini-pill tag">{tag.name}</span>
+              ))}
+            </div>
+            <p className="muted editor-card-copy">{person.note || "Ingen notat lagt inn ennå."}</p>
+            <div className="editor-detail-grid">
+              <div>
+                <span className="meta">E-post</span>
+                {person.email ? <a href={`mailto:${person.email}`}>{person.email}</a> : <strong>—</strong>}
+              </div>
+              <div>
+                <span className="meta">Telefon</span>
+                {person.phone ? <a href={`tel:${person.phone}`}>{person.phone}</a> : <strong>—</strong>}
+              </div>
+              <div>
+                <span className="meta">Primærlenke</span>
+                {getPersonPrimaryLink(person) ? (
+                  <a href={getPersonPrimaryLink(person)!} target="_blank" rel="noreferrer">
+                    {truncateLink(getPersonPrimaryLink(person)!)}
+                  </a>
+                ) : (
+                  <strong>—</strong>
+                )}
+              </div>
+              <div>
+                <span className="meta">Knyttet til</span>
+                {linkedOrganizations.length > 0 ? (
+                  <div className="table-linked-items">
+                    {linkedOrganizations.map((organization) => (
+                      <button
+                        key={`${person.id}-${organization.id}`}
+                        type="button"
+                        className="table-link secondary"
+                        onClick={() => onOpenOrganization(organization.id)}
+                      >
+                        {organization.name}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <strong>—</strong>
+                )}
+              </div>
+            </div>
+            {externalLinks.length > 0 ? (
+              <div className="editor-detail-section">
+                <h4>Lenker</h4>
+                <div className="editor-link-list">
+                  {externalLinks.map((link) => (
+                    <a key={`${person.id}-${link.label}`} href={link.href} target="_blank" rel="noreferrer">
+                      {link.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            <div className="actions">
+              <button type="button" className="primary-button" onClick={onEdit}>
+                Rediger
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -270,6 +352,16 @@ function PeopleEditorPanel(props: {
                   required
                 />
               </Field>
+              <Field label="Tittel">
+                <input
+                  value={editor.personDraft.title ?? ""}
+                  onChange={(e) => editor.setPersonDraft((s) => ({ ...s, title: e.target.value }))}
+                  placeholder="f.eks. daglig leder, produsent eller booking"
+                />
+              </Field>
+            </div>
+
+            <div className="grid two">
               <Field label="Kommune">
                 <input
                   value={editor.personDraft.municipality}
@@ -519,6 +611,24 @@ function getPersonPrimaryLink(person: {
   );
 }
 
+function getPersonLinkRows(person: {
+  website_url: string | null;
+  instagram_url: string | null;
+  tiktok_url: string | null;
+  linkedin_url: string | null;
+  facebook_url: string | null;
+  youtube_url: string | null;
+}) {
+  return [
+    { label: "Nettside", href: person.website_url },
+    { label: "Instagram", href: person.instagram_url },
+    { label: "TikTok", href: person.tiktok_url },
+    { label: "LinkedIn", href: person.linkedin_url },
+    { label: "Facebook", href: person.facebook_url },
+    { label: "YouTube", href: person.youtube_url },
+  ].filter((link): link is { label: string; href: string } => Boolean(link.href));
+}
+
 function truncateLink(value: string) {
   return value.length > 38 ? `${value.slice(0, 35)}...` : value;
 }
@@ -538,6 +648,7 @@ function formatPersonCategoryLabel(person: {
 function matchesPersonFilters(input: {
   person: {
     full_name: string;
+    title?: string | null;
     email: string | null;
     phone: string | null;
     municipality: string;
@@ -566,6 +677,7 @@ function matchesPersonFilters(input: {
 
   const haystack = [
     person.full_name,
+    person.title ?? "",
     person.email ?? "",
     person.phone ?? "",
     person.municipality ?? "",

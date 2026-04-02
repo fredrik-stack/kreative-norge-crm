@@ -50,6 +50,7 @@ export type Person = {
   id: number;
   tenant: number;
   full_name: string;
+  title: string | null;
   email: string | null;
   phone: string | null;
   municipality: string;

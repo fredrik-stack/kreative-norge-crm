@@ -319,6 +319,7 @@ class PersonSerializer(serializers.ModelSerializer):
             "id",
             "tenant",
             "full_name",
+            "title",
             "email",
             "phone",
             "website_url",

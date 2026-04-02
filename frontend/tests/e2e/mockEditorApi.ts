@@ -50,6 +50,7 @@ type Person = {
   id: number;
   tenant: number;
   full_name: string;
+  title: string | null;
   email: string | null;
   phone: string | null;
   municipality: string;
@@ -156,6 +157,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         id: 20,
         tenant: 1,
         full_name: "Ada Editor",
+        title: "Manager",
         email: "ada@example.com",
         phone: "+4799999999",
         municipality: "Oslo",
@@ -416,6 +418,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         id: nextId,
         tenant: 1,
         full_name: payload.full_name ?? "",
+        title: payload.title ?? null,
         email: payload.email ?? null,
         phone: payload.phone ?? null,
         municipality: payload.municipality ?? "",
@@ -456,6 +459,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
       state.persons[idx] = {
         ...state.persons[idx],
         ...payload,
+        title: payload.title ?? state.persons[idx].title,
         tags: state.tags.filter((tag) => (payload as { tag_ids?: number[] }).tag_ids?.includes(tag.id) ?? state.persons[idx].tags.some((item) => item.id === tag.id)),
         categories: state.categories.filter((category) =>
           (payload as { category_ids?: number[] }).category_ids?.includes(category.id) ?? state.persons[idx].categories.some((item) => item.id === category.id),

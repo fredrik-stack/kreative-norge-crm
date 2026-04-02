@@ -191,6 +191,7 @@ class Person(models.Model):
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="persons")
 
     full_name = models.CharField(max_length=255)
+    title = models.CharField(max_length=255, null=True, blank=True)
     email = models.EmailField(null=True, blank=True)
     phone = models.CharField(max_length=64, null=True, blank=True)
     website_url = models.URLField(null=True, blank=True)

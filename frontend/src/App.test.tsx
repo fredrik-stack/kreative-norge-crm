@@ -28,7 +28,7 @@ describe("App integration", () => {
     await userEvent.type(screen.getByLabelText("Passord"), "secret123");
     await userEvent.click(screen.getByRole("button", { name: "Logg inn" }));
 
-    expect(await screen.findByRole("button", { name: /Kreativ Demo AS/ })).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("Kreativ Demo AS")).toBeInTheDocument();
     expect(await screen.findByText("Aktør #10")).toBeInTheDocument();
 
     const nameInput = screen.getByDisplayValue("Kreativ Demo AS");

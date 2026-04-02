@@ -262,6 +262,7 @@ class PersonSerializerTests(TestCase):
         person = Person.objects.create(
             tenant=tenant,
             full_name="Person Example",
+            title="Daglig leder",
             email="person@example.com",
             phone="+4798765432",
             municipality="Trondheim",
@@ -277,6 +278,7 @@ class PersonSerializerTests(TestCase):
 
         self.assertIn("email", data)
         self.assertIn("phone", data)
+        self.assertIn("title", data)
         self.assertIn("website_url", data)
         self.assertIn("instagram_url", data)
         self.assertIn("tiktok_url", data)
@@ -284,6 +286,7 @@ class PersonSerializerTests(TestCase):
         self.assertIn("facebook_url", data)
         self.assertIn("youtube_url", data)
         self.assertEqual(data["email"], "person@example.com")
+        self.assertEqual(data["title"], "Daglig leder")
         self.assertEqual(data["phone"], "+4798765432")
         self.assertEqual(data["website_url"], "https://example.com")
         self.assertEqual(data["instagram_url"], "https://instagram.com/personexample")
@@ -459,6 +462,7 @@ class TenantScopedCreateTests(AuthenticatedAPITestCase):
             f"/api/tenants/{self.tenant.id}/persons/",
             {
                 "full_name": "Ny kontaktperson",
+                "title": "Produsent",
                 "municipality": "Oslo",
                 "tag_ids": [],
                 "category_ids": [],
@@ -470,6 +474,7 @@ class TenantScopedCreateTests(AuthenticatedAPITestCase):
         self.assertEqual(response.status_code, 201, response.content)
         created = Person.objects.get(id=response.json()["id"])
         self.assertEqual(created.tenant_id, self.tenant.id)
+        self.assertEqual(created.title, "Produsent")
 
     def test_can_create_organization_with_category_only(self):
         category = Category.objects.create(name="Kun kategori")

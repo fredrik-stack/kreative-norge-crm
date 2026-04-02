@@ -41,56 +41,12 @@ export function OrganizationsPage() {
   }
 
   return (
-    <main className="workspace">
-      <OrganizationsSidebar navigate={navigate} organizations={editor.organizations} />
+    <main className="workspace no-sidebar">
       <>
         <OrganizationEditorPanel navigate={navigate} orgId={orgId} invalidOrgRoute={invalidOrgRoute} />
         <OrganizationPreviewPanel invalidOrgRoute={invalidOrgRoute} />
       </>
     </main>
-  );
-}
-
-function OrganizationsSidebar(props: {
-  navigate: (to: string) => void;
-  organizations: ReturnType<typeof useEditor>["organizations"];
-}) {
-  const { navigate, organizations } = props;
-  const editor = useEditor();
-  return (
-    <aside className="sidebar panel">
-      <div className="sidebar-header">
-        <h2>Aktører</h2>
-        <span className="meta">
-          {editor.organizations.length} stk
-          {editor.organizationHasUnsavedChanges ? " · ulagret" : ""}
-        </span>
-      </div>
-
-      <div className="list">
-        {editor.tenantDataLoading ? <div className="loading-state">Laster aktører...</div> : null}
-        {organizations.map((org) => (
-          <button
-            key={org.id}
-            type="button"
-            className={`list-item ${editor.selectedOrgId === org.id ? "active" : ""}`}
-            onClick={() => {
-              editor.setSelectedOrgId(org.id);
-              navigate(`/organizations/${org.id}`);
-            }}
-          >
-            <div className="list-item-title">{org.name}</div>
-            <div className="list-item-sub">
-              <span>{org.org_number || "Uten orgnr"}</span>
-              <span>{org.is_published ? "Publisert" : "Ikke publisert"}</span>
-            </div>
-          </button>
-        ))}
-        {!editor.tenantDataLoading && organizations.length === 0 ? (
-          <div className="empty-state">Ingen treff for søket.</div>
-        ) : null}
-      </div>
-    </aside>
   );
 }
 
@@ -120,6 +76,7 @@ function OrganizationOverviewPanel(props: {
       {filterSummary ? <div className="filter-summary">{filterSummary}</div> : null}
       <div className="editor-card-grid">
         {organizations.map((organization) => {
+          const overviewPills = getOverviewPills(organization);
           return (
           <article
             key={organization.id}
@@ -143,14 +100,8 @@ function OrganizationOverviewPanel(props: {
                 <span className="meta">{organization.municipalities || "Ingen kommune"}</span>
               </div>
               <div className="meta-row">
-                {organization.categories.map((category) => (
-                  <span key={category.id} className="mini-pill category">{category.name.toUpperCase()}</span>
-                ))}
-                {organization.subcategories.map((subcategory) => (
-                  <span key={subcategory.id} className="mini-pill subcategory">{subcategory.name}</span>
-                ))}
-                {organization.tags.map((tag) => (
-                  <span key={tag.id} className="mini-pill tag">{tag.name}</span>
+                {overviewPills.map((pill) => (
+                  <span key={pill.key} className={`mini-pill ${pill.kind}`}>{pill.label}</span>
                 ))}
               </div>
               <div className="editor-card-actions">
@@ -159,7 +110,7 @@ function OrganizationOverviewPanel(props: {
                 </span>
                 <button
                   type="button"
-                  className="ghost-button"
+                  className="ghost-button compact-button"
                   onClick={(event) => {
                     event.stopPropagation();
                     editor.setSelectedOrgId(organization.id);
@@ -194,7 +145,18 @@ function OrganizationOverviewModal(props: {
   onEdit: () => void;
 }) {
   const { organization, onClose, onEdit } = props;
+  const editor = useEditor();
   const externalLinks = getOrganizationLinkRows(organization);
+  const contactsByPersonId = useMemo(() => {
+    const grouped = new Map<number, Array<{ type: string; value: string; is_primary?: boolean; is_public?: boolean }>>();
+    for (const contact of editor.personContacts) {
+      if (!contact.person) continue;
+      const current = grouped.get(contact.person) ?? [];
+      current.push(contact);
+      grouped.set(contact.person, current);
+    }
+    return grouped;
+  }, [editor.personContacts]);
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <div className="detail-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
@@ -242,7 +204,7 @@ function OrganizationOverviewModal(props: {
             <div className="editor-detail-grid">
               <div>
                 <span className="meta">E-post</span>
-                <strong>{organization.email || "—"}</strong>
+                {organization.email ? <a href={`mailto:${organization.email}`}>{organization.email}</a> : <strong>—</strong>}
               </div>
               <div>
                 <span className="meta">Org.nr</span>
@@ -275,30 +237,36 @@ function OrganizationOverviewModal(props: {
               <h4>Kontaktpersoner</h4>
               {organization.active_people && organization.active_people.length > 0 ? (
                 <div className="editor-contact-list">
-                  {organization.active_people.map((link) => (
-                    <div key={link.id} className="editor-contact-card">
-                      <strong>{link.person?.full_name || "Ukjent person"}</strong>
-                      <span className="meta">{link.person?.municipality || "Ingen kommune"}</span>
-                      {(link.person?.public_contacts ?? []).length > 0 ? (
-                        <div className="editor-inline-links">
-                          {(link.person?.public_contacts ?? []).map((contact, index) => (
-                            <span key={`${link.id}-${contact.type}-${index}`}>
-                              {contact.type}: {contact.value}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="meta">Ingen offentlig kontaktinfo</span>
-                      )}
-                    </div>
-                  ))}
+                  {organization.active_people.map((link) => {
+                    const visibleContacts = getEditorVisibleContacts(link, editor.personsById, contactsByPersonId);
+                    return (
+                      <div key={link.id} className="editor-contact-card">
+                        <strong>{link.person?.full_name || "Ukjent person"}</strong>
+                        <span className="meta">{link.person?.municipality || "Ingen kommune"}</span>
+                        {visibleContacts.length > 0 ? (
+                          <div className="editor-inline-links">
+                            {visibleContacts.map((contact, index) => (
+                              <a
+                                key={`${link.id}-${contact.type}-${index}-${contact.value}`}
+                                href={contact.type === "EMAIL" ? `mailto:${contact.value}` : `tel:${contact.value}`}
+                              >
+                                {contact.value}
+                              </a>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="meta">Ingen offentlig kontaktinfo</span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="empty-state compact">Ingen kontaktpersoner knyttet til aktøren.</div>
               )}
             </div>
             <div className="actions">
-              <button type="button" className="primary-button" onClick={onEdit}>
+              <button type="button" className="primary-button compact-button" onClick={onEdit}>
                 Rediger
               </button>
             </div>
@@ -568,6 +536,19 @@ function OrganizationEditorPanel(props: {
 
 function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }) {
   const editor = useEditor();
+  const [linkQuery, setLinkQuery] = useState("");
+  const filteredAvailablePersons = useMemo(() => {
+    const normalizedQuery = linkQuery.trim().toLowerCase();
+    if (!normalizedQuery) return editor.availablePersonsForLink.slice(0, 12);
+    return editor.availablePersonsForLink
+      .filter((person) =>
+        [person.full_name, person.email ?? "", person.phone ?? "", person.municipality ?? ""]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedQuery),
+      )
+      .slice(0, 12);
+  }, [editor.availablePersonsForLink, linkQuery]);
   return (
     <div className="link-section">
       <div className="sidebar-header">
@@ -681,24 +662,43 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
             </form>
           </div>
 
-          <form className="link-create" onSubmit={editor.onCreateLink}>
-            <select
-              value={editor.linkPersonId ?? ""}
-              onChange={(e) => editor.setLinkPersonId(e.target.value ? Number(e.target.value) : null)}
-              disabled={editor.availablePersonsForLink.length === 0}
-            >
+          <form className="link-create searchable-link-create" onSubmit={editor.onCreateLink}>
+            <div className="link-search-panel">
+              <input
+                type="search"
+                className="search-input"
+                value={linkQuery}
+                onChange={(event) => setLinkQuery(event.target.value)}
+                placeholder="Søk etter person å knytte til aktøren"
+                disabled={editor.availablePersonsForLink.length === 0}
+              />
               {editor.availablePersonsForLink.length === 0 ? (
-                <option value="">Alle personer er allerede koblet</option>
+                <div className="empty-state compact">Alle personer er allerede koblet til denne aktøren.</div>
               ) : (
-                editor.availablePersonsForLink.map((person) => (
-                  <option key={person.id} value={person.id}>
-                    {person.full_name}
-                    {person.municipality ? ` · ${person.municipality}` : ""}
-                  </option>
-                ))
+                <div className="link-search-results">
+                  {filteredAvailablePersons.length > 0 ? (
+                    filteredAvailablePersons.map((person) => {
+                      const selected = editor.linkPersonId === person.id;
+                      return (
+                        <button
+                          key={person.id}
+                          type="button"
+                          className={`link-search-result ${selected ? "active" : ""}`}
+                          onClick={() => editor.setLinkPersonId(person.id)}
+                        >
+                          <strong>{person.full_name}</strong>
+                          <span className="meta">
+                            {[person.municipality, person.email, person.phone].filter(Boolean).join(" · ") || "Ingen kontaktinfo"}
+                          </span>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div className="empty-state compact">Ingen personer matcher søket.</div>
+                  )}
+                </div>
               )}
-            </select>
-
+            </div>
             <select
               value={editor.linkStatus}
               onChange={(e) => editor.setLinkStatus(e.target.value as "ACTIVE" | "INACTIVE")}
@@ -1079,6 +1079,63 @@ function getOrganizationLinkRows(organization: {
     { label: "Facebook", href: organization.facebook_url },
     { label: "YouTube", href: organization.youtube_url },
   ].filter((link): link is { label: string; href: string } => Boolean(link.href));
+}
+
+function getOverviewPills(organization: {
+  categories: Array<{ id: number; name: string }>;
+  subcategories: Array<{ id: number; name: string }>;
+  tags: Array<{ id: number; name: string }>;
+}) {
+  const pills = [
+    ...organization.categories.map((category) => ({
+      key: `category-${category.id}`,
+      label: category.name.toUpperCase(),
+      kind: "category" as const,
+    })),
+    ...organization.subcategories.map((subcategory) => ({
+      key: `subcategory-${subcategory.id}`,
+      label: subcategory.name,
+      kind: "subcategory" as const,
+    })),
+    ...organization.tags.map((tag) => ({
+      key: `tag-${tag.id}`,
+      label: tag.name,
+      kind: "tag" as const,
+    })),
+  ];
+  if (pills.length <= 5) return pills;
+  return [...pills.slice(0, 4), { key: "more", label: `+${pills.length - 4}`, kind: "tag" as const }];
+}
+
+function getEditorVisibleContacts(
+  link: NonNullable<ReturnType<typeof useEditor>["organizations"][number]["active_people"]>[number],
+  personsById: ReturnType<typeof useEditor>["personsById"],
+  contactsByPersonId: Map<number, Array<{ type: string; value: string; is_primary?: boolean; is_public?: boolean }>>,
+) {
+  const personId = link.person?.id;
+  if (!personId) return [];
+  const person = personsById.get(personId);
+  const personContacts = contactsByPersonId.get(personId) ?? [];
+  const explicitContacts = personContacts
+    .filter((contact) => contact.value)
+    .sort((left, right) => Number(Boolean(right.is_primary)) - Number(Boolean(left.is_primary)));
+  if (explicitContacts.length > 0) return explicitContacts;
+
+  const fallbackContacts = [
+    ...(person?.email ? [{ type: "EMAIL", value: person.email }] : []),
+    ...(person?.phone ? [{ type: "PHONE", value: person.phone }] : []),
+    ...((link.person?.public_contacts ?? []).map((contact) => ({
+      type: contact.type,
+      value: contact.value,
+      is_primary: contact.is_primary,
+    }))),
+  ];
+  const unique = new Map<string, { type: string; value: string; is_primary?: boolean }>();
+  for (const contact of fallbackContacts) {
+    if (!contact.value) continue;
+    unique.set(`${contact.type}-${contact.value}`, contact);
+  }
+  return [...unique.values()];
 }
 
 function matchesOrganizationFilters(input: {

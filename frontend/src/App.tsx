@@ -154,7 +154,7 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
                     navigate("/organizations/new");
                   }}
                 >
-                  {isPeopleOverview ? "Ny person" : "Ny organisasjon"}
+                  {isPeopleOverview ? "Ny person" : "Ny aktør"}
                 </button>
                 <button type="button" className="ghost-button" onClick={goToEditorHome}>
                   Nullstill

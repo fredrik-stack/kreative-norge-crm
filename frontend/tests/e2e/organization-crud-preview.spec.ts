@@ -23,7 +23,7 @@ test("create organization and verify preview updates", async ({ page }) => {
 
   await page.getByRole("button", { name: "Opprett aktør" }).click();
 
-  await expect(page.getByRole("button", { name: /Ny Kulturaktør 987654321/ })).toBeVisible();
+  await expect(page.getByLabel(/Navn/)).toHaveValue("Ny Kulturaktør");
   await expect(page.getByText(/Sist lagret/)).toBeVisible();
   await expect(page.locator(".panel.editor .editor-header h2")).toHaveText("Ny Kulturaktør");
 

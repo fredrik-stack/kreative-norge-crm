@@ -232,6 +232,7 @@ export type OrganizationPatch = Pick<
 
 export type PersonPayload = {
   full_name: string;
+  title: string | null;
   email: string | null;
   phone: string | null;
   municipality: string;

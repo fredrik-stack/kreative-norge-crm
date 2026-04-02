@@ -109,6 +109,7 @@ const emptyDraft: OrganizationPatch = {
 
 const emptyPersonDraft: PersonPayload = {
   full_name: "",
+  title: "",
   email: "",
   phone: "",
   municipality: "",
@@ -319,6 +320,7 @@ export function useEditorData() {
 
     setPersonDraft({
       full_name: selectedPerson.full_name ?? "",
+      title: selectedPerson.title ?? "",
       email: selectedPerson.email ?? "",
       phone: selectedPerson.phone ?? "",
       municipality: selectedPerson.municipality ?? "",
@@ -514,6 +516,7 @@ export function useEditorData() {
         : selectedPerson
           ? {
               full_name: selectedPerson.full_name ?? "",
+              title: selectedPerson.title ?? "",
               email: selectedPerson.email ?? "",
               phone: selectedPerson.phone ?? "",
               municipality: selectedPerson.municipality ?? "",
@@ -547,6 +550,7 @@ export function useEditorData() {
         : selectedPerson
           ? {
               full_name: selectedPerson.full_name ?? "",
+              title: selectedPerson.title ?? "",
               email: selectedPerson.email ?? "",
               phone: selectedPerson.phone ?? "",
               municipality: selectedPerson.municipality ?? "",
@@ -728,6 +732,7 @@ export function useEditorData() {
       const createdPerson = await createPerson(tenantId, {
         ...emptyPersonDraft,
         full_name: fullName,
+        title: null,
         municipality: linkedPersonDraft.municipality.trim(),
         email: nullableString(linkedPersonDraft.email),
         phone: nullableString(linkedPersonDraft.phone),
@@ -1017,6 +1022,7 @@ export function useEditorData() {
     if (!selectedPerson) return;
     setPersonDraft({
       full_name: selectedPerson.full_name ?? "",
+      title: selectedPerson.title ?? "",
       email: selectedPerson.email ?? "",
       phone: selectedPerson.phone ?? "",
       municipality: selectedPerson.municipality ?? "",
@@ -1378,6 +1384,7 @@ function normalizeDraft(draft: OrganizationPatch): OrganizationPatch {
 function normalizePersonDraft(draft: PersonPayload): PersonPayload {
   return {
     full_name: draft.full_name.trim(),
+    title: nullableString(draft.title),
     email: nullableString(draft.email),
     phone: nullableString(draft.phone),
     municipality: draft.municipality.trim(),
@@ -1431,6 +1438,7 @@ function isEqualShallowOrganizationDraft(a: OrganizationPatch, b: OrganizationPa
 function isEqualShallowPersonDraft(a: PersonPayload, b: PersonPayload): boolean {
   return (
     a.full_name === b.full_name &&
+    a.title === b.title &&
     a.email === b.email &&
     a.phone === b.phone &&
     a.municipality === b.municipality &&
@@ -1608,6 +1616,7 @@ function matchesPersonOverviewFilter(input: {
 
   const haystack = [
     person.full_name,
+    person.title ?? "",
     person.email ?? "",
     person.phone ?? "",
     person.municipality ?? "",

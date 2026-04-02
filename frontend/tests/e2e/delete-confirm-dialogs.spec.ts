@@ -74,6 +74,7 @@ test("shows confirm dialogs for deleting link and person", async ({ page }) => {
         id: 20,
         tenant: 1,
         full_name: "Ada Editor",
+        title: "Manager",
         email: "ada@example.com",
         phone: "+4799999999",
         municipality: "Oslo",
@@ -108,8 +109,7 @@ test("shows confirm dialogs for deleting link and person", async ({ page }) => {
 
   await expect(page.getByText("Ada Editor")).toBeVisible();
 
-  await page.getByRole("link", { name: /Personer/ }).click();
-  await page.getByRole("button", { name: "Ada Editor" }).click();
+  await page.goto("/people/20");
   count = await clickUntilConfirmIncrements(page, async () => {
     await page.evaluate(() => {
       const button = Array.from(document.querySelectorAll("button")).find(
@@ -120,5 +120,5 @@ test("shows confirm dialogs for deleting link and person", async ({ page }) => {
   }, count);
   expect(await latestConfirmMessage(page)).toContain("Slette valgt person");
 
-  await expect(page.getByRole("button", { name: /Ada Editor/ })).toBeVisible();
+  await expect(page.getByLabel("Fullt navn")).toHaveValue("Ada Editor");
 });

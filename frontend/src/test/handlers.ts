@@ -102,6 +102,7 @@ export function resetMockEditorData() {
         id: 20,
         tenant: 1,
         full_name: "Ada Editor",
+        title: "Manager",
         email: "ada@example.com",
         phone: "+4799999999",
         municipality: "Oslo",

@@ -7,7 +7,7 @@ test("login and show unsaved changes modal on internal navigation", async ({ pag
   await page.goto("/organizations/10");
   await loginAsEditor(page);
 
-  await expect(page.getByRole("button", { name: /Kreativ Demo AS 123456789/ })).toBeVisible();
+  await expect(page.getByLabel(/Navn/)).toHaveValue("Kreativ Demo AS");
   await page.getByLabel(/Navn/).fill("Kreativ Demo AS endret");
   await page.getByRole("link", { name: /Personer/ }).click();
 
