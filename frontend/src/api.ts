@@ -1,5 +1,9 @@
 import type {
   Category,
+  ExportJob,
+  ImportDecision,
+  ImportJob,
+  ImportRow,
   Organization,
   OrganizationPerson,
   Paginated,
@@ -35,10 +39,11 @@ function isPaginated<T>(data: T[] | Paginated<T>): data is Paginated<T> {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const method = (init?.method ?? "GET").toUpperCase();
   const csrfToken = method === "GET" || method === "HEAD" ? null : getCsrfCookie();
+  const isFormData = typeof FormData !== "undefined" && init?.body instanceof FormData;
   const response = await fetch(`${API_BASE}${path}`, {
     credentials: "same-origin",
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
       ...(init?.headers ?? {}),
     },
@@ -351,4 +356,126 @@ export async function deletePersonContact(
   await request(`/api/tenants/${tenantId}/person-contacts/${contactId}/`, {
     method: "DELETE",
   });
+}
+
+export type ImportJobCreatePayload = {
+  source_type: ImportJob["source_type"];
+  import_mode: ImportJob["import_mode"];
+};
+
+export async function getImportJobs(tenantId: number): Promise<ImportJob[]> {
+  const data = await request<ImportJob[] | Paginated<ImportJob>>(`/api/tenants/${tenantId}/import-jobs/`);
+  return isPaginated(data) ? data.results : data;
+}
+
+export async function createImportJob(tenantId: number, payload: ImportJobCreatePayload): Promise<ImportJob> {
+  return request<ImportJob>(`/api/tenants/${tenantId}/import-jobs/`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getImportJob(tenantId: number, importJobId: number): Promise<ImportJob> {
+  return request<ImportJob>(`/api/tenants/${tenantId}/import-jobs/${importJobId}/`);
+}
+
+export async function uploadImportJobFile(tenantId: number, importJobId: number, file: File): Promise<ImportJob> {
+  await ensureCsrf();
+  const form = new FormData();
+  form.append("file", file);
+  return request<ImportJob>(`/api/tenants/${tenantId}/import-jobs/${importJobId}/upload/`, {
+    method: "POST",
+    body: form,
+  });
+}
+
+export async function previewImportJob(tenantId: number, importJobId: number): Promise<ImportJob> {
+  return request<ImportJob>(`/api/tenants/${tenantId}/import-jobs/${importJobId}/preview/`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export type ImportRowsQuery = {
+  status?: string;
+  action?: string;
+  search?: string;
+  page?: number;
+};
+
+export async function getImportRows(
+  tenantId: number,
+  importJobId: number,
+  query: ImportRowsQuery = {},
+): Promise<Paginated<ImportRow>> {
+  const params = new URLSearchParams();
+  if (query.status) params.set("status", query.status);
+  if (query.action) params.set("action", query.action);
+  if (query.search) params.set("search", query.search);
+  if (query.page) params.set("page", String(query.page));
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return request<Paginated<ImportRow>>(`/api/tenants/${tenantId}/import-jobs/${importJobId}/rows/${suffix}`);
+}
+
+export type ImportDecisionPayload = {
+  row_id: number;
+  decisions: Array<{
+    decision_type: ImportDecision["decision_type"];
+    payload_json?: Record<string, unknown>;
+  }>;
+};
+
+export async function saveImportJobDecisions(
+  tenantId: number,
+  importJobId: number,
+  rows: ImportDecisionPayload[],
+): Promise<{ results: Array<{ row_id: number; decisions: ImportDecision[] }> }> {
+  return request(`/api/tenants/${tenantId}/import-jobs/${importJobId}/decisions/`, {
+    method: "POST",
+    body: JSON.stringify({ rows }),
+  });
+}
+
+export async function commitImportJob(
+  tenantId: number,
+  importJobId: number,
+  skipUnresolved: boolean,
+): Promise<ImportJob> {
+  return request<ImportJob>(`/api/tenants/${tenantId}/import-jobs/${importJobId}/commit/`, {
+    method: "POST",
+    body: JSON.stringify({ skip_unresolved: skipUnresolved }),
+  });
+}
+
+export function getImportJobErrorReportUrl(tenantId: number, importJobId: number): string {
+  return `${API_BASE}/api/tenants/${tenantId}/import-jobs/${importJobId}/error-report/`;
+}
+
+export type ExportJobCreatePayload = {
+  export_type: ExportJob["export_type"];
+  format: ExportJob["format"];
+  filters_json: Record<string, unknown>;
+  selected_fields_json: string[];
+};
+
+export async function getExportJobs(tenantId: number): Promise<ExportJob[]> {
+  const data = await request<ExportJob[] | Paginated<ExportJob>>(`/api/tenants/${tenantId}/export-jobs/`);
+  return isPaginated(data) ? data.results : data;
+}
+
+export async function createExportJob(tenantId: number, payload: ExportJobCreatePayload): Promise<ExportJob> {
+  return request<ExportJob>(`/api/tenants/${tenantId}/export-jobs/`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getExportJob(tenantId: number, exportJobId: number): Promise<ExportJob> {
+  return request<ExportJob>(`/api/tenants/${tenantId}/export-jobs/${exportJobId}/`);
+}
+
+export function getExportJobFileUrl(fileUrl: string | null): string | null {
+  if (!fileUrl) return null;
+  if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) return fileUrl;
+  return `${API_BASE}${fileUrl}`;
 }

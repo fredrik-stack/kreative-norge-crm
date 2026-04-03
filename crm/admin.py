@@ -1,7 +1,21 @@
 from django.contrib import admin
 from django.forms.models import BaseInlineFormSet
 
-from .models import Tenant, Tag, Category, Subcategory, Organization, Person, OrganizationPerson, PersonContact
+from .models import (
+    Tenant,
+    Tag,
+    Category,
+    Subcategory,
+    Organization,
+    Person,
+    OrganizationPerson,
+    PersonContact,
+    ImportJob,
+    ImportRow,
+    ImportDecision,
+    ImportCommitLog,
+    ExportJob,
+)
 
 
 @admin.register(Tenant)
@@ -113,3 +127,38 @@ class SubcategoryAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "slug", "category", "created_at")
     list_filter = ("category",)
     search_fields = ("name", "slug", "category__name")
+
+
+@admin.register(ImportJob)
+class ImportJobAdmin(admin.ModelAdmin):
+    list_display = ("id", "tenant", "source_type", "import_mode", "status", "filename", "created_by", "created_at")
+    list_filter = ("tenant", "source_type", "import_mode", "status")
+    search_fields = ("filename", "created_by__username")
+
+
+@admin.register(ImportRow)
+class ImportRowAdmin(admin.ModelAdmin):
+    list_display = ("id", "import_job", "row_number", "row_status", "proposed_action", "created_at")
+    list_filter = ("row_status", "proposed_action", "import_job__tenant")
+    search_fields = ("import_job__id",)
+
+
+@admin.register(ImportDecision)
+class ImportDecisionAdmin(admin.ModelAdmin):
+    list_display = ("id", "import_row", "decision_type", "decided_by", "created_at")
+    list_filter = ("decision_type", "import_row__import_job__tenant")
+    search_fields = ("decided_by__username", "import_row__import_job__id")
+
+
+@admin.register(ImportCommitLog)
+class ImportCommitLogAdmin(admin.ModelAdmin):
+    list_display = ("id", "import_job", "import_row", "entity_type", "entity_id", "action", "created_at")
+    list_filter = ("entity_type", "action", "import_job__tenant")
+    search_fields = ("import_job__id", "entity_id")
+
+
+@admin.register(ExportJob)
+class ExportJobAdmin(admin.ModelAdmin):
+    list_display = ("id", "tenant", "export_type", "format", "status", "created_by", "created_at")
+    list_filter = ("tenant", "export_type", "format", "status")
+    search_fields = ("created_by__username",)

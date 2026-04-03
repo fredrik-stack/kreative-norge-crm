@@ -132,3 +132,84 @@ export type Paginated<T> = {
   previous: string | null;
   results: T[];
 };
+
+export type ImportJob = {
+  id: number;
+  tenant: number;
+  created_by: number;
+  source_type: "CSV" | "XLSX" | "GOOGLE_SHEET" | "CHECKIN" | "MAILMOJO" | "MANUAL_API";
+  import_mode: "COMBINED" | "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY";
+  status:
+    | "DRAFT"
+    | "UPLOADED"
+    | "PARSED"
+    | "PREVIEW_READY"
+    | "AWAITING_REVIEW"
+    | "COMMITTING"
+    | "COMPLETED"
+    | "FAILED"
+    | "CANCELLED";
+  filename: string;
+  file: string | null;
+  summary_json: Record<string, unknown>;
+  config_json: Record<string, unknown>;
+  preview_report_file: string | null;
+  error_report_file: string | null;
+  committed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  rows_count?: number;
+};
+
+export type ImportDecision = {
+  id: number;
+  import_row: number;
+  decided_by: number;
+  decision_type:
+    | "USE_EXISTING_ORGANIZATION"
+    | "CREATE_NEW_ORGANIZATION"
+    | "USE_EXISTING_PERSON"
+    | "CREATE_NEW_PERSON"
+    | "MAP_CATEGORY"
+    | "MAP_SUBCATEGORY"
+    | "ACCEPT_NEW_TAG"
+    | "ACCEPT_AI_SUGGESTION"
+    | "IGNORE_AI_SUGGESTION"
+    | "SKIP_ROW";
+  payload_json: Record<string, unknown>;
+  created_at: string;
+};
+
+export type ImportRow = {
+  id: number;
+  import_job: number;
+  row_number: number;
+  raw_payload_json: Record<string, unknown>;
+  normalized_payload_json: Record<string, unknown>;
+  detected_entities_json: Record<string, unknown>;
+  match_result_json: Record<string, unknown>;
+  ai_suggestions_json: Record<string, unknown>;
+  validation_errors_json: string[];
+  warnings_json: string[];
+  row_status: "VALID" | "INVALID" | "REVIEW_REQUIRED" | "SKIPPED" | "COMMITTED" | "COMMIT_FAILED";
+  proposed_action: "CREATE" | "UPDATE" | "LINK_ONLY" | "SKIP";
+  decision_json: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  decisions: ImportDecision[];
+};
+
+export type ExportJob = {
+  id: number;
+  tenant: number;
+  created_by: number;
+  export_type: "SEARCH_RESULTS" | "ADMIN_FULL" | "PERSONS_ONLY" | "ORGANIZATIONS_ONLY";
+  format: "CSV" | "XLSX";
+  filters_json: Record<string, unknown>;
+  selected_fields_json: string[];
+  status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
+  file: string | null;
+  summary_json: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};

@@ -1,5 +1,18 @@
 from django.db import models
 from django.utils.text import slugify
+from django.conf import settings
+
+
+def import_job_upload_to(instance, filename: str) -> str:
+    return f"imports/tenant_{instance.tenant_id}/job_{instance.id or 'new'}/{filename}"
+
+
+def import_job_report_upload_to(instance, filename: str) -> str:
+    return f"imports/tenant_{instance.tenant_id}/job_{instance.id or 'new'}/reports/{filename}"
+
+
+def export_job_upload_to(instance, filename: str) -> str:
+    return f"exports/tenant_{instance.tenant_id}/job_{instance.id or 'new'}/{filename}"
 
 
 class Tenant(models.Model):
@@ -277,3 +290,201 @@ class OrganizationPerson(models.Model):
 
     def __str__(self) -> str:
         return f"{self.person} @ {self.organization} ({self.status})"
+
+
+class ImportJob(models.Model):
+    class SourceType(models.TextChoices):
+        CSV = "CSV", "CSV"
+        XLSX = "XLSX", "XLSX"
+        GOOGLE_SHEET = "GOOGLE_SHEET", "Google Sheet"
+        CHECKIN = "CHECKIN", "Checkin"
+        MAILMOJO = "MAILMOJO", "Mailmojo"
+        MANUAL_API = "MANUAL_API", "Manual API"
+
+    class ImportMode(models.TextChoices):
+        COMBINED = "COMBINED", "Combined"
+        ORGANIZATIONS_ONLY = "ORGANIZATIONS_ONLY", "Organizations only"
+        PEOPLE_ONLY = "PEOPLE_ONLY", "People only"
+
+    class Status(models.TextChoices):
+        DRAFT = "DRAFT", "Draft"
+        UPLOADED = "UPLOADED", "Uploaded"
+        PARSED = "PARSED", "Parsed"
+        PREVIEW_READY = "PREVIEW_READY", "Preview ready"
+        AWAITING_REVIEW = "AWAITING_REVIEW", "Awaiting review"
+        COMMITTING = "COMMITTING", "Committing"
+        COMPLETED = "COMPLETED", "Completed"
+        FAILED = "FAILED", "Failed"
+        CANCELLED = "CANCELLED", "Cancelled"
+
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="import_jobs")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="created_import_jobs")
+    source_type = models.CharField(max_length=32, choices=SourceType.choices)
+    import_mode = models.CharField(max_length=32, choices=ImportMode.choices)
+    status = models.CharField(max_length=32, choices=Status.choices, default=Status.DRAFT)
+    filename = models.CharField(max_length=255, blank=True)
+    file = models.FileField(upload_to=import_job_upload_to, blank=True, null=True)
+    summary_json = models.JSONField(default=dict, blank=True)
+    config_json = models.JSONField(default=dict, blank=True)
+    preview_report_file = models.FileField(upload_to=import_job_report_upload_to, blank=True, null=True)
+    error_report_file = models.FileField(upload_to=import_job_report_upload_to, blank=True, null=True)
+    committed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["tenant", "status"]),
+            models.Index(fields=["tenant", "created_at"]),
+            models.Index(fields=["tenant", "source_type"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"ImportJob #{self.pk or 'new'} ({self.tenant.slug})"
+
+
+class ImportRow(models.Model):
+    class RowStatus(models.TextChoices):
+        VALID = "VALID", "Valid"
+        INVALID = "INVALID", "Invalid"
+        REVIEW_REQUIRED = "REVIEW_REQUIRED", "Review required"
+        SKIPPED = "SKIPPED", "Skipped"
+        COMMITTED = "COMMITTED", "Committed"
+        COMMIT_FAILED = "COMMIT_FAILED", "Commit failed"
+
+    class ProposedAction(models.TextChoices):
+        CREATE = "CREATE", "Create"
+        UPDATE = "UPDATE", "Update"
+        LINK_ONLY = "LINK_ONLY", "Link only"
+        SKIP = "SKIP", "Skip"
+
+    import_job = models.ForeignKey(ImportJob, on_delete=models.CASCADE, related_name="rows")
+    row_number = models.PositiveIntegerField()
+    raw_payload_json = models.JSONField(default=dict, blank=True)
+    normalized_payload_json = models.JSONField(default=dict, blank=True)
+    detected_entities_json = models.JSONField(default=dict, blank=True)
+    match_result_json = models.JSONField(default=dict, blank=True)
+    ai_suggestions_json = models.JSONField(default=dict, blank=True)
+    validation_errors_json = models.JSONField(default=list, blank=True)
+    warnings_json = models.JSONField(default=list, blank=True)
+    row_status = models.CharField(max_length=32, choices=RowStatus.choices, default=RowStatus.REVIEW_REQUIRED)
+    proposed_action = models.CharField(max_length=32, choices=ProposedAction.choices, default=ProposedAction.SKIP)
+    decision_json = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["row_number", "id"]
+        unique_together = [("import_job", "row_number")]
+        indexes = [
+            models.Index(fields=["import_job", "row_status"]),
+            models.Index(fields=["import_job", "proposed_action"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"ImportRow #{self.row_number} for job {self.import_job_id}"
+
+
+class ImportDecision(models.Model):
+    class DecisionType(models.TextChoices):
+        USE_EXISTING_ORGANIZATION = "USE_EXISTING_ORGANIZATION", "Use existing organization"
+        CREATE_NEW_ORGANIZATION = "CREATE_NEW_ORGANIZATION", "Create new organization"
+        USE_EXISTING_PERSON = "USE_EXISTING_PERSON", "Use existing person"
+        CREATE_NEW_PERSON = "CREATE_NEW_PERSON", "Create new person"
+        MAP_CATEGORY = "MAP_CATEGORY", "Map category"
+        MAP_SUBCATEGORY = "MAP_SUBCATEGORY", "Map subcategory"
+        ACCEPT_NEW_TAG = "ACCEPT_NEW_TAG", "Accept new tag"
+        ACCEPT_AI_SUGGESTION = "ACCEPT_AI_SUGGESTION", "Accept AI suggestion"
+        IGNORE_AI_SUGGESTION = "IGNORE_AI_SUGGESTION", "Ignore AI suggestion"
+        SKIP_ROW = "SKIP_ROW", "Skip row"
+
+    import_row = models.ForeignKey(ImportRow, on_delete=models.CASCADE, related_name="decisions")
+    decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="import_decisions")
+    decision_type = models.CharField(max_length=48, choices=DecisionType.choices)
+    payload_json = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        indexes = [
+            models.Index(fields=["import_row", "decision_type"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"Decision {self.get_decision_type_display()} for row {self.import_row.row_number}"
+
+
+class ImportCommitLog(models.Model):
+    class EntityType(models.TextChoices):
+        ORGANIZATION = "ORGANIZATION", "Organization"
+        PERSON = "PERSON", "Person"
+        PERSON_CONTACT = "PERSON_CONTACT", "Person contact"
+        ORGANIZATION_PERSON = "ORGANIZATION_PERSON", "Organization person"
+        TAG = "TAG", "Tag"
+
+    class Action(models.TextChoices):
+        CREATED = "CREATED", "Created"
+        UPDATED = "UPDATED", "Updated"
+        LINKED = "LINKED", "Linked"
+        SKIPPED = "SKIPPED", "Skipped"
+        FAILED = "FAILED", "Failed"
+
+    import_job = models.ForeignKey(ImportJob, on_delete=models.CASCADE, related_name="commit_logs")
+    import_row = models.ForeignKey(ImportRow, on_delete=models.SET_NULL, null=True, blank=True, related_name="commit_logs")
+    entity_type = models.CharField(max_length=32, choices=EntityType.choices)
+    entity_id = models.PositiveIntegerField(null=True, blank=True)
+    action = models.CharField(max_length=16, choices=Action.choices)
+    details_json = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        indexes = [
+            models.Index(fields=["import_job", "action"]),
+            models.Index(fields=["import_job", "entity_type"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.get_action_display()} {self.get_entity_type_display()} for job {self.import_job_id}"
+
+
+class ExportJob(models.Model):
+    class ExportType(models.TextChoices):
+        SEARCH_RESULTS = "SEARCH_RESULTS", "Search results"
+        ADMIN_FULL = "ADMIN_FULL", "Admin full"
+        PERSONS_ONLY = "PERSONS_ONLY", "Persons only"
+        ORGANIZATIONS_ONLY = "ORGANIZATIONS_ONLY", "Organizations only"
+
+    class Format(models.TextChoices):
+        CSV = "CSV", "CSV"
+        XLSX = "XLSX", "XLSX"
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        RUNNING = "RUNNING", "Running"
+        COMPLETED = "COMPLETED", "Completed"
+        FAILED = "FAILED", "Failed"
+
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="export_jobs")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="created_export_jobs")
+    export_type = models.CharField(max_length=32, choices=ExportType.choices)
+    format = models.CharField(max_length=8, choices=Format.choices)
+    filters_json = models.JSONField(default=dict, blank=True)
+    selected_fields_json = models.JSONField(default=list, blank=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    file = models.FileField(upload_to=export_job_upload_to, blank=True, null=True)
+    summary_json = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["tenant", "status"]),
+            models.Index(fields=["tenant", "created_at"]),
+            models.Index(fields=["tenant", "export_type"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"ExportJob #{self.pk or 'new'} ({self.tenant.slug})"

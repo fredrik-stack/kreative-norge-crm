@@ -1,4 +1,11 @@
+import tempfile
+import zipfile
+import importlib
+from io import BytesIO
+from xml.sax.saxutils import escape
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from unittest.mock import patch
 from rest_framework.test import APIClient
@@ -12,9 +19,21 @@ from .models import (
     Category,
     Subcategory,
     Tenant,
+    ImportJob,
+    ImportRow,
+    ImportDecision,
+    ImportCommitLog,
+    ExportJob,
 )
 from .services.open_graph import ImageCandidate, choose_best_thumbnail, fallback_preview_image
 from .serializers import PersonSerializer
+import_commit_module = importlib.import_module("crm.services.import.commit")
+import_matchers_module = importlib.import_module("crm.services.import.matchers")
+import_normalizers_module = importlib.import_module("crm.services.import.normalizers")
+import_ai_suggestions_module = importlib.import_module("crm.services.import.ai_suggestions")
+match_row_entities = import_matchers_module.match_row_entities
+normalize_import_row = import_normalizers_module.normalize_import_row
+generate_ai_suggestions = import_ai_suggestions_module.generate_ai_suggestions
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -92,6 +111,689 @@ class AuthenticatedAPITestCase(TestCase):
             password="secret123",
         )
         self.client.force_login(self.user)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class ImportExportModelTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username="model-user", password="secret123")
+        self.tenant = Tenant.objects.create(name="Import Tenant", slug="import-tenant")
+
+    def test_import_models_can_be_created(self):
+        job = ImportJob.objects.create(
+            tenant=self.tenant,
+            created_by=self.user,
+            source_type=ImportJob.SourceType.CSV,
+            import_mode=ImportJob.ImportMode.COMBINED,
+        )
+        row = ImportRow.objects.create(import_job=job, row_number=1, raw_payload_json={"name": "Test"})
+        decision = ImportDecision.objects.create(
+            import_row=row,
+            decided_by=self.user,
+            decision_type=ImportDecision.DecisionType.SKIP_ROW,
+            payload_json={"reason": "manual"},
+        )
+        log = ImportCommitLog.objects.create(
+            import_job=job,
+            import_row=row,
+            entity_type=ImportCommitLog.EntityType.ORGANIZATION,
+            entity_id="123",
+            action=ImportCommitLog.Action.SKIPPED,
+            details_json={"status": "noop"},
+        )
+
+        self.assertEqual(job.status, ImportJob.Status.DRAFT)
+        self.assertEqual(row.row_status, ImportRow.RowStatus.REVIEW_REQUIRED)
+        self.assertEqual(row.proposed_action, ImportRow.ProposedAction.SKIP)
+        self.assertEqual(str(decision), f"Decision {decision.get_decision_type_display()} for row 1")
+        self.assertEqual(str(log), f"{log.get_action_display()} {log.get_entity_type_display()} for job {job.id}")
+
+    def test_export_job_can_be_created(self):
+        job = ExportJob.objects.create(
+            tenant=self.tenant,
+            created_by=self.user,
+            export_type=ExportJob.ExportType.SEARCH_RESULTS,
+            format=ExportJob.Format.CSV,
+        )
+
+        self.assertEqual(job.status, ExportJob.Status.PENDING)
+        self.assertEqual(str(job), f"ExportJob #{job.id} ({self.tenant.slug})")
+
+
+class ImportExportAuthenticatedAPITestCase(TestCase):
+    role_name = "redigerer"
+
+    def setUp(self):
+        self.client = APIClient()
+        self.tenant = Tenant.objects.create(name="Tenant A", slug="tenant-a")
+        self.other_tenant = Tenant.objects.create(name="Tenant B", slug="tenant-b")
+        self.user = get_user_model().objects.create_user(
+            username=f"{self.role_name}-user",
+            password="secret123",
+        )
+        if self.role_name != "superadmin":
+            group, _ = Group.objects.get_or_create(name=self.role_name)
+            self.user.groups.add(group)
+        else:
+            self.user.is_superuser = True
+            self.user.is_staff = True
+            self.user.save(update_fields=["is_superuser", "is_staff"])
+        self.client.force_login(self.user)
+
+    def import_jobs_url(self, tenant_id=None):
+        return f"/api/tenants/{tenant_id or self.tenant.id}/import-jobs/"
+
+    def export_jobs_url(self, tenant_id=None):
+        return f"/api/tenants/{tenant_id or self.tenant.id}/export-jobs/"
+
+
+@override_settings(SECURE_SSL_REDIRECT=False, MEDIA_ROOT=tempfile.gettempdir())
+class ImportExportApiTests(ImportExportAuthenticatedAPITestCase):
+    role_name = "redigerer"
+
+    def setUp(self):
+        super().setUp()
+        self.import_job = ImportJob.objects.create(
+            tenant=self.tenant,
+            created_by=self.user,
+            source_type=ImportJob.SourceType.CSV,
+            import_mode=ImportJob.ImportMode.COMBINED,
+        )
+        self.other_import_job = ImportJob.objects.create(
+            tenant=self.other_tenant,
+            created_by=self.user,
+            source_type=ImportJob.SourceType.XLSX,
+            import_mode=ImportJob.ImportMode.PEOPLE_ONLY,
+        )
+        self.export_job = ExportJob.objects.create(
+            tenant=self.tenant,
+            created_by=self.user,
+            export_type=ExportJob.ExportType.SEARCH_RESULTS,
+            format=ExportJob.Format.CSV,
+        )
+        self.other_export_job = ExportJob.objects.create(
+            tenant=self.other_tenant,
+            created_by=self.user,
+            export_type=ExportJob.ExportType.ADMIN_FULL,
+            format=ExportJob.Format.XLSX,
+        )
+
+    def test_create_import_job_sets_tenant_and_created_by(self):
+        response = self.client.post(
+            self.import_jobs_url(),
+            {
+                "tenant": self.other_tenant.id,
+                "source_type": ImportJob.SourceType.CSV,
+                "import_mode": ImportJob.ImportMode.COMBINED,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        created = ImportJob.objects.get(id=response.json()["id"])
+        self.assertEqual(created.tenant_id, self.tenant.id)
+        self.assertEqual(created.created_by_id, self.user.id)
+        self.assertEqual(created.status, ImportJob.Status.DRAFT)
+
+    def test_list_import_jobs_is_scoped_to_tenant(self):
+        response = self.client.get(self.import_jobs_url())
+        self.assertEqual(response.status_code, 200)
+
+        ids = {item["id"] for item in response.json()}
+        self.assertIn(self.import_job.id, ids)
+        self.assertNotIn(self.other_import_job.id, ids)
+
+    def test_get_import_job_detail_is_scoped_to_tenant(self):
+        response = self.client.get(f"{self.import_jobs_url()}{self.import_job.id}/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["id"], self.import_job.id)
+
+        response = self.client.get(f"{self.import_jobs_url()}{self.other_import_job.id}/")
+        self.assertEqual(response.status_code, 404)
+
+    def test_upload_sets_file_name_and_status(self):
+        upload = SimpleUploadedFile("contacts.csv", b"name,email\nAda,ada@example.com\n", content_type="text/csv")
+
+        response = self.client.post(f"{self.import_jobs_url()}{self.import_job.id}/upload/", {"file": upload})
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.import_job.refresh_from_db()
+        self.assertEqual(self.import_job.filename, "contacts.csv")
+        self.assertEqual(self.import_job.status, ImportJob.Status.UPLOADED)
+        self.assertTrue(self.import_job.file.name.endswith("contacts.csv"))
+
+    def test_rows_endpoint_returns_paginated_empty_results(self):
+        response = self.client.get(f"{self.import_jobs_url()}{self.import_job.id}/rows/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["count"], 0)
+        self.assertEqual(response.json()["results"], [])
+
+    def test_rows_endpoint_returns_existing_rows(self):
+        row = ImportRow.objects.create(
+            import_job=self.import_job,
+            row_number=1,
+            raw_payload_json={"name": "Ada"},
+        )
+        ImportDecision.objects.create(
+            import_row=row,
+            decided_by=self.user,
+            decision_type=ImportDecision.DecisionType.SKIP_ROW,
+            payload_json={"reason": "test"},
+        )
+
+        response = self.client.get(f"{self.import_jobs_url()}{self.import_job.id}/rows/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["count"], 1)
+        self.assertEqual(response.json()["results"][0]["row_number"], 1)
+        self.assertEqual(len(response.json()["results"][0]["decisions"]), 1)
+
+    def test_create_export_job_sets_tenant_and_created_by(self):
+        response = self.client.post(
+            self.export_jobs_url(),
+            {
+                "tenant": self.other_tenant.id,
+                "export_type": ExportJob.ExportType.PERSONS_ONLY,
+                "format": ExportJob.Format.XLSX,
+                "filters_json": {"q": "Ada"},
+                "selected_fields_json": ["full_name"],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        created = ExportJob.objects.get(id=response.json()["id"])
+        self.assertEqual(created.tenant_id, self.tenant.id)
+        self.assertEqual(created.created_by_id, self.user.id)
+        self.assertEqual(created.status, ExportJob.Status.PENDING)
+
+    def test_list_export_jobs_is_scoped_to_tenant(self):
+        response = self.client.get(self.export_jobs_url())
+        self.assertEqual(response.status_code, 200)
+
+        ids = {item["id"] for item in response.json()}
+        self.assertIn(self.export_job.id, ids)
+        self.assertNotIn(self.other_export_job.id, ids)
+
+    def test_get_export_job_detail_is_scoped_to_tenant(self):
+        response = self.client.get(f"{self.export_jobs_url()}{self.export_job.id}/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["id"], self.export_job.id)
+
+        response = self.client.get(f"{self.export_jobs_url()}{self.other_export_job.id}/")
+        self.assertEqual(response.status_code, 404)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class ImportExportPermissionTests(TestCase):
+    def setUp(self):
+        self.tenant = Tenant.objects.create(name="Permission Tenant", slug="permission-tenant")
+
+    def _client_for_role(self, role_name: str | None = None, *, superuser: bool = False):
+        client = APIClient()
+        user = get_user_model().objects.create_user(
+            username=f"user-{role_name or 'anon'}-{get_user_model().objects.count()}",
+            password="secret123",
+        )
+        if superuser:
+            user.is_superuser = True
+            user.is_staff = True
+            user.save(update_fields=["is_superuser", "is_staff"])
+        elif role_name:
+            group, _ = Group.objects.get_or_create(name=role_name)
+            user.groups.add(group)
+        client.force_login(user)
+        return client
+
+    def test_superadmin_has_access(self):
+        client = self._client_for_role(superuser=True)
+        response = client.get(f"/api/tenants/{self.tenant.id}/import-jobs/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_gruppeadmin_has_access(self):
+        client = self._client_for_role("gruppeadmin")
+        response = client.get(f"/api/tenants/{self.tenant.id}/import-jobs/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_redigerer_has_access(self):
+        client = self._client_for_role("redigerer")
+        response = client.get(f"/api/tenants/{self.tenant.id}/export-jobs/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_leser_is_forbidden(self):
+        client = self._client_for_role("leser")
+        response = client.get(f"/api/tenants/{self.tenant.id}/import-jobs/")
+        self.assertEqual(response.status_code, 403)
+
+    def test_unauthenticated_user_is_forbidden(self):
+        client = APIClient()
+        response = client.get(f"/api/tenants/{self.tenant.id}/import-jobs/")
+        self.assertEqual(response.status_code, 403)
+
+
+def build_test_xlsx(rows: list[dict]) -> bytes:
+    headers = list(rows[0].keys()) if rows else []
+
+    def cell_ref(col_index: int, row_index: int) -> str:
+        result = ""
+        col = col_index + 1
+        while col:
+            col, remainder = divmod(col - 1, 26)
+            result = chr(65 + remainder) + result
+        return f"{result}{row_index}"
+
+    all_strings = headers[:]
+    for row in rows:
+        all_strings.extend(str(row.get(header, "")) for header in headers)
+    unique_strings = []
+    index_map = {}
+    for value in all_strings:
+        if value not in index_map:
+            index_map[value] = len(unique_strings)
+            unique_strings.append(value)
+
+    shared_strings = "".join(f"<si><t>{escape(value)}</t></si>" for value in unique_strings)
+    header_cells = "".join(
+        f'<c r="{cell_ref(index, 1)}" t="s"><v>{index_map[header]}</v></c>'
+        for index, header in enumerate(headers)
+    )
+    row_xml = [f'<row r="1">{header_cells}</row>']
+    for row_index, row in enumerate(rows, start=2):
+        cells = "".join(
+            f'<c r="{cell_ref(index, row_index)}" t="s"><v>{index_map[str(row.get(header, ""))]}</v></c>'
+            for index, header in enumerate(headers)
+        )
+        row_xml.append(f'<row r="{row_index}">{cells}</row>')
+
+    worksheet_xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        f'<sheetData>{"".join(row_xml)}</sheetData>'
+        "</worksheet>"
+    )
+    workbook_xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>'
+        "</workbook>"
+    )
+    workbook_rels = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" '
+        'Target="worksheets/sheet1.xml"/>'
+        '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" '
+        'Target="sharedStrings.xml"/>'
+        "</Relationships>"
+    )
+    content_types = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+        '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        '<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>'
+        "</Types>"
+    )
+    root_rels = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" '
+        'Target="xl/workbook.xml"/>'
+        "</Relationships>"
+    )
+    shared_strings_xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        f"{shared_strings}</sst>"
+    )
+
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("[Content_Types].xml", content_types)
+        archive.writestr("_rels/.rels", root_rels)
+        archive.writestr("xl/workbook.xml", workbook_xml)
+        archive.writestr("xl/_rels/workbook.xml.rels", workbook_rels)
+        archive.writestr("xl/sharedStrings.xml", shared_strings_xml)
+        archive.writestr("xl/worksheets/sheet1.xml", worksheet_xml)
+    return buffer.getvalue()
+
+
+@override_settings(SECURE_SSL_REDIRECT=False, MEDIA_ROOT=tempfile.gettempdir())
+class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
+    role_name = "redigerer"
+
+    def setUp(self):
+        super().setUp()
+        self.music = Category.objects.get(name="Musikk")
+        self.band = Subcategory.objects.get(name="Artister & Band")
+        self.job = ImportJob.objects.create(
+            tenant=self.tenant,
+            created_by=self.user,
+            source_type=ImportJob.SourceType.CSV,
+            import_mode=ImportJob.ImportMode.COMBINED,
+            status=ImportJob.Status.UPLOADED,
+        )
+        self.base_row = {
+            "organization_name": "Nordlyd AS",
+            "organization_org_number": "123 456 789",
+            "organization_email": "post@nordlyd.no",
+            "organization_phone": "+4711111111",
+            "organization_publish_phone": "",
+            "organization_municipalities": "Oslo",
+            "organization_website_url": "https://nordlyd.no",
+            "organization_instagram_url": "",
+            "organization_tiktok_url": "",
+            "organization_linkedin_url": "",
+            "organization_facebook_url": "",
+            "organization_youtube_url": "",
+            "organization_description": "Konsertselskap",
+            "organization_note": "Internt notat",
+            "organization_is_published": "",
+            "organization_categories": "Musikk",
+            "organization_subcategories": "Artister & Band",
+            "organization_tags": "jazz, klubb",
+            "person_full_name": "Ada Artist",
+            "person_title": "Manager",
+            "person_email": "ada@example.com",
+            "person_phone": "+4722222222",
+            "person_municipality": "Oslo",
+            "person_website_url": "",
+            "person_instagram_url": "",
+            "person_tiktok_url": "",
+            "person_linkedin_url": "",
+            "person_facebook_url": "",
+            "person_youtube_url": "",
+            "person_note": "Kontaktperson",
+            "person_categories": "Musikk",
+            "person_subcategories": "Artister & Band",
+            "person_tags": "jazz",
+            "link_status": "ACTIVE",
+            "link_publish_person": "",
+            "person_secondary_emails": "ada.booking@example.com",
+            "person_secondary_phones": "+4733333333",
+            "person_secondary_emails_public": "",
+            "person_secondary_phones_public": "",
+        }
+
+    def _upload_csv(self, rows=None):
+        rows = rows or [self.base_row]
+        headers = list(rows[0].keys())
+        lines = [",".join(headers)]
+        for row in rows:
+            values = []
+            for header in headers:
+                value = str(row.get(header, ""))
+                if "," in value:
+                    value = f'"{value}"'
+                values.append(value)
+            lines.append(",".join(values))
+        upload = SimpleUploadedFile("import.csv", "\n".join(lines).encode("utf-8"), content_type="text/csv")
+        self.job.file = upload
+        self.job.filename = "import.csv"
+        self.job.save(update_fields=["file", "filename", "updated_at"])
+
+    def _upload_xlsx(self, rows=None):
+        rows = rows or [self.base_row]
+        upload = SimpleUploadedFile(
+            "import.xlsx",
+            build_test_xlsx(rows),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        self.job.source_type = ImportJob.SourceType.XLSX
+        self.job.file = upload
+        self.job.filename = "import.xlsx"
+        self.job.save(update_fields=["source_type", "file", "filename", "updated_at"])
+
+    def test_csv_preview_creates_rows_and_summary(self):
+        self._upload_csv()
+        response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(response.status_code, 200, response.content)
+
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, ImportJob.Status.PREVIEW_READY)
+        self.assertEqual(self.job.rows.count(), 1)
+        row = self.job.rows.get()
+        self.assertEqual(row.row_status, ImportRow.RowStatus.VALID)
+        self.assertEqual(row.proposed_action, ImportRow.ProposedAction.CREATE)
+        self.assertEqual(self.job.summary_json["rows_total"], 1)
+
+    def test_xlsx_preview_creates_rows(self):
+        self._upload_xlsx()
+        response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(self.job.rows.count(), 1)
+        self.assertEqual(self.job.rows.get().normalized_payload_json["person"]["full_name"], "Ada Artist")
+
+    def test_normalization_applies_safe_defaults(self):
+        normalized = normalize_import_row(self.base_row)
+        self.assertFalse(normalized["organization"]["is_published"])
+        self.assertFalse(normalized["organization"]["publish_phone"])
+        self.assertFalse(normalized["link"]["publish_person"])
+        self.assertEqual(normalized["organization"]["org_number"], "123456789")
+        self.assertEqual(normalized["person"]["secondary_contacts"][0]["is_public"], False)
+
+    def test_validation_marks_unknown_taxonomy_for_review(self):
+        invalid_row = self.base_row | {"organization_categories": "Ukjent kategori"}
+        self._upload_csv([invalid_row])
+        response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(response.status_code, 200)
+        row = self.job.rows.get()
+        self.assertEqual(row.row_status, ImportRow.RowStatus.REVIEW_REQUIRED)
+        self.assertTrue(any("Unknown category:" in item for item in row.warnings_json))
+
+    def test_organization_matching_prefers_org_number(self):
+        existing = Organization.objects.create(tenant=self.tenant, name="Existing", org_number="123456789")
+        match = match_row_entities(self.tenant, normalize_import_row(self.base_row))
+        self.assertEqual(match["organization"]["exact_id"], existing.id)
+        self.assertEqual(match["organization"]["rule"], "ORG_NUMBER")
+
+    def test_person_matching_prefers_email(self):
+        existing = Person.objects.create(tenant=self.tenant, full_name="Someone Else", email="ada@example.com")
+        match = match_row_entities(self.tenant, normalize_import_row(self.base_row))
+        self.assertEqual(match["person"]["exact_id"], existing.id)
+        self.assertEqual(match["person"]["rule"], "EMAIL")
+
+    def test_decisions_are_saved(self):
+        review_row = self.base_row | {"organization_categories": "Ukjent kategori"}
+        self._upload_csv([review_row])
+        self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        row = self.job.rows.get()
+
+        response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/decisions/",
+            {
+                "rows": [
+                    {
+                        "row_id": row.id,
+                        "decisions": [
+                            {
+                                "decision_type": "MAP_CATEGORY",
+                                "payload_json": {"category_id": self.music.id},
+                            }
+                        ],
+                    }
+                ]
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        row.refresh_from_db()
+        self.assertEqual(row.decisions.count(), 1)
+        self.assertEqual(row.row_status, ImportRow.RowStatus.VALID)
+
+    @patch("crm.services.import.commit.refresh_organization_open_graph")
+    def test_commit_success_creates_entities_and_contacts(self, refresh_mock):
+        self._upload_csv()
+        self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+
+        response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/commit/", {"skip_unresolved": False}, format="json")
+        self.assertEqual(response.status_code, 200, response.content)
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, ImportJob.Status.COMPLETED)
+
+        organization = Organization.objects.get(tenant=self.tenant, org_number="123456789")
+        person = Person.objects.get(tenant=self.tenant, email="ada@example.com")
+        link = OrganizationPerson.objects.get(tenant=self.tenant, organization=organization, person=person)
+        self.assertEqual(link.status, "ACTIVE")
+        self.assertFalse(link.publish_person)
+        self.assertFalse(organization.is_published)
+        self.assertFalse(organization.publish_phone)
+        self.assertEqual(person.title, "Manager")
+        self.assertEqual(person.contacts.filter(type="EMAIL", is_primary=True).count(), 1)
+        self.assertEqual(person.contacts.filter(type="PHONE", is_primary=True).count(), 1)
+        self.assertTrue(person.contacts.filter(value="ada.booking@example.com", is_public=False).exists())
+        self.assertTrue(Tag.objects.filter(tenant=self.tenant, name="jazz").exists())
+        self.assertGreater(self.job.commit_logs.count(), 0)
+        refresh_mock.assert_called_once()
+
+    def test_commit_is_blocked_by_unresolved_rows(self):
+        review_row = self.base_row | {"organization_categories": "Ukjent kategori"}
+        self._upload_csv([review_row])
+        self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+
+        response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/commit/", {"skip_unresolved": False}, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("detail", response.json())
+
+    def test_preview_and_commit_are_tenant_scoped(self):
+        self._upload_csv()
+        response = self.client.post(f"/api/tenants/{self.other_tenant.id}/import-jobs/{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(response.status_code, 404)
+
+    def test_rows_endpoint_filters_by_status(self):
+        review_row = self.base_row | {"organization_categories": "Ukjent kategori"}
+        self._upload_csv([self.base_row, review_row])
+        self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+
+        response = self.client.get(f"{self.import_jobs_url()}{self.job.id}/rows/", {"status": "REVIEW_REQUIRED"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["count"], 1)
+
+    def test_error_report_endpoint_returns_report_file(self):
+        review_row = self.base_row | {"organization_categories": "Ukjent kategori"}
+        self._upload_csv([review_row])
+        self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+
+        response = self.client.get(f"{self.import_jobs_url()}{self.job.id}/error-report/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("attachment;", response["Content-Disposition"])
+
+    def test_ai_suggestions_are_generated_and_stored_separately(self):
+        row = self.base_row | {"organization_website_url": "", "organization_note": "Sterk aktør i musikkfeltet."}
+        self._upload_csv([row])
+        response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(response.status_code, 200, response.content)
+
+        row = self.job.rows.get()
+        self.assertIn("suggested_fields", row.ai_suggestions_json)
+        self.assertIn("organization_website_url", row.ai_suggestions_json["suggested_fields"])
+        self.assertEqual(row.normalized_payload_json["organization"]["website_url"], "")
+
+    def test_generate_ai_suggestions_never_sets_publish_or_public_fields(self):
+        suggestions = generate_ai_suggestions(self.tenant, normalize_import_row(self.base_row), {"organization": {}, "person": {}})
+        forbidden_keys = {
+            "organization_is_published",
+            "organization_publish_phone",
+            "link_publish_person",
+            "person_contact_is_public",
+        }
+        self.assertTrue(forbidden_keys.isdisjoint(set((suggestions.get("suggested_fields") or {}).keys())))
+
+    @patch("crm.services.import.commit.refresh_organization_open_graph")
+    def test_accepted_ai_suggestion_can_influence_commit(self, refresh_mock):
+        row = self.base_row | {"organization_website_url": "", "organization_note": "Sterk aktør i musikkfeltet."}
+        self._upload_csv([row])
+        self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        preview_row = self.job.rows.get()
+
+        response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/decisions/",
+            {
+                "rows": [
+                    {
+                        "row_id": preview_row.id,
+                        "decisions": [
+                            {
+                                "decision_type": "ACCEPT_AI_SUGGESTION",
+                                "payload_json": {
+                                    "suggestion_key": "organization_description",
+                                    "value": "Suggested short description",
+                                },
+                            }
+                        ],
+                    }
+                ]
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+
+        commit_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/commit/",
+            {"skip_unresolved": False},
+            format="json",
+        )
+        self.assertEqual(commit_response.status_code, 200, commit_response.content)
+        organization = Organization.objects.get(tenant=self.tenant, org_number="123456789")
+        self.assertEqual(organization.description, "Suggested short description")
+        refresh_mock.assert_not_called()
+
+    @patch("crm.services.import.commit.refresh_organization_open_graph")
+    def test_unaccepted_ai_suggestion_does_not_influence_commit(self, refresh_mock):
+        row = self.base_row | {"organization_website_url": "", "organization_note": "Sterk aktør i musikkfeltet."}
+        self._upload_csv([row])
+        self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+
+        commit_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/commit/",
+            {"skip_unresolved": False},
+            format="json",
+        )
+        self.assertEqual(commit_response.status_code, 200, commit_response.content)
+        organization = Organization.objects.get(tenant=self.tenant, org_number="123456789")
+        self.assertEqual(organization.description, "Konsertselskap")
+        refresh_mock.assert_not_called()
+
+    @patch("crm.services.import.commit.refresh_organization_open_graph")
+    def test_forbidden_publish_flags_are_not_set_even_if_ai_suggestion_is_accepted(self, refresh_mock):
+        self._upload_csv()
+        self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        preview_row = self.job.rows.get()
+
+        response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/decisions/",
+            {
+                "rows": [
+                    {
+                        "row_id": preview_row.id,
+                        "decisions": [
+                            {
+                                "decision_type": "ACCEPT_AI_SUGGESTION",
+                                "payload_json": {"suggestion_key": "organization_is_published", "value": True},
+                            }
+                        ],
+                    }
+                ]
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+
+        commit_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/commit/",
+            {"skip_unresolved": False},
+            format="json",
+        )
+        self.assertEqual(commit_response.status_code, 200, commit_response.content)
+        organization = Organization.objects.get(tenant=self.tenant, org_number="123456789")
+        self.assertFalse(organization.is_published)
+        self.assertFalse(organization.publish_phone)
+        link = OrganizationPerson.objects.get(tenant=self.tenant, organization=organization)
+        self.assertFalse(link.publish_person)
+        self.assertFalse(PersonContact.objects.filter(person=link.person, is_public=True).exists())
+        refresh_mock.assert_called_once()
 
 
 class PersonContactViewSetTests(AuthenticatedAPITestCase):

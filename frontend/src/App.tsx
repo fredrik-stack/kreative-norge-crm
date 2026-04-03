@@ -16,6 +16,7 @@ import { useUnsavedChangesGuard } from "./hooks/useUnsavedChangesGuard";
 import { EditorProvider } from "./context/EditorContext";
 import { OrganizationsPage } from "./pages/OrganizationsPage";
 import { PeoplePage } from "./pages/PeoplePage";
+import { ImportExportPage } from "./pages/ImportExportPage";
 import { useEditorData } from "./hooks/useEditorData";
 import { filterSubcategoriesForCategory, sortedCategories, sortedTags } from "./editorTaxonomy";
 
@@ -236,6 +237,9 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
             <NavLink to="/people" end className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
               Personer{editor.peopleHasUnsavedChanges ? " *" : ""}
             </NavLink>
+            <NavLink to="/import-export" end className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
+              Import / eksport
+            </NavLink>
           </nav>
           <div className="session-bar">
             <span className="meta">Innlogget som {username}</span>
@@ -255,6 +259,7 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
           <Route path="/organizations/:orgId" element={<OrganizationsPage />} />
           <Route path="/people" element={<PeoplePage />} />
           <Route path="/people/:personId" element={<PeoplePage />} />
+          <Route path="/import-export" element={<ImportExportPage />} />
         </Routes>
       </EditorProvider>
 

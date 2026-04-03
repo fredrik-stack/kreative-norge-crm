@@ -8,6 +8,11 @@ from .models import (
     Person,
     OrganizationPerson,
     PersonContact,
+    ImportJob,
+    ImportRow,
+    ImportDecision,
+    ImportCommitLog,
+    ExportJob,
 )
 
 
@@ -520,3 +525,143 @@ class PublicOrganizationSerializer(serializers.ModelSerializer):
         if not instance.publish_phone:
             data["phone"] = None
         return data
+
+
+class ImportDecisionSerializer(serializers.ModelSerializer):
+    decided_by = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = ImportDecision
+        fields = ["id", "import_row", "decided_by", "decision_type", "payload_json", "created_at"]
+        read_only_fields = ["import_row", "decided_by", "created_at"]
+
+
+class ImportDecisionCreateSerializer(serializers.Serializer):
+    decision_type = serializers.ChoiceField(choices=ImportDecision.DecisionType.choices)
+    payload_json = serializers.JSONField(required=False, default=dict)
+
+
+class ImportJobDecisionsSerializer(serializers.Serializer):
+    row_id = serializers.IntegerField()
+    decisions = ImportDecisionCreateSerializer(many=True)
+
+
+class ImportCommitRequestSerializer(serializers.Serializer):
+    skip_unresolved = serializers.BooleanField(required=False, default=False)
+
+
+class ImportRowSerializer(serializers.ModelSerializer):
+    decisions = ImportDecisionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ImportRow
+        fields = [
+            "id",
+            "import_job",
+            "row_number",
+            "raw_payload_json",
+            "normalized_payload_json",
+            "detected_entities_json",
+            "match_result_json",
+            "ai_suggestions_json",
+            "validation_errors_json",
+            "warnings_json",
+            "row_status",
+            "proposed_action",
+            "decision_json",
+            "created_at",
+            "updated_at",
+            "decisions",
+        ]
+        read_only_fields = fields
+
+
+class ImportJobSerializer(serializers.ModelSerializer):
+    tenant = serializers.PrimaryKeyRelatedField(read_only=True)
+    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+    rows_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = ImportJob
+        fields = [
+            "id",
+            "tenant",
+            "created_by",
+            "source_type",
+            "import_mode",
+            "status",
+            "filename",
+            "file",
+            "summary_json",
+            "config_json",
+            "preview_report_file",
+            "error_report_file",
+            "committed_at",
+            "created_at",
+            "updated_at",
+            "rows_count",
+        ]
+        read_only_fields = [
+            "tenant",
+            "created_by",
+            "status",
+            "filename",
+            "file",
+            "summary_json",
+            "config_json",
+            "preview_report_file",
+            "error_report_file",
+            "committed_at",
+            "created_at",
+            "updated_at",
+            "rows_count",
+        ]
+
+
+class ImportJobCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ImportJob
+        fields = ["id", "source_type", "import_mode", "status", "tenant", "created_by", "created_at"]
+        read_only_fields = ["id", "status", "tenant", "created_by", "created_at"]
+
+
+class ImportJobUploadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ImportJob
+        fields = ["file"]
+
+    def validate_file(self, value):
+        if not value:
+            raise serializers.ValidationError("File is required.")
+        return value
+
+
+class ExportJobSerializer(serializers.ModelSerializer):
+    tenant = serializers.PrimaryKeyRelatedField(read_only=True)
+    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = ExportJob
+        fields = [
+            "id",
+            "tenant",
+            "created_by",
+            "export_type",
+            "format",
+            "filters_json",
+            "selected_fields_json",
+            "status",
+            "file",
+            "summary_json",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "tenant",
+            "created_by",
+            "status",
+            "file",
+            "summary_json",
+            "created_at",
+            "updated_at",
+        ]

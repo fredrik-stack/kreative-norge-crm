@@ -260,6 +260,281 @@ select,
   margin-bottom: 0.75rem;
 }
 
+.import-export-layout {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.95fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.import-export-panel {
+  padding: 1rem;
+}
+
+.import-export-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.import-export-sidebar {
+  min-width: 0;
+}
+
+.import-export-main {
+  min-width: 0;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.import-actions {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+}
+
+.export-form-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.job-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.job-list-item {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 14px;
+  padding: 0.8rem 0.9rem;
+  display: grid;
+  gap: 0.25rem;
+  cursor: pointer;
+}
+
+.job-list-item.active {
+  border-color: rgba(12, 122, 91, 0.35);
+  background: rgba(12, 122, 91, 0.08);
+}
+
+.job-list-item.static {
+  cursor: default;
+}
+
+.job-list-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.import-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.65rem;
+}
+
+.summary-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 0.75rem 0.8rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.summary-card strong {
+  font-size: 1.2rem;
+}
+
+.import-toolbar,
+.import-filter-row,
+.pagination-row,
+.commit-bar {
+  display: flex;
+  gap: 0.65rem;
+  align-items: end;
+  flex-wrap: wrap;
+}
+
+.import-filter-row .search-input {
+  margin-bottom: 0;
+  min-width: 240px;
+  flex: 1 1 260px;
+}
+
+.pagination-row {
+  justify-content: space-between;
+}
+
+.commit-bar {
+  justify-content: space-between;
+}
+
+.checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted);
+}
+
+.disabled-link {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.results-grid {
+  margin-top: 0.25rem;
+}
+
+.import-row-modal {
+  max-width: min(1100px, 94vw);
+}
+
+.import-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.json-block {
+  margin: 0;
+  padding: 0.85rem;
+  border-radius: 14px;
+  background: rgba(21, 24, 23, 0.92);
+  color: #f1f2ee;
+  overflow: auto;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.json-inline {
+  margin: 0;
+  padding: 0.7rem 0.8rem;
+  border-radius: 12px;
+  background: rgba(21, 24, 23, 0.08);
+  color: #222;
+  overflow: auto;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.detail-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.detail-list ul {
+  margin: 0;
+  padding-left: 1.15rem;
+}
+
+.modal-form-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.suggestion-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.suggestion-card {
+  padding: 0.85rem;
+  border-radius: 14px;
+  border: 1px solid rgba(36, 46, 44, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.suggestion-card.accepted {
+  border-color: rgba(74, 128, 73, 0.32);
+  background: rgba(74, 128, 73, 0.08);
+}
+
+.suggestion-card.ignored {
+  border-color: rgba(124, 137, 168, 0.3);
+  background: rgba(124, 137, 168, 0.08);
+}
+
+.suggestion-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: baseline;
+  margin-bottom: 0.45rem;
+}
+
+.suggestion-key {
+  font-weight: 700;
+}
+
+.suggestion-actions {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  margin-top: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.export-field-picker {
+  margin-top: 0.9rem;
+}
+
+.pill-grid {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.filter-chip.active {
+  border-color: rgba(12, 122, 91, 0.35);
+  background: rgba(12, 122, 91, 0.08);
+}
+
+.filter-chip input {
+  margin: 0;
+}
+
+.export-job-list {
+  margin-top: 1rem;
+}
+
+@media (max-width: 1100px) {
+  .import-export-layout,
+  .import-export-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .import-actions,
+  .export-form-grid,
+  .import-detail-grid,
+  .modal-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .hero-filter-grid .search-input,
 .hero-filter-grid .overview-select {
   margin-bottom: 0;

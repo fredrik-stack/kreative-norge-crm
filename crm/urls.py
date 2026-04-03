@@ -14,6 +14,8 @@ from .views import (
     OrganizationPersonViewSet,
     PersonContactViewSet,
     PublicActorViewSet,
+    ImportJobViewSet,
+    ExportJobViewSet,
 )
 
 router = DefaultRouter()
@@ -27,6 +29,8 @@ tenant_router.register(r"organizations", OrganizationViewSet, basename="tenant-o
 tenant_router.register(r"persons", PersonViewSet, basename="tenant-persons")
 tenant_router.register(r"organization-people", OrganizationPersonViewSet, basename="tenant-organization-people")
 tenant_router.register(r"person-contacts", PersonContactViewSet, basename="tenant-person-contacts")
+tenant_router.register(r"import-jobs", ImportJobViewSet, basename="tenant-import-jobs")
+tenant_router.register(r"export-jobs", ExportJobViewSet, basename="tenant-export-jobs")
 
 public_router = DefaultRouter()
 public_router.register(r"actors", PublicActorViewSet, basename="public-actors")
