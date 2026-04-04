@@ -4,7 +4,54 @@ import re
 from urllib.parse import urlparse
 
 
-EXPECTED_IMPORT_FIELDS = [
+ORGANIZATION_IMPORT_FIELDS = [
+    "organization_name",
+    "organization_org_number",
+    "organization_email",
+    "organization_phone",
+    "organization_publish_phone",
+    "organization_municipalities",
+    "organization_website_url",
+    "organization_instagram_url",
+    "organization_tiktok_url",
+    "organization_linkedin_url",
+    "organization_facebook_url",
+    "organization_youtube_url",
+    "organization_description",
+    "organization_note",
+    "organization_is_published",
+    "organization_categories",
+    "organization_subcategories",
+    "organization_tags",
+]
+
+PERSON_IMPORT_FIELDS = [
+    "person_full_name",
+    "person_title",
+    "person_email",
+    "person_phone",
+    "person_municipality",
+    "person_website_url",
+    "person_instagram_url",
+    "person_tiktok_url",
+    "person_linkedin_url",
+    "person_facebook_url",
+    "person_youtube_url",
+    "person_note",
+    "person_categories",
+    "person_subcategories",
+    "person_tags",
+    "person_secondary_emails",
+    "person_secondary_phones",
+    "person_secondary_emails_public",
+    "person_secondary_phones_public",
+    "organization_org_number",
+    "organization_name",
+    "link_status",
+    "link_publish_person",
+]
+
+COMBINED_IMPORT_FIELDS = [
     "organization_name",
     "organization_org_number",
     "organization_email",
@@ -45,6 +92,36 @@ EXPECTED_IMPORT_FIELDS = [
     "person_secondary_emails_public",
     "person_secondary_phones_public",
 ]
+
+EXPECTED_IMPORT_FIELDS = COMBINED_IMPORT_FIELDS
+
+
+def get_expected_import_fields(import_mode: str = "COMBINED") -> list[str]:
+    if import_mode == "ORGANIZATIONS_ONLY":
+        return ORGANIZATION_IMPORT_FIELDS
+    if import_mode == "PEOPLE_ONLY":
+        return PERSON_IMPORT_FIELDS
+    return COMBINED_IMPORT_FIELDS
+
+
+def build_import_template_config(import_mode: str) -> dict:
+    if import_mode == "ORGANIZATIONS_ONLY":
+        return {
+            "template_code": "actors_v1",
+            "sheet_name": "actors",
+            "columns": ORGANIZATION_IMPORT_FIELDS,
+        }
+    if import_mode == "PEOPLE_ONLY":
+        return {
+            "template_code": "people_v1",
+            "sheet_name": "people",
+            "columns": PERSON_IMPORT_FIELDS,
+        }
+    return {
+        "template_code": "combined_v1",
+        "sheet_name": "combined",
+        "columns": COMBINED_IMPORT_FIELDS,
+    }
 
 
 def clean_string(value) -> str:
@@ -203,9 +280,9 @@ def normalize_import_row(raw_payload: dict, import_mode: str = "COMBINED") -> di
         normalized["link"] = {"status": "ACTIVE", "publish_person": False}
     elif import_mode == "PEOPLE_ONLY":
         normalized["organization"] = {
-            "name": "",
-            "normalized_name": "",
-            "org_number": "",
+            "name": organization_name,
+            "normalized_name": normalize_name(organization_name),
+            "org_number": organization_org_number,
             "email": "",
             "phone": "",
             "publish_phone": False,
@@ -224,6 +301,9 @@ def normalize_import_row(raw_payload: dict, import_mode: str = "COMBINED") -> di
             "subcategories": [],
             "tags": [],
         }
-        normalized["link"] = {"status": "ACTIVE", "publish_person": False}
+        normalized["link"] = {
+            "status": normalize_space(raw_payload.get("link_status")).upper() or "ACTIVE",
+            "publish_person": parse_bool(raw_payload.get("link_publish_person"), default=False),
+        }
 
     return normalized

@@ -180,3 +180,9 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Internt CRM API (tenant-basert) + Public API for aktørsider.",
     "VERSION": "0.1.0",
 }
+
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+OPENAI_IMPORT_ENABLED = os.getenv("OPENAI_IMPORT_ENABLED", "True").lower() == "true"
+OPENAI_IMPORT_MODEL = os.getenv("OPENAI_IMPORT_MODEL", "gpt-5.4").strip() or "gpt-5.4"
+OPENAI_IMPORT_TIMEOUT = float(os.getenv("OPENAI_IMPORT_TIMEOUT", "20"))

@@ -56,6 +56,7 @@ from .serializers import (
 )
 from .services.open_graph import refresh_organization_open_graph
 
+import_normalizers_module = importlib.import_module("crm.services.import.normalizers")
 import_commit_module = importlib.import_module("crm.services.import.commit")
 import_preview_module = importlib.import_module("crm.services.import.preview")
 import_reporting_module = importlib.import_module("crm.services.import.reporting")
@@ -64,6 +65,7 @@ commit_import_job = import_commit_module.commit_import_job
 run_import_preview = import_preview_module.run_import_preview
 update_job_preview_status = import_preview_module.update_job_preview_status
 save_error_report = import_reporting_module.save_error_report
+build_import_template_config = import_normalizers_module.build_import_template_config
 
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
@@ -341,7 +343,11 @@ class ImportJobViewSet(
         return ImportJobSerializer
 
     def perform_create(self, serializer):
-        serializer.save(tenant=self.get_tenant(), created_by=self.request.user)
+        serializer.save(
+            tenant=self.get_tenant(),
+            created_by=self.request.user,
+            config_json=build_import_template_config(serializer.validated_data["import_mode"]),
+        )
 
     @action(detail=True, methods=["post"], url_path="upload")
     def upload(self, request, tenant_id=None, pk=None):

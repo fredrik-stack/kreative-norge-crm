@@ -34,6 +34,7 @@ import_normalizers_module = importlib.import_module("crm.services.import.normali
 import_ai_suggestions_module = importlib.import_module("crm.services.import.ai_suggestions")
 match_row_entities = import_matchers_module.match_row_entities
 normalize_import_row = import_normalizers_module.normalize_import_row
+build_import_template_config = import_normalizers_module.build_import_template_config
 generate_ai_suggestions = import_ai_suggestions_module.generate_ai_suggestions
 
 
@@ -248,6 +249,20 @@ class ImportExportApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(created.tenant_id, self.tenant.id)
         self.assertEqual(created.created_by_id, self.user.id)
         self.assertEqual(created.status, ImportJob.Status.DRAFT)
+
+    def test_create_import_job_sets_template_config_for_separate_modes(self):
+        response = self.client.post(
+            self.import_jobs_url(),
+            {
+                "source_type": ImportJob.SourceType.XLSX,
+                "import_mode": ImportJob.ImportMode.ORGANIZATIONS_ONLY,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        created = ImportJob.objects.get(id=response.json()["id"])
+        self.assertEqual(created.config_json, build_import_template_config(ImportJob.ImportMode.ORGANIZATIONS_ONLY))
 
     def test_list_import_jobs_is_scoped_to_tenant(self):
         response = self.client.get(self.import_jobs_url())
@@ -581,6 +596,55 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(self.job.rows.count(), 1)
         self.assertEqual(self.job.rows.get().normalized_payload_json["person"]["full_name"], "Ada Artist")
 
+    def test_organizations_only_preview_accepts_actor_template(self):
+        self.job.import_mode = ImportJob.ImportMode.ORGANIZATIONS_ONLY
+        self.job.save(update_fields=["import_mode", "updated_at"])
+        organization_row = {
+            key: value
+            for key, value in self.base_row.items()
+            if key.startswith("organization_")
+        }
+        self._upload_csv([organization_row])
+
+        response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(response.status_code, 200, response.content)
+
+        row = self.job.rows.get()
+        self.assertEqual(row.normalized_payload_json["organization"]["name"], "Nordlyd AS")
+        self.assertEqual(row.normalized_payload_json["person"]["full_name"], "")
+
+    def test_people_only_preview_accepts_people_template_and_keeps_link_target(self):
+        self.job.import_mode = ImportJob.ImportMode.PEOPLE_ONLY
+        self.job.save(update_fields=["import_mode", "updated_at"])
+        people_row = {
+            key: value
+            for key, value in self.base_row.items()
+            if key.startswith("person_") or key in {"organization_org_number", "organization_name", "link_status", "link_publish_person"}
+        }
+        self._upload_csv([people_row])
+
+        response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(response.status_code, 200, response.content)
+
+        row = self.job.rows.get()
+        self.assertEqual(row.normalized_payload_json["person"]["full_name"], "Ada Artist")
+        self.assertEqual(row.normalized_payload_json["organization"]["org_number"], "123456789")
+        self.assertEqual(row.normalized_payload_json["organization"]["name"], "Nordlyd AS")
+
+    def test_preview_rejects_unknown_columns_for_selected_import_mode(self):
+        self.job.import_mode = ImportJob.ImportMode.ORGANIZATIONS_ONLY
+        self.job.save(update_fields=["import_mode", "updated_at"])
+        invalid_row = {
+            "organization_name": "Nordlyd AS",
+            "organization_org_number": "123456789",
+            "person_full_name": "Should not be here",
+        }
+        self._upload_csv([invalid_row])
+
+        response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertIn("Unsupported columns", response.json()["detail"])
+
     def test_normalization_applies_safe_defaults(self):
         normalized = normalize_import_row(self.base_row)
         self.assertFalse(normalized["organization"]["is_published"])
@@ -715,6 +779,48 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
             "person_contact_is_public",
         }
         self.assertTrue(forbidden_keys.isdisjoint(set((suggestions.get("suggested_fields") or {}).keys())))
+
+    @override_settings(
+        OPENAI_IMPORT_ENABLED=True,
+        OPENAI_API_KEY="test-key",
+        OPENAI_IMPORT_MODEL="gpt-5.4",
+        OPENAI_IMPORT_TIMEOUT=5,
+    )
+    def test_generate_ai_suggestions_can_use_openai_provider_when_available(self):
+        class FakeResponse:
+            output_text = (
+                '{"organization_match_candidates":[{"id":12,"score":0.93,"reason":"name+domain","label":"Nordlyd AS"}],'
+                '"person_match_candidates":[],'
+                '"suggested_fields":{"organization_website_url":{"value":"https://nordlyd.no","confidence":0.81,"source":"ai_enrichment","requires_review":true},'
+                '"organization_is_published":{"value":true,"confidence":0.99,"source":"ai_enrichment","requires_review":true}},'
+                '"provider":"openai"}'
+            )
+
+        class FakeResponses:
+            def create(self, **kwargs):
+                self.kwargs = kwargs
+                return FakeResponse()
+
+        class FakeOpenAI:
+            def __init__(self, api_key, timeout):
+                self.api_key = api_key
+                self.timeout = timeout
+                self.responses = FakeResponses()
+
+        with patch.object(import_ai_suggestions_module, "OpenAI", FakeOpenAI):
+            suggestions = generate_ai_suggestions(
+                self.tenant,
+                normalize_import_row(self.base_row),
+                {"organization": {}, "person": {}},
+            )
+
+        self.assertEqual(suggestions["provider"], "openai")
+        self.assertEqual(suggestions["organization_match_candidates"][0]["id"], 12)
+        self.assertEqual(
+            suggestions["suggested_fields"]["organization_website_url"]["value"],
+            "https://nordlyd.no",
+        )
+        self.assertNotIn("organization_is_published", suggestions["suggested_fields"])
 
     @patch("crm.services.import.commit.refresh_organization_open_graph")
     def test_accepted_ai_suggestion_can_influence_commit(self, refresh_mock):

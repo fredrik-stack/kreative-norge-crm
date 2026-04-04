@@ -5,6 +5,7 @@ import io
 import zipfile
 from xml.etree import ElementTree as ET
 
+from .normalizers import get_expected_import_fields
 
 NAMESPACE = {
     "main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
@@ -19,10 +20,24 @@ def parse_import_job_file(import_job) -> list[dict]:
 
     source_type = import_job.source_type
     if source_type == import_job.SourceType.CSV:
-        return _parse_csv(import_job.file)
-    if source_type == import_job.SourceType.XLSX:
-        return _parse_xlsx(import_job.file)
-    raise ValueError(f"Unsupported source type for preview: {source_type}")
+        rows = _parse_csv(import_job.file)
+    elif source_type == import_job.SourceType.XLSX:
+        rows = _parse_xlsx(import_job.file)
+    else:
+        raise ValueError(f"Unsupported source type for preview: {source_type}")
+
+    _validate_columns(rows, import_job.import_mode)
+    return rows
+
+
+def _validate_columns(rows: list[dict], import_mode: str) -> None:
+    if not rows:
+        return
+    expected = set(get_expected_import_fields(import_mode))
+    actual = {str(key).strip() for key in rows[0].keys() if str(key).strip()}
+    unknown = sorted(actual - expected)
+    if unknown:
+        raise ValueError(f"Unsupported columns for this import mode: {', '.join(unknown)}")
 
 
 def _parse_csv(field_file) -> list[dict]:
