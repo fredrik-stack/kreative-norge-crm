@@ -2,9 +2,30 @@ import type { Page } from "@playwright/test";
 
 type SessionPayload =
   | { authenticated: false; user: null }
-  | { authenticated: true; user: { id: number; username: string } };
+  | {
+      authenticated: true;
+      user: {
+        id: number;
+        username: string;
+        is_superuser: boolean;
+        memberships: Array<{
+          id: number;
+          tenant: number;
+          user: number;
+          role: "superadmin" | "gruppeadmin" | "redigerer" | "leser";
+          created_at: string;
+          updated_at: string;
+        }>;
+      };
+    };
 
-type Tenant = { id: number; name: string; slug: string; created_at: string };
+type Tenant = {
+  id: number;
+  name: string;
+  slug: string;
+  created_at: string;
+  current_user_role: "superadmin" | "gruppeadmin" | "redigerer" | "leser" | null;
+};
 type Tag = { id: number; tenant: number; name: string; slug: string; created_at: string };
 type Category = { id: number; name: string; slug: string; created_at: string };
 type Subcategory = {
@@ -104,7 +125,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
   const now = "2026-01-01T00:00:00Z";
   const state: MockState = {
     authenticated: false,
-    tenants: [{ id: 1, name: "Demo Tenant", slug: "demo", created_at: now }],
+    tenants: [{ id: 1, name: "Demo Tenant", slug: "demo", created_at: now, current_user_role: "redigerer" }],
     categories: [{ id: 100, name: "Musikk", slug: "musikk", created_at: now }],
     subcategories: [
       {
@@ -183,7 +204,24 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
 
   await page.route("**/api/auth/session/", async (route) => {
     const session: SessionPayload = state.authenticated
-      ? { authenticated: true, user: { id: 1, username: "editor" } }
+      ? {
+          authenticated: true,
+          user: {
+            id: 1,
+            username: "editor",
+            is_superuser: false,
+            memberships: [
+              {
+                id: 1,
+                tenant: 1,
+                user: 1,
+                role: "redigerer",
+                created_at: now,
+                updated_at: now,
+              },
+            ],
+          },
+        }
       : { authenticated: false, user: null };
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(session) });
   });
@@ -204,7 +242,24 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ authenticated: true, user: { id: 1, username: "editor" } }),
+        body: JSON.stringify({
+          authenticated: true,
+          user: {
+            id: 1,
+            username: "editor",
+            is_superuser: false,
+            memberships: [
+              {
+                id: 1,
+                tenant: 1,
+                user: 1,
+                role: "redigerer",
+                created_at: now,
+                updated_at: now,
+              },
+            ],
+          },
+        }),
       });
       return;
     }

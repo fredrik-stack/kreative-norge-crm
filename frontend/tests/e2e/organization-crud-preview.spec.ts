@@ -4,10 +4,11 @@ import { loginAsEditor, setupMockEditorApi } from "./mockEditorApi";
 test("create organization and verify preview updates", async ({ page }) => {
   await setupMockEditorApi(page);
 
-  await page.goto("/organizations/new");
+  await page.goto("/organizations");
   await loginAsEditor(page);
 
-  await expect(page.getByText("Ny aktør")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Ny aktør" })).toBeVisible();
+  await page.getByRole("button", { name: "Ny aktør" }).click();
 
   await page.getByLabel(/Navn/).fill("Ny Kulturaktør");
   await page.getByLabel("Org.nr").fill("987654321");

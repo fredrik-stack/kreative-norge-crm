@@ -79,6 +79,15 @@ test("shows confirm dialogs for deleting link and person", async ({ page }) => {
         phone: "+4799999999",
         municipality: "Oslo",
         note: null,
+        website_url: null,
+        instagram_url: null,
+        tiktok_url: null,
+        linkedin_url: null,
+        facebook_url: null,
+        youtube_url: null,
+        tags: [],
+        categories: [],
+        subcategories: [],
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-01T00:00:00Z",
         contacts: [
@@ -97,8 +106,9 @@ test("shows confirm dialogs for deleting link and person", async ({ page }) => {
     ],
   });
 
-  await page.goto("/organizations/10");
+  await page.goto("/organizations");
   await loginAsEditor(page);
+  await page.getByRole("button", { name: "Rediger" }).click();
 
   const linkRow = page.locator(".link-row").filter({ hasText: "Ada Editor" }).first();
   let count = await confirmMessageCount(page);
@@ -109,7 +119,10 @@ test("shows confirm dialogs for deleting link and person", async ({ page }) => {
 
   await expect(page.getByText("Ada Editor")).toBeVisible();
 
-  await page.goto("/people/20");
+  await page.goto("/people");
+  await page.getByRole("button", { name: "Ada Editor" }).click();
+  await page.getByRole("button", { name: "Rediger" }).click();
+  await expect(page.getByLabel("Fullt navn")).toHaveValue("Ada Editor");
   count = await clickUntilConfirmIncrements(page, async () => {
     await page.evaluate(() => {
       const button = Array.from(document.querySelectorAll("button")).find(
