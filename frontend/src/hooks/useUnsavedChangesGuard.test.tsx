@@ -34,7 +34,7 @@ describe("useUnsavedChangesGuard", () => {
     const { result } = renderHook(() =>
       useUnsavedChangesGuard({
         hasUnsavedChanges: true,
-        tenants: [{ id: 2, name: "Tenant B", slug: "tenant-b", created_at: "2026-01-01T00:00:00Z" }],
+        tenants: [{ id: 2, name: "Tenant B", slug: "tenant-b", created_at: "2026-01-01T00:00:00Z", current_user_role: "redigerer" }],
         dirtySummary: ["Personskjema"],
         applyTenantSelection,
         saveAllPendingChanges,
@@ -60,7 +60,7 @@ describe("useUnsavedChangesGuard", () => {
     const { result } = renderHook(() =>
       useUnsavedChangesGuard({
         hasUnsavedChanges: true,
-        tenants: [{ id: 3, name: "Tenant C", slug: "tenant-c", created_at: "2026-01-01T00:00:00Z" }],
+        tenants: [{ id: 3, name: "Tenant C", slug: "tenant-c", created_at: "2026-01-01T00:00:00Z", current_user_role: "redigerer" }],
         dirtySummary: [],
         applyTenantSelection,
         saveAllPendingChanges: vi.fn().mockResolvedValue(true),

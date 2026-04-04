@@ -1085,9 +1085,24 @@ export function useEditorData() {
     setOverviewTagSlug("");
   }
 
+  const currentTenant = tenants.find((tenant) => tenant.id === tenantId) ?? null;
+  const currentTenantRole = currentTenant?.current_user_role ?? null;
+  const canWrite =
+    currentTenantRole === "superadmin" ||
+    currentTenantRole === "gruppeadmin" ||
+    currentTenantRole === "redigerer";
+  const canDelete = currentTenantRole === "superadmin" || currentTenantRole === "gruppeadmin";
+  const canImportExport = canWrite;
+  const isReadOnly = currentTenantRole === "leser";
+
   return {
     tenants,
     tenantId,
+    currentTenantRole,
+    canWrite,
+    canDelete,
+    canImportExport,
+    isReadOnly,
     setTenantId,
     applyTenantSelection,
     organizations,

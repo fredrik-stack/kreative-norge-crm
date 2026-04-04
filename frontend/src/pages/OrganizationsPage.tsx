@@ -44,6 +44,12 @@ export function OrganizationsPage() {
     if (!Number.isNaN(parsed)) setOverviewModalOrgId(parsed);
   }, [location.search, orgId]);
 
+  useEffect(() => {
+    if (!inOverviewMode && !editor.canWrite) {
+      navigate("/organizations");
+    }
+  }, [editor.canWrite, inOverviewMode, navigate]);
+
   if (inOverviewMode) {
     return (
       <main className="editor-overview-layout">
@@ -66,6 +72,10 @@ export function OrganizationsPage() {
         />
       </main>
     );
+  }
+
+  if (!editor.canWrite) {
+    return null;
   }
 
   return (
@@ -137,17 +147,19 @@ function OrganizationOverviewPanel(props: {
                 <span className={`save-pill ${organization.is_published ? "saved" : "idle"}`}>
                   {organization.is_published ? "Publisert" : "Kun intern"}
                 </span>
-                <button
-                  type="button"
-                  className="ghost-button compact-button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    editor.setSelectedOrgId(organization.id);
-                    navigate(`/organizations/${organization.id}`);
-                  }}
-                >
-                  Rediger
-                </button>
+                {editor.canWrite ? (
+                  <button
+                    type="button"
+                    className="ghost-button compact-button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      editor.setSelectedOrgId(organization.id);
+                      navigate(`/organizations/${organization.id}`);
+                    }}
+                  >
+                    Rediger
+                  </button>
+                ) : null}
               </div>
             </div>
           </article>
@@ -158,10 +170,14 @@ function OrganizationOverviewPanel(props: {
         <OrganizationOverviewModal
           organization={activeOrganization}
           onClose={() => onModalOrgIdChange(null)}
-          onEdit={() => {
-            editor.setSelectedOrgId(activeOrganization.id);
-            navigate(`/organizations/${activeOrganization.id}`);
-          }}
+          onEdit={
+            editor.canWrite
+              ? () => {
+                  editor.setSelectedOrgId(activeOrganization.id);
+                  navigate(`/organizations/${activeOrganization.id}`);
+                }
+              : null
+          }
         />
       ) : null}
     </section>
@@ -171,7 +187,7 @@ function OrganizationOverviewPanel(props: {
 function OrganizationOverviewModal(props: {
   organization: ReturnType<typeof useEditor>["organizations"][number];
   onClose: () => void;
-  onEdit: () => void;
+  onEdit: (() => void) | null;
 }) {
   const { organization, onClose, onEdit } = props;
   const editor = useEditor();
@@ -300,9 +316,11 @@ function OrganizationOverviewModal(props: {
               <button type="button" className="ghost-button compact-button" onClick={onClose}>
                 Lukk
               </button>
-              <button type="button" className="primary-button compact-button" onClick={onEdit}>
-                Rediger
-              </button>
+              {onEdit ? (
+                <button type="button" className="primary-button compact-button" onClick={onEdit}>
+                  Rediger
+                </button>
+              ) : null}
             </div>
           </div>
         </div>

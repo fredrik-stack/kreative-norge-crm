@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Field } from "../components/Field";
 import { useEditor } from "../context/EditorContext";
@@ -30,6 +30,12 @@ export function PeoplePage() {
 
   const filterSummary = editor.overviewFilterSummary;
 
+  useEffect(() => {
+    if (!inOverviewMode && !editor.canWrite) {
+      navigate("/people");
+    }
+  }, [editor.canWrite, inOverviewMode, navigate]);
+
   if (inOverviewMode) {
     return (
       <main className="editor-overview-layout">
@@ -37,6 +43,8 @@ export function PeoplePage() {
       </main>
     );
   }
+
+  if (!editor.canWrite) return null;
 
   return (
     <section className="people-workspace no-sidebar">
@@ -181,10 +189,14 @@ function PeopleOverviewPanel(props: {
           person={activePerson}
           linkedOrganizations={linkedOrganizationsByPersonId.get(activePerson.id) ?? []}
           onClose={() => setModalPersonId(null)}
-          onEdit={() => {
-            editor.setSelectedPersonId(activePerson.id);
-            navigate(`/people/${activePerson.id}`);
-          }}
+          onEdit={
+            editor.canWrite
+              ? () => {
+                  editor.setSelectedPersonId(activePerson.id);
+                  navigate(`/people/${activePerson.id}`);
+                }
+              : null
+          }
           onOpenOrganization={(organizationId) => {
             navigate(`/organizations?openOrg=${organizationId}`);
           }}
@@ -198,7 +210,7 @@ function PersonOverviewModal(props: {
   person: ReturnType<typeof useEditor>["persons"][number];
   linkedOrganizations: Array<{ id: number; name: string }>;
   onClose: () => void;
-  onEdit: () => void;
+  onEdit: (() => void) | null;
   onOpenOrganization: (organizationId: number) => void;
 }) {
   const { person, linkedOrganizations, onClose, onEdit, onOpenOrganization } = props;
@@ -317,9 +329,11 @@ function PersonOverviewModal(props: {
               <button type="button" className="ghost-button compact-button" onClick={onClose}>
                 Lukk
               </button>
-              <button type="button" className="primary-button compact-button" onClick={onEdit}>
-                Rediger
-              </button>
+              {onEdit ? (
+                <button type="button" className="primary-button compact-button" onClick={onEdit}>
+                  Rediger
+                </button>
+              ) : null}
             </div>
           </div>
         </div>

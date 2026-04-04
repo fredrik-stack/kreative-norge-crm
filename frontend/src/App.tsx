@@ -80,6 +80,12 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
   };
 
   useEffect(() => {
+    if (!editor.canImportExport && location.pathname.startsWith("/import-export")) {
+      navigate("/organizations", { replace: true });
+    }
+  }, [editor.canImportExport, location.pathname, navigate]);
+
+  useEffect(() => {
     setOverviewTagQuery(editor.tags.find((tag) => tag.slug === editor.overviewTagSlug)?.name ?? "");
   }, [editor.overviewTagSlug, editor.tags]);
 
@@ -188,21 +194,23 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
               </div>
               {overviewFilterSummary ? <div className="filter-summary">{overviewFilterSummary}</div> : null}
               <div className="hero-actions">
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={() => {
-                    if (isPeopleOverview) {
-                      editor.setSelectedPersonId("new");
-                      navigate("/people/new");
-                      return;
-                    }
-                    editor.setSelectedOrgId("new");
-                    navigate("/organizations/new");
-                  }}
-                >
-                  {isPeopleOverview ? "Ny person" : "Ny aktør"}
-                </button>
+                {editor.canWrite ? (
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={() => {
+                      if (isPeopleOverview) {
+                        editor.setSelectedPersonId("new");
+                        navigate("/people/new");
+                        return;
+                      }
+                      editor.setSelectedOrgId("new");
+                      navigate("/organizations/new");
+                    }}
+                  >
+                    {isPeopleOverview ? "Ny person" : "Ny aktør"}
+                  </button>
+                ) : null}
                 <button type="button" className="ghost-button" onClick={goToEditorHome}>
                   Nullstill
                 </button>
@@ -230,6 +238,7 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
               </option>
             ))}
           </select>
+          <p className="meta">Rolle: {editor.currentTenantRole ?? "Ingen tilgang"}</p>
           <nav className="top-nav" aria-label="Hovednavigasjon">
             <NavLink to="/organizations" end className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
               Aktører{editor.organizationHasUnsavedChanges && !onPeoplePage ? " *" : ""}
@@ -237,9 +246,11 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
             <NavLink to="/people" end className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
               Personer{editor.peopleHasUnsavedChanges ? " *" : ""}
             </NavLink>
-            <NavLink to="/import-export" end className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
-              Import / eksport
-            </NavLink>
+            {editor.canImportExport ? (
+              <NavLink to="/import-export" end className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
+                Import / eksport
+              </NavLink>
+            ) : null}
           </nav>
           <div className="session-bar">
             <span className="meta">Innlogget som {username}</span>
@@ -259,7 +270,7 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
           <Route path="/organizations/:orgId" element={<OrganizationsPage />} />
           <Route path="/people" element={<PeoplePage />} />
           <Route path="/people/:personId" element={<PeoplePage />} />
-          <Route path="/import-export" element={<ImportExportPage />} />
+          <Route path="/import-export" element={editor.canImportExport ? <ImportExportPage /> : <Navigate to="/organizations" replace />} />
         </Routes>
       </EditorProvider>
 

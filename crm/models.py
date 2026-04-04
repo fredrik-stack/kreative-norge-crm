@@ -24,6 +24,31 @@ class Tenant(models.Model):
         return self.name
 
 
+class TenantMembership(models.Model):
+    class Role(models.TextChoices):
+        SUPERADMIN = "superadmin", "Superadmin"
+        GRUPPEADMIN = "gruppeadmin", "Gruppeadmin"
+        REDIGERER = "redigerer", "Redigerer"
+        LESER = "leser", "Leser"
+
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="memberships")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="tenant_memberships")
+    role = models.CharField(max_length=24, choices=Role.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [("tenant", "user")]
+        indexes = [
+            models.Index(fields=["tenant", "role"]),
+            models.Index(fields=["user", "role"]),
+        ]
+        ordering = ["tenant__name", "user__username"]
+
+    def __str__(self) -> str:
+        return f"{self.user} @ {self.tenant} ({self.get_role_display()})"
+
+
 class Tag(models.Model):
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="tags")
     name = models.CharField(max_length=64)

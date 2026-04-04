@@ -3,6 +3,7 @@ from django.forms.models import BaseInlineFormSet
 
 from .models import (
     Tenant,
+    TenantMembership,
     Tag,
     Category,
     Subcategory,
@@ -22,6 +23,13 @@ from .models import (
 class TenantAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "slug", "created_at")
     search_fields = ("name", "slug")
+
+
+@admin.register(TenantMembership)
+class TenantMembershipAdmin(admin.ModelAdmin):
+    list_display = ("id", "tenant", "user", "role", "created_at")
+    list_filter = ("tenant", "role")
+    search_fields = ("tenant__name", "user__username", "user__email")
 
 
 class PersonContactInlineFormSet(BaseInlineFormSet):

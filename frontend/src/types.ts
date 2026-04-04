@@ -3,6 +3,16 @@ export type Tenant = {
   name: string;
   slug: string;
   created_at: string;
+  current_user_role: "superadmin" | "gruppeadmin" | "redigerer" | "leser" | null;
+};
+
+export type TenantMembership = {
+  id: number;
+  tenant: number;
+  user: number;
+  role: "superadmin" | "gruppeadmin" | "redigerer" | "leser";
+  created_at: string;
+  updated_at: string;
 };
 
 export type Tag = {

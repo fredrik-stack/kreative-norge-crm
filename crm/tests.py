@@ -19,6 +19,7 @@ from .models import (
     Category,
     Subcategory,
     Tenant,
+    TenantMembership,
     ImportJob,
     ImportRow,
     ImportDecision,
@@ -36,13 +37,23 @@ normalize_import_row = import_normalizers_module.normalize_import_row
 generate_ai_suggestions = import_ai_suggestions_module.generate_ai_suggestions
 
 
+def grant_membership(user, tenant, role=TenantMembership.Role.REDIGERER):
+    return TenantMembership.objects.create(tenant=tenant, user=user, role=role)
+
+
 @override_settings(SECURE_SSL_REDIRECT=False)
 class AuthApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
+        self.tenant = Tenant.objects.create(name="Auth Tenant", slug="auth-tenant")
         self.user = get_user_model().objects.create_user(
             username="editor-auth",
             password="secret123",
+        )
+        TenantMembership.objects.create(
+            tenant=self.tenant,
+            user=self.user,
+            role=TenantMembership.Role.REDIGERER,
         )
 
     def test_csrf_endpoint_returns_token_and_cookie(self):
@@ -85,6 +96,8 @@ class AuthApiTests(TestCase):
         self.assertEqual(session_response.status_code, 200)
         self.assertEqual(session_response.json()["authenticated"], True)
         self.assertEqual(session_response.json()["user"]["username"], "editor-auth")
+        self.assertEqual(session_response.json()["user"]["memberships"][0]["tenant"], self.tenant.id)
+        self.assertEqual(session_response.json()["user"]["memberships"][0]["role"], "redigerer")
 
     def test_logout_requires_authentication(self):
         response = self.client.post("/api/auth/logout/", {}, format="json")
@@ -174,6 +187,7 @@ class ImportExportAuthenticatedAPITestCase(TestCase):
         if self.role_name != "superadmin":
             group, _ = Group.objects.get_or_create(name=self.role_name)
             self.user.groups.add(group)
+            grant_membership(self.user, self.tenant, role=self.role_name)
         else:
             self.user.is_superuser = True
             self.user.is_staff = True
@@ -341,6 +355,7 @@ class ImportExportPermissionTests(TestCase):
         elif role_name:
             group, _ = Group.objects.get_or_create(name=role_name)
             user.groups.add(group)
+            grant_membership(user, self.tenant, role=role_name)
         client.force_login(user)
         return client
 
@@ -801,6 +816,7 @@ class PersonContactViewSetTests(AuthenticatedAPITestCase):
         super().setUp()
         self.tenant = Tenant.objects.create(name="Tenant A", slug="tenant-a")
         self.other_tenant = Tenant.objects.create(name="Tenant B", slug="tenant-b")
+        grant_membership(self.user, self.tenant)
 
         self.person_a = Person.objects.create(
             tenant=self.tenant,
@@ -948,8 +964,8 @@ class PersonContactViewSetTests(AuthenticatedAPITestCase):
 
     def test_delete_contact(self):
         response = self.client.delete(f"{self.tenant_contacts_url()}{self.contact_b.id}/")
-        self.assertEqual(response.status_code, 204)
-        self.assertFalse(PersonContact.objects.filter(id=self.contact_b.id).exists())
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(PersonContact.objects.filter(id=self.contact_b.id).exists())
 
     def test_requires_authentication(self):
         unauth_client = APIClient()
@@ -1003,6 +1019,7 @@ class TagModelAndApiTests(AuthenticatedAPITestCase):
         super().setUp()
         self.tenant = Tenant.objects.create(name="Tag Tenant", slug="tag-tenant")
         self.other_tenant = Tenant.objects.create(name="Other Tag Tenant", slug="other-tag-tenant")
+        grant_membership(self.user, self.tenant)
         self.primary_tag = Tag.objects.create(tenant=self.tenant, name="Scenekunst")
         self.other_tag = Tag.objects.create(tenant=self.other_tenant, name="Film")
 
@@ -1100,6 +1117,7 @@ class OrganizationPreviewRefreshTests(AuthenticatedAPITestCase):
     def setUp(self):
         super().setUp()
         self.tenant = Tenant.objects.create(name="Preview Tenant", slug="preview-tenant")
+        grant_membership(self.user, self.tenant)
         self.organization = Organization.objects.create(
             tenant=self.tenant,
             name="Preview Org",
@@ -1140,6 +1158,7 @@ class TenantScopedCreateTests(AuthenticatedAPITestCase):
     def setUp(self):
         super().setUp()
         self.tenant = Tenant.objects.create(name="Scoped Tenant", slug="scoped-tenant")
+        grant_membership(self.user, self.tenant)
 
     def test_can_create_organization_without_tenant_in_payload(self):
         response = self.client.post(
@@ -1391,6 +1410,7 @@ class OrganizationPersonViewSetValidationTests(AuthenticatedAPITestCase):
         super().setUp()
         self.tenant = Tenant.objects.create(name="Tenant A", slug="tenant-a-links")
         self.other_tenant = Tenant.objects.create(name="Tenant B", slug="tenant-b-links")
+        grant_membership(self.user, self.tenant)
 
         self.organization = Organization.objects.create(tenant=self.tenant, name="Org A")
         self.person = Person.objects.create(tenant=self.tenant, full_name="Person A")

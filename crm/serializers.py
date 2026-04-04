@@ -1,6 +1,8 @@
 from rest_framework import serializers
+from .permissions import get_user_tenant_role
 from .models import (
     Tenant,
+    TenantMembership,
     Tag,
     Category,
     Subcategory,
@@ -16,10 +18,28 @@ from .models import (
 )
 
 
+class TenantMembershipSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TenantMembership
+        fields = ["id", "tenant", "user", "role", "created_at", "updated_at"]
+        read_only_fields = fields
+
+
 class TenantSerializer(serializers.ModelSerializer):
+    current_user_role = serializers.SerializerMethodField()
+
+    def get_current_user_role(self, obj):
+        request = self.context.get("request")
+        if request is None or not request.user.is_authenticated:
+            return None
+        membership = getattr(obj, "_current_user_membership", None)
+        if membership is not None:
+            return membership.role
+        return get_user_tenant_role(request.user, obj.id)
+
     class Meta:
         model = Tenant
-        fields = ["id", "name", "slug", "created_at"]
+        fields = ["id", "name", "slug", "created_at", "current_user_role"]
 
 
 class TagSerializer(serializers.ModelSerializer):

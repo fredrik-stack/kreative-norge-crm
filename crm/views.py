@@ -17,6 +17,7 @@ from rest_framework.views import APIView
 
 from .models import (
     Tenant,
+    TenantMembership,
     Tag,
     Category,
     Subcategory,
@@ -27,9 +28,15 @@ from .models import (
     ImportJob,
     ExportJob,
 )
-from .permissions import ImportExportAccessPermission
+from .permissions import (
+    ImportExportAccessPermission,
+    TenantAccessPermission,
+    TenantScopedPermission,
+    get_user_global_role,
+)
 from .serializers import (
     TenantSerializer,
+    TenantMembershipSerializer,
     TagSerializer,
     CategorySerializer,
     SubcategorySerializer,
@@ -72,12 +79,15 @@ class SessionView(APIView):
 
     def get(self, request):
         if request.user.is_authenticated:
+            memberships = TenantMembership.objects.filter(user=request.user).select_related("tenant").order_by("tenant__name")
             return Response(
                 {
                     "authenticated": True,
                     "user": {
                         "id": request.user.id,
                         "username": request.user.get_username(),
+                        "is_superuser": request.user.is_superuser,
+                        "memberships": TenantMembershipSerializer(memberships, many=True).data,
                     },
                 }
             )
@@ -105,10 +115,16 @@ class LoginView(APIView):
             )
 
         login(request, user)
+        memberships = TenantMembership.objects.filter(user=user).select_related("tenant").order_by("tenant__name")
         return Response(
             {
                 "authenticated": True,
-                "user": {"id": user.id, "username": user.get_username()},
+                "user": {
+                    "id": user.id,
+                    "username": user.get_username(),
+                    "is_superuser": user.is_superuser,
+                    "memberships": TenantMembershipSerializer(memberships, many=True).data,
+                },
             }
         )
 
@@ -122,13 +138,25 @@ class LogoutView(APIView):
 
 
 class TenantViewSet(viewsets.ReadOnlyModelViewSet):
-    permission_classes = [IsAuthenticated]
-    queryset = Tenant.objects.all().order_by("name")
+    permission_classes = [TenantAccessPermission]
     serializer_class = TenantSerializer
+
+    def get_queryset(self):
+        queryset = Tenant.objects.all().order_by("name")
+        if self.request.user.is_superuser:
+            return queryset
+        memberships = TenantMembership.objects.filter(user=self.request.user).select_related("tenant")
+        if not memberships.exists() and get_user_global_role(self.request.user):
+            return queryset
+        tenants = queryset.filter(id__in=memberships.values("tenant_id"))
+        membership_map = {membership.tenant_id: membership for membership in memberships}
+        for tenant in tenants:
+            tenant._current_user_membership = membership_map.get(tenant.id)
+        return tenants
 
 
 class TagViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [TenantScopedPermission]
     serializer_class = TagSerializer
 
     def get_queryset(self):
@@ -165,7 +193,7 @@ class SubcategoryViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [TenantScopedPermission]
     serializer_class = OrganizationSerializer
 
     def get_queryset(self):
@@ -202,7 +230,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
 
 class PersonViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [TenantScopedPermission]
     serializer_class = PersonSerializer
 
     def get_queryset(self):
@@ -221,7 +249,7 @@ class PersonViewSet(viewsets.ModelViewSet):
 
 
 class OrganizationPersonViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [TenantScopedPermission]
     serializer_class = OrganizationPersonSerializer
 
     def get_queryset(self):
@@ -240,7 +268,7 @@ class OrganizationPersonViewSet(viewsets.ModelViewSet):
 
 
 class PersonContactViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [TenantScopedPermission]
     serializer_class = PersonContactSerializer
 
     def get_queryset(self):

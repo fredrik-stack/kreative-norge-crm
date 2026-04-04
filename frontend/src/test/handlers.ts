@@ -12,11 +12,12 @@ import type {
   Subcategory,
   Tag,
   Tenant,
+  TenantMembership,
 } from "../types";
 
 type SessionState = {
   authenticated: boolean;
-  user: { id: number; username: string } | null;
+  user: { id: number; username: string; is_superuser: boolean; memberships: TenantMembership[] } | null;
 };
 
 let sessionState: SessionState = { authenticated: false, user: null };
@@ -63,6 +64,7 @@ export function resetMockEditorData() {
       name: "Demo Tenant",
       slug: "demo",
       created_at: "2026-01-01T00:00:00Z",
+      current_user_role: "redigerer",
     },
   ];
   organizationsByTenantState = {
@@ -156,7 +158,21 @@ export const handlers = [
     if (body.username === "editor" && body.password === "secret123") {
       sessionState = {
         authenticated: true,
-        user: { id: 1, username: "editor" },
+        user: {
+          id: 1,
+          username: "editor",
+          is_superuser: false,
+          memberships: [
+            {
+              id: 1,
+              tenant: 1,
+              user: 1,
+              role: "redigerer",
+              created_at: "2026-01-01T00:00:00Z",
+              updated_at: "2026-01-01T00:00:00Z",
+            },
+          ],
+        },
       };
       return HttpResponse.json(sessionState);
     }

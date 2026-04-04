@@ -44,7 +44,7 @@ vi.mock("./api", async () => {
 
 describe("App integration", () => {
   it("logs in, loads organization data, and reflects dirty state in the UI", async () => {
-    window.history.pushState({}, "", "/organizations/10");
+    window.history.pushState({}, "", "/organizations");
 
     render(<App />);
 
@@ -54,8 +54,8 @@ describe("App integration", () => {
     await userEvent.type(screen.getByLabelText("Passord"), "secret123");
     await userEvent.click(screen.getByRole("button", { name: "Logg inn" }));
 
+    await userEvent.click(await screen.findByRole("button", { name: "Rediger" }));
     expect(await screen.findByDisplayValue("Kreativ Demo AS")).toBeInTheDocument();
-    expect(await screen.findByText("Aktør #10")).toBeInTheDocument();
 
     const nameInput = screen.getByDisplayValue("Kreativ Demo AS");
     await userEvent.clear(nameInput);

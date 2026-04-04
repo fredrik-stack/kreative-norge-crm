@@ -12,11 +12,17 @@ import type {
   Subcategory,
   Tag,
   Tenant,
+  TenantMembership,
 } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 export const AUTH_ERROR_EVENT = "editor:auth-error";
-type AuthUser = { id: number; username: string };
+type AuthUser = {
+  id: number;
+  username: string;
+  is_superuser: boolean;
+  memberships: TenantMembership[];
+};
 export type AuthSession = { authenticated: boolean; user: AuthUser | null };
 export type AuthErrorDetail = { status: number; path: string };
 
