@@ -142,7 +142,7 @@ export function ImportExportPage() {
         {importJobs.forbidden ? <div className="banner error">Du har ikke tilgang til import for denne tenanten.</div> : null}
         {importJobs.error ? <div className="banner error">{importJobs.error}</div> : null}
 
-        <div className="import-export-grid">
+        <div className={`import-export-grid ${importJobs.selectedJob ? "review-active" : ""}`}>
           <div className="import-export-sidebar">
             <div className="job-list">
               {importJobs.jobs.map((job) => (
@@ -355,10 +355,19 @@ function ImportReviewWorkspace(props: {
               {showPersonColumns ? <th>Person</th> : null}
               <th>Org.nr</th>
               <th>Kommune</th>
-              <th>Hovedkategori</th>
-              <th>Underkategori</th>
-              <th>Tags</th>
-              <th>{linkLabel}</th>
+              <th>Nå hovedkategori</th>
+              <th>AI hovedkategori</th>
+              <th>Nå underkategori</th>
+              <th>AI underkategori</th>
+              <th>Nå tags</th>
+              <th>AI tags</th>
+              <th>Nå nettside</th>
+              <th>AI nettside</th>
+              <th>Nå profiler</th>
+              <th>AI profiler</th>
+              <th>Nå beskrivelse</th>
+              <th>AI beskrivelse</th>
+              <th>Provider</th>
               <th>Status</th>
               <th>Advarsler</th>
               <th>Feil</th>
@@ -376,9 +385,29 @@ function ImportReviewWorkspace(props: {
                 row.raw_payload_json.organization_website_url,
                 row.raw_payload_json.person_website_url,
               );
-              const socialSuggestions = SIMPLE_EDITABLE_SUGGESTION_FIELDS.filter((key) => key.endsWith("_url") && key !== "organization_website_url" && key !== "person_website_url")
-                .map((key) => getSuggestionText(row, key))
-                .filter(Boolean);
+              const currentSocials = summarizeLinkValues([
+                getFirstText(row.raw_payload_json.organization_instagram_url),
+                getFirstText(row.raw_payload_json.organization_tiktok_url),
+                getFirstText(row.raw_payload_json.organization_linkedin_url),
+                getFirstText(row.raw_payload_json.organization_facebook_url),
+                getFirstText(row.raw_payload_json.organization_youtube_url),
+                getFirstText(row.raw_payload_json.person_instagram_url),
+                getFirstText(row.raw_payload_json.person_tiktok_url),
+                getFirstText(row.raw_payload_json.person_linkedin_url),
+                getFirstText(row.raw_payload_json.person_facebook_url),
+                getFirstText(row.raw_payload_json.person_youtube_url),
+              ]);
+              const socialSuggestions = summarizeLinkValues(
+                SIMPLE_EDITABLE_SUGGESTION_FIELDS.filter(
+                  (key) => key.endsWith("_url") && key !== "organization_website_url" && key !== "person_website_url",
+                )
+                  .map((key) => getSuggestionText(row, key))
+                  .filter(Boolean),
+              );
+              const currentDescription = getFirstText(row.raw_payload_json.organization_description, row.raw_payload_json.person_note);
+              const suggestedDescription = getSuggestionText(row, "organization_description");
+              const provider = getProviderLabel(row);
+              const suggestionCount = countSuggestionFields(row);
 
               return (
                 <Fragment key={row.id}>
@@ -400,41 +429,61 @@ function ImportReviewWorkspace(props: {
                       />
                     </td>
                     <td>
-                      <ReviewSuggestionCell
-                        currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_categories, row.raw_payload_json.person_categories))}
-                        suggestedValues={categorySuggestions}
-                      />
+                      <ReviewSuggestionCell currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_categories, row.raw_payload_json.person_categories))} suggestedValues={[]} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell
-                        currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_subcategories, row.raw_payload_json.person_subcategories))}
-                        suggestedValues={subcategorySuggestions}
-                      />
+                      <ReviewSuggestionCell currentValues={[]} suggestedValues={categorySuggestions} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell
-                        currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_tags, row.raw_payload_json.person_tags))}
-                        suggestedValues={tagSuggestions}
-                      />
+                      <ReviewSuggestionCell currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_subcategories, row.raw_payload_json.person_subcategories))} suggestedValues={[]} />
                     </td>
                     <td>
-                      <div className="review-url-cell">
-                        <ReviewValueCell current={currentWebsite} suggested={websiteSuggestion} fallback="Mangler" />
-                        {socialSuggestions.length > 0 ? <span className="meta">+ {socialSuggestions.length} sosiale forslag</span> : null}
+                      <ReviewSuggestionCell currentValues={[]} suggestedValues={subcategorySuggestions} />
+                    </td>
+                    <td>
+                      <ReviewSuggestionCell currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_tags, row.raw_payload_json.person_tags))} suggestedValues={[]} />
+                    </td>
+                    <td>
+                      <ReviewSuggestionCell currentValues={[]} suggestedValues={tagSuggestions} />
+                    </td>
+                    <td>
+                      <ReviewValueCell current={currentWebsite} fallback="Mangler" />
+                    </td>
+                    <td>
+                      <ReviewValueCell current={websiteSuggestion} fallback="Ingen forslag" />
+                    </td>
+                    <td>
+                      <ReviewLinkCell values={currentSocials} emptyLabel="Ingen lenker" />
+                    </td>
+                    <td>
+                      <ReviewLinkCell values={socialSuggestions} emptyLabel="Ingen forslag" />
+                    </td>
+                    <td>
+                      <ReviewTextCell value={currentDescription} emptyLabel="Mangler" />
+                    </td>
+                    <td>
+                      <ReviewTextCell value={suggestedDescription} emptyLabel="Ingen forslag" />
+                    </td>
+                    <td>
+                      <div className="review-provider-cell">
+                        <span className={`mini-pill ${provider.variant}`}>{provider.label}</span>
+                        <span className="meta">{suggestionCount > 0 ? `${suggestionCount} forslag` : "Ingen forslag"}</span>
                       </div>
                     </td>
                     <td><span className="mini-pill subcategory">{row.row_status}</span></td>
                     <td>{row.warnings_json.length}</td>
                     <td>{row.validation_errors_json.length}</td>
                     <td>
-                      <button type="button" className="ghost-button compact-button" onClick={() => setExpandedRowId(expanded ? null : row.id)}>
-                        {expanded ? "Lukk" : "Review"}
-                      </button>
+                      <div className="review-url-cell">
+                        <button type="button" className="ghost-button compact-button" onClick={() => setExpandedRowId(expanded ? null : row.id)}>
+                          {expanded ? "Lukk" : "Review"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   {expanded ? (
                     <tr key={`${row.id}-editor`} className="import-review-editor-row">
-                      <td colSpan={showPersonColumns ? 13 : 12}>
+                      <td colSpan={showPersonColumns ? 21 : 20}>
                         <InlineReviewEditor
                           row={row}
                           organizations={editor.organizations}
@@ -1039,6 +1088,29 @@ function ReviewSuggestionCell(props: { currentValues: string[]; suggestedValues:
   );
 }
 
+function ReviewLinkCell(props: { values: string[]; emptyLabel: string }) {
+  if (props.values.length === 0) {
+    return <span className="muted">{props.emptyLabel}</span>;
+  }
+  return (
+    <div className="review-link-stack">
+      {props.values.slice(0, 3).map((value) => (
+        <span key={value} className="review-link-chip" title={value}>
+          {shortenDisplayText(value, 42)}
+        </span>
+      ))}
+      {props.values.length > 3 ? <span className="meta">+{props.values.length - 3}</span> : null}
+    </div>
+  );
+}
+
+function ReviewTextCell(props: { value?: string; emptyLabel: string }) {
+  if (!props.value) {
+    return <span className="muted">{props.emptyLabel}</span>;
+  }
+  return <p className="review-copy-snippet">{shortenDisplayText(props.value, 110)}</p>;
+}
+
 function SuggestionPills(props: {
   values: string[];
   emptyLabel: string;
@@ -1115,6 +1187,26 @@ function getSuggestionText(row: ImportRow, key: string): string {
   return "";
 }
 
+function countSuggestionFields(row: ImportRow): number {
+  return Object.values(getSuggestionFields(row)).filter((field) => {
+    const value = field?.value;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === "string") return value.trim().length > 0;
+    return value !== undefined && value !== null;
+  }).length;
+}
+
+function getProviderLabel(row: ImportRow): { label: string; variant: "category" | "subcategory" | "tag" } {
+  const provider = String(row.ai_suggestions_json?.provider || "").toLowerCase();
+  if (provider === "openai") {
+    return { label: "OpenAI", variant: "category" };
+  }
+  if (provider.includes("heuristic")) {
+    return { label: "Fallback", variant: "subcategory" };
+  }
+  return { label: "Ukjent", variant: "tag" };
+}
+
 function renderSuggestionValue(value: unknown): string {
   if (Array.isArray(value)) return value.map((item) => String(item)).join(", ");
   if (typeof value === "string") return value;
@@ -1134,6 +1226,23 @@ function splitCsvText(value: string): string[] {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function summarizeLinkValues(values: string[]): string[] {
+  const unique = new Set<string>();
+  values.forEach((value) => {
+    const trimmed = value.trim();
+    if (trimmed) unique.add(trimmed);
+  });
+  return Array.from(unique);
+}
+
+function shortenDisplayText(value: string, limit: number): string {
+  const trimmed = value.trim();
+  if (trimmed.length <= limit) {
+    return trimmed;
+  }
+  return `${trimmed.slice(0, Math.max(0, limit - 1))}…`;
 }
 
 function asCandidateList(value: unknown): Array<{ id: number; label?: string; score?: number; reason?: string }> {

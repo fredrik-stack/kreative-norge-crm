@@ -263,7 +263,7 @@ select,
 .import-export-layout {
   margin-top: 1rem;
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.95fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
 }
@@ -278,8 +278,17 @@ select,
   gap: 1rem;
 }
 
+.import-export-grid.review-active {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.8rem;
+}
+
 .import-export-sidebar {
   min-width: 0;
+}
+
+.import-export-grid.review-active .job-list {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 220px));
 }
 
 .import-export-main {
@@ -1294,6 +1303,10 @@ select,
   margin-top: 0.7rem;
 }
 
+.import-review-table {
+  min-width: 1880px;
+}
+
 .import-review-table tbody tr.expanded {
   background: rgba(12, 122, 91, 0.06);
 }
@@ -1349,6 +1362,12 @@ select,
   gap: 0.24rem;
 }
 
+.review-provider-cell {
+  display: grid;
+  gap: 0.22rem;
+  min-width: 92px;
+}
+
 .review-suggested-hint {
   color: #0a6a4f;
   font-size: 0.77rem;
@@ -1358,6 +1377,32 @@ select,
 .review-url-cell {
   display: grid;
   gap: 0.22rem;
+}
+
+.review-link-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.review-link-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 190px;
+  min-height: 24px;
+  padding: 0.22rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(217, 215, 205, 0.92);
+  font-size: 0.76rem;
+  color: #0a6a4f;
+}
+
+.review-copy-snippet {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--ink);
 }
 
 .review-pill-stack {
@@ -1411,6 +1456,10 @@ select,
 }
 
 @media (max-width: 1100px) {
+  .import-export-grid.review-active .job-list {
+    grid-template-columns: 1fr;
+  }
+
   .inline-review-grid {
     grid-template-columns: 1fr;
   }
