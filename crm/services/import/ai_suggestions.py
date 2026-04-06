@@ -52,6 +52,23 @@ ALLOWED_SUGGESTION_FIELD_KEYS = (
 )
 
 
+def _count_useful_suggestions(payload: dict[str, Any]) -> int:
+    count = 0
+    for value in (payload.get("suggested_fields") or {}).values():
+        suggestion_value = (value or {}).get("value")
+        if isinstance(suggestion_value, list) and suggestion_value:
+            count += 1
+        elif isinstance(suggestion_value, str) and suggestion_value.strip():
+            count += 1
+        elif suggestion_value not in (None, "", []):
+            count += 1
+    if payload.get("organization_match_candidates"):
+        count += 1
+    if payload.get("person_match_candidates"):
+        count += 1
+    return count
+
+
 def _score_candidates(candidates: list[dict], reason: str, score: float) -> list[dict]:
     return [
         {
@@ -232,12 +249,21 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
             0.7,
         )
 
-    return {
+    payload = {
         "organization_match_candidates": organization_candidates,
         "person_match_candidates": person_candidates,
         "suggested_fields": suggested_fields,
         "provider": "heuristic_fallback",
     }
+    payload["diagnostic"] = {
+        "primary_provider": "heuristic_fallback",
+        "provider_status": "fallback",
+        "fallback_reason": "heuristic_only",
+        "openai_attempted": False,
+        "openai_error": None,
+        "useful_suggestion_count": _count_useful_suggestions(payload),
+    }
+    return payload
 
 
 def _sanitize_suggestions(payload: dict[str, Any], fallback_provider: str) -> dict[str, Any]:
@@ -247,12 +273,24 @@ def _sanitize_suggestions(payload: dict[str, Any], fallback_provider: str) -> di
         for key, value in (payload.get("suggested_fields") or {}).items()
         if key not in FORBIDDEN_SUGGESTED_FIELDS and key in ALLOWED_SUGGESTION_FIELD_KEYS
     }
-    return {
-        "organization_match_candidates": payload.get("organization_match_candidates") or [],
-        "person_match_candidates": payload.get("person_match_candidates") or [],
+    organization_match_candidates = payload.get("organization_match_candidates") or []
+    person_match_candidates = payload.get("person_match_candidates") or []
+    sanitized = {
+        "organization_match_candidates": organization_match_candidates,
+        "person_match_candidates": person_match_candidates,
         "suggested_fields": suggested_fields,
         "provider": payload.get("provider") or fallback_provider,
     }
+    diagnostic = payload.get("diagnostic") or {}
+    sanitized["diagnostic"] = {
+        "primary_provider": diagnostic.get("primary_provider") or sanitized["provider"],
+        "provider_status": diagnostic.get("provider_status") or sanitized["provider"],
+        "fallback_reason": diagnostic.get("fallback_reason"),
+        "openai_attempted": bool(diagnostic.get("openai_attempted", False)),
+        "openai_error": diagnostic.get("openai_error"),
+        "useful_suggestion_count": diagnostic.get("useful_suggestion_count", _count_useful_suggestions(sanitized)),
+    }
+    return sanitized
 
 
 def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: dict) -> str:
@@ -426,26 +464,85 @@ def _generate_openai_suggestions(tenant: Tenant, normalized_payload: dict, match
     )
     output_text = getattr(response, "output_text", "") or "{}"
     parsed = json.loads(output_text)
+    parsed["diagnostic"] = {
+        "primary_provider": "openai",
+        "provider_status": "openai",
+        "fallback_reason": None,
+        "openai_attempted": True,
+        "openai_error": None,
+        "useful_suggestion_count": _count_useful_suggestions(parsed),
+    }
     return _sanitize_suggestions(parsed, "openai")
 
 
 def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_result: dict) -> dict:
     heuristic = _sanitize_suggestions(_heuristic_suggestions(tenant, normalized_payload, match_result), "heuristic_fallback")
+    if not settings.OPENAI_IMPORT_ENABLED:
+        heuristic["diagnostic"].update(
+            {
+                "provider_status": "fallback_openai_disabled",
+                "fallback_reason": "openai_disabled",
+                "openai_attempted": False,
+            }
+        )
+        return heuristic
+    if not settings.OPENAI_API_KEY:
+        heuristic["diagnostic"].update(
+            {
+                "provider_status": "fallback_openai_unavailable",
+                "fallback_reason": "missing_api_key",
+                "openai_attempted": False,
+            }
+        )
+        return heuristic
+    if OpenAI is None:
+        heuristic["diagnostic"].update(
+            {
+                "provider_status": "fallback_openai_unavailable",
+                "fallback_reason": "openai_sdk_unavailable",
+                "openai_attempted": False,
+            }
+        )
+        return heuristic
     try:
         openai_suggestions = _generate_openai_suggestions(tenant, normalized_payload, match_result)
-    except Exception:
+    except Exception as exc:
         openai_suggestions = None
+        openai_error = exc.__class__.__name__
+    else:
+        openai_error = None
 
     if not openai_suggestions:
+        heuristic["diagnostic"].update(
+            {
+                "provider_status": "fallback_openai_error" if openai_error else heuristic["diagnostic"].get("provider_status"),
+                "fallback_reason": "openai_error" if openai_error else heuristic["diagnostic"].get("fallback_reason"),
+                "openai_attempted": True,
+                "openai_error": openai_error,
+            }
+        )
         return heuristic
 
+    openai_count = _count_useful_suggestions(openai_suggestions)
+    heuristic_count = _count_useful_suggestions(heuristic)
     merged_fields = {
         **heuristic.get("suggested_fields", {}),
         **{key: value for key, value in openai_suggestions.get("suggested_fields", {}).items() if value},
     }
-    return {
+    merged = {
         "organization_match_candidates": openai_suggestions.get("organization_match_candidates") or heuristic.get("organization_match_candidates", []),
         "person_match_candidates": openai_suggestions.get("person_match_candidates") or heuristic.get("person_match_candidates", []),
         "suggested_fields": merged_fields,
         "provider": openai_suggestions.get("provider") or "openai",
+        "diagnostic": {
+            "primary_provider": "openai",
+            "provider_status": "openai" if openai_count > 0 else "openai_empty",
+            "fallback_reason": None if openai_count > 0 else "openai_returned_no_useful_suggestions",
+            "openai_attempted": True,
+            "openai_error": None,
+            "useful_suggestion_count": max(openai_count, _count_useful_suggestions({"suggested_fields": merged_fields})),
+            "openai_suggestion_count": openai_count,
+            "heuristic_suggestion_count": heuristic_count,
+        },
     }
+    return _sanitize_suggestions(merged, "openai")

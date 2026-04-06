@@ -14,6 +14,7 @@ def summarize_job_rows(import_job: ImportJob) -> dict:
     rows = list(import_job.rows.all())
     organization_matches = [row.match_result_json.get("organization", {}) for row in rows]
     person_matches = [row.match_result_json.get("person", {}) for row in rows]
+    diagnostics = [row.ai_suggestions_json.get("diagnostic", {}) for row in rows]
     summary = {
         "rows_total": len(rows),
         "valid_rows": sum(1 for row in rows if row.row_status == ImportRow.RowStatus.VALID),
@@ -41,6 +42,10 @@ def summarize_job_rows(import_job: ImportJob) -> dict:
                 if tag.strip()
             }
         ),
+        "rows_using_openai": sum(1 for diagnostic in diagnostics if diagnostic.get("provider_status") in {"openai", "openai_empty"}),
+        "rows_using_fallback": sum(1 for diagnostic in diagnostics if str(diagnostic.get("provider_status", "")).startswith("fallback")),
+        "rows_with_no_useful_ai_suggestions": sum(1 for diagnostic in diagnostics if int(diagnostic.get("useful_suggestion_count", 0) or 0) == 0),
+        "rows_with_ai_errors": sum(1 for diagnostic in diagnostics if diagnostic.get("openai_error")),
     }
     return summary
 

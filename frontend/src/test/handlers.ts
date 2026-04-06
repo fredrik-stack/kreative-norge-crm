@@ -405,6 +405,14 @@ export const handlers = [
           },
         },
         provider: "openai",
+        diagnostic: {
+          primary_provider: "openai",
+          provider_status: "openai",
+          fallback_reason: null,
+          openai_attempted: true,
+          openai_error: null,
+          useful_suggestion_count: 6,
+        },
       },
       validation_errors_json: [],
       warnings_json: [],
@@ -431,6 +439,10 @@ export const handlers = [
         persons_update: 0,
         links_create: 1,
         tags_new: 2,
+        rows_using_openai: 1,
+        rows_using_fallback: 0,
+        rows_with_no_useful_ai_suggestions: 0,
+        rows_with_ai_errors: 0,
       },
     };
     importJobsByTenantState[tenantId] = jobs.map((job, jobIndex) => (jobIndex === index ? updated : job));

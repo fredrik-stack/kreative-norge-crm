@@ -768,7 +768,41 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         row = self.job.rows.get()
         self.assertIn("suggested_fields", row.ai_suggestions_json)
         self.assertIn("organization_website_url", row.ai_suggestions_json["suggested_fields"])
+        self.assertIn("diagnostic", row.ai_suggestions_json)
         self.assertEqual(row.normalized_payload_json["organization"]["website_url"], "")
+
+    @override_settings(OPENAI_IMPORT_ENABLED=False)
+    def test_generate_ai_suggestions_marks_fallback_when_openai_disabled(self):
+        suggestions = generate_ai_suggestions(self.tenant, normalize_import_row(self.base_row), {"organization": {}, "person": {}})
+        self.assertEqual(suggestions["provider"], "heuristic_fallback")
+        self.assertEqual(suggestions["diagnostic"]["provider_status"], "fallback_openai_disabled")
+        self.assertEqual(suggestions["diagnostic"]["fallback_reason"], "openai_disabled")
+
+    @override_settings(
+        OPENAI_IMPORT_ENABLED=True,
+        OPENAI_API_KEY="test-key",
+        OPENAI_IMPORT_MODEL="gpt-5.4",
+        OPENAI_IMPORT_TIMEOUT=5,
+    )
+    def test_generate_ai_suggestions_marks_fallback_reason_when_openai_errors(self):
+        class FakeResponses:
+            def create(self, **kwargs):
+                raise RuntimeError("boom")
+
+        class FakeOpenAI:
+            def __init__(self, api_key, timeout):
+                self.responses = FakeResponses()
+
+        with patch.object(import_ai_suggestions_module, "OpenAI", FakeOpenAI):
+            suggestions = generate_ai_suggestions(
+                self.tenant,
+                normalize_import_row(self.base_row),
+                {"organization": {}, "person": {}},
+            )
+
+        self.assertEqual(suggestions["provider"], "heuristic_fallback")
+        self.assertEqual(suggestions["diagnostic"]["provider_status"], "fallback_openai_error")
+        self.assertEqual(suggestions["diagnostic"]["openai_error"], "RuntimeError")
 
     def test_generate_ai_suggestions_never_sets_publish_or_public_fields(self):
         suggestions = generate_ai_suggestions(self.tenant, normalize_import_row(self.base_row), {"organization": {}, "person": {}})
@@ -820,6 +854,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
             suggestions["suggested_fields"]["organization_website_url"]["value"],
             "https://nordlyd.no",
         )
+        self.assertEqual(suggestions["diagnostic"]["provider_status"], "openai")
         self.assertNotIn("organization_is_published", suggestions["suggested_fields"])
 
     @patch("crm.services.import.commit.refresh_organization_open_graph")

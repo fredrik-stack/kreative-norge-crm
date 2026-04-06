@@ -259,6 +259,10 @@ function ImportReviewWorkspace(props: {
         <SummaryCard label="Personer oppdatér" value={summary.persons_update} />
         <SummaryCard label="Lenker" value={summary.links_create} />
         <SummaryCard label="Nye tags" value={summary.tags_new} />
+        <SummaryCard label="OpenAI-rader" value={summary.rows_using_openai} />
+        <SummaryCard label="Fallback-rader" value={summary.rows_using_fallback} />
+        <SummaryCard label="Uten forslag" value={summary.rows_with_no_useful_ai_suggestions} />
+        <SummaryCard label="AI-feil" value={summary.rows_with_ai_errors} />
       </div>
 
       <div className="import-toolbar">
@@ -407,6 +411,7 @@ function ImportReviewWorkspace(props: {
               const currentDescription = getFirstText(row.raw_payload_json.organization_description, row.raw_payload_json.person_note);
               const suggestedDescription = getSuggestionText(row, "organization_description");
               const provider = getProviderLabel(row);
+              const diagnosticMeta = getDiagnosticMeta(row);
               const suggestionCount = countSuggestionFields(row);
 
               return (
@@ -468,6 +473,7 @@ function ImportReviewWorkspace(props: {
                       <div className="review-provider-cell">
                         <span className={`mini-pill ${provider.variant}`}>{provider.label}</span>
                         <span className="meta">{suggestionCount > 0 ? `${suggestionCount} forslag` : "Ingen forslag"}</span>
+                        {diagnosticMeta.helper ? <span className="meta">{diagnosticMeta.helper}</span> : null}
                       </div>
                     </td>
                     <td><span className="mini-pill subcategory">{row.row_status}</span></td>
@@ -608,7 +614,7 @@ function InlineReviewEditor(props: {
     () => filterSubcategories(draft.categoryId, subcategories),
     [draft.categoryId, subcategories],
   );
-  const providerLabel = typeof row.ai_suggestions_json?.provider === "string" ? row.ai_suggestions_json.provider : "ukjent";
+  const diagnosticMeta = getDiagnosticMeta(row);
 
   function setSuggestionState(key: string, nextState: SuggestionState) {
     setDraft((current) => ({
@@ -649,8 +655,9 @@ function InlineReviewEditor(props: {
         <section className="editor-detail-section modal-section-card">
           <div className="modal-section-header">
             <h4>Forslag og match</h4>
-            <span className="meta">Kilde: {providerLabel}</span>
+            <span className="meta">Kilde: {diagnosticMeta.title}</span>
           </div>
+          {diagnosticMeta.detail ? <p className="meta review-diagnostic-copy">{diagnosticMeta.detail}</p> : null}
           <div className="review-detail-stack">
             <div>
               <strong>Aktørkandidater</strong>
@@ -1188,6 +1195,10 @@ function getSuggestionText(row: ImportRow, key: string): string {
 }
 
 function countSuggestionFields(row: ImportRow): number {
+  const diagnosticCount = Number((row.ai_suggestions_json?.diagnostic as Record<string, unknown> | undefined)?.useful_suggestion_count ?? -1);
+  if (diagnosticCount >= 0) {
+    return diagnosticCount;
+  }
   return Object.values(getSuggestionFields(row)).filter((field) => {
     const value = field?.value;
     if (Array.isArray(value)) return value.length > 0;
@@ -1197,14 +1208,72 @@ function countSuggestionFields(row: ImportRow): number {
 }
 
 function getProviderLabel(row: ImportRow): { label: string; variant: "category" | "subcategory" | "tag" } {
-  const provider = String(row.ai_suggestions_json?.provider || "").toLowerCase();
-  if (provider === "openai") {
+  const providerStatus = String((row.ai_suggestions_json?.diagnostic as Record<string, unknown> | undefined)?.provider_status || row.ai_suggestions_json?.provider || "").toLowerCase();
+  if (providerStatus === "openai") {
     return { label: "OpenAI", variant: "category" };
   }
-  if (provider.includes("heuristic")) {
+  if (providerStatus === "openai_empty") {
+    return { label: "OpenAI tom", variant: "tag" };
+  }
+  if (providerStatus.includes("fallback")) {
     return { label: "Fallback", variant: "subcategory" };
   }
   return { label: "Ukjent", variant: "tag" };
+}
+
+function getDiagnosticMeta(row: ImportRow): { title: string; detail: string; helper: string } {
+  const diagnostic = (row.ai_suggestions_json?.diagnostic as Record<string, unknown> | undefined) ?? {};
+  const status = String(diagnostic.provider_status || row.ai_suggestions_json?.provider || "");
+  const fallbackReason = String(diagnostic.fallback_reason || "");
+  const openaiError = String(diagnostic.openai_error || "");
+
+  if (status === "openai") {
+    return {
+      title: "OpenAI",
+      detail: "OpenAI svarte med brukbare forslag for denne raden.",
+      helper: "",
+    };
+  }
+  if (status === "openai_empty") {
+    return {
+      title: "OpenAI uten forslag",
+      detail: "OpenAI svarte, men ga ingen brukbare forslag for denne raden.",
+      helper: "Ingen brukbare OpenAI-forslag",
+    };
+  }
+  if (status === "fallback_openai_error") {
+    return {
+      title: "Fallback etter OpenAI-feil",
+      detail: `OpenAI feilet${openaiError ? ` (${openaiError})` : ""}, så raden bruker heuristisk fallback.`,
+      helper: openaiError ? `Feil: ${openaiError}` : "OpenAI-feil",
+    };
+  }
+  if (status === "fallback_openai_disabled") {
+    return {
+      title: "Fallback, OpenAI av",
+      detail: "OpenAI er deaktivert i miljøet, så raden bruker heuristisk fallback.",
+      helper: "OpenAI deaktivert",
+    };
+  }
+  if (status === "fallback_openai_unavailable") {
+    return {
+      title: "Fallback, OpenAI utilgjengelig",
+      detail: "OpenAI er ikke tilgjengelig i miljøet eller mangler konfigurasjon, så raden bruker heuristisk fallback.",
+      helper: fallbackReason === "missing_api_key" ? "Mangler API-nøkkel" : "OpenAI utilgjengelig",
+    };
+  }
+  if (status.startsWith("fallback")) {
+    return {
+      title: "Heuristisk fallback",
+      detail: "Denne raden bruker heuristiske forslag, ikke OpenAI.",
+      helper: fallbackReason === "heuristic_only" ? "Kun heuristikk" : "Fallback",
+    };
+  }
+  return {
+    title: "Ukjent provider",
+    detail: "Provider-status er uklar for denne raden.",
+    helper: "Sjekk preview-data",
+  };
 }
 
 function renderSuggestionValue(value: unknown): string {

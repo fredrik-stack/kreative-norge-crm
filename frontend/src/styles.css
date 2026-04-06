@@ -1368,6 +1368,11 @@ select,
   min-width: 92px;
 }
 
+.review-diagnostic-copy {
+  margin: 0 0 0.1rem;
+  line-height: 1.45;
+}
+
 .review-suggested-hint {
   color: #0a6a4f;
   font-size: 0.77rem;
