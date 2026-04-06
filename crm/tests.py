@@ -862,6 +862,45 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         refresh_mock.assert_not_called()
 
     @patch("crm.services.import.commit.refresh_organization_open_graph")
+    def test_accepted_social_url_suggestion_can_influence_commit(self, refresh_mock):
+        row = self.base_row | {"organization_instagram_url": ""}
+        self._upload_csv([row])
+        self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        preview_row = self.job.rows.get()
+
+        response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/decisions/",
+            {
+                "rows": [
+                    {
+                        "row_id": preview_row.id,
+                        "decisions": [
+                            {
+                                "decision_type": "ACCEPT_AI_SUGGESTION",
+                                "payload_json": {
+                                    "suggestion_key": "organization_instagram_url",
+                                    "value": "https://instagram.com/nordlyd",
+                                },
+                            }
+                        ],
+                    }
+                ]
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+
+        commit_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/commit/",
+            {"skip_unresolved": False},
+            format="json",
+        )
+        self.assertEqual(commit_response.status_code, 200, commit_response.content)
+        organization = Organization.objects.get(tenant=self.tenant, org_number="123456789")
+        self.assertEqual(organization.instagram_url, "https://instagram.com/nordlyd")
+        refresh_mock.assert_called_once()
+
+    @patch("crm.services.import.commit.refresh_organization_open_graph")
     def test_unaccepted_ai_suggestion_does_not_influence_commit(self, refresh_mock):
         row = self.base_row | {"organization_website_url": "", "organization_note": "Sterk aktør i musikkfeltet."}
         self._upload_csv([row])

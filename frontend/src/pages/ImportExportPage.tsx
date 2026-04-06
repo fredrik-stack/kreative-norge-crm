@@ -1,11 +1,11 @@
-import { useMemo, useState } from "react";
-import { createPortal } from "react-dom";
+import { useMemo, useRef, useState } from "react";
+import { Fragment } from "react";
 import { Field } from "../components/Field";
 import { useEditor } from "../context/EditorContext";
 import { getExportJobFileUrl, getImportJobErrorReportUrl } from "../api";
 import { useExportJobs } from "../hooks/useExportJobs";
 import { useImportJobs } from "../hooks/useImportJobs";
-import type { ImportDecision, ImportRow } from "../types";
+import type { Category, ImportDecision, ImportRow, Organization, Person, Subcategory } from "../types";
 
 const EXPORT_FIELD_OPTIONS = [
   "organization_name",
@@ -29,6 +29,77 @@ const EXPORT_FIELD_OPTIONS = [
   "link_publish_person",
 ];
 
+const SIMPLE_EDITABLE_SUGGESTION_FIELDS = [
+  "organization_website_url",
+  "organization_instagram_url",
+  "organization_tiktok_url",
+  "organization_linkedin_url",
+  "organization_facebook_url",
+  "organization_youtube_url",
+  "organization_description",
+  "person_title",
+  "person_website_url",
+  "person_instagram_url",
+  "person_tiktok_url",
+  "person_linkedin_url",
+  "person_facebook_url",
+  "person_youtube_url",
+] as const;
+
+const FIELD_LABELS: Record<string, string> = {
+  organization_website_url: "Nettside",
+  organization_instagram_url: "Instagram",
+  organization_tiktok_url: "TikTok",
+  organization_linkedin_url: "LinkedIn",
+  organization_facebook_url: "Facebook",
+  organization_youtube_url: "YouTube",
+  organization_description: "Beskrivelse",
+  person_title: "Tittel",
+  person_website_url: "Personnettside",
+  person_instagram_url: "Person Instagram",
+  person_tiktok_url: "Person TikTok",
+  person_linkedin_url: "Person LinkedIn",
+  person_facebook_url: "Person Facebook",
+  person_youtube_url: "Person YouTube",
+  suggested_categories: "Hovedkategori",
+  suggested_subcategories: "Underkategori",
+  suggested_tags: "Tags",
+};
+
+const MODE_LABELS: Record<"COMBINED" | "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY", string> = {
+  COMBINED: "Kombinert",
+  ORGANIZATIONS_ONLY: "Aktører",
+  PEOPLE_ONLY: "Personer",
+};
+
+const SOURCE_TYPE_LABELS: Record<"CSV" | "XLSX", string> = {
+  CSV: "CSV",
+  XLSX: "XLSX",
+};
+
+type SuggestionField = {
+  value?: unknown;
+  confidence?: number;
+  source?: string;
+  requires_review?: boolean;
+};
+
+type SuggestionState = "pending" | "accepted" | "ignored";
+
+type ReviewDraft = {
+  organizationDecision: "NONE" | "USE_EXISTING_ORGANIZATION" | "CREATE_NEW_ORGANIZATION";
+  personDecision: "NONE" | "USE_EXISTING_PERSON" | "CREATE_NEW_PERSON";
+  organizationId: number | "";
+  personId: number | "";
+  categoryId: number | "";
+  subcategoryId: number | "";
+  tagsText: string;
+  skipRow: boolean;
+  technicalOpen: boolean;
+  fieldValues: Record<string, string>;
+  suggestionStates: Record<string, SuggestionState>;
+};
+
 export function ImportExportPage() {
   const editor = useEditor();
   const importJobs = useImportJobs(editor.tenantId);
@@ -36,7 +107,7 @@ export function ImportExportPage() {
   const [sourceType, setSourceType] = useState<"CSV" | "XLSX">("CSV");
   const [importMode, setImportMode] = useState<"COMBINED" | "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY">("COMBINED");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [detailRow, setDetailRow] = useState<ImportRow | null>(null);
+  const [expandedRowId, setExpandedRowId] = useState<number | null>(null);
   const [skipUnresolved, setSkipUnresolved] = useState(false);
   const [format, setFormat] = useState<"CSV" | "XLSX">("CSV");
   const [exportType, setExportType] = useState<"SEARCH_RESULTS" | "ADMIN_FULL" | "PERSONS_ONLY" | "ORGANIZATIONS_ONLY">("SEARCH_RESULTS");
@@ -48,44 +119,18 @@ export function ImportExportPage() {
   ]);
   const [filterQuery, setFilterQuery] = useState("");
 
+  async function handlePreview() {
+    const selectedJob = importJobs.selectedJob;
+    if (!selectedJob) return;
+    if (!selectedJob.file && selectedFile) {
+      const uploaded = await importJobs.uploadFile(selectedFile);
+      if (!uploaded) return;
+    }
+    await importJobs.runPreview();
+  }
+
   return (
     <main className="import-export-layout">
-      <ImportPanel />
-      <ExportPanel />
-    </main>
-  );
-
-  function ImportPanel() {
-    const selectedJob = importJobs.selectedJob;
-    const rows = importJobs.rowsPage?.results ?? [];
-    const summary = selectedJob?.summary_json ?? {};
-    const unresolvedCount = Number(summary.review_required_rows ?? 0);
-
-    async function handlePreview() {
-      if (!selectedJob) return;
-      if (!selectedJob.file && selectedFile) {
-        const uploaded = await importJobs.uploadFile(selectedFile);
-        if (!uploaded) return;
-      }
-      await importJobs.runPreview();
-    }
-
-    const jobOptions = importJobs.jobs.map((job) => (
-      <button
-        key={job.id}
-        type="button"
-        className={`job-list-item ${job.id === importJobs.selectedJobId ? "active" : ""}`}
-        onClick={() => importJobs.setSelectedJobId(job.id)}
-      >
-        <strong>#{job.id}</strong>
-        <span>{job.filename || job.source_type}</span>
-        <span className={`save-pill ${job.status === "COMPLETED" ? "saved" : job.status === "FAILED" ? "error" : "idle"}`}>
-          {job.status}
-        </span>
-      </button>
-    ));
-
-    return (
       <section className="panel import-export-panel">
         <div className="sidebar-header">
           <div>
@@ -99,24 +144,40 @@ export function ImportExportPage() {
 
         <div className="import-export-grid">
           <div className="import-export-sidebar">
-            <div className="job-list">{jobOptions}</div>
+            <div className="job-list">
+              {importJobs.jobs.map((job) => (
+                <button
+                  key={job.id}
+                  type="button"
+                  className={`job-list-item ${job.id === importJobs.selectedJobId ? "active" : ""}`}
+                  onClick={() => {
+                    importJobs.setSelectedJobId(job.id);
+                    setExpandedRowId(null);
+                  }}
+                >
+                  <strong>#{job.id}</strong>
+                  <span>{job.filename || job.source_type}</span>
+                  <span className={`save-pill ${job.status === "COMPLETED" ? "saved" : job.status === "FAILED" ? "error" : "idle"}`}>
+                    {job.status}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
+
           <div className="import-export-main">
             <div className="import-actions">
               <Field label="Kildetype">
-                <select value={sourceType} onChange={(e) => setSourceType(e.target.value as "CSV" | "XLSX")}>
+                <select value={sourceType} onChange={(e) => setSourceType(e.target.value as "CSV" | "XLSX")}> 
                   <option value="CSV">CSV</option>
                   <option value="XLSX">XLSX</option>
                 </select>
               </Field>
               <Field label="Importmodus">
-                <select
-                  value={importMode}
-                  onChange={(e) => setImportMode(e.target.value as "COMBINED" | "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY")}
-                >
+                <select value={importMode} onChange={(e) => setImportMode(e.target.value as "COMBINED" | "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY")}> 
                   <option value="COMBINED">Combined</option>
-                  <option value="ORGANIZATIONS_ONLY">Organizations only</option>
-                  <option value="PEOPLE_ONLY">People only</option>
+                  <option value="ORGANIZATIONS_ONLY">Aktører</option>
+                  <option value="PEOPLE_ONLY">Personer</option>
                 </select>
               </Field>
               <button
@@ -129,297 +190,820 @@ export function ImportExportPage() {
               </button>
             </div>
 
-            {selectedJob ? (
-              <>
-                <div className="import-summary-grid">
-                  <SummaryCard label="Rader totalt" value={summary.rows_total} />
-                  <SummaryCard label="Gyldige" value={summary.valid_rows} />
-                  <SummaryCard label="Ugyldige" value={summary.invalid_rows} />
-                  <SummaryCard label="Review" value={summary.review_required_rows} />
-                  <SummaryCard label="Aktører opprett" value={summary.organizations_create} />
-                  <SummaryCard label="Aktører oppdatér" value={summary.organizations_update} />
-                  <SummaryCard label="Personer opprett" value={summary.persons_create} />
-                  <SummaryCard label="Personer oppdatér" value={summary.persons_update} />
-                  <SummaryCard label="Lenker" value={summary.links_create} />
-                  <SummaryCard label="Nye tags" value={summary.tags_new} />
-                </div>
-
-                <div className="import-toolbar">
-                  <Field label="Last opp CSV/XLSX">
-                    <input
-                      type="file"
-                      accept=".csv,.xlsx"
-                      onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
-                    />
-                  </Field>
-                  <button
-                    type="button"
-                    className="ghost-button"
-                    disabled={!selectedFile || importJobs.busyAction === "upload"}
-                    onClick={() => selectedFile && void importJobs.uploadFile(selectedFile)}
-                  >
-                    Last opp
-                  </button>
-                  <button
-                    type="button"
-                    className="primary-button"
-                    disabled={(!selectedJob.file && !selectedFile) || importJobs.busyAction === "preview" || importJobs.busyAction === "upload"}
-                    onClick={() => void handlePreview()}
-                  >
-                    Kjør preview
-                  </button>
-                  <a
-                    className={`ghost-button ${selectedJob.error_report_file || summary.invalid_rows || summary.review_required_rows ? "" : "disabled-link"}`}
-                    href={editor.tenantId ? getImportJobErrorReportUrl(editor.tenantId, selectedJob.id) : "#"}
-                    onClick={(event) => {
-                      if (!editor.tenantId) event.preventDefault();
-                    }}
-                  >
-                    Feilrapport
-                  </a>
-                </div>
-
-                <div className="import-filter-row">
-                  <select
-                    value={importJobs.rowsQuery.status ?? ""}
-                    onChange={(e) => importJobs.setRowsQuery((current) => ({ ...current, status: e.target.value || undefined, page: 1 }))}
-                  >
-                    <option value="">Alle statuser</option>
-                    <option value="VALID">Valid</option>
-                    <option value="INVALID">Invalid</option>
-                    <option value="REVIEW_REQUIRED">Review required</option>
-                    <option value="SKIPPED">Skipped</option>
-                    <option value="COMMITTED">Committed</option>
-                  </select>
-                  <select
-                    value={importJobs.rowsQuery.action ?? ""}
-                    onChange={(e) => importJobs.setRowsQuery((current) => ({ ...current, action: e.target.value || undefined, page: 1 }))}
-                  >
-                    <option value="">Alle handlinger</option>
-                    <option value="CREATE">Create</option>
-                    <option value="UPDATE">Update</option>
-                    <option value="LINK_ONLY">Link only</option>
-                    <option value="SKIP">Skip</option>
-                  </select>
-                  <input
-                    className="search-input"
-                    type="search"
-                    placeholder="Søk i rader"
-                    value={importJobs.rowsQuery.search ?? ""}
-                    onChange={(e) => importJobs.setRowsQuery((current) => ({ ...current, search: e.target.value, page: 1 }))}
-                  />
-                </div>
-
-                <div className="overview-table-wrap">
-                  <table className="overview-table">
-                    <thead>
-                      <tr>
-                        <th>Rad</th>
-                        <th>Aktør</th>
-                        <th>Person</th>
-                        <th>Handling</th>
-                        <th>Status</th>
-                        <th>Advarsler</th>
-                        <th>Feil</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.map((row) => (
-                        <tr key={row.id}>
-                          <td>{row.row_number}</td>
-                          <td>{String(row.raw_payload_json.organization_name ?? "—")}</td>
-                          <td>{String(row.raw_payload_json.person_full_name ?? "—")}</td>
-                          <td><span className="mini-pill category">{row.proposed_action}</span></td>
-                          <td><span className="mini-pill subcategory">{row.row_status}</span></td>
-                          <td>{row.warnings_json.length}</td>
-                          <td>{row.validation_errors_json.length}</td>
-                          <td>
-                            <button type="button" className="ghost-button compact-button" onClick={() => setDetailRow(row)}>
-                              Åpne
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="pagination-row">
-                  <button
-                    type="button"
-                    className="ghost-button compact-button"
-                    disabled={!importJobs.rowsPage?.previous}
-                    onClick={() => importJobs.setRowsQuery((current) => ({ ...current, page: Math.max(1, (current.page ?? 1) - 1) }))}
-                  >
-                    Forrige
-                  </button>
-                  <span className="meta">
-                    Side {importJobs.rowsQuery.page ?? 1} av {Math.max(1, Math.ceil((importJobs.rowsPage?.count ?? 0) / 50))}
-                  </span>
-                  <button
-                    type="button"
-                    className="ghost-button compact-button"
-                    disabled={!importJobs.rowsPage?.next}
-                    onClick={() => importJobs.setRowsQuery((current) => ({ ...current, page: (current.page ?? 1) + 1 }))}
-                  >
-                    Neste
-                  </button>
-                </div>
-
-                <div className="commit-bar">
-                  {unresolvedCount > 0 ? (
-                    <label className="checkbox-row">
-                      <input type="checkbox" checked={skipUnresolved} onChange={(e) => setSkipUnresolved(e.target.checked)} />
-                      Hopp over uavklarte rader ved commit
-                    </label>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="primary-button"
-                    disabled={
-                      !["PREVIEW_READY", "AWAITING_REVIEW"].includes(selectedJob.status) ||
-                      importJobs.busyAction === "commit" ||
-                      (unresolvedCount > 0 && !skipUnresolved)
-                    }
-                    onClick={() => void importJobs.commit(skipUnresolved)}
-                  >
-                    Commit import
-                  </button>
-                </div>
-
-                <div className="import-summary-grid results-grid">
-                  <SummaryCard label="Aktører opprettet" value={summary.organizations_created} />
-                  <SummaryCard label="Aktører oppdatert" value={summary.organizations_updated} />
-                  <SummaryCard label="Personer opprettet" value={summary.persons_created} />
-                  <SummaryCard label="Personer oppdatert" value={summary.persons_updated} />
-                  <SummaryCard label="Kontakter opprettet" value={summary.person_contacts_created} />
-                  <SummaryCard label="Lenker opprettet" value={summary.links_created} />
-                  <SummaryCard label="Rader hoppet over" value={summary.rows_skipped} />
-                  <SummaryCard label="Rader feilet" value={summary.rows_failed} />
-                </div>
-              </>
+            {importJobs.selectedJob ? (
+              <ImportReviewWorkspace
+                editor={editor}
+                importJobs={importJobs}
+                selectedFile={selectedFile}
+                setSelectedFile={setSelectedFile}
+                skipUnresolved={skipUnresolved}
+                setSkipUnresolved={setSkipUnresolved}
+                expandedRowId={expandedRowId}
+                setExpandedRowId={setExpandedRowId}
+                onPreview={() => void handlePreview()}
+              />
             ) : (
               <div className="empty-state">Opprett eller velg en importjobb for å starte flyten.</div>
             )}
           </div>
         </div>
-
-        {detailRow && editor.tenantId ? (
-          <ImportRowDetailModal
-            row={detailRow}
-            organizations={editor.organizations}
-            persons={editor.persons}
-            categories={editor.categories}
-            subcategories={editor.subcategories}
-            onClose={() => setDetailRow(null)}
-            onSave={(payload) => void importJobs.saveDecisions([{ row_id: detailRow.id, decisions: payload }]).then(() => setDetailRow(null))}
-          />
-        ) : null}
       </section>
-    );
-  }
 
-  function ExportPanel() {
-    return (
-      <section className="panel import-export-panel">
-        <div className="sidebar-header">
-          <div>
-            <p className="eyebrow small">Eksport</p>
-            <h2>Eksportjobber</h2>
+      <ExportPanel
+        exportJobs={exportJobs}
+        format={format}
+        setFormat={setFormat}
+        exportType={exportType}
+        setExportType={setExportType}
+        filterQuery={filterQuery}
+        setFilterQuery={setFilterQuery}
+        fieldSelection={fieldSelection}
+        setFieldSelection={setFieldSelection}
+      />
+    </main>
+  );
+}
+
+function ImportReviewWorkspace(props: {
+  editor: ReturnType<typeof useEditor>;
+  importJobs: ReturnType<typeof useImportJobs>;
+  selectedFile: File | null;
+  setSelectedFile: (file: File | null) => void;
+  skipUnresolved: boolean;
+  setSkipUnresolved: (value: boolean) => void;
+  expandedRowId: number | null;
+  setExpandedRowId: (rowId: number | null) => void;
+  onPreview: () => void;
+}) {
+  const { editor, importJobs, selectedFile, setSelectedFile, skipUnresolved, setSkipUnresolved, expandedRowId, setExpandedRowId, onPreview } = props;
+  const selectedJob = importJobs.selectedJob!;
+  const rows = importJobs.rowsPage?.results ?? [];
+  const summary = selectedJob.summary_json ?? {};
+  const unresolvedCount = Number(summary.review_required_rows ?? 0);
+  const mode = selectedJob.import_mode;
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const showPersonColumns = mode !== "ORGANIZATIONS_ONLY";
+  const orgLabel = mode === "PEOPLE_ONLY" ? "Knyttet aktør" : "Aktør";
+  const linkLabel = mode === "PEOPLE_ONLY" ? "Lenker og profiler" : "Nettside / lenker";
+
+  return (
+    <>
+      <div className="import-summary-grid">
+        <SummaryCard label="Rader totalt" value={summary.rows_total} />
+        <SummaryCard label="Gyldige" value={summary.valid_rows} />
+        <SummaryCard label="Ugyldige" value={summary.invalid_rows} />
+        <SummaryCard label="Review" value={summary.review_required_rows} />
+        <SummaryCard label="Aktører opprett" value={summary.organizations_create} />
+        <SummaryCard label="Aktører oppdatér" value={summary.organizations_update} />
+        <SummaryCard label="Personer opprett" value={summary.persons_create} />
+        <SummaryCard label="Personer oppdatér" value={summary.persons_update} />
+        <SummaryCard label="Lenker" value={summary.links_create} />
+        <SummaryCard label="Nye tags" value={summary.tags_new} />
+      </div>
+
+      <div className="import-toolbar">
+        <Field label="Last opp CSV/XLSX">
+          <div className="file-picker-field">
+            <input
+              ref={fileInputRef}
+              className="visually-hidden-input"
+              aria-label="Last opp CSV/XLSX"
+              type="file"
+              accept=".csv,.xlsx"
+              onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+            />
+            <button type="button" className="ghost-button" onClick={() => fileInputRef.current?.click()}>
+              Velg fil
+            </button>
+            <span className="meta">{selectedFile?.name || selectedJob.filename || "Ingen fil valgt ennå"}</span>
           </div>
-          <span className="meta">{exportJobs.jobs.length} jobber</span>
+        </Field>
+        <div className="selected-file-card" aria-live="polite">
+          <span className="meta">Valgt fil og modus</span>
+          <strong>{selectedFile?.name || selectedJob.filename || "Ingen fil valgt ennå"}</strong>
+          <span className="meta">
+            {MODE_LABELS[mode]} · {SOURCE_TYPE_LABELS[selectedJob.source_type as "CSV" | "XLSX"] ?? selectedJob.source_type}
+          </span>
+          <span className={`save-pill ${selectedJob.status === "COMPLETED" ? "saved" : selectedJob.status === "FAILED" ? "error" : "idle"}`}>
+            {selectedJob.status}
+          </span>
         </div>
-        {exportJobs.forbidden ? <div className="banner error">Du har ikke tilgang til eksport for denne tenanten.</div> : null}
-        {exportJobs.error ? <div className="banner error">{exportJobs.error}</div> : null}
-        <div className="import-actions export-form-grid">
-          <Field label="Format">
-            <select value={format} onChange={(e) => setFormat(e.target.value as "CSV" | "XLSX")}>
-              <option value="CSV">CSV</option>
-              <option value="XLSX">XLSX</option>
-            </select>
-          </Field>
-          <Field label="Eksporttype">
-            <select
-              value={exportType}
-              onChange={(e) =>
-                setExportType(e.target.value as "SEARCH_RESULTS" | "ADMIN_FULL" | "PERSONS_ONLY" | "ORGANIZATIONS_ONLY")
-              }
-            >
-              <option value="SEARCH_RESULTS">Search results</option>
-              <option value="ADMIN_FULL">Admin full</option>
-              <option value="PERSONS_ONLY">Persons only</option>
-              <option value="ORGANIZATIONS_ONLY">Organizations only</option>
-            </select>
-          </Field>
-          <Field label="Filtre (fritekst)">
-            <input value={filterQuery} onChange={(e) => setFilterQuery(e.target.value)} placeholder="f.eks. Oslo eller jazz" />
-          </Field>
-        </div>
-        <div className="field-group export-field-picker">
-          <span className="field-label">Felter</span>
-          <div className="pill-grid">
-            {EXPORT_FIELD_OPTIONS.map((field) => {
-              const active = fieldSelection.includes(field);
+        <button
+          type="button"
+          className="ghost-button"
+          disabled={!selectedFile || importJobs.busyAction === "upload"}
+          onClick={() => selectedFile && void importJobs.uploadFile(selectedFile)}
+        >
+          Last opp
+        </button>
+        <button
+          type="button"
+          className="primary-button"
+          disabled={(!selectedJob.file && !selectedFile) || importJobs.busyAction === "preview" || importJobs.busyAction === "upload"}
+          onClick={onPreview}
+        >
+          Kjør preview
+        </button>
+        <a
+          className={`ghost-button ${selectedJob.error_report_file || summary.invalid_rows || summary.review_required_rows ? "" : "disabled-link"}`}
+          href={editor.tenantId ? getImportJobErrorReportUrl(editor.tenantId, selectedJob.id) : "#"}
+          onClick={(event) => {
+            if (!editor.tenantId) event.preventDefault();
+          }}
+        >
+          Feilrapport
+        </a>
+      </div>
+
+      <div className="import-filter-row">
+        <select
+          value={importJobs.rowsQuery.status ?? ""}
+          onChange={(e) => importJobs.setRowsQuery((current) => ({ ...current, status: e.target.value || undefined, page: 1 }))}
+        >
+          <option value="">Alle statuser</option>
+          <option value="VALID">Valid</option>
+          <option value="INVALID">Invalid</option>
+          <option value="REVIEW_REQUIRED">Review required</option>
+          <option value="SKIPPED">Skipped</option>
+          <option value="COMMITTED">Committed</option>
+        </select>
+        <select
+          value={importJobs.rowsQuery.action ?? ""}
+          onChange={(e) => importJobs.setRowsQuery((current) => ({ ...current, action: e.target.value || undefined, page: 1 }))}
+        >
+          <option value="">Alle handlinger</option>
+          <option value="CREATE">Create</option>
+          <option value="UPDATE">Update</option>
+          <option value="LINK_ONLY">Link only</option>
+          <option value="SKIP">Skip</option>
+        </select>
+        <input
+          className="search-input"
+          type="search"
+          placeholder="Søk i importerte rader"
+          value={importJobs.rowsQuery.search ?? ""}
+          onChange={(e) => importJobs.setRowsQuery((current) => ({ ...current, search: e.target.value, page: 1 }))}
+        />
+      </div>
+
+      <div className="overview-table-wrap import-review-wrap">
+        <table className="overview-table import-review-table">
+          <thead>
+            <tr>
+              <th>Rad</th>
+              <th>{orgLabel}</th>
+              {showPersonColumns ? <th>Person</th> : null}
+              <th>Org.nr</th>
+              <th>Kommune</th>
+              <th>Hovedkategori</th>
+              <th>Underkategori</th>
+              <th>Tags</th>
+              <th>{linkLabel}</th>
+              <th>Status</th>
+              <th>Advarsler</th>
+              <th>Feil</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const expanded = expandedRowId === row.id;
+              const categorySuggestions = getSuggestionValues(row, "suggested_categories");
+              const subcategorySuggestions = getSuggestionValues(row, "suggested_subcategories");
+              const tagSuggestions = getSuggestionValues(row, "suggested_tags");
+              const websiteSuggestion = getSuggestionText(row, "organization_website_url") || getSuggestionText(row, "person_website_url");
+              const currentWebsite = getFirstText(
+                row.raw_payload_json.organization_website_url,
+                row.raw_payload_json.person_website_url,
+              );
+              const socialSuggestions = SIMPLE_EDITABLE_SUGGESTION_FIELDS.filter((key) => key.endsWith("_url") && key !== "organization_website_url" && key !== "person_website_url")
+                .map((key) => getSuggestionText(row, key))
+                .filter(Boolean);
+
               return (
-                <label key={field} className={`filter-chip ${active ? "active" : ""}`}>
-                  <input
-                    type="checkbox"
-                    checked={active}
-                    onChange={(e) => {
-                      setFieldSelection((current) =>
-                        e.target.checked ? [...current, field] : current.filter((item) => item !== field),
-                      );
-                    }}
-                  />
-                  <span>{field}</span>
-                </label>
+                <Fragment key={row.id}>
+                  <tr key={row.id} className={expanded ? "expanded" : ""}>
+                    <td>{row.row_number}</td>
+                    <td>
+                      <ReviewValueCell current={getFirstText(row.raw_payload_json.organization_name)} fallback="—" />
+                    </td>
+                    {showPersonColumns ? (
+                      <td>
+                        <ReviewValueCell current={getFirstText(row.raw_payload_json.person_full_name)} fallback="—" />
+                      </td>
+                    ) : null}
+                    <td>{getFirstText(row.raw_payload_json.organization_org_number) || "—"}</td>
+                    <td>
+                      <ReviewValueCell
+                        current={getFirstText(row.raw_payload_json.organization_municipalities, row.raw_payload_json.person_municipality)}
+                        fallback="—"
+                      />
+                    </td>
+                    <td>
+                      <ReviewSuggestionCell
+                        currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_categories, row.raw_payload_json.person_categories))}
+                        suggestedValues={categorySuggestions}
+                      />
+                    </td>
+                    <td>
+                      <ReviewSuggestionCell
+                        currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_subcategories, row.raw_payload_json.person_subcategories))}
+                        suggestedValues={subcategorySuggestions}
+                      />
+                    </td>
+                    <td>
+                      <ReviewSuggestionCell
+                        currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_tags, row.raw_payload_json.person_tags))}
+                        suggestedValues={tagSuggestions}
+                      />
+                    </td>
+                    <td>
+                      <div className="review-url-cell">
+                        <ReviewValueCell current={currentWebsite} suggested={websiteSuggestion} fallback="Mangler" />
+                        {socialSuggestions.length > 0 ? <span className="meta">+ {socialSuggestions.length} sosiale forslag</span> : null}
+                      </div>
+                    </td>
+                    <td><span className="mini-pill subcategory">{row.row_status}</span></td>
+                    <td>{row.warnings_json.length}</td>
+                    <td>{row.validation_errors_json.length}</td>
+                    <td>
+                      <button type="button" className="ghost-button compact-button" onClick={() => setExpandedRowId(expanded ? null : row.id)}>
+                        {expanded ? "Lukk" : "Review"}
+                      </button>
+                    </td>
+                  </tr>
+                  {expanded ? (
+                    <tr key={`${row.id}-editor`} className="import-review-editor-row">
+                      <td colSpan={showPersonColumns ? 13 : 12}>
+                        <InlineReviewEditor
+                          row={row}
+                          organizations={editor.organizations}
+                          persons={editor.persons}
+                          categories={editor.categories}
+                          subcategories={editor.subcategories}
+                          onSave={(payload) =>
+                            void importJobs
+                              .saveDecisions([{ row_id: row.id, decisions: payload }])
+                              .then(() => setExpandedRowId(null))
+                          }
+                        />
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
               );
             })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="pagination-row">
+        <button
+          type="button"
+          className="ghost-button compact-button"
+          disabled={!importJobs.rowsPage?.previous}
+          onClick={() => importJobs.setRowsQuery((current) => ({ ...current, page: Math.max(1, (current.page ?? 1) - 1) }))}
+        >
+          Forrige
+        </button>
+        <span className="meta">
+          Side {importJobs.rowsQuery.page ?? 1} av {Math.max(1, Math.ceil((importJobs.rowsPage?.count ?? 0) / 50))}
+        </span>
+        <button
+          type="button"
+          className="ghost-button compact-button"
+          disabled={!importJobs.rowsPage?.next}
+          onClick={() => importJobs.setRowsQuery((current) => ({ ...current, page: (current.page ?? 1) + 1 }))}
+        >
+          Neste
+        </button>
+      </div>
+
+      <div className="commit-bar">
+        {unresolvedCount > 0 ? (
+          <label className="checkbox-row">
+            <input type="checkbox" checked={skipUnresolved} onChange={(e) => setSkipUnresolved(e.target.checked)} />
+            Hopp over uavklarte rader ved commit
+          </label>
+        ) : (
+          <span className="meta">Review-rader kan gjennomgås og justeres direkte i oversikten.</span>
+        )}
+        <button
+          type="button"
+          className="primary-button"
+          disabled={
+            !["PREVIEW_READY", "AWAITING_REVIEW"].includes(selectedJob.status) ||
+            importJobs.busyAction === "commit" ||
+            (unresolvedCount > 0 && !skipUnresolved)
+          }
+          onClick={() => void importJobs.commit(skipUnresolved)}
+        >
+          Commit import
+        </button>
+      </div>
+
+      <div className="import-summary-grid results-grid">
+        <SummaryCard label="Aktører opprettet" value={summary.organizations_created} />
+        <SummaryCard label="Aktører oppdatert" value={summary.organizations_updated} />
+        <SummaryCard label="Personer opprettet" value={summary.persons_created} />
+        <SummaryCard label="Personer oppdatert" value={summary.persons_updated} />
+        <SummaryCard label="Kontakter opprettet" value={summary.person_contacts_created} />
+        <SummaryCard label="Lenker opprettet" value={summary.links_created} />
+        <SummaryCard label="Rader hoppet over" value={summary.rows_skipped} />
+        <SummaryCard label="Rader feilet" value={summary.rows_failed} />
+      </div>
+    </>
+  );
+}
+
+function InlineReviewEditor(props: {
+  row: ImportRow;
+  organizations: Organization[];
+  persons: Person[];
+  categories: Category[];
+  subcategories: Subcategory[];
+  onSave: (payload: Array<{ decision_type: ImportDecision["decision_type"]; payload_json?: Record<string, unknown> }>) => void;
+}) {
+  const { row, organizations, persons, categories, subcategories, onSave } = props;
+  const suggestedFields = useMemo(() => getSuggestionFields(row), [row]);
+  const categorySuggestions = getSuggestionValues(row, "suggested_categories");
+  const subcategorySuggestions = getSuggestionValues(row, "suggested_subcategories");
+  const tagSuggestions = getSuggestionValues(row, "suggested_tags");
+  const suggestionStates = getExistingSuggestionStates(row);
+  const [draft, setDraft] = useState<ReviewDraft>(() => {
+    const initialFieldValues: Record<string, string> = {};
+    SIMPLE_EDITABLE_SUGGESTION_FIELDS.forEach((key) => {
+      initialFieldValues[key] =
+        getAcceptedDecisionValue(row, key) ||
+        getSuggestionText(row, key) ||
+        getFirstText(row.raw_payload_json[key], getNestedSuggestedFallback(row, key));
+    });
+    return {
+      organizationDecision: getExistingDecisionType(row, ["USE_EXISTING_ORGANIZATION", "CREATE_NEW_ORGANIZATION"]) ?? "NONE",
+      personDecision: getExistingDecisionType(row, ["USE_EXISTING_PERSON", "CREATE_NEW_PERSON"]) ?? "NONE",
+      organizationId: getExistingDecisionId(row, "USE_EXISTING_ORGANIZATION", "organization_id"),
+      personId: getExistingDecisionId(row, "USE_EXISTING_PERSON", "person_id"),
+      categoryId: getExistingDecisionId(row, "MAP_CATEGORY", "category_id") || findCategoryIdByName(categories, categorySuggestions[0] || ""),
+      subcategoryId:
+        getExistingDecisionId(row, "MAP_SUBCATEGORY", "subcategory_id") ||
+        findSubcategoryIdByName(subcategories, subcategorySuggestions[0] || ""),
+      tagsText: getAcceptedDecisionArray(row, "suggested_tags").join(", ") || tagSuggestions.join(", "),
+      skipRow: row.decisions.some((decision) => decision.decision_type === "SKIP_ROW"),
+      technicalOpen: false,
+      fieldValues: initialFieldValues,
+      suggestionStates,
+    };
+  });
+
+  const filteredSubcategories = useMemo(
+    () => filterSubcategories(draft.categoryId, subcategories),
+    [draft.categoryId, subcategories],
+  );
+  const providerLabel = typeof row.ai_suggestions_json?.provider === "string" ? row.ai_suggestions_json.provider : "ukjent";
+
+  function setSuggestionState(key: string, nextState: SuggestionState) {
+    setDraft((current) => ({
+      ...current,
+      suggestionStates: {
+        ...current.suggestionStates,
+        [key]: nextState,
+      },
+    }));
+  }
+
+  function applyCategorySuggestion(name: string) {
+    const categoryId = findCategoryIdByName(categories, name);
+    setDraft((current) => ({
+      ...current,
+      categoryId,
+      suggestionStates: { ...current.suggestionStates, suggested_categories: categoryId ? "accepted" : current.suggestionStates.suggested_categories },
+    }));
+  }
+
+  function applySubcategorySuggestion(name: string) {
+    const subcategoryId = findSubcategoryIdByName(subcategories, name);
+    const relatedCategoryId = findCategoryIdForSubcategory(subcategories, subcategoryId);
+    setDraft((current) => ({
+      ...current,
+      categoryId: relatedCategoryId || current.categoryId,
+      subcategoryId,
+      suggestionStates: {
+        ...current.suggestionStates,
+        suggested_subcategories: subcategoryId ? "accepted" : current.suggestionStates.suggested_subcategories,
+      },
+    }));
+  }
+
+  return (
+    <div className="inline-review-editor">
+      <div className="inline-review-grid">
+        <section className="editor-detail-section modal-section-card">
+          <div className="modal-section-header">
+            <h4>Forslag og match</h4>
+            <span className="meta">Kilde: {providerLabel}</span>
           </div>
+          <div className="review-detail-stack">
+            <div>
+              <strong>Aktørkandidater</strong>
+              <SuggestionCandidates
+                candidates={asCandidateList(row.ai_suggestions_json.organization_match_candidates)}
+                onUse={(id) =>
+                  setDraft((current) => ({
+                    ...current,
+                    organizationDecision: "USE_EXISTING_ORGANIZATION",
+                    organizationId: id,
+                  }))
+                }
+                emptyLabel="Ingen aktørkandidater"
+              />
+            </div>
+            <div>
+              <strong>Personkandidater</strong>
+              <SuggestionCandidates
+                candidates={asCandidateList(row.ai_suggestions_json.person_match_candidates)}
+                onUse={(id) =>
+                  setDraft((current) => ({
+                    ...current,
+                    personDecision: "USE_EXISTING_PERSON",
+                    personId: id,
+                  }))
+                }
+                emptyLabel="Ingen personkandidater"
+              />
+            </div>
+            <div>
+              <strong>Hovedkategori</strong>
+              <SuggestionPills
+                values={categorySuggestions}
+                emptyLabel="Ingen forslag"
+                state={draft.suggestionStates.suggested_categories ?? "pending"}
+                onAccept={(value) => applyCategorySuggestion(value)}
+                onIgnore={() => setSuggestionState("suggested_categories", "ignored")}
+              />
+            </div>
+            <div>
+              <strong>Underkategori</strong>
+              <SuggestionPills
+                values={subcategorySuggestions}
+                emptyLabel="Ingen forslag"
+                state={draft.suggestionStates.suggested_subcategories ?? "pending"}
+                onAccept={(value) => applySubcategorySuggestion(value)}
+                onIgnore={() => setSuggestionState("suggested_subcategories", "ignored")}
+              />
+            </div>
+            <div>
+              <strong>Tags</strong>
+              <SuggestionPills
+                values={tagSuggestions}
+                emptyLabel="Ingen forslag"
+                state={draft.suggestionStates.suggested_tags ?? "pending"}
+                onAccept={() =>
+                  setDraft((current) => ({
+                    ...current,
+                    tagsText: tagSuggestions.join(", "),
+                    suggestionStates: { ...current.suggestionStates, suggested_tags: "accepted" },
+                  }))
+                }
+                onIgnore={() => setSuggestionState("suggested_tags", "ignored")}
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="editor-detail-section modal-section-card">
+          <div className="modal-section-header"><h4>Rediger raskt</h4></div>
+          <div className="modal-form-grid review-form-grid">
+            <Field label="Aktørvalg">
+              <select
+                value={draft.organizationDecision}
+                onChange={(e) => setDraft((current) => ({ ...current, organizationDecision: e.target.value as ReviewDraft["organizationDecision"] }))}
+              >
+                <option value="NONE">Ingen</option>
+                <option value="USE_EXISTING_ORGANIZATION">Bruk eksisterende aktør</option>
+                <option value="CREATE_NEW_ORGANIZATION">Opprett ny aktør</option>
+              </select>
+            </Field>
+            {draft.organizationDecision === "USE_EXISTING_ORGANIZATION" ? (
+              <Field label="Velg aktør">
+                <select value={draft.organizationId} onChange={(e) => setDraft((current) => ({ ...current, organizationId: Number(e.target.value) }))}>
+                  <option value="">Velg aktør</option>
+                  {organizations.map((organization) => (
+                    <option key={organization.id} value={organization.id}>{organization.name}</option>
+                  ))}
+                </select>
+              </Field>
+            ) : null}
+            <Field label="Personvalg">
+              <select
+                value={draft.personDecision}
+                onChange={(e) => setDraft((current) => ({ ...current, personDecision: e.target.value as ReviewDraft["personDecision"] }))}
+              >
+                <option value="NONE">Ingen</option>
+                <option value="USE_EXISTING_PERSON">Bruk eksisterende person</option>
+                <option value="CREATE_NEW_PERSON">Opprett ny person</option>
+              </select>
+            </Field>
+            {draft.personDecision === "USE_EXISTING_PERSON" ? (
+              <Field label="Velg person">
+                <select value={draft.personId} onChange={(e) => setDraft((current) => ({ ...current, personId: Number(e.target.value) }))}>
+                  <option value="">Velg person</option>
+                  {persons.map((person) => (
+                    <option key={person.id} value={person.id}>{person.full_name}</option>
+                  ))}
+                </select>
+              </Field>
+            ) : null}
+
+            <Field label="Hovedkategori">
+              <select
+                value={draft.categoryId}
+                onChange={(e) => setDraft((current) => ({ ...current, categoryId: Number(e.target.value) || "", subcategoryId: "" }))}
+              >
+                <option value="">Ingen</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>{category.name}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Underkategori">
+              <select
+                value={draft.subcategoryId}
+                onChange={(e) => setDraft((current) => ({ ...current, subcategoryId: Number(e.target.value) || "" }))}
+              >
+                <option value="">Ingen</option>
+                {filteredSubcategories.map((subcategory) => (
+                  <option key={subcategory.id} value={subcategory.id}>{subcategory.name}</option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Tags (kommaseparert)">
+              <input
+                value={draft.tagsText}
+                onChange={(e) => setDraft((current) => ({ ...current, tagsText: e.target.value, suggestionStates: { ...current.suggestionStates, suggested_tags: "accepted" } }))}
+                placeholder="jazz, management"
+              />
+            </Field>
+
+            {SIMPLE_EDITABLE_SUGGESTION_FIELDS.map((fieldKey) => {
+              const suggestion = suggestedFields[fieldKey];
+              return (
+                <Field key={fieldKey} label={FIELD_LABELS[fieldKey] ?? fieldKey}>
+                  <div className="review-inline-field">
+                    <input
+                      value={draft.fieldValues[fieldKey] ?? ""}
+                      onChange={(e) =>
+                        setDraft((current) => ({
+                          ...current,
+                          fieldValues: { ...current.fieldValues, [fieldKey]: e.target.value },
+                          suggestionStates: { ...current.suggestionStates, [fieldKey]: e.target.value ? "accepted" : current.suggestionStates[fieldKey] ?? "pending" },
+                        }))
+                      }
+                      placeholder={suggestion ? `Forslag: ${renderSuggestionValue(suggestion.value)}` : "Tomt felt"}
+                    />
+                    {suggestion ? (
+                      <div className="review-inline-actions">
+                        <button
+                          type="button"
+                          className="ghost-button compact-button"
+                          onClick={() =>
+                            setDraft((current) => ({
+                              ...current,
+                              fieldValues: { ...current.fieldValues, [fieldKey]: renderSuggestionValue(suggestion.value) },
+                              suggestionStates: { ...current.suggestionStates, [fieldKey]: "accepted" },
+                            }))
+                          }
+                        >
+                          Godta forslag
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost-button compact-button"
+                          onClick={() => setSuggestionState(fieldKey, "ignored")}
+                        >
+                          Ignorer
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </Field>
+              );
+            })}
+
+            <label className="checkbox-row review-checkbox-row">
+              <input type="checkbox" checked={draft.skipRow} onChange={(e) => setDraft((current) => ({ ...current, skipRow: e.target.checked }))} />
+              Hopp over denne raden
+            </label>
+          </div>
+        </section>
+      </div>
+
+      <div className="review-tech-block">
+        <button
+          type="button"
+          className="ghost-button compact-button"
+          onClick={() => setDraft((current) => ({ ...current, technicalOpen: !current.technicalOpen }))}
+        >
+          {draft.technicalOpen ? "Skjul teknisk detalj" : "Vis teknisk detalj"}
+        </button>
+        {draft.technicalOpen ? (
+          <div className="import-detail-grid technical-grid">
+            <section className="editor-detail-section modal-section-card">
+              <div className="modal-section-header"><h4>Rå data</h4></div>
+              <pre className="json-block">{JSON.stringify(row.raw_payload_json, null, 2)}</pre>
+            </section>
+            <section className="editor-detail-section modal-section-card">
+              <div className="modal-section-header"><h4>Normalisert</h4></div>
+              <pre className="json-block">{JSON.stringify(row.normalized_payload_json, null, 2)}</pre>
+            </section>
+            <section className="editor-detail-section modal-section-card">
+              <div className="modal-section-header"><h4>Match</h4></div>
+              <pre className="json-block">{JSON.stringify(row.match_result_json, null, 2)}</pre>
+            </section>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="actions inline-review-actions">
+        <button
+          type="button"
+          className="primary-button compact-button"
+          onClick={() => onSave(buildDecisions(row, draft))}
+        >
+          Lagre review
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function buildDecisions(
+  row: ImportRow,
+  draft: ReviewDraft,
+): Array<{ decision_type: ImportDecision["decision_type"]; payload_json?: Record<string, unknown> }> {
+  const decisions: Array<{ decision_type: ImportDecision["decision_type"]; payload_json?: Record<string, unknown> }> = [];
+
+  if (draft.organizationDecision === "USE_EXISTING_ORGANIZATION" && draft.organizationId) {
+    decisions.push({ decision_type: "USE_EXISTING_ORGANIZATION", payload_json: { organization_id: draft.organizationId } });
+  }
+  if (draft.organizationDecision === "CREATE_NEW_ORGANIZATION") {
+    decisions.push({ decision_type: "CREATE_NEW_ORGANIZATION", payload_json: {} });
+  }
+  if (draft.personDecision === "USE_EXISTING_PERSON" && draft.personId) {
+    decisions.push({ decision_type: "USE_EXISTING_PERSON", payload_json: { person_id: draft.personId } });
+  }
+  if (draft.personDecision === "CREATE_NEW_PERSON") {
+    decisions.push({ decision_type: "CREATE_NEW_PERSON", payload_json: {} });
+  }
+  if (draft.categoryId) {
+    decisions.push({ decision_type: "MAP_CATEGORY", payload_json: { category_id: draft.categoryId } });
+  }
+  if (draft.subcategoryId) {
+    decisions.push({ decision_type: "MAP_SUBCATEGORY", payload_json: { subcategory_id: draft.subcategoryId } });
+  }
+
+  if (draft.tagsText.trim()) {
+    decisions.push({
+      decision_type: "ACCEPT_AI_SUGGESTION",
+      payload_json: { suggestion_key: "suggested_tags", value: splitCsvText(draft.tagsText) },
+    });
+  } else if (draft.suggestionStates.suggested_tags === "ignored") {
+    decisions.push({ decision_type: "IGNORE_AI_SUGGESTION", payload_json: { suggestion_key: "suggested_tags" } });
+  }
+
+  SIMPLE_EDITABLE_SUGGESTION_FIELDS.forEach((fieldKey) => {
+    const fieldValue = draft.fieldValues[fieldKey]?.trim();
+    const state = draft.suggestionStates[fieldKey] ?? "pending";
+    if (fieldValue) {
+      decisions.push({
+        decision_type: "ACCEPT_AI_SUGGESTION",
+        payload_json: { suggestion_key: fieldKey, value: fieldValue },
+      });
+    } else if (state === "ignored") {
+      decisions.push({ decision_type: "IGNORE_AI_SUGGESTION", payload_json: { suggestion_key: fieldKey } });
+    }
+  });
+
+  if (draft.suggestionStates.suggested_categories === "ignored") {
+    decisions.push({ decision_type: "IGNORE_AI_SUGGESTION", payload_json: { suggestion_key: "suggested_categories" } });
+  }
+  if (draft.suggestionStates.suggested_subcategories === "ignored") {
+    decisions.push({ decision_type: "IGNORE_AI_SUGGESTION", payload_json: { suggestion_key: "suggested_subcategories" } });
+  }
+  if (draft.skipRow) {
+    decisions.push({ decision_type: "SKIP_ROW", payload_json: {} });
+  }
+
+  return decisions;
+}
+
+function ExportPanel(props: {
+  exportJobs: ReturnType<typeof useExportJobs>;
+  format: "CSV" | "XLSX";
+  setFormat: (value: "CSV" | "XLSX") => void;
+  exportType: "SEARCH_RESULTS" | "ADMIN_FULL" | "PERSONS_ONLY" | "ORGANIZATIONS_ONLY";
+  setExportType: (value: "SEARCH_RESULTS" | "ADMIN_FULL" | "PERSONS_ONLY" | "ORGANIZATIONS_ONLY") => void;
+  filterQuery: string;
+  setFilterQuery: (value: string) => void;
+  fieldSelection: string[];
+  setFieldSelection: (value: string[] | ((current: string[]) => string[])) => void;
+}) {
+  const { exportJobs, format, setFormat, exportType, setExportType, filterQuery, setFilterQuery, fieldSelection, setFieldSelection } = props;
+
+  return (
+    <section className="panel import-export-panel">
+      <div className="sidebar-header">
+        <div>
+          <p className="eyebrow small">Eksport</p>
+          <h2>Eksportjobber</h2>
         </div>
-        <div className="hero-actions">
-          <button
-            type="button"
-            className="primary-button"
-            disabled={exportJobs.busy || exportJobs.forbidden || fieldSelection.length === 0}
-            onClick={() =>
-              void exportJobs.createJob({
-                export_type: exportType,
-                format,
-                filters_json: { q: filterQuery },
-                selected_fields_json: fieldSelection,
-              })
-            }
-          >
-            Opprett eksportjobb
-          </button>
-        </div>
-        <div className="job-list export-job-list">
-          {exportJobs.jobs.map((job) => {
-            const downloadUrl = getExportJobFileUrl(job.file);
+        <span className="meta">{exportJobs.jobs.length} jobber</span>
+      </div>
+      {exportJobs.forbidden ? <div className="banner error">Du har ikke tilgang til eksport for denne tenanten.</div> : null}
+      {exportJobs.error ? <div className="banner error">{exportJobs.error}</div> : null}
+      <div className="import-actions export-form-grid">
+        <Field label="Format">
+          <select value={format} onChange={(e) => setFormat(e.target.value as "CSV" | "XLSX")}> 
+            <option value="CSV">CSV</option>
+            <option value="XLSX">XLSX</option>
+          </select>
+        </Field>
+        <Field label="Eksporttype">
+          <select value={exportType} onChange={(e) => setExportType(e.target.value as "SEARCH_RESULTS" | "ADMIN_FULL" | "PERSONS_ONLY" | "ORGANIZATIONS_ONLY")}> 
+            <option value="SEARCH_RESULTS">Search results</option>
+            <option value="ADMIN_FULL">Admin full</option>
+            <option value="PERSONS_ONLY">Persons only</option>
+            <option value="ORGANIZATIONS_ONLY">Organizations only</option>
+          </select>
+        </Field>
+        <Field label="Filtre (fritekst)">
+          <input value={filterQuery} onChange={(e) => setFilterQuery(e.target.value)} placeholder="f.eks. Oslo eller jazz" />
+        </Field>
+      </div>
+      <div className="field-group export-field-picker">
+        <span className="field-label">Felter</span>
+        <div className="pill-grid">
+          {EXPORT_FIELD_OPTIONS.map((field) => {
+            const active = fieldSelection.includes(field);
             return (
-              <div key={job.id} className={`job-list-item static ${job.id === exportJobs.selectedJobId ? "active" : ""}`}>
-                <div>
-                  <strong>#{job.id}</strong>
-                  <div className="meta">{job.export_type} · {job.format}</div>
-                </div>
-                <div className="job-list-actions">
-                  <span className={`save-pill ${job.status === "COMPLETED" ? "saved" : job.status === "FAILED" ? "error" : "idle"}`}>
-                    {job.status}
-                  </span>
-                  {downloadUrl ? (
-                    <a className="ghost-button compact-button" href={downloadUrl}>
-                      Last ned
-                    </a>
-                  ) : null}
-                </div>
-              </div>
+              <label key={field} className={`filter-chip ${active ? "active" : ""}`}>
+                <input
+                  type="checkbox"
+                  checked={active}
+                  onChange={(e) => {
+                    setFieldSelection((current) =>
+                      e.target.checked ? [...current, field] : current.filter((item) => item !== field),
+                    );
+                  }}
+                />
+                <span>{field}</span>
+              </label>
             );
           })}
         </div>
-      </section>
-    );
-  }
+      </div>
+      <div className="hero-actions">
+        <button
+          type="button"
+          className="primary-button"
+          disabled={exportJobs.busy || exportJobs.forbidden || fieldSelection.length === 0}
+          onClick={() =>
+            void exportJobs.createJob({
+              export_type: exportType,
+              format,
+              filters_json: { q: filterQuery },
+              selected_fields_json: fieldSelection,
+            })
+          }
+        >
+          Opprett eksportjobb
+        </button>
+      </div>
+      <div className="job-list export-job-list">
+        {exportJobs.jobs.map((job) => {
+          const downloadUrl = getExportJobFileUrl(job.file);
+          return (
+            <div key={job.id} className={`job-list-item static ${job.id === exportJobs.selectedJobId ? "active" : ""}`}>
+              <div>
+                <strong>#{job.id}</strong>
+                <div className="meta">{job.export_type} · {job.format}</div>
+              </div>
+              <div className="job-list-actions">
+                <span className={`save-pill ${job.status === "COMPLETED" ? "saved" : job.status === "FAILED" ? "error" : "idle"}`}>
+                  {job.status}
+                </span>
+                {downloadUrl ? (
+                  <a className="ghost-button compact-button" href={downloadUrl}>
+                    Last ned
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
 
 function SummaryCard(props: { label: string; value: unknown }) {
@@ -431,298 +1015,200 @@ function SummaryCard(props: { label: string; value: unknown }) {
   );
 }
 
-function ImportRowDetailModal(props: {
-  row: ImportRow;
-  organizations: ReturnType<typeof useEditor>["organizations"];
-  persons: ReturnType<typeof useEditor>["persons"];
-  categories: ReturnType<typeof useEditor>["categories"];
-  subcategories: ReturnType<typeof useEditor>["subcategories"];
-  onClose: () => void;
-  onSave: (payload: Array<{ decision_type: ImportDecision["decision_type"]; payload_json?: Record<string, unknown> }>) => void;
-}) {
-  const { row, organizations, persons, categories, subcategories, onClose, onSave } = props;
-  const aiSuggestions = row.ai_suggestions_json ?? {};
-  const suggestedFields = ((aiSuggestions.suggested_fields as Record<string, unknown> | undefined) ?? {}) as Record<
-    string,
-    { value?: unknown; confidence?: number; source?: string; requires_review?: boolean }
-  >;
-  const organizationCandidates = Array.isArray(aiSuggestions.organization_match_candidates)
-    ? (aiSuggestions.organization_match_candidates as Array<{ id: number; label?: string; score?: number; reason?: string }>)
-    : [];
-  const personCandidates = Array.isArray(aiSuggestions.person_match_candidates)
-    ? (aiSuggestions.person_match_candidates as Array<{ id: number; label?: string; score?: number; reason?: string }>)
-    : [];
-  const existingDecisionMap = new Map(
-    row.decisions
-      .filter(
-        (decision) =>
-          decision.decision_type === "ACCEPT_AI_SUGGESTION" || decision.decision_type === "IGNORE_AI_SUGGESTION",
-      )
-      .map((decision) => [String(decision.payload_json.suggestion_key ?? ""), decision.decision_type]),
+function ReviewValueCell(props: { current?: string; suggested?: string; fallback?: string }) {
+  return (
+    <div className="review-value-cell">
+      <span>{props.current || props.fallback || "—"}</span>
+      {!props.current && props.suggested ? <span className="review-suggested-hint">Forslag: {props.suggested}</span> : null}
+    </div>
   );
-  const [organizationDecision, setOrganizationDecision] = useState<"NONE" | "USE_EXISTING_ORGANIZATION" | "CREATE_NEW_ORGANIZATION">("NONE");
-  const [personDecision, setPersonDecision] = useState<"NONE" | "USE_EXISTING_PERSON" | "CREATE_NEW_PERSON">("NONE");
-  const [organizationId, setOrganizationId] = useState<number | "">("");
-  const [personId, setPersonId] = useState<number | "">("");
-  const [categoryId, setCategoryId] = useState<number | "">("");
-  const [subcategoryId, setSubcategoryId] = useState<number | "">("");
-  const [acceptTag, setAcceptTag] = useState(false);
-  const [skipRow, setSkipRow] = useState(false);
-  const [acceptedSuggestionKeys, setAcceptedSuggestionKeys] = useState<string[]>(
-    Array.from(existingDecisionMap.entries())
-      .filter(([, type]) => type === "ACCEPT_AI_SUGGESTION")
-      .map(([key]) => key),
-  );
-  const [ignoredSuggestionKeys, setIgnoredSuggestionKeys] = useState<string[]>(
-    Array.from(existingDecisionMap.entries())
-      .filter(([, type]) => type === "IGNORE_AI_SUGGESTION")
-      .map(([key]) => key),
-  );
+}
 
-  function markSuggestion(key: string, nextState: "accept" | "ignore") {
-    setAcceptedSuggestionKeys((current) =>
-      nextState === "accept" ? Array.from(new Set([...current.filter((item) => item !== key), key])) : current.filter((item) => item !== key),
-    );
-    setIgnoredSuggestionKeys((current) =>
-      nextState === "ignore" ? Array.from(new Set([...current.filter((item) => item !== key), key])) : current.filter((item) => item !== key),
-    );
+function ReviewSuggestionCell(props: { currentValues: string[]; suggestedValues: string[] }) {
+  const values = props.currentValues.length > 0 ? props.currentValues : props.suggestedValues;
+  if (values.length === 0) {
+    return <span className="muted">Mangler</span>;
   }
+  return (
+    <div className="review-pill-stack">
+      {values.slice(0, 3).map((value) => (
+        <span key={value} className={`mini-pill ${props.currentValues.length > 0 ? "category" : "suggested"}`}>{value}</span>
+      ))}
+      {values.length > 3 ? <span className="meta">+{values.length - 3}</span> : null}
+    </div>
+  );
+}
 
-  const modal = (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <div className="detail-modal import-row-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
-        <div className="sidebar-header modal-header">
-          <div>
-            <p className="eyebrow small">Import rad #{row.row_number}</p>
-            <h2>{String(row.raw_payload_json.organization_name || row.raw_payload_json.person_full_name || "Rad")}</h2>
-          </div>
-          <button type="button" className="ghost-button" onClick={onClose}>Lukk</button>
-        </div>
-        <div className="modal-sections import-detail-grid">
-          <section className="editor-detail-section modal-section-card">
-            <div className="modal-section-header"><h4>Rå data</h4></div>
-            <pre className="json-block">{JSON.stringify(row.raw_payload_json, null, 2)}</pre>
-          </section>
-          <section className="editor-detail-section modal-section-card">
-            <div className="modal-section-header"><h4>Normalisert</h4></div>
-            <pre className="json-block">{JSON.stringify(row.normalized_payload_json, null, 2)}</pre>
-          </section>
-          <section className="editor-detail-section modal-section-card">
-            <div className="modal-section-header"><h4>Match</h4></div>
-            <pre className="json-block">{JSON.stringify(row.match_result_json, null, 2)}</pre>
-          </section>
-          <section className="editor-detail-section modal-section-card">
-            <div className="modal-section-header"><h4>AI-forslag</h4></div>
-            <div className="detail-list">
-              <strong>Aktørkandidater</strong>
-              {organizationCandidates.length > 0 ? (
-                <ul className="suggestion-list">
-                  {organizationCandidates.map((candidate) => (
-                    <li key={`org-${candidate.id}`}>
-                      <div className="suggestion-row">
-                        <span>{candidate.label || `Aktør #${candidate.id}`}</span>
-                        <span className="meta">score {typeof candidate.score === "number" ? candidate.score.toFixed(2) : "—"} · {candidate.reason || "heuristic"}</span>
-                      </div>
-                      <button
-                        type="button"
-                        className="ghost-button compact-button"
-                        onClick={() => {
-                          setOrganizationDecision("USE_EXISTING_ORGANIZATION");
-                          setOrganizationId(candidate.id);
-                        }}
-                      >
-                        Bruk denne aktøren
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : <p className="muted">Ingen aktørkandidater.</p>}
-              <strong>Personkandidater</strong>
-              {personCandidates.length > 0 ? (
-                <ul className="suggestion-list">
-                  {personCandidates.map((candidate) => (
-                    <li key={`person-${candidate.id}`}>
-                      <div className="suggestion-row">
-                        <span>{candidate.label || `Person #${candidate.id}`}</span>
-                        <span className="meta">score {typeof candidate.score === "number" ? candidate.score.toFixed(2) : "—"} · {candidate.reason || "heuristic"}</span>
-                      </div>
-                      <button
-                        type="button"
-                        className="ghost-button compact-button"
-                        onClick={() => {
-                          setPersonDecision("USE_EXISTING_PERSON");
-                          setPersonId(candidate.id);
-                        }}
-                      >
-                        Bruk denne personen
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : <p className="muted">Ingen personkandidater.</p>}
-              <strong>Feltforslag</strong>
-              {Object.entries(suggestedFields).length > 0 ? (
-                <ul className="suggestion-list">
-                  {Object.entries(suggestedFields).map(([key, suggestion]) => {
-                    const state = acceptedSuggestionKeys.includes(key) ? "accepted" : ignoredSuggestionKeys.includes(key) ? "ignored" : "pending";
-                    return (
-                      <li key={key} className={`suggestion-card ${state}`}>
-                        <div className="suggestion-row">
-                          <span className="suggestion-key">{key}</span>
-                          <span className="meta">
-                            {typeof suggestion.confidence === "number" ? `conf ${suggestion.confidence.toFixed(2)}` : "conf —"} · {suggestion.source || "heuristic"}
-                          </span>
-                        </div>
-                        <pre className="json-inline">{JSON.stringify(suggestion.value, null, 2)}</pre>
-                        <div className="suggestion-actions">
-                          <button type="button" className="ghost-button compact-button" onClick={() => markSuggestion(key, "accept")}>
-                            Godta
-                          </button>
-                          <button type="button" className="ghost-button compact-button" onClick={() => markSuggestion(key, "ignore")}>
-                            Ignorer
-                          </button>
-                          <span className={`mini-pill ${state === "accepted" ? "category" : state === "ignored" ? "subcategory" : ""}`}>
-                            {state === "accepted" ? "Akseptert" : state === "ignored" ? "Ignorert" : "Til vurdering"}
-                          </span>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : <p className="muted">Ingen AI-forslag for raden.</p>}
-            </div>
-          </section>
-          <section className="editor-detail-section modal-section-card">
-            <div className="modal-section-header"><h4>Validering</h4></div>
-            <div className="detail-list">
-              <strong>Feil</strong>
-              {row.validation_errors_json.length > 0 ? (
-                <ul>{row.validation_errors_json.map((item) => <li key={item}>{item}</li>)}</ul>
-              ) : <p className="muted">Ingen feil.</p>}
-              <strong>Advarsler</strong>
-              {row.warnings_json.length > 0 ? (
-                <ul>{row.warnings_json.map((item) => <li key={item}>{item}</li>)}</ul>
-              ) : <p className="muted">Ingen advarsler.</p>}
-            </div>
-          </section>
-          <section className="editor-detail-section modal-section-card">
-            <div className="modal-section-header"><h4>Vurderinger</h4></div>
-            <div className="modal-form-grid">
-              <Field label="Aktørvalg">
-                <select value={organizationDecision} onChange={(e) => setOrganizationDecision(e.target.value as typeof organizationDecision)}>
-                  <option value="NONE">Ingen</option>
-                  <option value="USE_EXISTING_ORGANIZATION">Bruk eksisterende aktør</option>
-                  <option value="CREATE_NEW_ORGANIZATION">Opprett ny aktør</option>
-                </select>
-              </Field>
-              {organizationDecision === "USE_EXISTING_ORGANIZATION" ? (
-                <Field label="Velg aktør">
-                  <select value={organizationId} onChange={(e) => setOrganizationId(Number(e.target.value))}>
-                    <option value="">Velg aktør</option>
-                    {organizations.map((organization) => (
-                      <option key={organization.id} value={organization.id}>{organization.name}</option>
-                    ))}
-                  </select>
-                </Field>
-              ) : null}
-              <Field label="Personvalg">
-                <select value={personDecision} onChange={(e) => setPersonDecision(e.target.value as typeof personDecision)}>
-                  <option value="NONE">Ingen</option>
-                  <option value="USE_EXISTING_PERSON">Bruk eksisterende person</option>
-                  <option value="CREATE_NEW_PERSON">Opprett ny person</option>
-                </select>
-              </Field>
-              {personDecision === "USE_EXISTING_PERSON" ? (
-                <Field label="Velg person">
-                  <select value={personId} onChange={(e) => setPersonId(Number(e.target.value))}>
-                    <option value="">Velg person</option>
-                    {persons.map((person) => (
-                      <option key={person.id} value={person.id}>{person.full_name}</option>
-                    ))}
-                  </select>
-                </Field>
-              ) : null}
-              <Field label="Map kategori">
-                <select value={categoryId} onChange={(e) => setCategoryId(Number(e.target.value))}>
-                  <option value="">Ingen</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>{category.name}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Map underkategori">
-                <select value={subcategoryId} onChange={(e) => setSubcategoryId(Number(e.target.value))}>
-                  <option value="">Ingen</option>
-                  {subcategories.map((subcategory) => (
-                    <option key={subcategory.id} value={subcategory.id}>{subcategory.name}</option>
-                  ))}
-                </select>
-              </Field>
-              <label className="checkbox-row">
-                <input type="checkbox" checked={acceptTag} onChange={(e) => setAcceptTag(e.target.checked)} />
-                Godta ny tag
-              </label>
-              <label className="checkbox-row">
-                <input type="checkbox" checked={skipRow} onChange={(e) => setSkipRow(e.target.checked)} />
-                Hopp over rad
-              </label>
-            </div>
-          </section>
-        </div>
-        <div className="actions modal-footer">
-          <button type="button" className="ghost-button compact-button" onClick={onClose}>Avbryt</button>
-          <button
-            type="button"
-            className="primary-button compact-button"
-            onClick={() => {
-              const decisions: Array<{ decision_type: ImportDecision["decision_type"]; payload_json?: Record<string, unknown> }> = [];
-              if (organizationDecision === "USE_EXISTING_ORGANIZATION" && organizationId) {
-                decisions.push({ decision_type: "USE_EXISTING_ORGANIZATION", payload_json: { organization_id: organizationId } });
-              }
-              if (organizationDecision === "CREATE_NEW_ORGANIZATION") {
-                decisions.push({ decision_type: "CREATE_NEW_ORGANIZATION", payload_json: {} });
-              }
-              if (personDecision === "USE_EXISTING_PERSON" && personId) {
-                decisions.push({ decision_type: "USE_EXISTING_PERSON", payload_json: { person_id: personId } });
-              }
-              if (personDecision === "CREATE_NEW_PERSON") {
-                decisions.push({ decision_type: "CREATE_NEW_PERSON", payload_json: {} });
-              }
-              if (categoryId) {
-                decisions.push({ decision_type: "MAP_CATEGORY", payload_json: { category_id: categoryId } });
-              }
-              if (subcategoryId) {
-                decisions.push({ decision_type: "MAP_SUBCATEGORY", payload_json: { subcategory_id: subcategoryId } });
-              }
-              if (acceptTag) {
-                decisions.push({ decision_type: "ACCEPT_NEW_TAG", payload_json: {} });
-              }
-              acceptedSuggestionKeys.forEach((key) => {
-                decisions.push({
-                  decision_type: "ACCEPT_AI_SUGGESTION",
-                  payload_json: { suggestion_key: key, value: suggestedFields[key]?.value },
-                });
-              });
-              ignoredSuggestionKeys
-                .filter((key) => !acceptedSuggestionKeys.includes(key))
-                .forEach((key) => {
-                  decisions.push({
-                    decision_type: "IGNORE_AI_SUGGESTION",
-                    payload_json: { suggestion_key: key },
-                  });
-                });
-              if (skipRow) {
-                decisions.push({ decision_type: "SKIP_ROW", payload_json: {} });
-              }
-              onSave(decisions);
-            }}
-          >
-            Lagre vurderinger
+function SuggestionPills(props: {
+  values: string[];
+  emptyLabel: string;
+  state: SuggestionState;
+  onAccept: (value: string) => void;
+  onIgnore: () => void;
+}) {
+  if (props.values.length === 0) {
+    return <p className="muted">{props.emptyLabel}</p>;
+  }
+  return (
+    <div className="suggestion-pill-block">
+      <div className="review-pill-stack">
+        {props.values.map((value) => (
+          <button key={value} type="button" className="suggestion-pill" onClick={() => props.onAccept(value)}>
+            {value}
           </button>
-        </div>
+        ))}
+      </div>
+      <div className="suggestion-actions compact">
+        <span className={`mini-pill ${props.state === "accepted" ? "category" : props.state === "ignored" ? "subcategory" : ""}`}>
+          {props.state === "accepted" ? "Akseptert" : props.state === "ignored" ? "Ignorert" : "Til vurdering"}
+        </span>
+        <button type="button" className="ghost-button compact-button" onClick={props.onIgnore}>Ignorer</button>
       </div>
     </div>
   );
+}
 
-  return createPortal(modal, document.body);
+function SuggestionCandidates(props: {
+  candidates: Array<{ id: number; label?: string; score?: number; reason?: string }>;
+  onUse: (id: number) => void;
+  emptyLabel: string;
+}) {
+  if (props.candidates.length === 0) {
+    return <p className="muted">{props.emptyLabel}</p>;
+  }
+  return (
+    <ul className="suggestion-list compact">
+      {props.candidates.map((candidate) => (
+        <li key={candidate.id} className="suggestion-card compact">
+          <div className="suggestion-row">
+            <span>{candidate.label || `#${candidate.id}`}</span>
+            <span className="meta">score {typeof candidate.score === "number" ? candidate.score.toFixed(2) : "—"} · {candidate.reason || "heuristic"}</span>
+          </div>
+          <button type="button" className="ghost-button compact-button" onClick={() => props.onUse(candidate.id)}>
+            Bruk denne
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function getSuggestionFields(row: ImportRow): Record<string, SuggestionField> {
+  return ((row.ai_suggestions_json?.suggested_fields as Record<string, SuggestionField> | undefined) ?? {});
+}
+
+function getSuggestionValues(row: ImportRow, key: string): string[] {
+  const value = getSuggestionFields(row)[key]?.value;
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item)).filter(Boolean);
+  }
+  if (typeof value === "string" && value.trim()) {
+    return splitCsvText(value);
+  }
+  return [];
+}
+
+function getSuggestionText(row: ImportRow, key: string): string {
+  const value = getSuggestionFields(row)[key]?.value;
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return "";
+}
+
+function renderSuggestionValue(value: unknown): string {
+  if (Array.isArray(value)) return value.map((item) => String(item)).join(", ");
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return "";
+}
+
+function getFirstText(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value;
+  }
+  return "";
+}
+
+function splitCsvText(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function asCandidateList(value: unknown): Array<{ id: number; label?: string; score?: number; reason?: string }> {
+  return Array.isArray(value)
+    ? value.filter((item): item is { id: number; label?: string; score?: number; reason?: string } => Boolean(item && typeof item === "object" && "id" in item))
+    : [];
+}
+
+function getExistingSuggestionStates(row: ImportRow): Record<string, SuggestionState> {
+  const states: Record<string, SuggestionState> = {};
+  row.decisions.forEach((decision) => {
+    const suggestionKey = String(decision.payload_json.suggestion_key ?? "");
+    if (!suggestionKey) return;
+    if (decision.decision_type === "ACCEPT_AI_SUGGESTION") states[suggestionKey] = "accepted";
+    if (decision.decision_type === "IGNORE_AI_SUGGESTION") states[suggestionKey] = "ignored";
+  });
+  return states;
+}
+
+function getExistingDecisionType<T extends ImportDecision["decision_type"]>(row: ImportRow, decisionTypes: T[]): T | null {
+  const match = row.decisions.find((decision) => decisionTypes.includes(decision.decision_type as T));
+  return (match?.decision_type as T | undefined) ?? null;
+}
+
+function getExistingDecisionId(row: ImportRow, decisionType: ImportDecision["decision_type"], field: string): number | "" {
+  const match = row.decisions.find((decision) => decision.decision_type === decisionType);
+  const value = match?.payload_json?.[field];
+  return typeof value === "number" ? value : "";
+}
+
+function getAcceptedDecisionValue(row: ImportRow, suggestionKey: string): string {
+  const match = row.decisions.find(
+    (decision) => decision.decision_type === "ACCEPT_AI_SUGGESTION" && decision.payload_json.suggestion_key === suggestionKey,
+  );
+  return renderSuggestionValue(match?.payload_json?.value);
+}
+
+function getAcceptedDecisionArray(row: ImportRow, suggestionKey: string): string[] {
+  const match = row.decisions.find(
+    (decision) => decision.decision_type === "ACCEPT_AI_SUGGESTION" && decision.payload_json.suggestion_key === suggestionKey,
+  );
+  const value = match?.payload_json?.value;
+  return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean) : [];
+}
+
+function findCategoryIdByName(categories: Category[], name: string): number | "" {
+  const match = categories.find((category) => category.name.toLowerCase() === name.toLowerCase());
+  return match?.id ?? "";
+}
+
+function findSubcategoryIdByName(subcategories: Subcategory[], name: string): number | "" {
+  const match = subcategories.find((subcategory) => subcategory.name.toLowerCase() === name.toLowerCase());
+  return match?.id ?? "";
+}
+
+function findCategoryIdForSubcategory(subcategories: Subcategory[], subcategoryId: number | ""): number | "" {
+  if (!subcategoryId) return "";
+  const match = subcategories.find((subcategory) => subcategory.id === subcategoryId);
+  return match?.category.id ?? "";
+}
+
+function filterSubcategories(categoryId: number | "", subcategories: Subcategory[]): Subcategory[] {
+  if (!categoryId) return subcategories;
+  return subcategories.filter((subcategory) => subcategory.category.id === categoryId);
+}
+
+function getNestedSuggestedFallback(row: ImportRow, key: string): string {
+  const normalized = row.normalized_payload_json as Record<string, any>;
+  if (key.startsWith("organization_")) {
+    const orgKey = key.replace("organization_", "");
+    return normalized.organization?.[orgKey] ?? "";
+  }
+  if (key.startsWith("person_")) {
+    const personKey = key.replace("person_", "");
+    return normalized.person?.[personKey] ?? "";
+  }
+  return "";
 }

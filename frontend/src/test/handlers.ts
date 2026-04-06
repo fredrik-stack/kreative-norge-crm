@@ -339,23 +339,33 @@ export const handlers = [
     const jobs = importJobsByTenantState[tenantId] ?? [];
     const index = jobs.findIndex((item) => item.id === jobId);
     if (index < 0) return HttpResponse.json({ detail: "Not found." }, { status: 404 });
-    const row: ImportRow = {
+    const job = jobs[index];
+    const actorRow: ImportRow = {
       id: 1,
       import_job: jobId,
       row_number: 1,
-      raw_payload_json: { organization_name: "Kreativ Demo AS", person_full_name: "Ada Editor" },
-      normalized_payload_json: {
-        organization: { name: "Kreativ Demo AS", tags: ["Etablert"] },
-        person: { full_name: "Ada Editor", tags: ["Turné"] },
+      raw_payload_json: {
+        organization_name: "Kreativ Demo AS",
+        organization_org_number: "123456789",
+        organization_municipalities: "Oslo",
+        organization_categories: "",
+        organization_subcategories: "",
+        organization_tags: "",
+        organization_website_url: "",
+        person_full_name: job.import_mode === "ORGANIZATIONS_ONLY" ? "" : "Ada Editor",
       },
-      detected_entities_json: { has_organization: true, has_person: true },
+      normalized_payload_json: {
+        organization: { name: "Kreativ Demo AS", tags: ["Etablert"], categories: [], subcategories: [] },
+        person: { full_name: job.import_mode === "ORGANIZATIONS_ONLY" ? "" : "Ada Editor", tags: ["Turné"] },
+      },
+      detected_entities_json: { has_organization: true, has_person: job.import_mode !== "ORGANIZATIONS_ONLY" },
       match_result_json: {
         organization: { status: "NEW", rule: null, exact_id: null, candidates: [] },
         person: { status: "NEW", rule: null, exact_id: null, candidates: [] },
       },
       ai_suggestions_json: {
         organization_match_candidates: [{ id: 10, label: "Kreativ Demo AS", score: 0.92, reason: "name+domain" }],
-        person_match_candidates: [{ id: 20, label: "Ada Editor", score: 0.77, reason: "name+municipality" }],
+        person_match_candidates: job.import_mode === "ORGANIZATIONS_ONLY" ? [] : [{ id: 20, label: "Ada Editor", score: 0.77, reason: "name+municipality" }],
         suggested_fields: {
           organization_website_url: {
             value: "https://example.no",
@@ -363,13 +373,38 @@ export const handlers = [
             source: "ai_enrichment",
             requires_review: true,
           },
+          organization_instagram_url: {
+            value: "https://instagram.com/kreativdemo",
+            confidence: 0.7,
+            source: "ai_enrichment",
+            requires_review: true,
+          },
           organization_description: {
-            value: "Suggested short description",
+            value: "Produsent og arrangør innen musikk.",
             confidence: 0.72,
             source: "ai_enrichment",
             requires_review: true,
           },
+          suggested_categories: {
+            value: ["Musikk"],
+            confidence: 0.88,
+            source: "ai_enrichment",
+            requires_review: true,
+          },
+          suggested_subcategories: {
+            value: ["Jazz"],
+            confidence: 0.74,
+            source: "ai_enrichment",
+            requires_review: true,
+          },
+          suggested_tags: {
+            value: ["Turné", "Etablert"],
+            confidence: 0.68,
+            source: "ai_enrichment",
+            requires_review: true,
+          },
         },
+        provider: "openai",
       },
       validation_errors_json: [],
       warnings_json: [],
@@ -380,13 +415,14 @@ export const handlers = [
       updated_at: "2026-01-01T00:00:00Z",
       decisions: [],
     };
-    importRowsByJobState[jobId] = [row];
+    const rows = [actorRow];
+    importRowsByJobState[jobId] = rows;
     const updated = {
       ...jobs[index],
       status: "PREVIEW_READY" as const,
       summary_json: {
-        rows_total: 1,
-        valid_rows: 1,
+        rows_total: rows.length,
+        valid_rows: rows.length,
         invalid_rows: 0,
         review_required_rows: 0,
         organizations_create: 1,

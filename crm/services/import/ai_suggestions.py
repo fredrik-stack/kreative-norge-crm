@@ -29,6 +29,28 @@ FORBIDDEN_SUGGESTED_FIELDS = {
     "person_contact_is_public",
 }
 
+ALLOWED_SUGGESTION_FIELD_KEYS = (
+    "organization_name",
+    "person_full_name",
+    "organization_website_url",
+    "organization_instagram_url",
+    "organization_tiktok_url",
+    "organization_linkedin_url",
+    "organization_facebook_url",
+    "organization_youtube_url",
+    "organization_description",
+    "person_title",
+    "person_website_url",
+    "person_instagram_url",
+    "person_tiktok_url",
+    "person_linkedin_url",
+    "person_facebook_url",
+    "person_youtube_url",
+    "suggested_tags",
+    "suggested_categories",
+    "suggested_subcategories",
+)
+
 
 def _score_candidates(candidates: list[dict], reason: str, score: float) -> list[dict]:
     return [
@@ -223,7 +245,7 @@ def _sanitize_suggestions(payload: dict[str, Any], fallback_provider: str) -> di
     suggested_fields = {
         key: value
         for key, value in (payload.get("suggested_fields") or {}).items()
-        if key not in FORBIDDEN_SUGGESTED_FIELDS
+        if key not in FORBIDDEN_SUGGESTED_FIELDS and key in ALLOWED_SUGGESTION_FIELD_KEYS
     }
     return {
         "organization_match_candidates": payload.get("organization_match_candidates") or [],
@@ -234,22 +256,87 @@ def _sanitize_suggestions(payload: dict[str, Any], fallback_provider: str) -> di
 
 
 def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: dict) -> str:
+    organization = normalized_payload.get("organization") or {}
+    person = normalized_payload.get("person") or {}
     taxonomy = {
         "categories": list(Category.objects.values_list("name", flat=True)),
         "subcategories": list(Subcategory.objects.values_list("name", flat=True)),
         "existing_tags": list(Tag.objects.filter(tenant=tenant).values_list("name", flat=True)),
     }
+    editable_targets = {
+        "organization": {
+            "empty_or_missing": [
+                key
+                for key in (
+                    "name",
+                    "website_url",
+                    "instagram_url",
+                    "tiktok_url",
+                    "linkedin_url",
+                    "facebook_url",
+                    "youtube_url",
+                    "description",
+                )
+                if not organization.get(key)
+            ]
+        },
+        "person": {
+            "empty_or_missing": [
+                key
+                for key in (
+                    "full_name",
+                    "title",
+                    "website_url",
+                    "instagram_url",
+                    "tiktok_url",
+                    "linkedin_url",
+                    "facebook_url",
+                    "youtube_url",
+                )
+                if not person.get(key)
+            ]
+        },
+        "taxonomy": {
+            "empty_or_missing": [
+                key
+                for key, value in (
+                    ("categories", organization.get("categories") or person.get("categories")),
+                    ("subcategories", organization.get("subcategories") or person.get("subcategories")),
+                    ("tags", organization.get("tags") or person.get("tags")),
+                )
+                if not value
+            ]
+        },
+    }
     envelope = {
-        "task": "Suggest safe import review assistance. Never suggest publish/public flags.",
+        "task": (
+            "Suggest editorial import-review assistance for a tenant-scoped CRM. "
+            "Focus on useful review suggestions for categories, subcategories, tags, website URLs, "
+            "social URLs, short descriptions, and duplicate candidates. "
+            "Never suggest publish/public flags. Only suggest values that require explicit human review."
+        ),
         "tenant_id": tenant.id,
         "normalized_payload": normalized_payload,
         "match_result": match_result,
         "taxonomy": taxonomy,
+        "review_targets": editable_targets,
         "rules": {
             "forbidden_fields": sorted(FORBIDDEN_SUGGESTED_FIELDS),
+            "allowed_fields": list(ALLOWED_SUGGESTION_FIELD_KEYS),
             "assistive_only": True,
             "requires_review": True,
+            "never_auto_publish": True,
+            "never_auto_commit": True,
+            "prefer_empty_fields": True,
+            "language_hint": "Norwegian editorial data, but return field keys in English exactly as provided.",
         },
+        "instructions": [
+            "Return duplicate candidates when there is a plausible tenant-local match.",
+            "Suggest main category separately from subcategory.",
+            "Keep tags separate from categories and subcategories.",
+            "Use website or social URL suggestions only when they are plausible and editorially useful.",
+            "A short description should be one brief sentence, not marketing copy.",
+        ],
     }
     return json.dumps(envelope, ensure_ascii=False)
 
@@ -284,6 +371,15 @@ def _openai_schema() -> dict[str, Any]:
         },
         "required": ["value", "confidence", "source", "requires_review"],
     }
+    suggested_fields_properties = {
+        key: {
+            "anyOf": [
+                field_value,
+                {"type": "null"},
+            ]
+        }
+        for key in ALLOWED_SUGGESTION_FIELD_KEYS
+    }
     return {
         "name": "import_ai_suggestions",
         "schema": {
@@ -294,7 +390,8 @@ def _openai_schema() -> dict[str, Any]:
                 "person_match_candidates": {"type": "array", "items": candidate},
                 "suggested_fields": {
                     "type": "object",
-                    "additionalProperties": field_value,
+                    "additionalProperties": False,
+                    "properties": suggested_fields_properties,
                 },
                 "provider": {"type": "string"},
             },
@@ -342,7 +439,10 @@ def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_resu
     if not openai_suggestions:
         return heuristic
 
-    merged_fields = {**heuristic.get("suggested_fields", {}), **openai_suggestions.get("suggested_fields", {})}
+    merged_fields = {
+        **heuristic.get("suggested_fields", {}),
+        **{key: value for key, value in openai_suggestions.get("suggested_fields", {}).items() if value},
+    }
     return {
         "organization_match_candidates": openai_suggestions.get("organization_match_candidates") or heuristic.get("organization_match_candidates", []),
         "person_match_candidates": openai_suggestions.get("person_match_candidates") or heuristic.get("person_match_candidates", []),

@@ -77,10 +77,34 @@ def _apply_accepted_ai_suggestions(row: ImportRow, normalized_payload: dict, res
             payload["organization"]["name"] = value or ""
         elif suggestion_key == "person_full_name":
             payload["person"]["full_name"] = value or ""
+        elif suggestion_key == "person_title":
+            payload["person"]["title"] = value or ""
         elif suggestion_key == "organization_website_url":
             payload["organization"]["website_url"] = value or ""
+        elif suggestion_key == "organization_instagram_url":
+            payload["organization"]["instagram_url"] = value or ""
+        elif suggestion_key == "organization_tiktok_url":
+            payload["organization"]["tiktok_url"] = value or ""
+        elif suggestion_key == "organization_linkedin_url":
+            payload["organization"]["linkedin_url"] = value or ""
+        elif suggestion_key == "organization_facebook_url":
+            payload["organization"]["facebook_url"] = value or ""
+        elif suggestion_key == "organization_youtube_url":
+            payload["organization"]["youtube_url"] = value or ""
         elif suggestion_key == "organization_description":
             payload["organization"]["description"] = value or ""
+        elif suggestion_key == "person_website_url":
+            payload["person"]["website_url"] = value or ""
+        elif suggestion_key == "person_instagram_url":
+            payload["person"]["instagram_url"] = value or ""
+        elif suggestion_key == "person_tiktok_url":
+            payload["person"]["tiktok_url"] = value or ""
+        elif suggestion_key == "person_linkedin_url":
+            payload["person"]["linkedin_url"] = value or ""
+        elif suggestion_key == "person_facebook_url":
+            payload["person"]["facebook_url"] = value or ""
+        elif suggestion_key == "person_youtube_url":
+            payload["person"]["youtube_url"] = value or ""
         elif suggestion_key == "suggested_tags" and isinstance(value, list):
             combined_tags = payload["organization"]["tags"] + payload["person"]["tags"] + [str(item) for item in value]
             seen = set()

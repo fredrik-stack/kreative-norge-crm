@@ -90,6 +90,7 @@ describe("App integration", () => {
     });
     await userEvent.upload(fileInput, csvFile);
     await waitFor(() => {
+      expect(screen.getAllByText("import.csv").length).toBeGreaterThan(0);
       expect(screen.getByRole("button", { name: "Last opp" })).toBeEnabled();
     });
     await userEvent.click(screen.getByRole("button", { name: "Last opp" }));
@@ -101,19 +102,20 @@ describe("App integration", () => {
     expect(await screen.findByText("Rader totalt")).toBeInTheDocument();
     expect(await screen.findByText("Aktører opprett")).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Åpne" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Review" })).toBeInTheDocument();
+      expect(screen.getByText("Musikk")).toBeInTheDocument();
+      expect(screen.getByText("Jazz")).toBeInTheDocument();
     });
-    await userEvent.click(screen.getByRole("button", { name: "Åpne" }));
-    expect(await screen.findByRole("heading", { name: /Kreativ Demo AS/i })).toBeInTheDocument();
-    expect(screen.getByText("AI-forslag")).toBeInTheDocument();
-    expect(screen.getByText("organization_website_url")).toBeInTheDocument();
-    await userEvent.click(screen.getAllByRole("button", { name: "Godta" })[0]);
-    await userEvent.click(screen.getAllByRole("button", { name: "Ignorer" })[1]);
-    await userEvent.click(screen.getByRole("button", { name: "Lagre vurderinger" }));
+    await userEvent.click(screen.getByRole("button", { name: "Review" }));
+    expect(await screen.findByText("Kilde: openai")).toBeInTheDocument();
+    expect(screen.getByText("Rediger raskt")).toBeInTheDocument();
+    await userEvent.click(screen.getAllByRole("button", { name: "Godta forslag" })[0]);
+    await userEvent.click(screen.getAllByRole("button", { name: "Ignorer" })[0]);
+    await userEvent.click(screen.getByRole("button", { name: "Lagre review" }));
     await waitFor(() => {
-      expect(screen.queryByText("AI-forslag")).not.toBeInTheDocument();
+      expect(screen.queryByText("Kilde: openai")).not.toBeInTheDocument();
     });
-    await userEvent.click(screen.getByRole("button", { name: "Åpne" }));
+    await userEvent.click(screen.getByRole("button", { name: "Review" }));
     expect(await screen.findByText("Akseptert")).toBeInTheDocument();
     expect(screen.getByText("Ignorert")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Lukk" }));
