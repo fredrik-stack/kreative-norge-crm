@@ -3,9 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import timedelta
 from html.parser import HTMLParser
+import ipaddress
+import socket
 import re
 from urllib.parse import urljoin, urlparse
-from urllib.request import Request, urlopen
+from urllib.error import HTTPError
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from django.utils import timezone
 
@@ -15,6 +18,9 @@ from crm.models import Organization
 USER_AGENT = (
     "Mozilla/5.0 (compatible; KreativeNorgeCRM/1.0; +https://github.com/fredrik-stack/kreative-norge-crm)"
 )
+MAX_HTML_BYTES = 1_000_000
+MAX_REDIRECTS = 3
+PRIVATE_HOSTNAMES = {"localhost", "metadata.google.internal"}
 
 
 @dataclass
@@ -33,6 +39,13 @@ class ImageCandidate:
     height: int | None = None
     alt: str | None = None
     css_hint: str | None = None
+
+
+@dataclass
+class FetchResult:
+    final_url: str
+    headers: object
+    body: bytes
 
 
 class MetaParser(HTMLParser):
@@ -91,11 +104,16 @@ class MetaParser(HTMLParser):
         return value or None
 
 
+class NoRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[override]
+        return None
+
+
 def fallback_preview_image(link: str | None) -> str | None:
     if not link:
         return None
     parsed = urlparse(link)
-    if not parsed.netloc:
+    if not parsed.netloc or not _is_public_http_url(link):
         return None
     return f"https://www.google.com/s2/favicons?domain={parsed.netloc}&sz=256"
 
@@ -119,8 +137,11 @@ def _parse_int(value: str | None) -> int | None:
 def _normalize_image_candidate(base_url: str, candidate: ImageCandidate) -> ImageCandidate | None:
     if not candidate.url or candidate.url.startswith("data:"):
         return None
+    normalized_url = urljoin(base_url, candidate.url)
+    if not _is_public_http_url(normalized_url):
+        return None
     return ImageCandidate(
-        url=urljoin(base_url, candidate.url),
+        url=normalized_url,
         source=candidate.source,
         width=candidate.width,
         height=candidate.height,
@@ -170,6 +191,104 @@ def _candidate_score(candidate: ImageCandidate) -> int:
     return score
 
 
+def _is_ip_public(host: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return ip.is_global
+
+
+def _resolve_host_addresses(hostname: str) -> list[str]:
+    infos = socket.getaddrinfo(hostname, None, type=socket.SOCK_STREAM)
+    addresses = []
+    for info in infos:
+        address = info[4][0]
+        if address not in addresses:
+            addresses.append(address)
+    return addresses
+
+
+def _is_public_hostname(hostname: str) -> bool:
+    if not hostname:
+        return False
+    lowered = hostname.strip().lower().rstrip(".")
+    if lowered in PRIVATE_HOSTNAMES or lowered.endswith(".local"):
+        return False
+    if _is_ip_public(lowered):
+        return True
+    try:
+        addresses = _resolve_host_addresses(lowered)
+    except OSError:
+        return False
+    if not addresses:
+        return False
+    return all(_is_ip_public(address) for address in addresses)
+
+
+def _is_public_http_url(url: str | None) -> bool:
+    if not url:
+        return False
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        return False
+    return _is_public_hostname(parsed.hostname or "")
+
+
+def _fetch_url(
+    url: str,
+    *,
+    timeout_seconds: int,
+    max_bytes: int | None,
+    allowed_content_prefixes: tuple[str, ...],
+) -> FetchResult:
+    if not _is_public_http_url(url):
+        raise ValueError("Refusing to fetch non-public URL.")
+
+    opener = build_opener(NoRedirectHandler())
+    current_url = url
+    for _ in range(MAX_REDIRECTS + 1):
+        request = Request(current_url, headers={"User-Agent": USER_AGENT})
+        try:
+            with opener.open(request, timeout=timeout_seconds) as response:
+                content_type = (response.headers.get("Content-Type") or "").lower()
+                if allowed_content_prefixes and not any(
+                    content_type.startswith(prefix) for prefix in allowed_content_prefixes
+                ):
+                    raise ValueError("Unexpected content type.")
+                if max_bytes is None:
+                    body = b""
+                else:
+                    body = response.read(max_bytes + 1)
+                    if len(body) > max_bytes:
+                        raise ValueError("Response too large.")
+                return FetchResult(final_url=response.geturl(), headers=response.headers, body=body)
+        except HTTPError as exc:
+            if exc.code in {301, 302, 303, 307, 308}:
+                location = exc.headers.get("Location")
+                if not location:
+                    raise ValueError("Redirect without location.")
+                current_url = urljoin(current_url, location)
+                if not _is_public_http_url(current_url):
+                    raise ValueError("Redirect target is not public.")
+                continue
+            raise
+    raise ValueError("Too many redirects.")
+
+
+def _image_candidate_looks_usable(url: str, timeout_seconds: int = 4) -> bool:
+    try:
+        _fetch_url(
+            url,
+            timeout_seconds=timeout_seconds,
+            max_bytes=None,
+            allowed_content_prefixes=("image/",),
+        )
+        return True
+    except Exception:
+        return False
+
+
 def choose_best_thumbnail(base_url: str, candidates: list[ImageCandidate]) -> str | None:
     normalized: list[ImageCandidate] = []
     seen: set[str] = set()
@@ -189,23 +308,31 @@ def choose_best_thumbnail(base_url: str, candidates: list[ImageCandidate]) -> st
         return None
 
     ranked = sorted(normalized, key=_candidate_score, reverse=True)
-    best = ranked[0]
-    if _candidate_score(best) < 40:
-        return None
-    return best.url
+    for candidate in ranked:
+        if _candidate_score(candidate) < 40:
+            break
+        if _image_candidate_looks_usable(candidate.url):
+            return candidate.url
+    return None
 
 
 def fetch_open_graph(url: str, timeout_seconds: int = 4) -> OpenGraphData:
-    request = Request(url, headers={"User-Agent": USER_AGENT})
-    with urlopen(request, timeout=timeout_seconds) as response:
-        charset = response.headers.get_content_charset() or "utf-8"
-        html = response.read().decode(charset, errors="replace")
+    result = _fetch_url(
+        url,
+        timeout_seconds=timeout_seconds,
+        max_bytes=MAX_HTML_BYTES,
+        allowed_content_prefixes=("text/html",),
+    )
+    charset = result.headers.get_content_charset() or "utf-8"
+    html = result.body.decode(charset, errors="replace")
 
     parser = MetaParser()
     parser.feed(html)
 
     raw_image = parser.meta.get("og:image") or parser.meta.get("twitter:image")
-    image_url = urljoin(url, raw_image) if raw_image else None
+    image_url = urljoin(result.final_url, raw_image) if raw_image else None
+    if image_url and not _is_public_http_url(image_url):
+        image_url = None
 
     return OpenGraphData(
         title=parser.meta.get("og:title") or parser.title,

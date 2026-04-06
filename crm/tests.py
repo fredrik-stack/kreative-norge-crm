@@ -26,7 +26,7 @@ from .models import (
     ImportCommitLog,
     ExportJob,
 )
-from .services.open_graph import ImageCandidate, choose_best_thumbnail, fallback_preview_image
+from .services.open_graph import ImageCandidate, choose_best_thumbnail, fallback_preview_image, fetch_open_graph
 from .serializers import PersonSerializer
 import_commit_module = importlib.import_module("crm.services.import.commit")
 import_matchers_module = importlib.import_module("crm.services.import.matchers")
@@ -1499,7 +1499,8 @@ class PublicActorSiteTests(TestCase):
 
 
 class ThumbnailSelectionTests(TestCase):
-    def test_choose_best_thumbnail_prefers_large_non_logo_candidate(self):
+    @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
+    def test_choose_best_thumbnail_prefers_large_non_logo_candidate(self, usable_mock):
         chosen = choose_best_thumbnail(
             "https://example.com/about",
             [
@@ -1509,6 +1510,28 @@ class ThumbnailSelectionTests(TestCase):
         )
 
         self.assertEqual(chosen, "https://example.com/media/portrait.jpg")
+        self.assertGreaterEqual(usable_mock.call_count, 1)
+
+    @patch("crm.services.open_graph._image_candidate_looks_usable")
+    def test_choose_best_thumbnail_tries_next_candidate_when_first_fails(self, usable_mock):
+        usable_mock.side_effect = [False, True]
+
+        chosen = choose_best_thumbnail(
+            "https://example.com/about",
+            [
+                ImageCandidate(url="/media/broken-hero.jpg", source="og:image", width=1400, height=900),
+                ImageCandidate(url="/media/working-hero.jpg", source="img", width=1200, height=1200),
+            ],
+        )
+
+        self.assertEqual(chosen, "https://example.com/media/working-hero.jpg")
+
+    def test_fetch_open_graph_blocks_private_host(self):
+        with self.assertRaises(ValueError):
+            fetch_open_graph("http://127.0.0.1/private")
+
+    def test_fallback_preview_image_ignores_private_host(self):
+        self.assertIsNone(fallback_preview_image("http://localhost:8000"))
 
 
 class OrganizationPersonViewSetValidationTests(AuthenticatedAPITestCase):
