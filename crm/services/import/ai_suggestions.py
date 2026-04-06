@@ -51,6 +51,14 @@ ALLOWED_SUGGESTION_FIELD_KEYS = (
     "suggested_subcategories",
 )
 
+OPENAI_SCHEMA_FIELD_KEYS = (
+    "organization_website_url",
+    "organization_description",
+    "suggested_tags",
+    "suggested_categories",
+    "suggested_subcategories",
+)
+
 
 def _count_useful_suggestions(payload: dict[str, Any]) -> int:
     count = 0
@@ -295,7 +303,6 @@ def _sanitize_suggestions(payload: dict[str, Any], fallback_provider: str) -> di
 
 def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: dict) -> str:
     organization = normalized_payload.get("organization") or {}
-    person = normalized_payload.get("person") or {}
     taxonomy = {
         "categories": list(Category.objects.values_list("name", flat=True)),
         "subcategories": list(Subcategory.objects.values_list("name", flat=True)),
@@ -306,41 +313,19 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
             "empty_or_missing": [
                 key
                 for key in (
-                    "name",
                     "website_url",
-                    "instagram_url",
-                    "tiktok_url",
-                    "linkedin_url",
-                    "facebook_url",
-                    "youtube_url",
                     "description",
                 )
                 if not organization.get(key)
-            ]
-        },
-        "person": {
-            "empty_or_missing": [
-                key
-                for key in (
-                    "full_name",
-                    "title",
-                    "website_url",
-                    "instagram_url",
-                    "tiktok_url",
-                    "linkedin_url",
-                    "facebook_url",
-                    "youtube_url",
-                )
-                if not person.get(key)
             ]
         },
         "taxonomy": {
             "empty_or_missing": [
                 key
                 for key, value in (
-                    ("categories", organization.get("categories") or person.get("categories")),
-                    ("subcategories", organization.get("subcategories") or person.get("subcategories")),
-                    ("tags", organization.get("tags") or person.get("tags")),
+                    ("categories", organization.get("categories")),
+                    ("subcategories", organization.get("subcategories")),
+                    ("tags", organization.get("tags")),
                 )
                 if not value
             ]
@@ -349,9 +334,8 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
     envelope = {
         "task": (
             "Suggest editorial import-review assistance for a tenant-scoped CRM. "
-            "Focus on useful review suggestions for categories, subcategories, tags, website URLs, "
-            "social URLs, short descriptions, and duplicate candidates. "
-            "Never suggest publish/public flags. Only suggest values that require explicit human review."
+            "Only suggest five field families: categories, subcategories, tags, organization website URL, and organization short description. "
+            "Never suggest publish/public flags. Only return confident, reviewable values."
         ),
         "tenant_id": tenant.id,
         "normalized_payload": normalized_payload,
@@ -360,7 +344,7 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
         "review_targets": editable_targets,
         "rules": {
             "forbidden_fields": sorted(FORBIDDEN_SUGGESTED_FIELDS),
-            "allowed_fields": list(ALLOWED_SUGGESTION_FIELD_KEYS),
+            "allowed_fields": list(OPENAI_SCHEMA_FIELD_KEYS),
             "assistive_only": True,
             "requires_review": True,
             "never_auto_publish": True,
@@ -369,37 +353,25 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
             "language_hint": "Norwegian editorial data, but return field keys in English exactly as provided.",
         },
         "instructions": [
-            "Return duplicate candidates when there is a plausible tenant-local match.",
             "Suggest main category separately from subcategory.",
             "Keep tags separate from categories and subcategories.",
-            "Use website or social URL suggestions only when they are plausible and editorially useful.",
+            "Only suggest organization website when plausible and editorially useful.",
             "A short description should be one brief sentence, not marketing copy.",
+            "Do not return keys outside the allowed_fields list.",
+            "If you have no confident suggestion for a field, omit it instead of guessing.",
         ],
     }
     return json.dumps(envelope, ensure_ascii=False)
 
 
 def _openai_schema() -> dict[str, Any]:
-    candidate = {
-        "type": "object",
-        "additionalProperties": False,
-        "properties": {
-            "id": {"type": "integer"},
-            "score": {"type": "number"},
-            "reason": {"type": "string"},
-            "label": {"type": ["string", "null"]},
-        },
-        "required": ["id", "score", "reason", "label"],
-    }
     field_value = {
         "type": "object",
         "additionalProperties": False,
         "properties": {
             "value": {
-                "anyOf": [
+                "oneOf": [
                     {"type": "string"},
-                    {"type": "number"},
-                    {"type": "boolean"},
                     {"type": "array", "items": {"type": "string"}},
                 ]
             },
@@ -416,7 +388,7 @@ def _openai_schema() -> dict[str, Any]:
                 {"type": "null"},
             ]
         }
-        for key in ALLOWED_SUGGESTION_FIELD_KEYS
+        for key in OPENAI_SCHEMA_FIELD_KEYS
     }
     return {
         "name": "import_ai_suggestions",
@@ -424,8 +396,6 @@ def _openai_schema() -> dict[str, Any]:
             "type": "object",
             "additionalProperties": False,
             "properties": {
-                "organization_match_candidates": {"type": "array", "items": candidate},
-                "person_match_candidates": {"type": "array", "items": candidate},
                 "suggested_fields": {
                     "type": "object",
                     "additionalProperties": False,
@@ -434,8 +404,6 @@ def _openai_schema() -> dict[str, Any]:
                 "provider": {"type": "string"},
             },
             "required": [
-                "organization_match_candidates",
-                "person_match_candidates",
                 "suggested_fields",
                 "provider",
             ],
@@ -464,6 +432,8 @@ def _generate_openai_suggestions(tenant: Tenant, normalized_payload: dict, match
     )
     output_text = getattr(response, "output_text", "") or "{}"
     parsed = json.loads(output_text)
+    parsed.setdefault("organization_match_candidates", [])
+    parsed.setdefault("person_match_candidates", [])
     parsed["diagnostic"] = {
         "primary_provider": "openai",
         "provider_status": "openai",
@@ -508,7 +478,7 @@ def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_resu
         openai_suggestions = _generate_openai_suggestions(tenant, normalized_payload, match_result)
     except Exception as exc:
         openai_suggestions = None
-        openai_error = exc.__class__.__name__
+        openai_error = str(exc).strip() or exc.__class__.__name__
     else:
         openai_error = None
 

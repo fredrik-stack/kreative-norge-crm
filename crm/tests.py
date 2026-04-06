@@ -802,7 +802,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
 
         self.assertEqual(suggestions["provider"], "heuristic_fallback")
         self.assertEqual(suggestions["diagnostic"]["provider_status"], "fallback_openai_error")
-        self.assertEqual(suggestions["diagnostic"]["openai_error"], "RuntimeError")
+        self.assertEqual(suggestions["diagnostic"]["openai_error"], "boom")
 
     def test_generate_ai_suggestions_never_sets_publish_or_public_fields(self):
         suggestions = generate_ai_suggestions(self.tenant, normalize_import_row(self.base_row), {"organization": {}, "person": {}})
@@ -823,9 +823,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
     def test_generate_ai_suggestions_can_use_openai_provider_when_available(self):
         class FakeResponse:
             output_text = (
-                '{"organization_match_candidates":[{"id":12,"score":0.93,"reason":"name+domain","label":"Nordlyd AS"}],'
-                '"person_match_candidates":[],'
-                '"suggested_fields":{"organization_website_url":{"value":"https://nordlyd.no","confidence":0.81,"source":"ai_enrichment","requires_review":true},'
+                '{"suggested_fields":{"organization_website_url":{"value":"https://nordlyd.no","confidence":0.81,"source":"ai_enrichment","requires_review":true},'
                 '"organization_is_published":{"value":true,"confidence":0.99,"source":"ai_enrichment","requires_review":true}},'
                 '"provider":"openai"}'
             )
@@ -849,7 +847,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
             )
 
         self.assertEqual(suggestions["provider"], "openai")
-        self.assertEqual(suggestions["organization_match_candidates"][0]["id"], 12)
+        self.assertEqual(suggestions["organization_match_candidates"], [])
         self.assertEqual(
             suggestions["suggested_fields"]["organization_website_url"]["value"],
             "https://nordlyd.no",
