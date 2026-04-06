@@ -77,6 +77,15 @@ def _count_useful_suggestions(payload: dict[str, Any]) -> int:
     return count
 
 
+def _has_useful_suggestion(value: Any) -> bool:
+    suggestion_value = (value or {}).get("value")
+    if isinstance(suggestion_value, list):
+        return bool([item for item in suggestion_value if str(item).strip()])
+    if isinstance(suggestion_value, str):
+        return bool(suggestion_value.strip())
+    return suggestion_value not in (None, "", [])
+
+
 def _score_candidates(candidates: list[dict], reason: str, score: float) -> list[dict]:
     return [
         {
@@ -279,7 +288,11 @@ def _sanitize_suggestions(payload: dict[str, Any], fallback_provider: str) -> di
     suggested_fields = {
         key: value
         for key, value in (payload.get("suggested_fields") or {}).items()
-        if key not in FORBIDDEN_SUGGESTED_FIELDS and key in ALLOWED_SUGGESTION_FIELD_KEYS
+        if (
+            key not in FORBIDDEN_SUGGESTED_FIELDS
+            and key in ALLOWED_SUGGESTION_FIELD_KEYS
+            and _has_useful_suggestion(value)
+        )
     }
     organization_match_candidates = payload.get("organization_match_candidates") or []
     person_match_candidates = payload.get("person_match_candidates") or []
@@ -403,7 +416,7 @@ def _openai_schema() -> dict[str, Any]:
                         "suggested_categories": array_field_value,
                         "suggested_subcategories": array_field_value,
                     },
-                    "required": [],
+                    "required": list(OPENAI_SCHEMA_FIELD_KEYS),
                 },
                 "provider": {"type": "string"},
             },
