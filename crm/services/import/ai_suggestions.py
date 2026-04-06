@@ -365,30 +365,27 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
 
 
 def _openai_schema() -> dict[str, Any]:
-    field_value = {
+    string_field_value = {
         "type": "object",
         "additionalProperties": False,
         "properties": {
-            "value": {
-                "oneOf": [
-                    {"type": "string"},
-                    {"type": "array", "items": {"type": "string"}},
-                ]
-            },
+            "value": {"type": "string"},
             "confidence": {"type": "number"},
             "source": {"type": "string"},
             "requires_review": {"type": "boolean"},
         },
         "required": ["value", "confidence", "source", "requires_review"],
     }
-    suggested_fields_properties = {
-        key: {
-            "anyOf": [
-                field_value,
-                {"type": "null"},
-            ]
-        }
-        for key in OPENAI_SCHEMA_FIELD_KEYS
+    array_field_value = {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "value": {"type": "array", "items": {"type": "string"}},
+            "confidence": {"type": "number"},
+            "source": {"type": "string"},
+            "requires_review": {"type": "boolean"},
+        },
+        "required": ["value", "confidence", "source", "requires_review"],
     }
     return {
         "name": "import_ai_suggestions",
@@ -399,7 +396,14 @@ def _openai_schema() -> dict[str, Any]:
                 "suggested_fields": {
                     "type": "object",
                     "additionalProperties": False,
-                    "properties": suggested_fields_properties,
+                    "properties": {
+                        "organization_website_url": string_field_value,
+                        "organization_description": string_field_value,
+                        "suggested_tags": array_field_value,
+                        "suggested_categories": array_field_value,
+                        "suggested_subcategories": array_field_value,
+                    },
+                    "required": [],
                 },
                 "provider": {"type": "string"},
             },
