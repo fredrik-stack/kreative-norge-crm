@@ -30,6 +30,7 @@ const EXPORT_FIELD_OPTIONS = [
 ];
 
 const SIMPLE_EDITABLE_SUGGESTION_FIELDS = [
+  "organization_municipalities",
   "organization_website_url",
   "organization_instagram_url",
   "organization_tiktok_url",
@@ -38,6 +39,7 @@ const SIMPLE_EDITABLE_SUGGESTION_FIELDS = [
   "organization_youtube_url",
   "organization_description",
   "person_title",
+  "person_municipality",
   "person_website_url",
   "person_instagram_url",
   "person_tiktok_url",
@@ -47,6 +49,7 @@ const SIMPLE_EDITABLE_SUGGESTION_FIELDS = [
 ] as const;
 
 const FIELD_LABELS: Record<string, string> = {
+  organization_municipalities: "Kommune / steder",
   organization_website_url: "Nettside",
   organization_instagram_url: "Instagram",
   organization_tiktok_url: "TikTok",
@@ -55,6 +58,7 @@ const FIELD_LABELS: Record<string, string> = {
   organization_youtube_url: "YouTube",
   organization_description: "Beskrivelse",
   person_title: "Tittel",
+  person_municipality: "Personkommune",
   person_website_url: "Personnettside",
   person_instagram_url: "Person Instagram",
   person_tiktok_url: "Person TikTok",
@@ -378,7 +382,10 @@ function ImportReviewWorkspace(props: {
               <th>{orgLabel}</th>
               {showPersonColumns ? <th>Person</th> : null}
               <th>Org.nr</th>
-              <th>Kommune</th>
+              <th>E-post</th>
+              <th>Telefon</th>
+              <th>Nå kommune</th>
+              <th>AI kommune</th>
               <th>Nå hovedkategori</th>
               <th>AI hovedkategori</th>
               <th>Nå underkategori</th>
@@ -404,7 +411,10 @@ function ImportReviewWorkspace(props: {
               const categorySuggestions = getSuggestionValues(row, "suggested_categories");
               const subcategorySuggestions = getSuggestionValues(row, "suggested_subcategories");
               const tagSuggestions = getSuggestionValues(row, "suggested_tags");
+              const municipalitySuggestion = getSuggestionText(row, "organization_municipalities") || getSuggestionText(row, "person_municipality");
               const websiteSuggestion = getSuggestionText(row, "organization_website_url") || getSuggestionText(row, "person_website_url");
+              const currentEmail = getFirstText(row.raw_payload_json.organization_email, row.raw_payload_json.person_email);
+              const currentPhone = getFirstText(row.raw_payload_json.organization_phone, row.raw_payload_json.person_phone);
               const currentWebsite = getFirstText(
                 row.raw_payload_json.organization_website_url,
                 row.raw_payload_json.person_website_url,
@@ -448,10 +458,19 @@ function ImportReviewWorkspace(props: {
                     ) : null}
                     <td>{getFirstText(row.raw_payload_json.organization_org_number) || "—"}</td>
                     <td>
+                      <ReviewValueCell current={currentEmail} fallback="—" />
+                    </td>
+                    <td>
+                      <ReviewValueCell current={currentPhone} fallback="—" />
+                    </td>
+                    <td>
                       <ReviewValueCell
                         current={getFirstText(row.raw_payload_json.organization_municipalities, row.raw_payload_json.person_municipality)}
                         fallback="—"
                       />
+                    </td>
+                    <td>
+                      <ReviewValueCell current={municipalitySuggestion} fallback="Ingen forslag" />
                     </td>
                     <td>
                       <ReviewSuggestionCell currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_categories, row.raw_payload_json.person_categories))} suggestedValues={[]} />
@@ -509,7 +528,7 @@ function ImportReviewWorkspace(props: {
                   </tr>
                   {expanded ? (
                     <tr key={`${row.id}-editor`} className="import-review-editor-row">
-                      <td colSpan={showPersonColumns ? 21 : 20}>
+                      <td colSpan={showPersonColumns ? 25 : 24}>
                         <InlineReviewEditor
                           row={row}
                           organizations={editor.organizations}

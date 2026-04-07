@@ -909,7 +909,12 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
     def test_generate_ai_suggestions_can_use_openai_provider_when_available(self):
         class FakeResponse:
             output_text = (
-                '{"suggested_fields":{"organization_website_url":{"value":"https://nordlyd.no","confidence":0.81,"source":"ai_enrichment","requires_review":true},'
+                '{"suggested_fields":{"organization_municipalities":{"value":"Oslo","confidence":0.84,"source":"ai_enrichment","requires_review":true},'
+                '"organization_website_url":{"value":"https://nordlyd.no","confidence":0.81,"source":"ai_enrichment","requires_review":true},'
+                '"organization_instagram_url":{"value":"https://instagram.com/nordlyd","confidence":0.73,"source":"ai_enrichment","requires_review":true},'
+                '"organization_description":{"value":"Nordlyd er en norsk arrangor.","confidence":0.77,"source":"ai_enrichment","requires_review":true},'
+                '"suggested_categories":{"value":["Musikk"],"confidence":0.91,"source":"ai_enrichment","requires_review":true},'
+                '"suggested_subcategories":{"value":["Artister & Band"],"confidence":0.79,"source":"ai_enrichment","requires_review":true},'
                 '"organization_is_published":{"value":true,"confidence":0.99,"source":"ai_enrichment","requires_review":true}},'
                 '"provider":"openai"}'
             )
@@ -934,12 +939,53 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
 
         self.assertEqual(suggestions["provider"], "openai")
         self.assertEqual(suggestions["organization_match_candidates"], [])
+        self.assertEqual(suggestions["suggested_fields"]["organization_municipalities"]["value"], "Oslo")
         self.assertEqual(
             suggestions["suggested_fields"]["organization_website_url"]["value"],
             "https://nordlyd.no",
         )
+        self.assertEqual(
+            suggestions["suggested_fields"]["organization_instagram_url"]["value"],
+            "https://instagram.com/nordlyd",
+        )
+        self.assertEqual(suggestions["suggested_fields"]["suggested_categories"]["value"], ["Musikk"])
+        self.assertEqual(suggestions["suggested_fields"]["suggested_subcategories"]["value"], ["Artister & Band"])
         self.assertEqual(suggestions["diagnostic"]["provider_status"], "openai")
         self.assertNotIn("organization_is_published", suggestions["suggested_fields"])
+
+    @override_settings(
+        OPENAI_IMPORT_ENABLED=True,
+        OPENAI_API_KEY="test-key",
+        OPENAI_IMPORT_MODEL="gpt-5.4",
+        OPENAI_IMPORT_TIMEOUT=5,
+    )
+    def test_generate_ai_suggestions_discards_invalid_taxonomy_and_non_norwegian_description(self):
+        class FakeResponse:
+            output_text = (
+                '{"suggested_fields":{"organization_description":{"value":"The company creates events for artists.","confidence":0.8,"source":"ai_enrichment","requires_review":true},'
+                '"suggested_categories":{"value":["Musikk"],"confidence":0.9,"source":"ai_enrichment","requires_review":true},'
+                '"suggested_subcategories":{"value":["Interiørarkitektur"],"confidence":0.7,"source":"ai_enrichment","requires_review":true}},'
+                '"provider":"openai"}'
+            )
+
+        class FakeResponses:
+            def create(self, **kwargs):
+                return FakeResponse()
+
+        class FakeOpenAI:
+            def __init__(self, api_key, timeout):
+                self.responses = FakeResponses()
+
+        with patch.object(import_ai_suggestions_module, "OpenAI", FakeOpenAI):
+            suggestions = generate_ai_suggestions(
+                self.tenant,
+                normalize_import_row(self.base_row),
+                {"organization": {}, "person": {}},
+            )
+
+        self.assertEqual(suggestions["suggested_fields"]["suggested_categories"]["value"], ["Musikk"])
+        self.assertNotIn("suggested_subcategories", suggestions["suggested_fields"])
+        self.assertNotIn("organization_description", suggestions["suggested_fields"])
 
     @patch("crm.services.import.commit.refresh_organization_open_graph")
     def test_accepted_ai_suggestion_can_influence_commit(self, refresh_mock):
@@ -1017,6 +1063,45 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(commit_response.status_code, 200, commit_response.content)
         organization = Organization.objects.get(tenant=self.tenant, org_number="123456789")
         self.assertEqual(organization.instagram_url, "https://instagram.com/nordlyd")
+        refresh_mock.assert_called_once()
+
+    @patch("crm.services.import.commit.refresh_organization_open_graph")
+    def test_accepted_municipality_suggestion_can_influence_commit(self, refresh_mock):
+        row = self.base_row | {"organization_municipalities": ""}
+        self._upload_csv([row])
+        self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        preview_row = self.job.rows.get()
+
+        response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/decisions/",
+            {
+                "rows": [
+                    {
+                        "row_id": preview_row.id,
+                        "decisions": [
+                            {
+                                "decision_type": "ACCEPT_AI_SUGGESTION",
+                                "payload_json": {
+                                    "suggestion_key": "organization_municipalities",
+                                    "value": "Bodø",
+                                },
+                            }
+                        ],
+                    }
+                ]
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+
+        commit_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/commit/",
+            {"skip_unresolved": False},
+            format="json",
+        )
+        self.assertEqual(commit_response.status_code, 200, commit_response.content)
+        organization = Organization.objects.get(tenant=self.tenant, org_number="123456789")
+        self.assertEqual(organization.municipalities, "Bodø")
         refresh_mock.assert_called_once()
 
     @patch("crm.services.import.commit.refresh_organization_open_graph")

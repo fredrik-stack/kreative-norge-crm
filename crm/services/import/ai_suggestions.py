@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import json
+from urllib.parse import urlparse
 from typing import Any
 from django.conf import settings
 
-from crm.models import Category, Subcategory, Tag, Tenant
+from crm.models import Category, Organization, Person, Subcategory, Tag, Tenant
 from .normalizers import normalize_name, normalize_space
 
 try:
@@ -32,6 +33,7 @@ FORBIDDEN_SUGGESTED_FIELDS = {
 ALLOWED_SUGGESTION_FIELD_KEYS = (
     "organization_name",
     "person_full_name",
+    "organization_municipalities",
     "organization_website_url",
     "organization_instagram_url",
     "organization_tiktok_url",
@@ -40,6 +42,7 @@ ALLOWED_SUGGESTION_FIELD_KEYS = (
     "organization_youtube_url",
     "organization_description",
     "person_title",
+    "person_municipality",
     "person_website_url",
     "person_instagram_url",
     "person_tiktok_url",
@@ -52,11 +55,47 @@ ALLOWED_SUGGESTION_FIELD_KEYS = (
 )
 
 OPENAI_SCHEMA_FIELD_KEYS = (
+    "organization_municipalities",
     "organization_website_url",
+    "organization_instagram_url",
+    "organization_tiktok_url",
+    "organization_linkedin_url",
+    "organization_facebook_url",
+    "organization_youtube_url",
     "organization_description",
+    "person_municipality",
+    "person_website_url",
+    "person_instagram_url",
+    "person_tiktok_url",
+    "person_linkedin_url",
+    "person_facebook_url",
+    "person_youtube_url",
     "suggested_tags",
     "suggested_categories",
     "suggested_subcategories",
+)
+
+SOCIAL_DOMAINS = {
+    "organization_instagram_url": "instagram.com",
+    "person_instagram_url": "instagram.com",
+    "organization_tiktok_url": "tiktok.com",
+    "person_tiktok_url": "tiktok.com",
+    "organization_linkedin_url": "linkedin.com",
+    "person_linkedin_url": "linkedin.com",
+    "organization_facebook_url": "facebook.com",
+    "person_facebook_url": "facebook.com",
+    "organization_youtube_url": "youtube.com",
+    "person_youtube_url": "youtube.com",
+}
+
+ENGLISH_DESCRIPTION_MARKERS = (
+    " the ",
+    " and ",
+    " for ",
+    " with ",
+    " artist ",
+    " company ",
+    " organizer ",
 )
 
 
@@ -142,6 +181,113 @@ def _suggest_description(normalized_payload: dict) -> str | None:
     return None
 
 
+def _sanitize_url(value: str | None) -> str | None:
+    if not value:
+        return None
+    candidate = value.strip()
+    if not candidate:
+        return None
+    parsed = urlparse(candidate)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return None
+    return candidate
+
+
+def _suggest_field_from_exact_match(tenant: Tenant, match_result: dict, entity_type: str, field_name: str) -> str | None:
+    exact_id = ((match_result.get(entity_type) or {}).get("exact_id"))
+    if not exact_id:
+        return None
+    model = Organization if entity_type == "organization" else Person
+    try:
+        instance = model.objects.get(id=exact_id, tenant=tenant)
+    except model.DoesNotExist:
+        return None
+    value = getattr(instance, field_name, None)
+    return normalize_space(value) if isinstance(value, str) else value
+
+
+def _looks_non_norwegian(text: str) -> bool:
+    lowered = f" {text.casefold()} "
+    if " og " in lowered or " med " in lowered or " som " in lowered:
+        return False
+    return any(marker in lowered for marker in ENGLISH_DESCRIPTION_MARKERS)
+
+
+def _normalize_taxonomy_values(values: list[str], *, choices: list[str]) -> list[str]:
+    if not values:
+        return []
+    lookup = {choice.casefold(): choice for choice in choices}
+    normalized = []
+    seen: set[str] = set()
+    for value in values:
+        exact = lookup.get(str(value).strip().casefold())
+        if not exact:
+            continue
+        key = exact.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(exact)
+    return normalized
+
+
+def _normalize_text_suggestion(key: str, value: str) -> str | None:
+    text = normalize_space(value)
+    if not text:
+        return None
+    if key in {"organization_website_url", "person_website_url"}:
+        return _sanitize_url(text)
+    if key in SOCIAL_DOMAINS:
+        url = _sanitize_url(text)
+        if not url:
+            return None
+        host = (urlparse(url).netloc or "").casefold()
+        if SOCIAL_DOMAINS[key] not in host:
+            return None
+        return url
+    if key == "organization_description" and _looks_non_norwegian(text):
+        return None
+    return text
+
+
+def _enforce_suggestion_quality(tenant: Tenant, payload: dict[str, Any]) -> dict[str, Any]:
+    payload = payload or {}
+    categories = list(Category.objects.values_list("name", flat=True))
+    subcategories = list(Subcategory.objects.values_list("name", flat=True))
+    suggested_fields = {}
+    for key, value in (payload.get("suggested_fields") or {}).items():
+        if key in {"suggested_categories", "suggested_subcategories", "suggested_tags"}:
+            items = value.get("value") if isinstance(value, dict) else None
+            if not isinstance(items, list):
+                continue
+            if key == "suggested_categories":
+                normalized_items = _normalize_taxonomy_values([str(item) for item in items], choices=categories)
+            elif key == "suggested_subcategories":
+                normalized_items = _normalize_taxonomy_values([str(item) for item in items], choices=subcategories)
+            else:
+                normalized_items = _unique_casefold([str(item) for item in items])
+            if not normalized_items:
+                continue
+            next_value = dict(value)
+            next_value["value"] = normalized_items
+            suggested_fields[key] = next_value
+            continue
+        if not isinstance(value, dict):
+            continue
+        normalized_text = _normalize_text_suggestion(key, str(value.get("value") or ""))
+        if not normalized_text:
+            continue
+        next_value = dict(value)
+        next_value["value"] = normalized_text
+        suggested_fields[key] = next_value
+
+    payload = dict(payload)
+    payload["suggested_fields"] = suggested_fields
+    if payload.get("diagnostic"):
+        payload["diagnostic"]["useful_suggestion_count"] = _count_useful_suggestions(payload)
+    return payload
+
+
 def _collect_text_blobs(normalized_payload: dict) -> list[str]:
     organization = normalized_payload["organization"]
     person = normalized_payload["person"]
@@ -218,6 +364,61 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
             "requires_review": True,
         }
 
+    if not organization.get("municipalities"):
+        organization_municipality = _suggest_field_from_exact_match(tenant, match_result, "organization", "municipalities")
+        if organization_municipality:
+            suggested_fields["organization_municipalities"] = {
+                "value": organization_municipality,
+                "confidence": 0.82,
+                "source": "matched_record",
+                "requires_review": True,
+            }
+
+    if not person.get("municipality"):
+        person_municipality = _suggest_field_from_exact_match(tenant, match_result, "person", "municipality")
+        if person_municipality:
+            suggested_fields["person_municipality"] = {
+                "value": person_municipality,
+                "confidence": 0.82,
+                "source": "matched_record",
+                "requires_review": True,
+            }
+
+    for field_name, payload_key in (
+        ("instagram_url", "organization_instagram_url"),
+        ("tiktok_url", "organization_tiktok_url"),
+        ("linkedin_url", "organization_linkedin_url"),
+        ("facebook_url", "organization_facebook_url"),
+        ("youtube_url", "organization_youtube_url"),
+    ):
+        if not organization.get(field_name):
+            value = _suggest_field_from_exact_match(tenant, match_result, "organization", field_name)
+            if value:
+                suggested_fields[payload_key] = {
+                    "value": value,
+                    "confidence": 0.8,
+                    "source": "matched_record",
+                    "requires_review": True,
+                }
+
+    for field_name, payload_key in (
+        ("website_url", "person_website_url"),
+        ("instagram_url", "person_instagram_url"),
+        ("tiktok_url", "person_tiktok_url"),
+        ("linkedin_url", "person_linkedin_url"),
+        ("facebook_url", "person_facebook_url"),
+        ("youtube_url", "person_youtube_url"),
+    ):
+        if not person.get(field_name):
+            value = _suggest_field_from_exact_match(tenant, match_result, "person", field_name)
+            if value:
+                suggested_fields[payload_key] = {
+                    "value": value,
+                    "confidence": 0.8,
+                    "source": "matched_record",
+                    "requires_review": True,
+                }
+
     description = _suggest_description(normalized_payload)
     if description:
         suggested_fields["organization_description"] = {
@@ -284,7 +485,7 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
         "openai_error": None,
         "useful_suggestion_count": _count_useful_suggestions(payload),
     }
-    return payload
+    return _enforce_suggestion_quality(tenant, payload)
 
 
 def build_pending_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_result: dict) -> dict:
@@ -384,8 +585,8 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
     envelope = {
         "task": (
             "Suggest editorial import-review assistance for a tenant-scoped CRM. "
-            "Only suggest five field families: categories, subcategories, tags, organization website URL, and organization short description. "
-            "Never suggest publish/public flags. Only return confident, reviewable values."
+            "Suggest only reviewable values for municipalities, taxonomy, websites, social profile URLs, and a short organization description in Norwegian. "
+            "Never suggest publish/public flags, and never invent organization numbers."
         ),
         "tenant_id": tenant.id,
         "normalized_payload": normalized_payload,
@@ -405,8 +606,11 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
         "instructions": [
             "Suggest main category separately from subcategory.",
             "Keep tags separate from categories and subcategories.",
-            "Only suggest organization website when plausible and editorially useful.",
-            "A short description should be one brief sentence, not marketing copy.",
+            "Only use existing category and subcategory names from the provided taxonomy lists.",
+            "Only suggest municipality when reasonably confident.",
+            "Only suggest website or social profile URLs when plausible and editorially useful.",
+            "Social URLs must match the actual service domain for that field.",
+            "A short description must be in Norwegian, one brief sentence, and not marketing copy.",
             "Do not return keys outside the allowed_fields list.",
             "If you have no confident suggestion for a field, omit it instead of guessing.",
         ],
@@ -447,8 +651,21 @@ def _openai_schema() -> dict[str, Any]:
                     "type": "object",
                     "additionalProperties": False,
                     "properties": {
+                        "organization_municipalities": string_field_value,
                         "organization_website_url": string_field_value,
+                        "organization_instagram_url": string_field_value,
+                        "organization_tiktok_url": string_field_value,
+                        "organization_linkedin_url": string_field_value,
+                        "organization_facebook_url": string_field_value,
+                        "organization_youtube_url": string_field_value,
                         "organization_description": string_field_value,
+                        "person_municipality": string_field_value,
+                        "person_website_url": string_field_value,
+                        "person_instagram_url": string_field_value,
+                        "person_tiktok_url": string_field_value,
+                        "person_linkedin_url": string_field_value,
+                        "person_facebook_url": string_field_value,
+                        "person_youtube_url": string_field_value,
                         "suggested_tags": array_field_value,
                         "suggested_categories": array_field_value,
                         "suggested_subcategories": array_field_value,
@@ -496,7 +713,7 @@ def _generate_openai_suggestions(tenant: Tenant, normalized_payload: dict, match
         "openai_error": None,
         "useful_suggestion_count": _count_useful_suggestions(parsed),
     }
-    return _sanitize_suggestions(parsed, "openai")
+    return _sanitize_suggestions(_enforce_suggestion_quality(tenant, parsed), "openai")
 
 
 def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_result: dict) -> dict:
@@ -569,4 +786,4 @@ def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_resu
             "heuristic_suggestion_count": heuristic_count,
         },
     }
-    return _sanitize_suggestions(merged, "openai")
+    return _sanitize_suggestions(_enforce_suggestion_quality(tenant, merged), "openai")
