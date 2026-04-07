@@ -30,6 +30,8 @@ const EXPORT_FIELD_OPTIONS = [
 ];
 
 const SIMPLE_EDITABLE_SUGGESTION_FIELDS = [
+  "organization_email",
+  "organization_phone",
   "organization_municipalities",
   "organization_website_url",
   "organization_instagram_url",
@@ -39,6 +41,8 @@ const SIMPLE_EDITABLE_SUGGESTION_FIELDS = [
   "organization_youtube_url",
   "organization_description",
   "person_title",
+  "person_email",
+  "person_phone",
   "person_municipality",
   "person_website_url",
   "person_instagram_url",
@@ -49,6 +53,8 @@ const SIMPLE_EDITABLE_SUGGESTION_FIELDS = [
 ] as const;
 
 const FIELD_LABELS: Record<string, string> = {
+  organization_email: "E-post",
+  organization_phone: "Telefon",
   organization_municipalities: "Kommune / steder",
   organization_website_url: "Nettside",
   organization_instagram_url: "Instagram",
@@ -58,6 +64,8 @@ const FIELD_LABELS: Record<string, string> = {
   organization_youtube_url: "YouTube",
   organization_description: "Beskrivelse",
   person_title: "Tittel",
+  person_email: "Person e-post",
+  person_phone: "Person telefon",
   person_municipality: "Personkommune",
   person_website_url: "Personnettside",
   person_instagram_url: "Person Instagram",
@@ -122,6 +130,12 @@ export function ImportExportPage() {
     "person_email",
   ]);
   const [filterQuery, setFilterQuery] = useState("");
+  const visibleImportJobs = useMemo(() => {
+    const selectedId = importJobs.selectedJobId;
+    return importJobs.jobs.filter((job) => (
+      job.id === selectedId || !["COMPLETED", "CANCELLED"].includes(job.status)
+    ));
+  }, [importJobs.jobs, importJobs.selectedJobId]);
 
   async function handlePreview() {
     const selectedJob = importJobs.selectedJob;
@@ -141,7 +155,7 @@ export function ImportExportPage() {
             <p className="eyebrow small">Import</p>
             <h2>Importjobber</h2>
           </div>
-          <span className="meta">{importJobs.jobs.length} jobber</span>
+          <span className="meta">{visibleImportJobs.length} aktive / valgte</span>
         </div>
         {importJobs.forbidden ? <div className="banner error">Du har ikke tilgang til import for denne tenanten.</div> : null}
         {importJobs.error ? <div className="banner error">{importJobs.error}</div> : null}
@@ -149,7 +163,7 @@ export function ImportExportPage() {
         <div className={`import-export-grid ${importJobs.selectedJob ? "review-active" : ""}`}>
           <div className="import-export-sidebar">
             <div className="job-list">
-              {importJobs.jobs.map((job) => (
+              {visibleImportJobs.map((job) => (
                 <button
                   key={job.id}
                   type="button"
@@ -249,28 +263,18 @@ function ImportReviewWorkspace(props: {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const showPersonColumns = mode !== "ORGANIZATIONS_ONLY";
   const orgLabel = mode === "PEOPLE_ONLY" ? "Knyttet aktør" : "Aktør";
-  const linkLabel = mode === "PEOPLE_ONLY" ? "Lenker og profiler" : "Nettside / lenker";
+  const aiProgressLabel = getAiProgressLabel(summary);
 
   return (
     <>
       <div className="import-summary-grid">
         <SummaryCard label="Rader totalt" value={summary.rows_total} />
-        <SummaryCard label="Gyldige" value={summary.valid_rows} />
-        <SummaryCard label="Ugyldige" value={summary.invalid_rows} />
-        <SummaryCard label="Review" value={summary.review_required_rows} />
-        <SummaryCard label="Aktører opprett" value={summary.organizations_create} />
-        <SummaryCard label="Aktører oppdatér" value={summary.organizations_update} />
-        <SummaryCard label="Personer opprett" value={summary.persons_create} />
-        <SummaryCard label="Personer oppdatér" value={summary.persons_update} />
-        <SummaryCard label="Lenker" value={summary.links_create} />
-        <SummaryCard label="Nye tags" value={summary.tags_new} />
-        <SummaryCard label="OpenAI-rader" value={summary.rows_using_openai} />
-        <SummaryCard label="Fallback-rader" value={summary.rows_using_fallback} />
-        <SummaryCard label="AI venter" value={summary.rows_ai_pending} />
-        <SummaryCard label="AI ferdig" value={summary.rows_ai_completed} />
-        <SummaryCard label="AI feilet" value={summary.rows_ai_failed} />
-        <SummaryCard label="Uten forslag" value={summary.rows_with_no_useful_ai_suggestions} />
-        <SummaryCard label="AI-feil" value={summary.rows_with_ai_errors} />
+        <SummaryCard label="Til review" value={summary.review_required_rows} />
+        <SummaryCard label="AI-status" value={aiProgressLabel} />
+        <SummaryCard
+          label="AI fremdrift"
+          value={`${Number(summary.rows_ai_completed ?? 0)} ferdig · ${Number(summary.rows_ai_pending ?? 0)} venter · ${Number(summary.rows_ai_failed ?? 0)} feilet`}
+        />
       </div>
 
       <div className="import-toolbar">
@@ -343,37 +347,6 @@ function ImportReviewWorkspace(props: {
         </a>
       </div>
 
-      <div className="import-filter-row">
-        <select
-          value={importJobs.rowsQuery.status ?? ""}
-          onChange={(e) => importJobs.setRowsQuery((current) => ({ ...current, status: e.target.value || undefined, page: 1 }))}
-        >
-          <option value="">Alle statuser</option>
-          <option value="VALID">Valid</option>
-          <option value="INVALID">Invalid</option>
-          <option value="REVIEW_REQUIRED">Review required</option>
-          <option value="SKIPPED">Skipped</option>
-          <option value="COMMITTED">Committed</option>
-        </select>
-        <select
-          value={importJobs.rowsQuery.action ?? ""}
-          onChange={(e) => importJobs.setRowsQuery((current) => ({ ...current, action: e.target.value || undefined, page: 1 }))}
-        >
-          <option value="">Alle handlinger</option>
-          <option value="CREATE">Create</option>
-          <option value="UPDATE">Update</option>
-          <option value="LINK_ONLY">Link only</option>
-          <option value="SKIP">Skip</option>
-        </select>
-        <input
-          className="search-input"
-          type="search"
-          placeholder="Søk i importerte rader"
-          value={importJobs.rowsQuery.search ?? ""}
-          onChange={(e) => importJobs.setRowsQuery((current) => ({ ...current, search: e.target.value, page: 1 }))}
-        />
-      </div>
-
       <div className="overview-table-wrap import-review-wrap">
         <table className="overview-table import-review-table">
           <thead>
@@ -383,7 +356,9 @@ function ImportReviewWorkspace(props: {
               {showPersonColumns ? <th>Person</th> : null}
               <th>Org.nr</th>
               <th>E-post</th>
+              <th>AI e-post</th>
               <th>Telefon</th>
+              <th>AI telefon</th>
               <th>Nå kommune</th>
               <th>AI kommune</th>
               <th>Nå hovedkategori</th>
@@ -415,6 +390,8 @@ function ImportReviewWorkspace(props: {
               const websiteSuggestion = getSuggestionText(row, "organization_website_url") || getSuggestionText(row, "person_website_url");
               const currentEmail = getFirstText(row.raw_payload_json.organization_email, row.raw_payload_json.person_email);
               const currentPhone = getFirstText(row.raw_payload_json.organization_phone, row.raw_payload_json.person_phone);
+              const suggestedEmail = getSuggestionText(row, "organization_email") || getSuggestionText(row, "person_email");
+              const suggestedPhone = getSuggestionText(row, "organization_phone") || getSuggestionText(row, "person_phone");
               const currentWebsite = getFirstText(
                 row.raw_payload_json.organization_website_url,
                 row.raw_payload_json.person_website_url,
@@ -461,7 +438,13 @@ function ImportReviewWorkspace(props: {
                       <ReviewValueCell current={currentEmail} fallback="—" />
                     </td>
                     <td>
+                      <ReviewValueCell current={suggestedEmail} fallback="Ingen forslag" onClick={() => setExpandedRowId(row.id)} clickable={Boolean(suggestedEmail)} />
+                    </td>
+                    <td>
                       <ReviewValueCell current={currentPhone} fallback="—" />
+                    </td>
+                    <td>
+                      <ReviewValueCell current={suggestedPhone} fallback="Ingen forslag" onClick={() => setExpandedRowId(row.id)} clickable={Boolean(suggestedPhone)} />
                     </td>
                     <td>
                       <ReviewValueCell
@@ -470,43 +453,43 @@ function ImportReviewWorkspace(props: {
                       />
                     </td>
                     <td>
-                      <ReviewValueCell current={municipalitySuggestion} fallback="Ingen forslag" />
+                      <ReviewValueCell current={municipalitySuggestion} fallback="Ingen forslag" onClick={() => setExpandedRowId(row.id)} clickable={Boolean(municipalitySuggestion)} />
                     </td>
                     <td>
                       <ReviewSuggestionCell currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_categories, row.raw_payload_json.person_categories))} suggestedValues={[]} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={[]} suggestedValues={categorySuggestions} />
+                      <ReviewSuggestionCell currentValues={[]} suggestedValues={categorySuggestions} onClick={() => setExpandedRowId(row.id)} />
                     </td>
                     <td>
                       <ReviewSuggestionCell currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_subcategories, row.raw_payload_json.person_subcategories))} suggestedValues={[]} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={[]} suggestedValues={subcategorySuggestions} />
+                      <ReviewSuggestionCell currentValues={[]} suggestedValues={subcategorySuggestions} onClick={() => setExpandedRowId(row.id)} />
                     </td>
                     <td>
                       <ReviewSuggestionCell currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_tags, row.raw_payload_json.person_tags))} suggestedValues={[]} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={[]} suggestedValues={tagSuggestions} />
+                      <ReviewSuggestionCell currentValues={[]} suggestedValues={tagSuggestions} onClick={() => setExpandedRowId(row.id)} />
                     </td>
                     <td>
                       <ReviewValueCell current={currentWebsite} fallback="Mangler" />
                     </td>
                     <td>
-                      <ReviewValueCell current={websiteSuggestion} fallback="Ingen forslag" />
+                      <ReviewValueCell current={websiteSuggestion} fallback="Ingen forslag" onClick={() => setExpandedRowId(row.id)} clickable={Boolean(websiteSuggestion)} />
                     </td>
                     <td>
                       <ReviewLinkCell values={currentSocials} emptyLabel="Ingen lenker" />
                     </td>
                     <td>
-                      <ReviewLinkCell values={socialSuggestions} emptyLabel="Ingen forslag" />
+                      <ReviewLinkCell values={socialSuggestions} emptyLabel="Ingen forslag" onClick={() => setExpandedRowId(row.id)} clickable={socialSuggestions.length > 0} />
                     </td>
                     <td>
                       <ReviewTextCell value={currentDescription} emptyLabel="Mangler" />
                     </td>
                     <td>
-                      <ReviewTextCell value={suggestedDescription} emptyLabel="Ingen forslag" />
+                      <ReviewTextCell value={suggestedDescription} emptyLabel="Ingen forslag" onClick={() => setExpandedRowId(row.id)} clickable={Boolean(suggestedDescription)} />
                     </td>
                     <td>
                       <div className="review-provider-cell">
@@ -528,18 +511,14 @@ function ImportReviewWorkspace(props: {
                   </tr>
                   {expanded ? (
                     <tr key={`${row.id}-editor`} className="import-review-editor-row">
-                      <td colSpan={showPersonColumns ? 25 : 24}>
+                      <td colSpan={showPersonColumns ? 27 : 26}>
                         <InlineReviewEditor
                           row={row}
                           organizations={editor.organizations}
                           persons={editor.persons}
                           categories={editor.categories}
                           subcategories={editor.subcategories}
-                          onSave={(payload) =>
-                            void importJobs
-                              .saveDecisions([{ row_id: row.id, decisions: payload }])
-                              .then(() => setExpandedRowId(null))
-                          }
+                          onSave={(payload) => importJobs.saveDecisions([{ row_id: row.id, decisions: payload }])}
                         />
                       </td>
                     </tr>
@@ -616,7 +595,7 @@ function InlineReviewEditor(props: {
   persons: Person[];
   categories: Category[];
   subcategories: Subcategory[];
-  onSave: (payload: Array<{ decision_type: ImportDecision["decision_type"]; payload_json?: Record<string, unknown> }>) => void;
+  onSave: (payload: Array<{ decision_type: ImportDecision["decision_type"]; payload_json?: Record<string, unknown> }>) => Promise<unknown> | null;
 }) {
   const { row, organizations, persons, categories, subcategories, onSave } = props;
   const suggestedFields = useMemo(() => getSuggestionFields(row), [row]);
@@ -654,38 +633,53 @@ function InlineReviewEditor(props: {
     [draft.categoryId, subcategories],
   );
   const diagnosticMeta = getDiagnosticMeta(row);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
-  function setSuggestionState(key: string, nextState: SuggestionState) {
-    setDraft((current) => ({
-      ...current,
-      suggestionStates: {
-        ...current.suggestionStates,
-        [key]: nextState,
-      },
-    }));
+  async function persistDraft(nextDraft: ReviewDraft, closeAfterSave = false) {
+    setDraft(nextDraft);
+    setSaveState("saving");
+    try {
+      await Promise.resolve(onSave(buildDecisions(row, nextDraft)));
+      setSaveState("saved");
+      if (closeAfterSave) return;
+      window.setTimeout(() => setSaveState((current) => (current === "saved" ? "idle" : current)), 1400);
+    } catch {
+      setSaveState("error");
+    }
   }
 
   function applyCategorySuggestion(name: string) {
     const categoryId = findCategoryIdByName(categories, name);
-    setDraft((current) => ({
-      ...current,
+    const nextDraft = {
+      ...draft,
       categoryId,
-      suggestionStates: { ...current.suggestionStates, suggested_categories: categoryId ? "accepted" : current.suggestionStates.suggested_categories },
-    }));
+      suggestionStates: { ...draft.suggestionStates, suggested_categories: categoryId ? "accepted" : draft.suggestionStates.suggested_categories },
+    };
+    void persistDraft(nextDraft);
   }
 
   function applySubcategorySuggestion(name: string) {
     const subcategoryId = findSubcategoryIdByName(subcategories, name);
     const relatedCategoryId = findCategoryIdForSubcategory(subcategories, subcategoryId);
-    setDraft((current) => ({
-      ...current,
-      categoryId: relatedCategoryId || current.categoryId,
+    const nextDraft = {
+      ...draft,
+      categoryId: relatedCategoryId || draft.categoryId,
       subcategoryId,
       suggestionStates: {
-        ...current.suggestionStates,
-        suggested_subcategories: subcategoryId ? "accepted" : current.suggestionStates.suggested_subcategories,
+        ...draft.suggestionStates,
+        suggested_subcategories: subcategoryId ? "accepted" : draft.suggestionStates.suggested_subcategories,
       },
-    }));
+    };
+    void persistDraft(nextDraft);
+  }
+
+  function applyTagSuggestions() {
+    const nextDraft = {
+      ...draft,
+      tagsText: tagSuggestions.join(", "),
+      suggestionStates: { ...draft.suggestionStates, suggested_tags: "accepted" as const },
+    };
+    void persistDraft(nextDraft);
   }
 
   return (
@@ -693,39 +687,15 @@ function InlineReviewEditor(props: {
       <div className="inline-review-grid">
         <section className="editor-detail-section modal-section-card">
           <div className="modal-section-header">
-            <h4>Forslag og match</h4>
-            <span className="meta">Kilde: {diagnosticMeta.title}</span>
+            <h4>AI-forslag</h4>
+            <div className="review-header-meta">
+              <span className={`mini-pill ${saveState === "saved" ? "category" : saveState === "error" ? "subcategory" : "tag"}`}>
+                {saveState === "saving" ? "Lagrer…" : saveState === "saved" ? "Lagret" : saveState === "error" ? "Feil ved lagring" : diagnosticMeta.title}
+              </span>
+            </div>
           </div>
           {diagnosticMeta.detail ? <p className="meta review-diagnostic-copy">{diagnosticMeta.detail}</p> : null}
           <div className="review-detail-stack">
-            <div>
-              <strong>Aktørkandidater</strong>
-              <SuggestionCandidates
-                candidates={asCandidateList(row.ai_suggestions_json.organization_match_candidates)}
-                onUse={(id) =>
-                  setDraft((current) => ({
-                    ...current,
-                    organizationDecision: "USE_EXISTING_ORGANIZATION",
-                    organizationId: id,
-                  }))
-                }
-                emptyLabel="Ingen aktørkandidater"
-              />
-            </div>
-            <div>
-              <strong>Personkandidater</strong>
-              <SuggestionCandidates
-                candidates={asCandidateList(row.ai_suggestions_json.person_match_candidates)}
-                onUse={(id) =>
-                  setDraft((current) => ({
-                    ...current,
-                    personDecision: "USE_EXISTING_PERSON",
-                    personId: id,
-                  }))
-                }
-                emptyLabel="Ingen personkandidater"
-              />
-            </div>
             <div>
               <strong>Hovedkategori</strong>
               <SuggestionPills
@@ -733,7 +703,13 @@ function InlineReviewEditor(props: {
                 emptyLabel="Ingen forslag"
                 state={draft.suggestionStates.suggested_categories ?? "pending"}
                 onAccept={(value) => applyCategorySuggestion(value)}
-                onIgnore={() => setSuggestionState("suggested_categories", "ignored")}
+                onIgnore={() => {
+                  const nextDraft = {
+                    ...draft,
+                    suggestionStates: { ...draft.suggestionStates, suggested_categories: "ignored" as const },
+                  };
+                  void persistDraft(nextDraft);
+                }}
               />
             </div>
             <div>
@@ -743,7 +719,13 @@ function InlineReviewEditor(props: {
                 emptyLabel="Ingen forslag"
                 state={draft.suggestionStates.suggested_subcategories ?? "pending"}
                 onAccept={(value) => applySubcategorySuggestion(value)}
-                onIgnore={() => setSuggestionState("suggested_subcategories", "ignored")}
+                onIgnore={() => {
+                  const nextDraft = {
+                    ...draft,
+                    suggestionStates: { ...draft.suggestionStates, suggested_subcategories: "ignored" as const },
+                  };
+                  void persistDraft(nextDraft);
+                }}
               />
             </div>
             <div>
@@ -752,14 +734,45 @@ function InlineReviewEditor(props: {
                 values={tagSuggestions}
                 emptyLabel="Ingen forslag"
                 state={draft.suggestionStates.suggested_tags ?? "pending"}
-                onAccept={() =>
-                  setDraft((current) => ({
-                    ...current,
-                    tagsText: tagSuggestions.join(", "),
-                    suggestionStates: { ...current.suggestionStates, suggested_tags: "accepted" },
-                  }))
-                }
-                onIgnore={() => setSuggestionState("suggested_tags", "ignored")}
+                onAccept={() => applyTagSuggestions()}
+                onIgnore={() => {
+                  const nextDraft = {
+                    ...draft,
+                    tagsText: "",
+                    suggestionStates: { ...draft.suggestionStates, suggested_tags: "ignored" as const },
+                  };
+                  void persistDraft(nextDraft);
+                }}
+              />
+            </div>
+            <div>
+              <strong>Aktørkandidater</strong>
+              <SuggestionCandidates
+                candidates={asCandidateList(row.ai_suggestions_json.organization_match_candidates)}
+                onUse={(id) => {
+                  const nextDraft = {
+                    ...draft,
+                    organizationDecision: "USE_EXISTING_ORGANIZATION" as const,
+                    organizationId: id,
+                  };
+                  void persistDraft(nextDraft);
+                }}
+                emptyLabel="Ingen aktørkandidater"
+              />
+            </div>
+            <div>
+              <strong>Personkandidater</strong>
+              <SuggestionCandidates
+                candidates={asCandidateList(row.ai_suggestions_json.person_match_candidates)}
+                onUse={(id) => {
+                  const nextDraft = {
+                    ...draft,
+                    personDecision: "USE_EXISTING_PERSON" as const,
+                    personId: id,
+                  };
+                  void persistDraft(nextDraft);
+                }}
+                emptyLabel="Ingen personkandidater"
               />
             </div>
           </div>
@@ -861,20 +874,28 @@ function InlineReviewEditor(props: {
                         <button
                           type="button"
                           className="ghost-button compact-button"
-                          onClick={() =>
-                            setDraft((current) => ({
-                              ...current,
-                              fieldValues: { ...current.fieldValues, [fieldKey]: renderSuggestionValue(suggestion.value) },
-                              suggestionStates: { ...current.suggestionStates, [fieldKey]: "accepted" },
-                            }))
-                          }
+                          onClick={() => {
+                            const nextDraft = {
+                              ...draft,
+                              fieldValues: { ...draft.fieldValues, [fieldKey]: renderSuggestionValue(suggestion.value) },
+                              suggestionStates: { ...draft.suggestionStates, [fieldKey]: "accepted" as const },
+                            };
+                            void persistDraft(nextDraft);
+                          }}
                         >
                           Godta forslag
                         </button>
                         <button
                           type="button"
                           className="ghost-button compact-button"
-                          onClick={() => setSuggestionState(fieldKey, "ignored")}
+                          onClick={() => {
+                            const nextDraft = {
+                              ...draft,
+                              fieldValues: { ...draft.fieldValues, [fieldKey]: "" },
+                              suggestionStates: { ...draft.suggestionStates, [fieldKey]: "ignored" as const },
+                            };
+                            void persistDraft(nextDraft);
+                          }}
                         >
                           Ignorer
                         </button>
@@ -923,7 +944,7 @@ function InlineReviewEditor(props: {
         <button
           type="button"
           className="primary-button compact-button"
-          onClick={() => onSave(buildDecisions(row, draft))}
+          onClick={() => void persistDraft(draft, true)}
         >
           Lagre review
         </button>
@@ -1110,21 +1131,31 @@ function SummaryCard(props: { label: string; value: unknown }) {
   );
 }
 
-function ReviewValueCell(props: { current?: string; suggested?: string; fallback?: string }) {
-  return (
+function ReviewValueCell(props: { current?: string; suggested?: string; fallback?: string; onClick?: () => void; clickable?: boolean }) {
+  const content = (
     <div className="review-value-cell">
       <span>{props.current || props.fallback || "—"}</span>
       {!props.current && props.suggested ? <span className="review-suggested-hint">Forslag: {props.suggested}</span> : null}
     </div>
   );
+  if (props.clickable && props.onClick) {
+    return (
+      <button type="button" className="review-cell-button" onClick={props.onClick}>
+        {content}
+      </button>
+    );
+  }
+  return (
+    content
+  );
 }
 
-function ReviewSuggestionCell(props: { currentValues: string[]; suggestedValues: string[] }) {
+function ReviewSuggestionCell(props: { currentValues: string[]; suggestedValues: string[]; onClick?: () => void }) {
   const values = props.currentValues.length > 0 ? props.currentValues : props.suggestedValues;
   if (values.length === 0) {
     return <span className="muted">Mangler</span>;
   }
-  return (
+  const content = (
     <div className="review-pill-stack">
       {values.slice(0, 3).map((value) => (
         <span key={value} className={`mini-pill ${props.currentValues.length > 0 ? "category" : "suggested"}`}>{value}</span>
@@ -1132,13 +1163,21 @@ function ReviewSuggestionCell(props: { currentValues: string[]; suggestedValues:
       {values.length > 3 ? <span className="meta">+{values.length - 3}</span> : null}
     </div>
   );
+  if (props.currentValues.length === 0 && props.suggestedValues.length > 0 && props.onClick) {
+    return (
+      <button type="button" className="review-cell-button" onClick={props.onClick}>
+        {content}
+      </button>
+    );
+  }
+  return content;
 }
 
-function ReviewLinkCell(props: { values: string[]; emptyLabel: string }) {
+function ReviewLinkCell(props: { values: string[]; emptyLabel: string; onClick?: () => void; clickable?: boolean }) {
   if (props.values.length === 0) {
     return <span className="muted">{props.emptyLabel}</span>;
   }
-  return (
+  const content = (
     <div className="review-link-stack">
       {props.values.slice(0, 3).map((value) => (
         <span key={value} className="review-link-chip" title={value}>
@@ -1148,13 +1187,29 @@ function ReviewLinkCell(props: { values: string[]; emptyLabel: string }) {
       {props.values.length > 3 ? <span className="meta">+{props.values.length - 3}</span> : null}
     </div>
   );
+  if (props.clickable && props.onClick) {
+    return (
+      <button type="button" className="review-cell-button" onClick={props.onClick}>
+        {content}
+      </button>
+    );
+  }
+  return content;
 }
 
-function ReviewTextCell(props: { value?: string; emptyLabel: string }) {
+function ReviewTextCell(props: { value?: string; emptyLabel: string; onClick?: () => void; clickable?: boolean }) {
   if (!props.value) {
     return <span className="muted">{props.emptyLabel}</span>;
   }
-  return <p className="review-copy-snippet">{shortenDisplayText(props.value, 110)}</p>;
+  const content = <p className="review-copy-snippet">{shortenDisplayText(props.value, 110)}</p>;
+  if (props.clickable && props.onClick) {
+    return (
+      <button type="button" className="review-cell-button" onClick={props.onClick}>
+        {content}
+      </button>
+    );
+  }
+  return content;
 }
 
 function SuggestionPills(props: {
@@ -1323,6 +1378,15 @@ function getDiagnosticMeta(row: ImportRow): { title: string; detail: string; hel
     detail: "Provider-status er uklar for denne raden.",
     helper: "Sjekk preview-data",
   };
+}
+
+function getAiProgressLabel(summary: Record<string, unknown>): string {
+  const status = String(summary.ai_generation_status ?? "");
+  if (status === "running") return "Pågår";
+  if (status === "pending") return "Venter";
+  if (status === "completed") return "Ferdig";
+  if (status === "failed" || status === "partially_failed") return "Trenger ny kjøring";
+  return "Ikke startet";
 }
 
 function renderSuggestionValue(value: unknown): string {

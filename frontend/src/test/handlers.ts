@@ -367,6 +367,18 @@ export const handlers = [
         organization_match_candidates: [{ id: 10, label: "Kreativ Demo AS", score: 0.92, reason: "name+domain" }],
         person_match_candidates: job.import_mode === "ORGANIZATIONS_ONLY" ? [] : [{ id: 20, label: "Ada Editor", score: 0.77, reason: "name+municipality" }],
         suggested_fields: {
+          organization_email: {
+            value: "post@kreativdemo.no",
+            confidence: 0.82,
+            source: "website_contact_signal",
+            requires_review: true,
+          },
+          organization_phone: {
+            value: "+47 99 99 99 99",
+            confidence: 0.76,
+            source: "website_contact_signal",
+            requires_review: true,
+          },
           suggested_tags: {
             value: ["Turné", "Etablert"],
             confidence: 0.68,
@@ -448,6 +460,12 @@ export const handlers = [
           organization_instagram_url: {
             value: "https://instagram.com/kreativdemo",
             confidence: 0.7,
+            source: "ai_enrichment",
+            requires_review: true,
+          },
+          organization_municipalities: {
+            value: "Oslo",
+            confidence: 0.71,
             source: "ai_enrichment",
             requires_review: true,
           },

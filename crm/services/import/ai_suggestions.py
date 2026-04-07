@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import re
 from urllib.parse import urlparse
 from typing import Any
 from django.conf import settings
 
 from crm.models import Category, Organization, Person, Subcategory, Tag, Tenant
+from crm.services.open_graph import MAX_HTML_BYTES, _fetch_url
 from .normalizers import normalize_name, normalize_space
 
 try:
@@ -33,6 +35,8 @@ FORBIDDEN_SUGGESTED_FIELDS = {
 ALLOWED_SUGGESTION_FIELD_KEYS = (
     "organization_name",
     "person_full_name",
+    "organization_email",
+    "organization_phone",
     "organization_municipalities",
     "organization_website_url",
     "organization_instagram_url",
@@ -42,6 +46,8 @@ ALLOWED_SUGGESTION_FIELD_KEYS = (
     "organization_youtube_url",
     "organization_description",
     "person_title",
+    "person_email",
+    "person_phone",
     "person_municipality",
     "person_website_url",
     "person_instagram_url",
@@ -55,6 +61,8 @@ ALLOWED_SUGGESTION_FIELD_KEYS = (
 )
 
 OPENAI_SCHEMA_FIELD_KEYS = (
+    "organization_email",
+    "organization_phone",
     "organization_municipalities",
     "organization_website_url",
     "organization_instagram_url",
@@ -63,6 +71,8 @@ OPENAI_SCHEMA_FIELD_KEYS = (
     "organization_facebook_url",
     "organization_youtube_url",
     "organization_description",
+    "person_email",
+    "person_phone",
     "person_municipality",
     "person_website_url",
     "person_instagram_url",
@@ -97,6 +107,10 @@ ENGLISH_DESCRIPTION_MARKERS = (
     " company ",
     " organizer ",
 )
+
+EMAIL_RE = re.compile(r"\b[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}\b", re.IGNORECASE)
+PHONE_RE = re.compile(r"(?:(?:\+|00)47[\s\-]?)?(?:\d[\s\-]?){8,12}")
+URL_RE = re.compile(r"https?://[^\s\"'<>]+", re.IGNORECASE)
 
 
 def openai_is_ready() -> bool:
@@ -193,6 +207,57 @@ def _sanitize_url(value: str | None) -> str | None:
     return candidate
 
 
+def _sanitize_phone(value: str | None) -> str | None:
+    if not value:
+        return None
+    compact = re.sub(r"[^\d+]", "", value.strip())
+    digits = re.sub(r"\D", "", compact)
+    if len(digits) < 8:
+        return None
+    return value.strip()
+
+
+def _extract_contact_signals_from_website(url: str | None) -> dict[str, Any]:
+    safe_url = _sanitize_url(url)
+    if not safe_url:
+        return {}
+    try:
+        result = _fetch_url(
+            safe_url,
+            timeout_seconds=min(settings.OPENAI_IMPORT_TIMEOUT, 5),
+            max_bytes=MAX_HTML_BYTES,
+            allowed_content_prefixes=("text/html",),
+        )
+    except Exception:
+        return {}
+
+    html = result.body.decode("utf-8", errors="ignore")
+    emails = list(dict.fromkeys(match.group(0) for match in EMAIL_RE.finditer(html)))
+    phones = []
+    for match in PHONE_RE.finditer(html):
+        phone = normalize_space(match.group(0))
+        if phone and phone not in phones:
+            phones.append(phone)
+    urls = [match.group(0).rstrip(").,;") for match in URL_RE.finditer(html)]
+    socials: dict[str, str] = {}
+    for candidate in urls:
+        normalized = _sanitize_url(candidate)
+        if not normalized:
+            continue
+        hostname = (urlparse(normalized).hostname or "").lower()
+        for field_key, domain in SOCIAL_DOMAINS.items():
+            if domain in hostname and field_key not in socials:
+                socials[field_key] = normalized
+    visible_text = normalize_space(re.sub(r"<[^>]+>", " ", html))
+    return {
+        "emails": emails[:3],
+        "phones": phones[:3],
+        "socials": socials,
+        "text_snippet": visible_text[:1200],
+        "final_url": result.final_url,
+    }
+
+
 def _suggest_field_from_exact_match(tenant: Tenant, match_result: dict, entity_type: str, field_name: str) -> str | None:
     exact_id = ((match_result.get(entity_type) or {}).get("exact_id"))
     if not exact_id:
@@ -235,6 +300,11 @@ def _normalize_text_suggestion(key: str, value: str) -> str | None:
     text = normalize_space(value)
     if not text:
         return None
+    if key in {"organization_email", "person_email"}:
+        candidate = text.casefold()
+        return candidate if EMAIL_RE.fullmatch(candidate) else None
+    if key in {"organization_phone", "person_phone"}:
+        return _sanitize_phone(text)
     if key in {"organization_website_url", "person_website_url"}:
         return _sanitize_url(text)
     if key in SOCIAL_DOMAINS:
@@ -334,6 +404,8 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
     organization = normalized_payload["organization"]
     person = normalized_payload["person"]
     text_blob = normalize_name(" ".join(_collect_text_blobs(normalized_payload)))
+    website_url = _infer_website_url(normalized_payload) or organization.get("website_url") or person.get("website_url")
+    website_signals = _extract_contact_signals_from_website(website_url)
 
     suggested_fields: dict[str, dict[str, Any]] = {}
 
@@ -355,12 +427,43 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
             "requires_review": True,
         }
 
-    website_url = _infer_website_url(normalized_payload)
     if website_url:
         suggested_fields["organization_website_url"] = {
             "value": website_url,
             "confidence": 0.74,
             "source": "heuristic_enrichment",
+            "requires_review": True,
+        }
+
+    if not organization.get("email") and website_signals.get("emails"):
+        suggested_fields["organization_email"] = {
+            "value": website_signals["emails"][0],
+            "confidence": 0.78,
+            "source": "website_contact_signal",
+            "requires_review": True,
+        }
+
+    if not organization.get("phone") and website_signals.get("phones"):
+        suggested_fields["organization_phone"] = {
+            "value": website_signals["phones"][0],
+            "confidence": 0.75,
+            "source": "website_contact_signal",
+            "requires_review": True,
+        }
+
+    if not person.get("email") and website_signals.get("emails"):
+        suggested_fields["person_email"] = {
+            "value": website_signals["emails"][0],
+            "confidence": 0.62,
+            "source": "website_contact_signal",
+            "requires_review": True,
+        }
+
+    if not person.get("phone") and website_signals.get("phones"):
+        suggested_fields["person_phone"] = {
+            "value": website_signals["phones"][0],
+            "confidence": 0.6,
+            "source": "website_contact_signal",
             "requires_review": True,
         }
 
@@ -392,16 +495,19 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
         ("youtube_url", "organization_youtube_url"),
     ):
         if not organization.get(field_name):
-            value = _suggest_field_from_exact_match(tenant, match_result, "organization", field_name)
+            exact_match_value = _suggest_field_from_exact_match(tenant, match_result, "organization", field_name)
+            value = exact_match_value or website_signals.get("socials", {}).get(payload_key)
             if value:
                 suggested_fields[payload_key] = {
                     "value": value,
-                    "confidence": 0.8,
-                    "source": "matched_record",
+                    "confidence": 0.8 if exact_match_value else 0.73,
+                    "source": "matched_record" if exact_match_value else "website_contact_signal",
                     "requires_review": True,
                 }
 
     for field_name, payload_key in (
+        ("email", "person_email"),
+        ("phone", "person_phone"),
         ("website_url", "person_website_url"),
         ("instagram_url", "person_instagram_url"),
         ("tiktok_url", "person_tiktok_url"),
@@ -410,12 +516,18 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
         ("youtube_url", "person_youtube_url"),
     ):
         if not person.get(field_name):
-            value = _suggest_field_from_exact_match(tenant, match_result, "person", field_name)
+            exact_match_value = _suggest_field_from_exact_match(tenant, match_result, "person", field_name)
+            value = exact_match_value
+            if not value and payload_key in {"person_email", "person_phone"}:
+                values = website_signals.get("emails" if payload_key == "person_email" else "phones") or []
+                value = values[0] if values else None
+            if not value and payload_key in website_signals.get("socials", {}):
+                value = website_signals["socials"][payload_key]
             if value:
                 suggested_fields[payload_key] = {
                     "value": value,
-                    "confidence": 0.8,
-                    "source": "matched_record",
+                    "confidence": 0.8 if exact_match_value else 0.68,
+                    "source": "matched_record" if exact_match_value else "website_contact_signal",
                     "requires_review": True,
                 }
 
@@ -554,6 +666,9 @@ def _sanitize_suggestions(payload: dict[str, Any], fallback_provider: str) -> di
 
 def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: dict) -> str:
     organization = normalized_payload.get("organization") or {}
+    person = normalized_payload.get("person") or {}
+    website_url = _infer_website_url(normalized_payload) or organization.get("website_url") or person.get("website_url")
+    website_signals = _extract_contact_signals_from_website(website_url)
     taxonomy = {
         "categories": list(Category.objects.values_list("name", flat=True)),
         "subcategories": list(Subcategory.objects.values_list("name", flat=True)),
@@ -564,10 +679,35 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
             "empty_or_missing": [
                 key
                 for key in (
+                    "email",
+                    "phone",
+                    "municipalities",
                     "website_url",
+                    "instagram_url",
+                    "tiktok_url",
+                    "linkedin_url",
+                    "facebook_url",
+                    "youtube_url",
                     "description",
                 )
                 if not organization.get(key)
+            ]
+        },
+        "person": {
+            "empty_or_missing": [
+                key
+                for key in (
+                    "email",
+                    "phone",
+                    "municipality",
+                    "website_url",
+                    "instagram_url",
+                    "tiktok_url",
+                    "linkedin_url",
+                    "facebook_url",
+                    "youtube_url",
+                )
+                if not person.get(key)
             ]
         },
         "taxonomy": {
@@ -591,6 +731,7 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
         "tenant_id": tenant.id,
         "normalized_payload": normalized_payload,
         "match_result": match_result,
+        "website_signals": website_signals,
         "taxonomy": taxonomy,
         "review_targets": editable_targets,
         "rules": {
@@ -607,7 +748,9 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
             "Suggest main category separately from subcategory.",
             "Keep tags separate from categories and subcategories.",
             "Only use existing category and subcategory names from the provided taxonomy lists.",
+            "Use website_signals for public email, public phone, municipality clues, and social profile URLs when available.",
             "Only suggest municipality when reasonably confident.",
+            "Only suggest public email and phone when they are clearly present in website_signals or the normalized data.",
             "Only suggest website or social profile URLs when plausible and editorially useful.",
             "Social URLs must match the actual service domain for that field.",
             "A short description must be in Norwegian, one brief sentence, and not marketing copy.",
@@ -651,6 +794,8 @@ def _openai_schema() -> dict[str, Any]:
                     "type": "object",
                     "additionalProperties": False,
                     "properties": {
+                        "organization_email": string_field_value,
+                        "organization_phone": string_field_value,
                         "organization_municipalities": string_field_value,
                         "organization_website_url": string_field_value,
                         "organization_instagram_url": string_field_value,
@@ -659,6 +804,8 @@ def _openai_schema() -> dict[str, Any]:
                         "organization_facebook_url": string_field_value,
                         "organization_youtube_url": string_field_value,
                         "organization_description": string_field_value,
+                        "person_email": string_field_value,
+                        "person_phone": string_field_value,
                         "person_municipality": string_field_value,
                         "person_website_url": string_field_value,
                         "person_instagram_url": string_field_value,

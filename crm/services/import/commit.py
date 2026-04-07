@@ -77,10 +77,18 @@ def _apply_accepted_ai_suggestions(row: ImportRow, normalized_payload: dict, res
             payload["organization"]["name"] = value or ""
         elif suggestion_key == "person_full_name":
             payload["person"]["full_name"] = value or ""
+        elif suggestion_key == "organization_email":
+            payload["organization"]["email"] = value or ""
+        elif suggestion_key == "organization_phone":
+            payload["organization"]["phone"] = value or ""
         elif suggestion_key == "organization_municipalities":
             payload["organization"]["municipalities"] = value or ""
         elif suggestion_key == "person_title":
             payload["person"]["title"] = value or ""
+        elif suggestion_key == "person_email":
+            payload["person"]["email"] = value or ""
+        elif suggestion_key == "person_phone":
+            payload["person"]["phone"] = value or ""
         elif suggestion_key == "person_municipality":
             payload["person"]["municipality"] = value or ""
         elif suggestion_key == "organization_website_url":

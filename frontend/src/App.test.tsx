@@ -100,8 +100,8 @@ describe("App integration", () => {
     await userEvent.click(screen.getByRole("button", { name: "Kjør preview" }));
 
     expect(await screen.findByText("Rader totalt")).toBeInTheDocument();
-    expect(await screen.findByText("AI venter")).toBeInTheDocument();
-    expect(await screen.findByText("Aktører opprett")).toBeInTheDocument();
+    expect(await screen.findByText("AI-status")).toBeInTheDocument();
+    expect(await screen.findByText("AI fremdrift")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Review" })).toBeInTheDocument();
       expect(screen.getByText("Musikk")).toBeInTheDocument();
@@ -109,18 +109,14 @@ describe("App integration", () => {
       expect(screen.getByText("OpenAI")).toBeInTheDocument();
     });
     await userEvent.click(screen.getByRole("button", { name: "Review" }));
-    expect(await screen.findByText("Kilde: OpenAI")).toBeInTheDocument();
+    expect(await screen.findByText("AI-forslag")).toBeInTheDocument();
     expect(screen.getByText("Rediger raskt")).toBeInTheDocument();
     await userEvent.click(screen.getAllByRole("button", { name: "Godta forslag" })[0]);
     await userEvent.click(screen.getAllByRole("button", { name: "Ignorer" })[0]);
-    await userEvent.click(screen.getByRole("button", { name: "Lagre review" }));
     await waitFor(() => {
-      expect(screen.queryByText("Kilde: openai")).not.toBeInTheDocument();
+      expect(screen.getByText("Lagret")).toBeInTheDocument();
     });
-    await userEvent.click(screen.getByRole("button", { name: "Review" }));
-    expect(await screen.findByText("Akseptert")).toBeInTheDocument();
-    expect(screen.getByText("Ignorert")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Lukk" }));
+    await userEvent.click(screen.getByRole("button", { name: "Lagre review" }));
 
     await userEvent.click(screen.getByRole("button", { name: "Opprett eksportjobb" }));
     expect(await screen.findByText(/SEARCH_RESULTS/)).toBeInTheDocument();
