@@ -175,7 +175,7 @@ export function useImportJobs(tenantId: number | null) {
     try {
       const updated = await generateImportJobAi(tenantId, selectedJobId, {
         retry_failed: retryFailed,
-        batch_size: 5,
+        batch_size: 1,
       });
       setSelectedJob(updated);
       await refreshJobs(updated.id);

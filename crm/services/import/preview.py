@@ -9,7 +9,7 @@ from .normalizers import normalize_import_row
 from .parsers import parse_import_job_file
 from .validators import validate_normalized_row
 
-AI_BATCH_SIZE = 5
+AI_BATCH_SIZE = 1
 
 
 def _ai_summary(rows: list[ImportRow]) -> dict:
