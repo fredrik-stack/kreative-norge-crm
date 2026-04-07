@@ -3,11 +3,35 @@ from __future__ import annotations
 from django.db import transaction
 
 from crm.models import ImportJob, ImportRow, Tenant
-from .ai_suggestions import generate_ai_suggestions
+from .ai_suggestions import build_pending_ai_suggestions, generate_ai_suggestions, openai_is_ready
 from .matchers import match_row_entities
 from .normalizers import normalize_import_row
 from .parsers import parse_import_job_file
 from .validators import validate_normalized_row
+
+AI_BATCH_SIZE = 5
+
+
+def _ai_summary(rows: list[ImportRow]) -> dict:
+    diagnostics = [row.ai_suggestions_json.get("diagnostic", {}) for row in rows]
+    provider_statuses = [str(diagnostic.get("provider_status") or "") for diagnostic in diagnostics]
+    pending_count = sum(1 for status in provider_statuses if status == "pending_openai")
+    completed_count = sum(1 for status in provider_statuses if status in {"openai", "openai_empty"})
+    failed_count = sum(1 for status in provider_statuses if status == "fallback_openai_error")
+    if pending_count:
+        generation_status = "running" if completed_count or failed_count else "pending"
+    elif failed_count and completed_count:
+        generation_status = "partially_failed"
+    elif failed_count:
+        generation_status = "failed"
+    else:
+        generation_status = "completed"
+    return {
+        "ai_generation_status": generation_status,
+        "rows_ai_pending": pending_count,
+        "rows_ai_completed": completed_count,
+        "rows_ai_failed": failed_count,
+    }
 
 
 def summarize_job_rows(import_job: ImportJob) -> dict:
@@ -47,6 +71,7 @@ def summarize_job_rows(import_job: ImportJob) -> dict:
         "rows_with_no_useful_ai_suggestions": sum(1 for diagnostic in diagnostics if int(diagnostic.get("useful_suggestion_count", 0) or 0) == 0),
         "rows_with_ai_errors": sum(1 for diagnostic in diagnostics if diagnostic.get("openai_error")),
     }
+    summary.update(_ai_summary(rows))
     return summary
 
 
@@ -99,7 +124,7 @@ def run_import_preview(import_job: ImportJob) -> ImportJob:
             normalized_payload = normalize_import_row(raw_payload, import_job.import_mode)
             errors, warnings = validate_normalized_row(import_job.tenant, normalized_payload)
             matches = match_row_entities(import_job.tenant, normalized_payload)
-            ai_suggestions = generate_ai_suggestions(import_job.tenant, normalized_payload, matches)
+            ai_suggestions = build_pending_ai_suggestions(import_job.tenant, normalized_payload, matches)
             row_status, proposed_action = _row_outcome(normalized_payload, errors, warnings, matches)
             row_instances.append(
                 ImportRow(
@@ -120,6 +145,35 @@ def run_import_preview(import_job: ImportJob) -> ImportJob:
                 )
             )
         ImportRow.objects.bulk_create(row_instances)
+
+    update_job_preview_status(import_job)
+    return import_job
+
+
+def generate_import_job_ai(import_job: ImportJob, *, retry_failed: bool = False, batch_size: int = AI_BATCH_SIZE) -> ImportJob:
+    if batch_size < 1:
+        batch_size = AI_BATCH_SIZE
+
+    pending_rows = []
+    for row in import_job.rows.all().order_by("row_number"):
+        status = str((row.ai_suggestions_json.get("diagnostic") or {}).get("provider_status") or "")
+        if status == "pending_openai" or (retry_failed and status == "fallback_openai_error"):
+            pending_rows.append(row)
+        if len(pending_rows) >= batch_size:
+            break
+
+    if not pending_rows or not openai_is_ready():
+        update_job_preview_status(import_job)
+        return import_job
+
+    with transaction.atomic():
+        for row in pending_rows:
+            row.ai_suggestions_json = generate_ai_suggestions(
+                import_job.tenant,
+                row.normalized_payload_json,
+                row.match_result_json,
+            )
+            row.save(update_fields=["ai_suggestions_json", "updated_at"])
 
     update_job_preview_status(import_job)
     return import_job

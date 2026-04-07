@@ -570,6 +570,11 @@ class ImportCommitRequestSerializer(serializers.Serializer):
     skip_unresolved = serializers.BooleanField(required=False, default=False)
 
 
+class ImportJobGenerateAiSerializer(serializers.Serializer):
+    retry_failed = serializers.BooleanField(required=False, default=False)
+    batch_size = serializers.IntegerField(required=False, min_value=1, max_value=50, default=5)
+
+
 class ImportRowSerializer(serializers.ModelSerializer):
     decisions = ImportDecisionSerializer(many=True, read_only=True)
 

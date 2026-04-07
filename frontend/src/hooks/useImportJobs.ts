@@ -3,6 +3,7 @@ import {
   ApiError,
   commitImportJob,
   createImportJob,
+  generateImportJobAi,
   getImportJob,
   getImportJobs,
   getImportRows,
@@ -167,6 +168,40 @@ export function useImportJobs(tenantId: number | null) {
     }
   }
 
+  async function generateAi(retryFailed = false) {
+    if (!tenantId || !selectedJobId) return null;
+    setBusyAction("generate-ai");
+    setError(null);
+    try {
+      const updated = await generateImportJobAi(tenantId, selectedJobId, {
+        retry_failed: retryFailed,
+        batch_size: 5,
+      });
+      setSelectedJob(updated);
+      await refreshJobs(updated.id);
+      await refreshSelectedJob(updated.id);
+      await refreshRows(undefined, updated.id);
+      return updated;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Kunne ikke generere AI-forslag.");
+      return null;
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  useEffect(() => {
+    if (!tenantId || !selectedJobId || !selectedJob) return;
+    const aiStatus = String((selectedJob.summary_json ?? {}).ai_generation_status ?? "");
+    if (!["pending", "running"].includes(aiStatus)) return;
+    if (busyAction) return;
+    const timer = window.setTimeout(() => {
+      void generateAi(false);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId, selectedJobId, selectedJob, busyAction]);
+
   async function saveDecisions(rows: ImportDecisionPayload[]) {
     if (!tenantId || !selectedJobId) return null;
     setBusyAction("decisions");
@@ -221,6 +256,7 @@ export function useImportJobs(tenantId: number | null) {
     createJob,
     uploadFile,
     runPreview,
+    generateAi,
     saveDecisions,
     commit,
   };

@@ -367,6 +367,78 @@ export const handlers = [
         organization_match_candidates: [{ id: 10, label: "Kreativ Demo AS", score: 0.92, reason: "name+domain" }],
         person_match_candidates: job.import_mode === "ORGANIZATIONS_ONLY" ? [] : [{ id: 20, label: "Ada Editor", score: 0.77, reason: "name+municipality" }],
         suggested_fields: {
+          suggested_tags: {
+            value: ["Turné", "Etablert"],
+            confidence: 0.68,
+            source: "heuristic_taxonomy",
+            requires_review: true,
+          },
+        },
+        provider: "pending_openai",
+        diagnostic: {
+          primary_provider: "pending_openai",
+          provider_status: "pending_openai",
+          fallback_reason: "awaiting_openai",
+          openai_attempted: false,
+          openai_error: null,
+          useful_suggestion_count: 1,
+        },
+      },
+      validation_errors_json: [],
+      warnings_json: [],
+      row_status: "VALID",
+      proposed_action: "CREATE",
+      decision_json: {},
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      decisions: [],
+    };
+    const rows = [actorRow];
+    importRowsByJobState[jobId] = rows;
+    const updated = {
+      ...jobs[index],
+      status: "PREVIEW_READY" as const,
+      summary_json: {
+        rows_total: rows.length,
+        valid_rows: rows.length,
+        invalid_rows: 0,
+        review_required_rows: 0,
+        organizations_create: 1,
+        organizations_update: 0,
+        persons_create: 1,
+        persons_update: 0,
+        links_create: 1,
+        tags_new: 2,
+        rows_using_openai: 0,
+        rows_using_fallback: 0,
+        rows_ai_pending: 1,
+        rows_ai_completed: 0,
+        rows_ai_failed: 0,
+        ai_generation_status: "pending",
+        rows_with_no_useful_ai_suggestions: 0,
+        rows_with_ai_errors: 0,
+      },
+    };
+    importJobsByTenantState[tenantId] = jobs.map((job, jobIndex) => (jobIndex === index ? updated : job));
+    return HttpResponse.json(updated);
+  }),
+
+  http.post("/api/tenants/:tenantId/import-jobs/:jobId/generate-ai/", ({ params }) => {
+    const tenantId = Number(params.tenantId);
+    const jobId = Number(params.jobId);
+    const jobs = importJobsByTenantState[tenantId] ?? [];
+    const index = jobs.findIndex((item) => item.id === jobId);
+    if (index < 0) return HttpResponse.json({ detail: "Not found." }, { status: 404 });
+    const rows = importRowsByJobState[jobId] ?? [];
+    importRowsByJobState[jobId] = rows.map((row) => {
+      const aiSuggestions = (row.ai_suggestions_json ?? {}) as Record<string, unknown>;
+      const suggestedFields = ((aiSuggestions.suggested_fields as Record<string, unknown> | undefined) ?? {});
+      return {
+        ...row,
+        ai_suggestions_json: {
+          ...aiSuggestions,
+          suggested_fields: {
+            ...suggestedFields,
           organization_website_url: {
             value: "https://example.no",
             confidence: 0.81,
@@ -397,12 +469,6 @@ export const handlers = [
             source: "ai_enrichment",
             requires_review: true,
           },
-          suggested_tags: {
-            value: ["Turné", "Etablert"],
-            confidence: 0.68,
-            source: "ai_enrichment",
-            requires_review: true,
-          },
         },
         provider: "openai",
         diagnostic: {
@@ -410,37 +476,22 @@ export const handlers = [
           provider_status: "openai",
           fallback_reason: null,
           openai_attempted: true,
-          openai_error: null,
-          useful_suggestion_count: 6,
+            openai_error: null,
+            useful_suggestion_count: 6,
+          },
         },
-      },
-      validation_errors_json: [],
-      warnings_json: [],
-      row_status: "VALID",
-      proposed_action: "CREATE",
-      decision_json: {},
-      created_at: "2026-01-01T00:00:00Z",
-      updated_at: "2026-01-01T00:00:00Z",
-      decisions: [],
-    };
-    const rows = [actorRow];
-    importRowsByJobState[jobId] = rows;
+      };
+    });
     const updated = {
       ...jobs[index],
-      status: "PREVIEW_READY" as const,
       summary_json: {
-        rows_total: rows.length,
-        valid_rows: rows.length,
-        invalid_rows: 0,
-        review_required_rows: 0,
-        organizations_create: 1,
-        organizations_update: 0,
-        persons_create: 1,
-        persons_update: 0,
-        links_create: 1,
-        tags_new: 2,
+        ...(jobs[index].summary_json ?? {}),
         rows_using_openai: 1,
         rows_using_fallback: 0,
+        rows_ai_pending: 0,
+        rows_ai_completed: 1,
+        rows_ai_failed: 0,
+        ai_generation_status: "completed",
         rows_with_no_useful_ai_suggestions: 0,
         rows_with_ai_errors: 0,
       },

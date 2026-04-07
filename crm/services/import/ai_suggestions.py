@@ -60,6 +60,10 @@ OPENAI_SCHEMA_FIELD_KEYS = (
 )
 
 
+def openai_is_ready() -> bool:
+    return bool(settings.OPENAI_IMPORT_ENABLED and settings.OPENAI_API_KEY and OpenAI is not None)
+
+
 def _count_useful_suggestions(payload: dict[str, Any]) -> int:
     count = 0
     for value in (payload.get("suggested_fields") or {}).values():
@@ -281,6 +285,39 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
         "useful_suggestion_count": _count_useful_suggestions(payload),
     }
     return payload
+
+
+def build_pending_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_result: dict) -> dict:
+    heuristic = _sanitize_suggestions(_heuristic_suggestions(tenant, normalized_payload, match_result), "heuristic_fallback")
+    if openai_is_ready():
+        heuristic["provider"] = "pending_openai"
+        heuristic["diagnostic"].update(
+            {
+                "primary_provider": "pending_openai",
+                "provider_status": "pending_openai",
+                "fallback_reason": "awaiting_openai",
+                "openai_attempted": False,
+                "openai_error": None,
+            }
+        )
+        return heuristic
+    if not settings.OPENAI_IMPORT_ENABLED:
+        heuristic["diagnostic"].update(
+            {
+                "provider_status": "fallback_openai_disabled",
+                "fallback_reason": "openai_disabled",
+                "openai_attempted": False,
+            }
+        )
+        return heuristic
+    heuristic["diagnostic"].update(
+        {
+            "provider_status": "fallback_openai_unavailable",
+            "fallback_reason": "missing_api_key" if not settings.OPENAI_API_KEY else "openai_sdk_unavailable",
+            "openai_attempted": False,
+        }
+    )
+    return heuristic
 
 
 def _sanitize_suggestions(payload: dict[str, Any], fallback_provider: str) -> dict[str, Any]:

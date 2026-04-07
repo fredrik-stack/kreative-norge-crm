@@ -32,6 +32,7 @@ import_commit_module = importlib.import_module("crm.services.import.commit")
 import_matchers_module = importlib.import_module("crm.services.import.matchers")
 import_normalizers_module = importlib.import_module("crm.services.import.normalizers")
 import_ai_suggestions_module = importlib.import_module("crm.services.import.ai_suggestions")
+import_preview_module = importlib.import_module("crm.services.import.preview")
 match_row_entities = import_matchers_module.match_row_entities
 normalize_import_row = import_normalizers_module.normalize_import_row
 build_import_template_config = import_normalizers_module.build_import_template_config
@@ -588,6 +589,91 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(row.row_status, ImportRow.RowStatus.VALID)
         self.assertEqual(row.proposed_action, ImportRow.ProposedAction.CREATE)
         self.assertEqual(self.job.summary_json["rows_total"], 1)
+
+    @override_settings(OPENAI_IMPORT_ENABLED=True, OPENAI_API_KEY="test-key")
+    def test_preview_marks_ai_as_pending_without_blocking_on_generation(self):
+        self._upload_csv()
+        pending_payload = {
+            "organization_match_candidates": [],
+            "person_match_candidates": [],
+            "suggested_fields": {},
+            "provider": "pending_openai",
+            "diagnostic": {
+                "primary_provider": "pending_openai",
+                "provider_status": "pending_openai",
+                "fallback_reason": "awaiting_openai",
+                "openai_attempted": False,
+                "openai_error": None,
+                "useful_suggestion_count": 0,
+            },
+        }
+        with patch.object(import_preview_module, "build_pending_ai_suggestions", return_value=pending_payload):
+            response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(response.status_code, 200, response.content)
+
+        self.job.refresh_from_db()
+        row = self.job.rows.get()
+        self.assertEqual(row.ai_suggestions_json["diagnostic"]["provider_status"], "pending_openai")
+        self.assertEqual(self.job.summary_json["ai_generation_status"], "pending")
+        self.assertEqual(self.job.summary_json["rows_ai_pending"], 1)
+
+    @override_settings(OPENAI_IMPORT_ENABLED=True, OPENAI_API_KEY="test-key")
+    def test_generate_ai_endpoint_processes_pending_rows_in_batches(self):
+        self._upload_csv([self.base_row, self.base_row | {"organization_name": "Nordlyd 2", "organization_org_number": "987654321"}])
+        pending_payload = {
+            "organization_match_candidates": [],
+            "person_match_candidates": [],
+            "suggested_fields": {},
+            "provider": "pending_openai",
+            "diagnostic": {
+                "primary_provider": "pending_openai",
+                "provider_status": "pending_openai",
+                "fallback_reason": "awaiting_openai",
+                "openai_attempted": False,
+                "openai_error": None,
+                "useful_suggestion_count": 0,
+            },
+        }
+        with patch.object(import_preview_module, "build_pending_ai_suggestions", return_value=pending_payload):
+            self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+
+        fake_suggestion = {
+            "organization_match_candidates": [],
+            "person_match_candidates": [],
+            "suggested_fields": {
+                "organization_website_url": {
+                    "value": "https://nordlyd.no",
+                    "confidence": 0.81,
+                    "source": "ai_enrichment",
+                    "requires_review": True,
+                }
+            },
+            "provider": "openai",
+            "diagnostic": {
+                "primary_provider": "openai",
+                "provider_status": "openai",
+                "fallback_reason": None,
+                "openai_attempted": True,
+                "openai_error": None,
+                "useful_suggestion_count": 1,
+            },
+        }
+
+        with patch.object(import_preview_module, "generate_ai_suggestions", return_value=fake_suggestion), patch.object(
+            import_preview_module,
+            "openai_is_ready",
+            return_value=True,
+        ):
+            response = self.client.post(
+                f"{self.import_jobs_url()}{self.job.id}/generate-ai/",
+                {"batch_size": 1},
+                format="json",
+            )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.summary_json["rows_ai_completed"], 1)
+        self.assertEqual(self.job.summary_json["rows_ai_pending"], 1)
+        self.assertEqual(self.job.summary_json["ai_generation_status"], "running")
 
     def test_xlsx_preview_creates_rows(self):
         self._upload_xlsx()

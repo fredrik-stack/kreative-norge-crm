@@ -240,6 +240,7 @@ function ImportReviewWorkspace(props: {
   const rows = importJobs.rowsPage?.results ?? [];
   const summary = selectedJob.summary_json ?? {};
   const unresolvedCount = Number(summary.review_required_rows ?? 0);
+  const aiStatus = String(summary.ai_generation_status ?? "");
   const mode = selectedJob.import_mode;
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const showPersonColumns = mode !== "ORGANIZATIONS_ONLY";
@@ -261,6 +262,9 @@ function ImportReviewWorkspace(props: {
         <SummaryCard label="Nye tags" value={summary.tags_new} />
         <SummaryCard label="OpenAI-rader" value={summary.rows_using_openai} />
         <SummaryCard label="Fallback-rader" value={summary.rows_using_fallback} />
+        <SummaryCard label="AI venter" value={summary.rows_ai_pending} />
+        <SummaryCard label="AI ferdig" value={summary.rows_ai_completed} />
+        <SummaryCard label="AI feilet" value={summary.rows_ai_failed} />
         <SummaryCard label="Uten forslag" value={summary.rows_with_no_useful_ai_suggestions} />
         <SummaryCard label="AI-feil" value={summary.rows_with_ai_errors} />
       </div>
@@ -307,6 +311,22 @@ function ImportReviewWorkspace(props: {
           onClick={onPreview}
         >
           Kjør preview
+        </button>
+        <button
+          type="button"
+          className="ghost-button"
+          disabled={
+            !["PREVIEW_READY", "AWAITING_REVIEW"].includes(selectedJob.status) ||
+            importJobs.busyAction === "generate-ai" ||
+            aiStatus === "completed"
+          }
+          onClick={() => void importJobs.generateAi(aiStatus === "failed" || aiStatus === "partially_failed")}
+        >
+          {importJobs.busyAction === "generate-ai"
+            ? "Genererer AI..."
+            : aiStatus === "failed" || aiStatus === "partially_failed"
+              ? "Prøv AI på nytt"
+              : "Hent AI-forslag"}
         </button>
         <a
           className={`ghost-button ${selectedJob.error_report_file || summary.invalid_rows || summary.review_required_rows ? "" : "disabled-link"}`}
@@ -1209,6 +1229,9 @@ function countSuggestionFields(row: ImportRow): number {
 
 function getProviderLabel(row: ImportRow): { label: string; variant: "category" | "subcategory" | "tag" } {
   const providerStatus = String((row.ai_suggestions_json?.diagnostic as Record<string, unknown> | undefined)?.provider_status || row.ai_suggestions_json?.provider || "").toLowerCase();
+  if (providerStatus === "pending_openai") {
+    return { label: "Venter", variant: "tag" };
+  }
   if (providerStatus === "openai") {
     return { label: "OpenAI", variant: "category" };
   }
@@ -1232,6 +1255,13 @@ function getDiagnosticMeta(row: ImportRow): { title: string; detail: string; hel
       title: "OpenAI",
       detail: "OpenAI svarte med brukbare forslag for denne raden.",
       helper: "",
+    };
+  }
+  if (status === "pending_openai") {
+    return {
+      title: "AI venter",
+      detail: "Preview er klar. OpenAI-forslag blir generert i bakgrunnen i små batcher.",
+      helper: "AI pågår",
     };
   }
   if (status === "openai_empty") {

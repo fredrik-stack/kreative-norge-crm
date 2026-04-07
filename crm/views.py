@@ -53,6 +53,7 @@ from .serializers import (
     ImportJobDecisionsSerializer,
     ImportDecisionSerializer,
     ImportCommitRequestSerializer,
+    ImportJobGenerateAiSerializer,
 )
 from .services.open_graph import refresh_organization_open_graph
 
@@ -64,6 +65,7 @@ ImportCommitBlocked = import_commit_module.ImportCommitBlocked
 commit_import_job = import_commit_module.commit_import_job
 run_import_preview = import_preview_module.run_import_preview
 update_job_preview_status = import_preview_module.update_job_preview_status
+generate_import_job_ai = import_preview_module.generate_import_job_ai
 save_error_report = import_reporting_module.save_error_report
 build_import_template_config = import_normalizers_module.build_import_template_config
 
@@ -340,6 +342,8 @@ class ImportJobViewSet(
             return ImportJobUploadSerializer
         if self.action == "rows":
             return ImportRowSerializer
+        if self.action == "generate_ai":
+            return ImportJobGenerateAiSerializer
         return ImportJobSerializer
 
     def perform_create(self, serializer):
@@ -398,6 +402,19 @@ class ImportJobViewSet(
             raise ValidationError({"detail": str(exc)})
         serializer = ImportJobSerializer(job, context=self.get_serializer_context())
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="generate-ai")
+    def generate_ai(self, request, tenant_id=None, pk=None):
+        job = self.get_object()
+        serializer = self.get_serializer(data=request.data or {})
+        serializer.is_valid(raise_exception=True)
+        generate_import_job_ai(
+            job,
+            retry_failed=serializer.validated_data["retry_failed"],
+            batch_size=serializer.validated_data["batch_size"],
+        )
+        response_serializer = ImportJobSerializer(job, context=self.get_serializer_context())
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"], url_path="decisions")
     def decisions(self, request, tenant_id=None, pk=None):

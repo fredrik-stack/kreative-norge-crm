@@ -100,11 +100,13 @@ describe("App integration", () => {
     await userEvent.click(screen.getByRole("button", { name: "Kjør preview" }));
 
     expect(await screen.findByText("Rader totalt")).toBeInTheDocument();
+    expect(await screen.findByText("AI venter")).toBeInTheDocument();
     expect(await screen.findByText("Aktører opprett")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Review" })).toBeInTheDocument();
       expect(screen.getByText("Musikk")).toBeInTheDocument();
       expect(screen.getByText("Jazz")).toBeInTheDocument();
+      expect(screen.getByText("OpenAI")).toBeInTheDocument();
     });
     await userEvent.click(screen.getByRole("button", { name: "Review" }));
     expect(await screen.findByText("Kilde: OpenAI")).toBeInTheDocument();
