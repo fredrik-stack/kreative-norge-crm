@@ -987,6 +987,51 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertNotIn("suggested_subcategories", suggestions["suggested_fields"])
         self.assertNotIn("organization_description", suggestions["suggested_fields"])
 
+    @override_settings(
+        OPENAI_IMPORT_ENABLED=False,
+        OPENAI_API_KEY="",
+    )
+    def test_generate_ai_suggestions_can_use_website_signals_for_contacts_and_taxonomy(self):
+        Tag.objects.create(tenant=self.tenant, name="jazz")
+        Organization.objects.create(
+            tenant=self.tenant,
+            name="Bergen Scenehus",
+            municipalities="Bergen",
+        )
+
+        with patch.object(
+            import_ai_suggestions_module,
+            "_extract_contact_signals_from_website",
+            return_value={
+                "emails": ["post@scenehuset.no"],
+                "phones": ["+47 55 55 55 55"],
+                "socials": {"organization_instagram_url": "https://instagram.com/scenehuset"},
+                "text_snippet": "Artister & Band i Bergen med jazz konserter og produksjon.",
+                "final_url": "https://scenehuset.no",
+            },
+        ):
+            suggestions = generate_ai_suggestions(
+                self.tenant,
+                normalize_import_row(self.base_row | {
+                    "organization_email": "",
+                    "organization_phone": "",
+                    "organization_municipalities": "",
+                    "organization_categories": "",
+                    "organization_subcategories": "",
+                    "organization_tags": "",
+                }),
+                {"organization": {}, "person": {}},
+            )
+
+        self.assertEqual(suggestions["diagnostic"]["provider_status"], "fallback_openai_disabled")
+        self.assertEqual(suggestions["suggested_fields"]["organization_email"]["value"], "post@scenehuset.no")
+        self.assertEqual(suggestions["suggested_fields"]["organization_phone"]["value"], "+47 55 55 55 55")
+        self.assertEqual(suggestions["suggested_fields"]["organization_municipalities"]["value"], "Bergen")
+        self.assertEqual(suggestions["suggested_fields"]["organization_instagram_url"]["value"], "https://instagram.com/scenehuset")
+        self.assertEqual(suggestions["suggested_fields"]["suggested_subcategories"]["value"], ["Artister & Band"])
+        self.assertEqual(suggestions["suggested_fields"]["suggested_categories"]["value"], ["Musikk"])
+        self.assertEqual(suggestions["suggested_fields"]["suggested_tags"]["value"], ["jazz"])
+
     @patch("crm.services.import.commit.refresh_organization_open_graph")
     def test_accepted_ai_suggestion_can_influence_commit(self, refresh_mock):
         row = self.base_row | {"organization_website_url": "", "organization_note": "Sterk aktør i musikkfeltet."}

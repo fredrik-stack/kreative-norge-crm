@@ -503,8 +503,14 @@ function ImportReviewWorkspace(props: {
                     <td>{row.validation_errors_json.length}</td>
                     <td>
                       <div className="review-url-cell">
-                        <button type="button" className="ghost-button compact-button" onClick={() => setExpandedRowId(expanded ? null : row.id)}>
-                          {expanded ? "Lukk" : "Review"}
+                        <button
+                          type="button"
+                          className="ghost-button compact-button"
+                          onClick={() => {
+                            if (!expanded) setExpandedRowId(row.id);
+                          }}
+                        >
+                          {expanded ? "Åpen" : "Review"}
                         </button>
                       </div>
                     </td>
@@ -519,6 +525,7 @@ function ImportReviewWorkspace(props: {
                           categories={editor.categories}
                           subcategories={editor.subcategories}
                           onSave={(payload) => importJobs.saveDecisions([{ row_id: row.id, decisions: payload }])}
+                          onClose={() => setExpandedRowId(null)}
                         />
                       </td>
                     </tr>
@@ -596,8 +603,9 @@ function InlineReviewEditor(props: {
   categories: Category[];
   subcategories: Subcategory[];
   onSave: (payload: Array<{ decision_type: ImportDecision["decision_type"]; payload_json?: Record<string, unknown> }>) => Promise<unknown> | null;
+  onClose: () => void;
 }) {
-  const { row, organizations, persons, categories, subcategories, onSave } = props;
+  const { row, organizations, persons, categories, subcategories, onSave, onClose } = props;
   const suggestedFields = useMemo(() => getSuggestionFields(row), [row]);
   const categorySuggestions = getSuggestionValues(row, "suggested_categories");
   const subcategorySuggestions = getSuggestionValues(row, "suggested_subcategories");
@@ -641,7 +649,10 @@ function InlineReviewEditor(props: {
     try {
       await Promise.resolve(onSave(buildDecisions(row, nextDraft)));
       setSaveState("saved");
-      if (closeAfterSave) return;
+      if (closeAfterSave) {
+        onClose();
+        return;
+      }
       window.setTimeout(() => setSaveState((current) => (current === "saved" ? "idle" : current)), 1400);
     } catch {
       setSaveState("error");
@@ -673,10 +684,20 @@ function InlineReviewEditor(props: {
     void persistDraft(nextDraft);
   }
 
-  function applyTagSuggestions() {
+  function applySingleTagSuggestion(value: string) {
+    const merged = Array.from(new Set([...splitCsvText(draft.tagsText), value]));
     const nextDraft = {
       ...draft,
-      tagsText: tagSuggestions.join(", "),
+      tagsText: merged.join(", "),
+      suggestionStates: { ...draft.suggestionStates, suggested_tags: "accepted" as const },
+    };
+    void persistDraft(nextDraft);
+  }
+
+  function removeTag(tag: string) {
+    const nextDraft = {
+      ...draft,
+      tagsText: splitCsvText(draft.tagsText).filter((item) => item.toLowerCase() !== tag.toLowerCase()).join(", "),
       suggestionStates: { ...draft.suggestionStates, suggested_tags: "accepted" as const },
     };
     void persistDraft(nextDraft);
@@ -734,7 +755,7 @@ function InlineReviewEditor(props: {
                 values={tagSuggestions}
                 emptyLabel="Ingen forslag"
                 state={draft.suggestionStates.suggested_tags ?? "pending"}
-                onAccept={() => applyTagSuggestions()}
+                onAccept={(value) => applySingleTagSuggestion(value)}
                 onIgnore={() => {
                   const nextDraft = {
                     ...draft,
@@ -846,11 +867,23 @@ function InlineReviewEditor(props: {
             </Field>
 
             <Field label="Tags (kommaseparert)">
-              <input
-                value={draft.tagsText}
-                onChange={(e) => setDraft((current) => ({ ...current, tagsText: e.target.value, suggestionStates: { ...current.suggestionStates, suggested_tags: "accepted" } }))}
-                placeholder="jazz, management"
-              />
+              <div className="tag-editor-field">
+                <input
+                  value={draft.tagsText}
+                  onChange={(e) => setDraft((current) => ({ ...current, tagsText: e.target.value, suggestionStates: { ...current.suggestionStates, suggested_tags: "accepted" } }))}
+                  placeholder="jazz, management"
+                />
+                {splitCsvText(draft.tagsText).length > 0 ? (
+                  <div className="tag-chip-editor" aria-label="Valgte tags">
+                    {splitCsvText(draft.tagsText).map((tag) => (
+                      <button key={tag} type="button" className="tag-chip-edit" onClick={() => removeTag(tag)}>
+                        <span>{tag}</span>
+                        <span aria-hidden="true">×</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             </Field>
 
             {SIMPLE_EDITABLE_SUGGESTION_FIELDS.map((fieldKey) => {
@@ -943,8 +976,15 @@ function InlineReviewEditor(props: {
       <div className="actions inline-review-actions">
         <button
           type="button"
-          className="primary-button compact-button"
+          className="ghost-button compact-button"
           onClick={() => void persistDraft(draft, true)}
+        >
+          Lukk
+        </button>
+        <button
+          type="button"
+          className="primary-button compact-button"
+          onClick={() => void persistDraft(draft, false)}
         >
           Lagre review
         </button>
@@ -1132,9 +1172,16 @@ function SummaryCard(props: { label: string; value: unknown }) {
 }
 
 function ReviewValueCell(props: { current?: string; suggested?: string; fallback?: string; onClick?: () => void; clickable?: boolean }) {
+  const displayValue = props.current || props.fallback || "—";
   const content = (
     <div className="review-value-cell">
-      <span>{props.current || props.fallback || "—"}</span>
+      {isProbablyUrl(displayValue) ? (
+        <a href={displayValue} target="_blank" rel="noreferrer noopener" className="review-link-chip" onClick={(event) => event.stopPropagation()}>
+          {shortenDisplayText(displayValue, 42)}
+        </a>
+      ) : (
+        <span>{displayValue}</span>
+      )}
       {!props.current && props.suggested ? <span className="review-suggested-hint">Forslag: {props.suggested}</span> : null}
     </div>
   );
@@ -1180,9 +1227,17 @@ function ReviewLinkCell(props: { values: string[]; emptyLabel: string; onClick?:
   const content = (
     <div className="review-link-stack">
       {props.values.slice(0, 3).map((value) => (
-        <span key={value} className="review-link-chip" title={value}>
+        <a
+          key={value}
+          className="review-link-chip"
+          title={value}
+          href={value}
+          target="_blank"
+          rel="noreferrer noopener"
+          onClick={(event) => event.stopPropagation()}
+        >
           {shortenDisplayText(value, 42)}
-        </span>
+        </a>
       ))}
       {props.values.length > 3 ? <span className="meta">+{props.values.length - 3}</span> : null}
     </div>
@@ -1425,6 +1480,10 @@ function shortenDisplayText(value: string, limit: number): string {
     return trimmed;
   }
   return `${trimmed.slice(0, Math.max(0, limit - 1))}…`;
+}
+
+function isProbablyUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value.trim());
 }
 
 function asCandidateList(value: unknown): Array<{ id: number; label?: string; score?: number; reason?: string }> {

@@ -1335,6 +1335,33 @@ select,
   gap: 0.45rem;
 }
 
+.tag-editor-field {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.tag-chip-editor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.tag-chip-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid rgba(12, 122, 91, 0.18);
+  background: rgba(12, 122, 91, 0.08);
+  color: #0a6a4f;
+  border-radius: 999px;
+  padding: 0.3rem 0.55rem;
+  cursor: pointer;
+}
+
+.tag-chip-edit:hover {
+  background: rgba(12, 122, 91, 0.14);
+}
+
 .review-inline-actions {
   display: flex;
   gap: 0.4rem;

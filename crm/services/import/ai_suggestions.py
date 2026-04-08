@@ -358,7 +358,7 @@ def _enforce_suggestion_quality(tenant: Tenant, payload: dict[str, Any]) -> dict
     return payload
 
 
-def _collect_text_blobs(normalized_payload: dict) -> list[str]:
+def _collect_text_blobs(normalized_payload: dict, extra_text: str = "") -> list[str]:
     organization = normalized_payload["organization"]
     person = normalized_payload["person"]
     return [
@@ -368,6 +368,7 @@ def _collect_text_blobs(normalized_payload: dict) -> list[str]:
         person.get("full_name", ""),
         person.get("title", ""),
         person.get("note", ""),
+        extra_text,
     ]
 
 
@@ -384,8 +385,8 @@ def _unique_casefold(values: list[str]) -> list[str]:
     return result
 
 
-def _suggest_existing_tags(tenant: Tenant, normalized_payload: dict) -> list[str]:
-    text = " ".join(_collect_text_blobs(normalized_payload)).casefold()
+def _suggest_existing_tags(tenant: Tenant, normalized_payload: dict, extra_text: str = "") -> list[str]:
+    text = " ".join(_collect_text_blobs(normalized_payload, extra_text)).casefold()
     if not text:
         return []
     tag_names = list(Tag.objects.filter(tenant=tenant).values_list("name", flat=True))
@@ -400,12 +401,30 @@ def _suggest_taxonomy(queryset, text: str) -> list[str]:
     )
 
 
+def _suggest_municipality_from_known_values(text: str) -> str | None:
+    normalized = normalize_name(text)
+    if not normalized:
+        return None
+    known_values = list(
+        Organization.objects.exclude(municipalities="")
+        .values_list("municipalities", flat=True)
+    ) + list(
+        Person.objects.exclude(municipality="")
+        .values_list("municipality", flat=True)
+    )
+    for value in _unique_casefold([normalize_space(item) for item in known_values if normalize_space(item)]):
+        if normalize_name(value) in normalized:
+            return value
+    return None
+
+
 def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_result: dict) -> dict:
     organization = normalized_payload["organization"]
     person = normalized_payload["person"]
-    text_blob = normalize_name(" ".join(_collect_text_blobs(normalized_payload)))
     website_url = _infer_website_url(normalized_payload) or organization.get("website_url") or person.get("website_url")
     website_signals = _extract_contact_signals_from_website(website_url)
+    website_text = str(website_signals.get("text_snippet") or "")
+    text_blob = normalize_name(" ".join(_collect_text_blobs(normalized_payload, website_text)))
 
     suggested_fields: dict[str, dict[str, Any]] = {}
 
@@ -468,22 +487,28 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
         }
 
     if not organization.get("municipalities"):
-        organization_municipality = _suggest_field_from_exact_match(tenant, match_result, "organization", "municipalities")
+        exact_org_municipality = _suggest_field_from_exact_match(tenant, match_result, "organization", "municipalities")
+        organization_municipality = exact_org_municipality
+        if not organization_municipality and website_text:
+            organization_municipality = _suggest_municipality_from_known_values(website_text)
         if organization_municipality:
             suggested_fields["organization_municipalities"] = {
                 "value": organization_municipality,
-                "confidence": 0.82,
-                "source": "matched_record",
+                "confidence": 0.82 if exact_org_municipality else 0.68,
+                "source": "matched_record" if exact_org_municipality else "website_location_signal",
                 "requires_review": True,
             }
 
     if not person.get("municipality"):
-        person_municipality = _suggest_field_from_exact_match(tenant, match_result, "person", "municipality")
+        exact_person_municipality = _suggest_field_from_exact_match(tenant, match_result, "person", "municipality")
+        person_municipality = exact_person_municipality
+        if not person_municipality and website_text:
+            person_municipality = _suggest_municipality_from_known_values(website_text)
         if person_municipality:
             suggested_fields["person_municipality"] = {
                 "value": person_municipality,
-                "confidence": 0.82,
-                "source": "matched_record",
+                "confidence": 0.82 if exact_person_municipality else 0.66,
+                "source": "matched_record" if exact_person_municipality else "website_location_signal",
                 "requires_review": True,
             }
 
@@ -540,7 +565,7 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
             "requires_review": True,
         }
 
-    tag_suggestions = _suggest_existing_tags(tenant, normalized_payload)
+    tag_suggestions = _suggest_existing_tags(tenant, normalized_payload, website_text)
     if tag_suggestions:
         suggested_fields["suggested_tags"] = {
             "value": tag_suggestions,
@@ -566,6 +591,20 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
             "source": "heuristic_taxonomy",
             "requires_review": True,
         }
+        if not category_names:
+            derived_categories = _unique_casefold(
+                list(
+                    Subcategory.objects.filter(name__in=subcategory_names)
+                    .values_list("category__name", flat=True)
+                )
+            )
+            if derived_categories:
+                suggested_fields["suggested_categories"] = {
+                    "value": derived_categories,
+                    "confidence": 0.63,
+                    "source": "subcategory_taxonomy_inference",
+                    "requires_review": True,
+                }
 
     organization_candidates = []
     if match_result.get("organization", {}).get("status") == "FUZZY":
