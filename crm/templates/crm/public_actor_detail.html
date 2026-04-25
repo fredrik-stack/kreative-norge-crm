@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ actor.name }}</title>
+  <style>
+    :root {
+      --bg: #f7ece7;
+      --card: #f0d8cf;
+      --card-border: rgba(103, 63, 50, 0.08);
+      --panel: rgba(255, 255, 255, 0.54);
+      --ink: #4f332c;
+      --muted: #7a675f;
+      --line: rgba(103, 63, 50, 0.12);
+      --category: #6b493d;
+      --subcategory: #38a8ec;
+      --tag: #4f332c;
+      --tag-ink: #ffffff;
+      --shadow: 0 14px 30px rgba(132, 95, 82, 0.09);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.72), transparent 26%),
+        linear-gradient(180deg, #fbf2ee 0%, var(--bg) 100%);
+    }
+
+    main {
+      width: 100%;
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 18px 14px 44px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      text-decoration: none;
+      color: var(--ink);
+      margin-bottom: 12px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .hero-card {
+      display: grid;
+      grid-template-columns: 112px minmax(0, 1fr);
+      gap: 14px;
+      align-items: center;
+      padding: 16px;
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04)), var(--card);
+      border: 1px solid var(--card-border);
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+    }
+
+    .thumb,
+    .thumb-fallback {
+      width: 112px;
+      height: 112px;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #e6d3cb;
+    }
+
+    .thumb {
+      display: block;
+      object-fit: cover;
+    }
+
+    .thumb-fallback {
+      display: grid;
+      place-items: end start;
+      padding: 12px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.08), rgba(79, 51, 44, 0.16)),
+        radial-gradient(circle at top left, rgba(255,255,255,0.5), transparent 34%),
+        linear-gradient(135deg, #d9b8ad 0%, #e8d6ce 100%);
+    }
+
+    .thumb-fallback span {
+      color: rgba(79, 51, 44, 0.92);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.15;
+    }
+
+    .hero-body {
+      min-width: 0;
+      display: grid;
+      gap: 10px;
+    }
+
+    .hero-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: start;
+    }
+
+    h1 {
+      margin: 0;
+      min-width: 0;
+      font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+      font-size: clamp(1.8rem, 3vw, 2.8rem);
+      line-height: 0.96;
+      letter-spacing: -0.04em;
+      font-weight: 700;
+    }
+
+    .hero-municipality {
+      flex: 0 0 auto;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 25px;
+      padding: 5px 8px;
+      border-radius: 8px;
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    .pill.category { background: var(--category); }
+    .pill.subcategory { background: var(--subcategory); }
+    .pill.tag {
+      background: var(--tag);
+      color: var(--tag-ink);
+      opacity: 0.92;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+      gap: 16px;
+    }
+
+    .section {
+      padding: 18px;
+      border-radius: 16px;
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,0.64);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(6px);
+    }
+
+    .section h2 {
+      margin: 0 0 12px;
+      font-size: 16px;
+      letter-spacing: 0.01em;
+    }
+
+    .profile-text {
+      margin: 0 0 18px;
+      color: var(--ink);
+      font-size: 15px;
+      line-height: 1.6;
+      max-width: 62ch;
+    }
+
+    .facts {
+      display: grid;
+      gap: 10px;
+    }
+
+    .fact {
+      display: grid;
+      gap: 2px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.42);
+      border: 1px solid rgba(79, 51, 44, 0.06);
+    }
+
+    .fact-label {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+
+    .fact-value,
+    .fact-value a {
+      color: var(--ink);
+      font-size: 15px;
+      text-decoration: none;
+    }
+
+    .fact-value a:hover {
+      text-decoration: underline;
+    }
+
+    .people-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .link-list {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .link-item {
+      display: inline-flex;
+      align-items: center;
+      min-height: 38px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      background: rgba(255,255,255,0.52);
+      border: 1px solid rgba(79, 51, 44, 0.07);
+    }
+
+    .subsection-title {
+      margin: 0 0 10px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .person-card {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.44);
+      border: 1px solid rgba(79, 51, 44, 0.07);
+    }
+
+    .person-name {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .person-municipality {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .contacts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .contact-link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 8px 11px;
+      border-radius: 999px;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid rgba(79, 51, 44, 0.08);
+      background: rgba(255,255,255,0.62);
+      color: var(--ink);
+    }
+
+    .contact-link.email {
+      background: rgba(107, 73, 61, 0.1);
+      color: #6b493d;
+      border-color: rgba(107, 73, 61, 0.14);
+    }
+
+    .empty {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 860px) {
+      .hero-card {
+        grid-template-columns: 88px minmax(0, 1fr);
+      }
+
+      .thumb,
+      .thumb-fallback {
+        width: 88px;
+        height: 88px;
+      }
+
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 620px) {
+      main {
+        padding: 14px 12px 32px;
+      }
+
+      .hero-card {
+        grid-template-columns: 1fr;
+      }
+
+      .thumb,
+      .thumb-fallback {
+        width: 100%;
+        height: 210px;
+      }
+
+      .hero-head {
+        flex-direction: column;
+      }
+
+      .hero-municipality {
+        white-space: normal;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back-link" href="/public/actors/">← Tilbake til aktører</a>
+
+    <section class="hero-card">
+      {% if actor.get_public_image_url %}
+        <img class="thumb" src="{{ actor.get_public_image_url }}" alt="{{ actor.name }}" />
+      {% else %}
+        <div class="thumb-fallback">
+          <span>{{ actor.name|truncatechars:18 }}</span>
+        </div>
+      {% endif %}
+
+      <div class="hero-body">
+        <div class="hero-head">
+          <h1>{{ actor.name }}</h1>
+          <span class="hero-municipality">{{ actor.municipalities|default:"-" }}</span>
+        </div>
+
+        <div class="hero-meta">
+          {% for category in actor.categories.all %}
+            <span class="pill category">{{ category.name|upper }}</span>
+          {% endfor %}
+          {% for subcategory in actor.subcategories.all %}
+            <span class="pill subcategory">{{ subcategory.name }}</span>
+          {% endfor %}
+          {% for tag in actor.tags.all %}
+            <span class="pill tag">{{ tag.name }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div class="section">
+        <h2>Profil</h2>
+        <p class="profile-text">{{ actor.description|default:"Ingen offentlig beskrivelse er lagt inn ennå." }}</p>
+
+        <div class="facts">
+          <div class="fact">
+            <span class="fact-label">E-post</span>
+            <div class="fact-value">
+              {% if actor.email %}
+                <a href="mailto:{{ actor.email }}">{{ actor.email }}</a>
+              {% else %}
+                Ikke oppgitt
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="fact">
+            <span class="fact-label">Org.nr</span>
+            <div class="fact-value">{{ actor.org_number|default:"Ikke oppgitt" }}</div>
+          </div>
+
+          {% if actor.get_primary_link %}
+            <div class="fact">
+              <span class="fact-label">Primærlenke</span>
+              <div class="fact-value"><a href="{{ actor.get_primary_link }}" target="_blank" rel="noopener">{{ actor.get_primary_link }}</a></div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Lenker og kontaktpersoner</h2>
+
+        <h3 class="subsection-title">Lenker</h3>
+        <div class="link-list">
+          {% if actor.website_url %}<a class="link-item" href="{{ actor.website_url }}" target="_blank" rel="noopener">Nettside</a>{% endif %}
+          {% if actor.instagram_url %}<a class="link-item" href="{{ actor.instagram_url }}" target="_blank" rel="noopener">Instagram</a>{% endif %}
+          {% if actor.tiktok_url %}<a class="link-item" href="{{ actor.tiktok_url }}" target="_blank" rel="noopener">TikTok</a>{% endif %}
+          {% if actor.linkedin_url %}<a class="link-item" href="{{ actor.linkedin_url }}" target="_blank" rel="noopener">LinkedIn</a>{% endif %}
+          {% if actor.facebook_url %}<a class="link-item" href="{{ actor.facebook_url }}" target="_blank" rel="noopener">Facebook</a>{% endif %}
+          {% if actor.youtube_url %}<a class="link-item" href="{{ actor.youtube_url }}" target="_blank" rel="noopener">YouTube</a>{% endif %}
+          {% if not actor.website_url and not actor.instagram_url and not actor.tiktok_url and not actor.linkedin_url and not actor.facebook_url and not actor.youtube_url %}
+            <p class="empty">Ingen offentlige lenker er lagt inn ennå.</p>
+          {% endif %}
+        </div>
+
+        <h3 class="subsection-title">Kontaktpersoner</h3>
+        <div class="people-list">
+          {% for link in actor.org_people.all %}
+            {% if link.status == "ACTIVE" and link.publish_person %}
+              <article class="person-card">
+                <p class="person-name">{{ link.person.full_name }}</p>
+                <div class="person-municipality">{{ link.person.municipality|default:"Ingen kommune registrert" }}</div>
+
+                {% with public_emails=link.person.get_public_emails public_phones=link.person.get_public_phones %}
+                  {% if public_emails or public_phones %}
+                    <div class="contacts">
+                      {% for value in public_emails %}
+                        <a class="contact-link email" href="mailto:{{ value }}">{{ value }}</a>
+                      {% endfor %}
+                      {% for value in public_phones %}
+                        <a class="contact-link" href="tel:{{ value }}">{{ value }}</a>
+                      {% endfor %}
+                    </div>
+                  {% else %}
+                    <p class="empty">Ingen offentlige kontaktmåter er publisert ennå.</p>
+                  {% endif %}
+                {% endwith %}
+              </article>
+            {% endif %}
+          {% empty %}
+            <p class="empty">Ingen publiserte kontaktpersoner ennå.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
