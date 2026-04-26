@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Fragment } from "react";
 import { createPortal } from "react-dom";
 import { Field } from "../components/Field";
 import { useEditor } from "../context/EditorContext";
-import { getExportJobFileUrl, getImportJobErrorReportUrl, type OrganizationPatch } from "../api";
+import { getExportJobFileUrl, type OrganizationPatch } from "../api";
 import { useExportJobs } from "../hooks/useExportJobs";
 import { useImportJobs } from "../hooks/useImportJobs";
 import type { Category, ImportDecision, ImportRow, Organization, Person, Subcategory } from "../types";
@@ -293,23 +293,13 @@ function ImportReviewWorkspace(props: {
 
   return (
     <>
-      <div className="import-summary-grid">
-        <SummaryCard label="Rader totalt" value={summary.rows_total} />
-        <SummaryCard label="Til review" value={summary.review_required_rows} />
-        <SummaryCard label="AI-status" value={aiProgressLabel} />
-        <SummaryCard
-          label="AI fremdrift"
-          value={`${Number(summary.rows_ai_completed ?? 0)} ferdig · ${Number(summary.rows_ai_pending ?? 0)} venter · ${Number(summary.rows_ai_failed ?? 0)} feilet`}
-        />
-      </div>
-
       <div className="import-toolbar">
-        <Field label="Last opp CSV/XLSX">
+        <Field label="Velg fil">
           <div className="file-picker-field">
             <input
               ref={fileInputRef}
               className="visually-hidden-input"
-              aria-label="Last opp CSV/XLSX"
+              aria-label="Velg fil"
               type="file"
               accept=".csv,.xlsx"
               onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
@@ -320,55 +310,48 @@ function ImportReviewWorkspace(props: {
             <span className="meta">{selectedFile?.name || selectedJob?.filename || "Ingen fil valgt ennå"}</span>
           </div>
         </Field>
-        <div className="selected-file-card" aria-live="polite">
-          <span className="meta">Valgt fil og modus</span>
-          <strong>{selectedFile?.name || selectedJob?.filename || "Ingen fil valgt ennå"}</strong>
-          <span className="meta">
-            {MODE_LABELS[mode]} · {selectedJob ? (SOURCE_TYPE_LABELS[selectedJob.source_type as "CSV" | "XLSX"] ?? selectedJob.source_type) : "Ikke startet"}
-          </span>
-          {selectedJob ? (
-            <span className={`save-pill ${selectedJob.status === "COMPLETED" ? "saved" : selectedJob.status === "FAILED" ? "error" : "idle"}`}>
-              {selectedJob.status}
-            </span>
-          ) : null}
-        </div>
         <button
           type="button"
           className="primary-button"
           disabled={!selectedFile || importJobs.busyAction === "preview" || importJobs.busyAction === "upload" || importJobs.busyAction === "create"}
           onClick={onPreview}
         >
-          Kjør preview
+          Kjør review
         </button>
-        <button
-          type="button"
-          className="ghost-button"
-          disabled={
-            !selectedJob ||
-            !["PREVIEW_READY", "AWAITING_REVIEW"].includes(selectedJob?.status ?? "") ||
-            importJobs.busyAction === "generate-ai" ||
-            aiStatus === "completed"
-          }
-          onClick={() => void importJobs.generateAi(aiStatus === "failed" || aiStatus === "partially_failed")}
-        >
-          {importJobs.busyAction === "generate-ai"
-            ? "Genererer AI..."
-            : aiStatus === "failed" || aiStatus === "partially_failed"
-              ? "Prøv AI på nytt"
-              : "Hent AI-forslag"}
-        </button>
-        <a
-          className={`ghost-button ${selectedJob?.error_report_file || summary.invalid_rows || summary.review_required_rows ? "" : "disabled-link"}`}
-          href={editor.tenantId && selectedJob ? getImportJobErrorReportUrl(editor.tenantId, selectedJob.id) : "#"}
-          onClick={(event) => {
-            if (!editor.tenantId || !selectedJob) event.preventDefault();
-          }}
-        >
-          Feilrapport
-        </a>
       </div>
 
-      {!selectedJob ? <div className="empty-state">Velg fil og klikk «Kjør preview» for å opprette en ny importjobb.</div> : null}
+      <div className="import-summary-grid">
+        <SummaryCard label="Rader totalt" value={summary.rows_total} />
+        <SummaryCard label="Til review" value={summary.review_required_rows} />
+        <SummaryCard label="AI-status" value={aiProgressLabel} />
+        <SummaryCard
+          label="AI fremdrift"
+          value={`${Number(summary.rows_ai_completed ?? 0)} ferdig · ${Number(summary.rows_ai_pending ?? 0)} venter · ${Number(summary.rows_ai_failed ?? 0)} feilet`}
+        />
+      </div>
+
+      {selectedJob ? (
+        <div className="import-secondary-actions">
+          <button
+            type="button"
+            className="ghost-button compact-button"
+            disabled={
+              !["PREVIEW_READY", "AWAITING_REVIEW"].includes(selectedJob?.status ?? "") ||
+              importJobs.busyAction === "generate-ai" ||
+              aiStatus === "completed"
+            }
+            onClick={() => void importJobs.generateAi(aiStatus === "failed" || aiStatus === "partially_failed")}
+          >
+            {importJobs.busyAction === "generate-ai"
+              ? "Genererer AI..."
+              : aiStatus === "failed" || aiStatus === "partially_failed"
+                ? "Prøv AI på nytt"
+                : "Hent AI-forslag"}
+          </button>
+        </div>
+      ) : null}
+
+      {!selectedJob ? <div className="empty-state">Velg fil og klikk «Kjør review» for å opprette en ny importjobb.</div> : null}
 
       {selectedJob ? (
       <div className="overview-table-wrap import-review-wrap">
@@ -416,29 +399,29 @@ function ImportReviewWorkspace(props: {
               const websiteSuggestion = mode === "ORGANIZATIONS_ONLY"
                 ? getSuggestionText(row, "organization_website_url")
                 : getSuggestionText(row, "person_website_url");
-              const currentEmail = getResolvedText(row, mode === "ORGANIZATIONS_ONLY" ? ["organization_email"] : ["person_email"]);
-              const currentPhone = getResolvedText(row, mode === "ORGANIZATIONS_ONLY" ? ["organization_phone"] : ["person_phone"]);
+              const currentEmail = getCurrentText(row, mode === "ORGANIZATIONS_ONLY" ? ["organization_email"] : ["person_email"]);
+              const currentPhone = getCurrentText(row, mode === "ORGANIZATIONS_ONLY" ? ["organization_phone"] : ["person_phone"]);
               const suggestedEmail = mode === "ORGANIZATIONS_ONLY"
                 ? getSuggestionText(row, "organization_email")
                 : getSuggestionText(row, "person_email");
               const currentWebsite = mode === "ORGANIZATIONS_ONLY"
-                ? getResolvedText(row, ["organization_website_url"])
-                : getResolvedText(row, ["person_website_url"]);
+                ? getCurrentText(row, ["organization_website_url"])
+                : getCurrentText(row, ["person_website_url"]);
               const currentSocials = summarizeLinkValues([
                 ...(mode === "ORGANIZATIONS_ONLY"
                   ? [
-                    getResolvedText(row, ["organization_instagram_url"]),
-                    getResolvedText(row, ["organization_tiktok_url"]),
-                    getResolvedText(row, ["organization_linkedin_url"]),
-                    getResolvedText(row, ["organization_facebook_url"]),
-                    getResolvedText(row, ["organization_youtube_url"]),
+                    getCurrentText(row, ["organization_instagram_url"]),
+                    getCurrentText(row, ["organization_tiktok_url"]),
+                    getCurrentText(row, ["organization_linkedin_url"]),
+                    getCurrentText(row, ["organization_facebook_url"]),
+                    getCurrentText(row, ["organization_youtube_url"]),
                   ]
                   : [
-                    getResolvedText(row, ["person_instagram_url"]),
-                    getResolvedText(row, ["person_tiktok_url"]),
-                    getResolvedText(row, ["person_linkedin_url"]),
-                    getResolvedText(row, ["person_facebook_url"]),
-                    getResolvedText(row, ["person_youtube_url"]),
+                    getCurrentText(row, ["person_instagram_url"]),
+                    getCurrentText(row, ["person_tiktok_url"]),
+                    getCurrentText(row, ["person_linkedin_url"]),
+                    getCurrentText(row, ["person_facebook_url"]),
+                    getCurrentText(row, ["person_youtube_url"]),
                   ]),
               ]);
               const socialSuggestions = summarizeLinkValues(
@@ -452,8 +435,8 @@ function ImportReviewWorkspace(props: {
                   .filter(Boolean),
               );
               const currentDescription = mode === "ORGANIZATIONS_ONLY"
-                ? getResolvedText(row, ["organization_description"])
-                : getResolvedText(row, ["person_note"]);
+                ? getCurrentText(row, ["organization_description"])
+                : getCurrentText(row, ["person_note"]);
               const suggestedDescription = mode === "ORGANIZATIONS_ONLY" ? getSuggestionText(row, "organization_description") : "";
               const provider = getProviderLabel(row);
               const diagnosticMeta = getDiagnosticMeta(row);
@@ -483,7 +466,7 @@ function ImportReviewWorkspace(props: {
                     </td>
                     <td>
                       <ReviewValueCell
-                        current={mode === "ORGANIZATIONS_ONLY" ? getResolvedText(row, ["organization_municipalities"]) : getResolvedText(row, ["person_municipality"])}
+                        current={mode === "ORGANIZATIONS_ONLY" ? getCurrentText(row, ["organization_municipalities"]) : getCurrentText(row, ["person_municipality"])}
                         fallback="—"
                       />
                     </td>
@@ -491,19 +474,19 @@ function ImportReviewWorkspace(props: {
                       <ReviewValueCell current={municipalitySuggestion} fallback="Ingen forslag" onClick={() => setExpandedRowId(row.id)} clickable={Boolean(municipalitySuggestion)} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell variant="category" currentValues={getResolvedArray(row, "suggested_categories", mode === "ORGANIZATIONS_ONLY" ? ["organization_categories"] : ["person_categories"])} suggestedValues={[]} />
+                      <ReviewSuggestionCell variant="category" currentValues={getCurrentArray(row, mode === "ORGANIZATIONS_ONLY" ? ["organization_categories"] : ["person_categories"])} suggestedValues={[]} />
                     </td>
                     <td>
                       <ReviewSuggestionCell variant="category" currentValues={[]} suggestedValues={categorySuggestions} onClick={() => setExpandedRowId(row.id)} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell variant="subcategory" currentValues={getResolvedArray(row, "suggested_subcategories", mode === "ORGANIZATIONS_ONLY" ? ["organization_subcategories"] : ["person_subcategories"])} suggestedValues={[]} />
+                      <ReviewSuggestionCell variant="subcategory" currentValues={getCurrentArray(row, mode === "ORGANIZATIONS_ONLY" ? ["organization_subcategories"] : ["person_subcategories"])} suggestedValues={[]} />
                     </td>
                     <td>
                       <ReviewSuggestionCell variant="subcategory" currentValues={[]} suggestedValues={subcategorySuggestions} onClick={() => setExpandedRowId(row.id)} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell variant="tag" currentValues={getResolvedArray(row, "suggested_tags", mode === "ORGANIZATIONS_ONLY" ? ["organization_tags"] : ["person_tags"])} suggestedValues={[]} />
+                      <ReviewSuggestionCell variant="tag" currentValues={getCurrentArray(row, mode === "ORGANIZATIONS_ONLY" ? ["organization_tags"] : ["person_tags"])} suggestedValues={[]} />
                     </td>
                     <td>
                       <ReviewSuggestionCell variant="tag" currentValues={[]} suggestedValues={tagSuggestions} onClick={() => setExpandedRowId(row.id)} />
@@ -511,7 +494,7 @@ function ImportReviewWorkspace(props: {
                     <td>
                       <ReviewSuggestionCell
                         variant="internal-tag"
-                        currentValues={getResolvedArray(row, mode === "ORGANIZATIONS_ONLY" ? "organization_internal_tags" : "person_internal_tags", mode === "ORGANIZATIONS_ONLY" ? ["organization_internal_tags"] : ["person_internal_tags"])}
+                        currentValues={getCurrentArray(row, mode === "ORGANIZATIONS_ONLY" ? ["organization_internal_tags"] : ["person_internal_tags"])}
                         suggestedValues={[]}
                       />
                     </td>
@@ -557,29 +540,28 @@ function ImportReviewWorkspace(props: {
                       </div>
                     </td>
                   </tr>
-                  {expanded ? (
-                    <tr key={`${row.id}-editor`} className="import-review-editor-row">
-                      <td colSpan={showPersonColumns ? 27 : 26}>
-                        <InlineReviewEditor
-                          row={row}
-                          importMode={mode}
-                          organizations={editor.organizations}
-                          persons={editor.persons}
-                          categories={editor.categories}
-                          subcategories={editor.subcategories}
-                          onCreateOrganization={editor.quickCreateOrganization}
-                          onSave={(payload) => importJobs.saveDecisions([{ row_id: row.id, decisions: payload }])}
-                          onClose={() => setExpandedRowId(null)}
-                        />
-                      </td>
-                    </tr>
-                  ) : null}
                 </Fragment>
               );
             })}
           </tbody>
         </table>
       </div>
+      ) : null}
+
+      {selectedJob && expandedRowId ? (
+        <ReviewRowModal onClose={() => setExpandedRowId(null)}>
+          <InlineReviewEditor
+            row={rows.find((candidate) => candidate.id === expandedRowId)!}
+            importMode={mode}
+            organizations={editor.organizations}
+            persons={editor.persons}
+            categories={editor.categories}
+            subcategories={editor.subcategories}
+            onCreateOrganization={editor.quickCreateOrganization}
+            onSave={(payload) => importJobs.saveDecisions([{ row_id: expandedRowId, decisions: payload }])}
+            onClose={() => setExpandedRowId(null)}
+          />
+        </ReviewRowModal>
       ) : null}
 
       <div className="pagination-row">
@@ -662,12 +644,14 @@ function InlineReviewEditor(props: {
   const suggestionStates = getExistingSuggestionStates(row);
   const actorOnly = importMode === "ORGANIZATIONS_ONLY";
   const personOnly = importMode === "PEOPLE_ONLY";
+  const currentCategoryNames = getCurrentArray(row, actorOnly ? ["organization_categories"] : ["person_categories"]);
+  const currentSubcategoryNames = getCurrentArray(row, actorOnly ? ["organization_subcategories"] : ["person_subcategories"]);
+  const currentSubcategoryId = findSubcategoryIdByName(subcategories, currentSubcategoryNames[0] || "");
   const [draft, setDraft] = useState<ReviewDraft>(() => {
     const initialFieldValues: Record<string, string> = {};
     SIMPLE_EDITABLE_SUGGESTION_FIELDS.forEach((key) => {
       initialFieldValues[key] =
         getAcceptedDecisionValue(row, key) ||
-        getSuggestionText(row, key) ||
         getResolvedText(row, [key]);
     });
     return {
@@ -679,32 +663,42 @@ function InlineReviewEditor(props: {
         getExistingDecisionId(row, "MAP_CATEGORY", "category_id") ||
         findCategoryIdByName(
           categories,
-          getResolvedArray(row, "suggested_categories", actorOnly ? ["organization_categories"] : ["person_categories"])[0] || categorySuggestions[0] || "",
+          currentCategoryNames[0] || "",
         ),
       subcategoryId:
         getExistingDecisionId(row, "MAP_SUBCATEGORY", "subcategory_id") ||
         findSubcategoryIdByName(
           subcategories,
-          getResolvedArray(row, "suggested_subcategories", actorOnly ? ["organization_subcategories"] : ["person_subcategories"])[0]
-            || subcategorySuggestions[0]
-            || "",
+          currentSubcategoryNames[0] || "",
         ),
       tagsText:
-        getResolvedArray(row, "suggested_tags", actorOnly ? ["organization_tags"] : ["person_tags"]).join(", ")
-        || tagSuggestions.join(", "),
+        getAcceptedDecisionArray(row, "suggested_tags").join(", ")
+        || getCurrentArray(row, actorOnly ? ["organization_tags"] : ["person_tags"]).join(", "),
       organizationInternalTagsText:
-        getResolvedArray(row, "organization_internal_tags", ["organization_internal_tags"]).join(", "),
+        getAcceptedDecisionArray(row, "organization_internal_tags").join(", ")
+        || getCurrentArray(row, ["organization_internal_tags"]).join(", "),
       personInternalTagsText:
-        getResolvedArray(row, "person_internal_tags", ["person_internal_tags"]).join(", "),
+        getAcceptedDecisionArray(row, "person_internal_tags").join(", ")
+        || getCurrentArray(row, ["person_internal_tags"]).join(", "),
       fieldValues: initialFieldValues,
       suggestionStates,
     };
   });
+  useEffect(() => {
+    if (draft.categoryId) return;
+    if (!currentSubcategoryId) return;
+    const inferredCategoryId = findCategoryIdForSubcategory(subcategories, currentSubcategoryId);
+    if (!inferredCategoryId) return;
+    setDraft((current) => (current.categoryId ? current : { ...current, categoryId: inferredCategoryId }));
+  }, [currentSubcategoryId, draft.categoryId, subcategories]);
 
   const filteredSubcategories = useMemo(
     () => filterSubcategories(draft.categoryId, subcategories),
     [draft.categoryId, subcategories],
   );
+  const visibleCategorySuggestions = (draft.suggestionStates.suggested_categories ?? "pending") === "ignored" ? [] : categorySuggestions;
+  const visibleSubcategorySuggestions = (draft.suggestionStates.suggested_subcategories ?? "pending") === "ignored" ? [] : subcategorySuggestions;
+  const visibleTagSuggestions = (draft.suggestionStates.suggested_tags ?? "pending") === "ignored" ? [] : tagSuggestions;
   const diagnosticMeta = getDiagnosticMeta(row);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [createOrganizationOpen, setCreateOrganizationOpen] = useState(false);
@@ -915,9 +909,9 @@ function InlineReviewEditor(props: {
                   <option key={category.id} value={category.id}>{category.name}</option>
                 ))}
               </select>
-              {categorySuggestions.length > 0 ? (
+              {visibleCategorySuggestions.length > 0 ? (
                 <SuggestionPills
-                  values={categorySuggestions}
+                  values={visibleCategorySuggestions}
                   emptyLabel="Ingen forslag"
                   state={draft.suggestionStates.suggested_categories ?? "pending"}
                   onAccept={(value) => applyCategorySuggestion(value)}
@@ -941,9 +935,16 @@ function InlineReviewEditor(props: {
                   <option key={subcategory.id} value={subcategory.id}>{subcategory.name}</option>
                 ))}
               </select>
-              {subcategorySuggestions.length > 0 ? (
+              {currentSubcategoryNames.length > 0 ? (
+                <div className="review-current-pill-row">
+                  {currentSubcategoryNames.map((name) => (
+                    <span key={name} className="mini-pill subcategory">{name}</span>
+                  ))}
+                </div>
+              ) : null}
+              {visibleSubcategorySuggestions.length > 0 ? (
                 <SuggestionPills
-                  values={subcategorySuggestions}
+                  values={visibleSubcategorySuggestions}
                   emptyLabel="Ingen forslag"
                   state={draft.suggestionStates.suggested_subcategories ?? "pending"}
                   onAccept={(value) => applySubcategorySuggestion(value)}
@@ -965,9 +966,9 @@ function InlineReviewEditor(props: {
                   onChange={(e) => setDraft((current) => ({ ...current, tagsText: e.target.value, suggestionStates: { ...current.suggestionStates, suggested_tags: "accepted" } }))}
                   placeholder="jazz, management"
                 />
-                {tagSuggestions.length > 0 ? (
+                {visibleTagSuggestions.length > 0 ? (
                   <SuggestionPills
-                    values={tagSuggestions}
+                    values={visibleTagSuggestions}
                     emptyLabel="Ingen forslag"
                     state={draft.suggestionStates.suggested_tags ?? "pending"}
                     onAccept={(value) => applySingleTagSuggestion(value)}
@@ -1017,6 +1018,7 @@ function InlineReviewEditor(props: {
 
             {visibleSuggestionFields.map((fieldKey) => {
               const suggestion = suggestedFields[fieldKey];
+              const state = draft.suggestionStates[fieldKey] ?? "pending";
               return (
                 <Field key={fieldKey} label={FIELD_LABELS[fieldKey] ?? fieldKey}>
                   <div className="review-inline-field compact">
@@ -1035,20 +1037,39 @@ function InlineReviewEditor(props: {
                       placeholder={suggestion ? `Forslag: ${renderSuggestionValue(suggestion.value)}` : "Tomt felt"}
                     />
                     {suggestion ? (
-                      <button
-                        type="button"
-                        className="ghost-button compact-button"
-                        onClick={() => {
-                          const nextDraft = {
-                            ...draft,
-                            fieldValues: { ...draft.fieldValues, [fieldKey]: renderSuggestionValue(suggestion.value) },
-                            suggestionStates: { ...draft.suggestionStates, [fieldKey]: "accepted" as const },
-                          };
-                          void persistDraft(nextDraft);
-                        }}
-                      >
-                        Bruk forslag
-                      </button>
+                      <div className="review-inline-actions">
+                        <span className={`mini-pill ${state === "accepted" ? "category" : state === "ignored" ? "subcategory" : "tag"}`}>
+                          {state === "accepted" ? "Brukt" : state === "ignored" ? "Avvist" : "Forslag"}
+                        </span>
+                        <button
+                          type="button"
+                          className="ghost-button compact-button"
+                          onClick={() => {
+                            const nextDraft = {
+                              ...draft,
+                              fieldValues: { ...draft.fieldValues, [fieldKey]: renderSuggestionValue(suggestion.value) },
+                              suggestionStates: { ...draft.suggestionStates, [fieldKey]: "accepted" as const },
+                            };
+                            void persistDraft(nextDraft);
+                          }}
+                        >
+                          Bruk forslag
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost-button compact-button"
+                          onClick={() => {
+                            const nextDraft = {
+                              ...draft,
+                              fieldValues: { ...draft.fieldValues, [fieldKey]: "" },
+                              suggestionStates: { ...draft.suggestionStates, [fieldKey]: "ignored" as const },
+                            };
+                            void persistDraft(nextDraft);
+                          }}
+                        >
+                          Avvis forslag
+                        </button>
+                      </div>
                     ) : null}
                   </div>
                 </Field>
@@ -1238,6 +1259,21 @@ function CreateOrganizationModal(props: {
             {saveState === "saving" ? "Oppretter..." : "Lagre aktør"}
           </button>
         </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function ReviewRowModal(props: { children: ReactNode; onClose: () => void }) {
+  return createPortal(
+    <div className="modal-backdrop" onClick={props.onClose}>
+      <div className="detail-modal import-review-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-header compact">
+          <p className="eyebrow small">Importreview</p>
+          <h3>Rediger raskt</h3>
+        </div>
+        {props.children}
       </div>
     </div>,
     document.body,
@@ -1631,9 +1667,9 @@ function SuggestionPills(props: {
       </div>
       <div className="suggestion-actions compact">
         <span className={`mini-pill ${props.state === "accepted" ? "category" : props.state === "ignored" ? "subcategory" : ""}`}>
-          {props.state === "accepted" ? "Akseptert" : props.state === "ignored" ? "Ignorert" : "Til vurdering"}
+          {props.state === "accepted" ? "Brukt" : props.state === "ignored" ? "Avvist" : "Til vurdering"}
         </span>
-        <button type="button" className="ghost-button compact-button" onClick={props.onIgnore}>Ignorer</button>
+        <button type="button" className="ghost-button compact-button" onClick={props.onIgnore}>Avvis forslag</button>
       </div>
     </div>
   );
@@ -1699,7 +1735,11 @@ function SuggestionCandidates(props: {
 }
 
 function getSuggestionFields(row: ImportRow): Record<string, SuggestionField> {
-  return ((row.ai_suggestions_json?.suggested_fields as Record<string, SuggestionField> | undefined) ?? {});
+  const rawFields = ((row.ai_suggestions_json?.suggested_fields as Record<string, SuggestionField> | undefined) ?? {});
+  const states = getExistingSuggestionStates(row);
+  return Object.fromEntries(
+    Object.entries(rawFields).filter(([key]) => (states[key] ?? "pending") === "pending"),
+  );
 }
 
 function getSuggestionValues(row: ImportRow, key: string): string[] {
@@ -1915,6 +1955,37 @@ function getAcceptedDecisionArray(row: ImportRow, suggestionKey: string): string
   return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean) : [];
 }
 
+function getCurrentText(row: ImportRow, keys: string[]): string {
+  for (const key of keys) {
+    const rawValue = getFirstText(row.raw_payload_json[key], getNestedSuggestedFallback(row, key));
+    if (rawValue) return rawValue;
+  }
+  return "";
+}
+
+function getCurrentArray(row: ImportRow, keys: string[]): string[] {
+  for (const key of keys) {
+    const rawValue = row.raw_payload_json[key];
+    if (Array.isArray(rawValue)) {
+      const values = rawValue.map((item) => String(item).trim()).filter(Boolean);
+      if (values.length > 0) return values;
+    }
+    const fromRawText = getFirstText(row.raw_payload_json[key]);
+    const parsedRaw = splitCsvText(fromRawText);
+    if (parsedRaw.length > 0) return parsedRaw;
+    const nested = getNestedSuggestedFallbackValue(row, key);
+    if (Array.isArray(nested)) {
+      const values = nested.map((item) => String(item).trim()).filter(Boolean);
+      if (values.length > 0) return values;
+    }
+    if (typeof nested === "string") {
+      const parsedNested = splitCsvText(nested);
+      if (parsedNested.length > 0) return parsedNested;
+    }
+  }
+  return [];
+}
+
 function getResolvedText(row: ImportRow, suggestionKeys: string[]): string {
   for (const key of suggestionKeys) {
     const accepted = getAcceptedDecisionValue(row, key);
@@ -1966,7 +2037,7 @@ function findCategoryIdForSubcategory(subcategories: Subcategory[], subcategoryI
 }
 
 function filterSubcategories(categoryId: number | "", subcategories: Subcategory[]): Subcategory[] {
-  if (!categoryId) return subcategories;
+  if (!categoryId) return [];
   return subcategories.filter((subcategory) => subcategory.category.id === categoryId);
 }
 

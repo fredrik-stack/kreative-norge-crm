@@ -105,6 +105,27 @@ ENGLISH_DESCRIPTION_MARKERS = (
     " organizer ",
 )
 
+NORWEGIAN_COUNTY_NAMES = {
+    "akershus",
+    "agder",
+    "buskerud",
+    "finnmark",
+    "innlandet",
+    "møre og romsdal",
+    "møre og romsdal fylke",
+    "nordland",
+    "oslo",
+    "rogaland",
+    "telemark",
+    "troms",
+    "troms og finnmark",
+    "trøndelag",
+    "vestfold",
+    "vestfold og telemark",
+    "vestland",
+    "østfold",
+}
+
 PREFERRED_PUBLIC_EMAIL_LOCALS = (
     "post",
     "info",
@@ -442,7 +463,11 @@ def _suggest_field_from_exact_match(tenant: Tenant, match_result: dict, entity_t
     except model.DoesNotExist:
         return None
     value = getattr(instance, field_name, None)
-    return normalize_space(value) if isinstance(value, str) else value
+    normalized_value = normalize_space(value) if isinstance(value, str) else value
+    if field_name in {"municipalities", "municipality"} and isinstance(normalized_value, str):
+        if normalize_name(normalized_value) in NORWEGIAN_COUNTY_NAMES:
+            return None
+    return normalized_value
 
 
 def _looks_non_norwegian(text: str) -> bool:
@@ -587,8 +612,15 @@ def _suggest_municipality_from_known_values(text: str) -> str | None:
         Person.objects.exclude(municipality="")
         .values_list("municipality", flat=True)
     )
-    for value in _unique_casefold([normalize_space(item) for item in known_values if normalize_space(item)]):
-        if normalize_name(value) in normalized:
+    split_values: list[str] = []
+    for value in [normalize_space(item) for item in known_values if normalize_space(item)]:
+        split_values.extend(re.split(r"[;,/]", value))
+
+    for value in _unique_casefold([normalize_space(item) for item in split_values if normalize_space(item)]):
+        normalized_value = normalize_name(value)
+        if normalized_value in NORWEGIAN_COUNTY_NAMES:
+            continue
+        if normalized_value in normalized:
             return value
     return None
 

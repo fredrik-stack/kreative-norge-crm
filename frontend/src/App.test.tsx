@@ -81,16 +81,16 @@ describe("App integration", () => {
     await userEvent.click(await screen.findByRole("link", { name: "Import / eksport" }));
     expect(await screen.findByRole("heading", { name: "Importjobber" })).toBeInTheDocument();
 
-    const fileInput = screen.getByLabelText("Last opp CSV/XLSX");
+    const fileInput = screen.getByLabelText("Velg fil");
     const csvFile = new File(["organization_name,person_full_name\nKreativ Demo AS,Ada Editor\n"], "import.csv", {
       type: "text/csv",
     });
     await userEvent.upload(fileInput, csvFile);
     await waitFor(() => {
       expect(screen.getAllByText("import.csv").length).toBeGreaterThan(0);
-      expect(screen.getByRole("button", { name: "Kjør preview" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Kjør review" })).toBeEnabled();
     });
-    await userEvent.click(screen.getByRole("button", { name: "Kjør preview" }));
+    await userEvent.click(screen.getByRole("button", { name: "Kjør review" }));
 
     expect(await screen.findByText("#1")).toBeInTheDocument();
     expect(await screen.findByText("Rader totalt")).toBeInTheDocument();
@@ -103,7 +103,7 @@ describe("App integration", () => {
       expect(screen.getByText("OpenAI")).toBeInTheDocument();
     });
     await userEvent.click(screen.getByRole("button", { name: "Review" }));
-    expect(screen.getByText("Rediger raskt")).toBeInTheDocument();
+    expect(screen.getAllByText("Rediger raskt").length).toBeGreaterThan(0);
     await userEvent.click(screen.getAllByRole("button", { name: "Bruk forslag" })[0]);
     await waitFor(() => {
       expect(screen.getByText("Lagret")).toBeInTheDocument();

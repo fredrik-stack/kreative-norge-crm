@@ -1123,6 +1123,34 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(suggestions["suggested_fields"]["suggested_tags"]["value"], ["jazz"])
 
     @override_settings(OPENAI_IMPORT_ENABLED=False, OPENAI_API_KEY="")
+    def test_generate_ai_suggestions_does_not_suggest_counties_as_municipalities(self):
+        Organization.objects.create(
+            tenant=self.tenant,
+            name="Nordland Kulturhus",
+            municipalities="Nordland",
+        )
+
+        with patch.object(
+            import_ai_suggestions_module,
+            "_extract_contact_signals_from_website",
+            return_value={
+                "emails": [],
+                "phones": [],
+                "socials": {},
+                "text_snippet": "Nordland kulturhus jobber med musikk og scenekunst i Nordland.",
+                "final_url": "https://nordlandkulturhus.no",
+            },
+        ):
+            suggestions = generate_ai_suggestions(
+                self.tenant,
+                normalize_import_row(self.base_row | {"organization_municipalities": "", "person_municipality": ""}),
+                {"organization": {}, "person": {}},
+            )
+
+        self.assertNotIn("organization_municipalities", suggestions["suggested_fields"])
+        self.assertNotIn("person_municipality", suggestions["suggested_fields"])
+
+    @override_settings(OPENAI_IMPORT_ENABLED=False, OPENAI_API_KEY="")
     def test_generate_ai_suggestions_skips_fields_that_already_have_values(self):
         Tag.objects.create(tenant=self.tenant, name="jazz")
 
