@@ -37,7 +37,6 @@ ALLOWED_SUGGESTION_FIELD_KEYS = (
     "organization_name",
     "person_full_name",
     "organization_email",
-    "organization_phone",
     "organization_municipalities",
     "organization_website_url",
     "organization_instagram_url",
@@ -48,7 +47,6 @@ ALLOWED_SUGGESTION_FIELD_KEYS = (
     "organization_description",
     "person_title",
     "person_email",
-    "person_phone",
     "person_municipality",
     "person_website_url",
     "person_instagram_url",
@@ -63,7 +61,6 @@ ALLOWED_SUGGESTION_FIELD_KEYS = (
 
 OPENAI_SCHEMA_FIELD_KEYS = (
     "organization_email",
-    "organization_phone",
     "organization_municipalities",
     "organization_website_url",
     "organization_instagram_url",
@@ -73,7 +70,6 @@ OPENAI_SCHEMA_FIELD_KEYS = (
     "organization_youtube_url",
     "organization_description",
     "person_email",
-    "person_phone",
     "person_municipality",
     "person_website_url",
     "person_instagram_url",
@@ -177,7 +173,6 @@ def _existing_suggestion_keys(normalized_payload: dict) -> set[str]:
 
     for field_name, suggestion_key in (
         ("email", "organization_email"),
-        ("phone", "organization_phone"),
         ("municipalities", "organization_municipalities"),
         ("website_url", "organization_website_url"),
         ("instagram_url", "organization_instagram_url"),
@@ -193,7 +188,6 @@ def _existing_suggestion_keys(normalized_payload: dict) -> set[str]:
     for field_name, suggestion_key in (
         ("title", "person_title"),
         ("email", "person_email"),
-        ("phone", "person_phone"),
         ("municipality", "person_municipality"),
         ("website_url", "person_website_url"),
         ("instagram_url", "person_instagram_url"),
@@ -483,8 +477,6 @@ def _normalize_text_suggestion(key: str, value: str) -> str | None:
     if key in {"organization_email", "person_email"}:
         candidate = text.casefold()
         return candidate if EMAIL_RE.fullmatch(candidate) else None
-    if key in {"organization_phone", "person_phone"}:
-        return _sanitize_phone(text)
     if key in {"organization_website_url", "person_website_url"}:
         return _sanitize_url(text)
     if key in SOCIAL_DOMAINS:
@@ -608,7 +600,6 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
     website_signals = _extract_contact_signals_from_website(website_url)
     preferred_domain = normalize_domain(website_signals.get("final_url") or website_url or "")
     preferred_organization_email = _preferred_public_email(website_signals.get("emails") or [], preferred_domain)
-    preferred_organization_phone = _preferred_phone(website_signals.get("phones") or [])
     website_text = str(website_signals.get("text_snippet") or "")
     text_blob = normalize_name(" ".join(_collect_text_blobs(normalized_payload, website_text)))
 
@@ -645,14 +636,6 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
         suggested_fields["organization_email"] = {
             "value": preferred_organization_email,
             "confidence": 0.81,
-            "source": "website_contact_signal",
-            "requires_review": True,
-        }
-
-    if not organization.get("phone") and preferred_organization_phone:
-        suggested_fields["organization_phone"] = {
-            "value": preferred_organization_phone,
-            "confidence": 0.77,
             "source": "website_contact_signal",
             "requires_review": True,
         }
@@ -703,7 +686,6 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
 
     for field_name, payload_key in (
         ("email", "person_email"),
-        ("phone", "person_phone"),
         ("website_url", "person_website_url"),
         ("instagram_url", "person_instagram_url"),
         ("tiktok_url", "person_tiktok_url"),
@@ -894,7 +876,6 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
             "empty_or_missing": [
                 key for key, suggestion_key in (
                     ("email", "organization_email"),
-                    ("phone", "organization_phone"),
                     ("municipalities", "organization_municipalities"),
                     ("website_url", "organization_website_url"),
                     ("instagram_url", "organization_instagram_url"),
@@ -912,7 +893,6 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
                 key for key, suggestion_key in (
                     ("title", "person_title"),
                     ("email", "person_email"),
-                    ("phone", "person_phone"),
                     ("municipality", "person_municipality"),
                     ("website_url", "person_website_url"),
                     ("instagram_url", "person_instagram_url"),
@@ -962,9 +942,9 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
             "Suggest main category separately from subcategory.",
             "Keep tags separate from categories and subcategories.",
             "Only use existing category and subcategory names from the provided taxonomy lists.",
-            "Use website_signals for public email, public phone, municipality clues, and social profile URLs when available.",
+            "Use website_signals for public email, municipality clues, and social profile URLs when available.",
             "Only suggest municipality when reasonably confident.",
-            "Only suggest public email and phone when they are clearly present in website_signals or the normalized data.",
+            "Only suggest public email when it is clearly present in website_signals or the normalized data.",
             "Only suggest website or social profile URLs when plausible and editorially useful.",
             "Social URLs must match the actual service domain for that field.",
             "A short description must be in Norwegian, one brief sentence, and not marketing copy.",
@@ -1009,7 +989,6 @@ def _openai_schema() -> dict[str, Any]:
                     "additionalProperties": False,
                     "properties": {
                         "organization_email": string_field_value,
-                        "organization_phone": string_field_value,
                         "organization_municipalities": string_field_value,
                         "organization_website_url": string_field_value,
                         "organization_instagram_url": string_field_value,
@@ -1019,7 +998,6 @@ def _openai_schema() -> dict[str, Any]:
                         "organization_youtube_url": string_field_value,
                         "organization_description": string_field_value,
                         "person_email": string_field_value,
-                        "person_phone": string_field_value,
                         "person_municipality": string_field_value,
                         "person_website_url": string_field_value,
                         "person_instagram_url": string_field_value,

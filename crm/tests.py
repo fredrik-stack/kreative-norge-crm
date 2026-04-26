@@ -241,7 +241,7 @@ class ImportExportApiTests(ImportExportAuthenticatedAPITestCase):
             {
                 "tenant": self.other_tenant.id,
                 "source_type": ImportJob.SourceType.CSV,
-                "import_mode": ImportJob.ImportMode.COMBINED,
+                "import_mode": ImportJob.ImportMode.ORGANIZATIONS_ONLY,
             },
             format="json",
         )
@@ -251,6 +251,19 @@ class ImportExportApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(created.tenant_id, self.tenant.id)
         self.assertEqual(created.created_by_id, self.user.id)
         self.assertEqual(created.status, ImportJob.Status.DRAFT)
+
+    def test_create_import_job_rejects_combined_mode(self):
+        response = self.client.post(
+            self.import_jobs_url(),
+            {
+                "source_type": ImportJob.SourceType.CSV,
+                "import_mode": ImportJob.ImportMode.COMBINED,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertIn("import_mode", response.json())
 
     def test_create_import_job_sets_template_config_for_separate_modes(self):
         response = self.client.post(
@@ -1103,7 +1116,6 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
 
         self.assertEqual(suggestions["diagnostic"]["provider_status"], "fallback_openai_disabled")
         self.assertEqual(suggestions["suggested_fields"]["organization_email"]["value"], "post@scenehuset.no")
-        self.assertEqual(suggestions["suggested_fields"]["organization_phone"]["value"], "+47 55 55 55 55")
         self.assertEqual(suggestions["suggested_fields"]["organization_municipalities"]["value"], "Bergen")
         self.assertEqual(suggestions["suggested_fields"]["organization_instagram_url"]["value"], "https://instagram.com/scenehuset")
         self.assertEqual(suggestions["suggested_fields"]["suggested_subcategories"]["value"], ["Artister & Band"])
@@ -1173,6 +1185,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(suggestions["diagnostic"]["provider_status"], "fallback_openai_disabled")
         self.assertEqual(suggestions["suggested_fields"]["organization_website_url"]["value"], "https://nordlyd.no/om-oss")
         self.assertEqual(suggestions["suggested_fields"]["organization_email"]["value"], "kontakt@nordlyd.no")
+        self.assertNotIn("organization_phone", suggestions["suggested_fields"])
         self.assertEqual(
             suggestions["suggested_fields"]["organization_description"]["value"],
             "Nordlyd er en uavhengig konsertarrangør i Oslo som utvikler og produserer liveopplevelser.",

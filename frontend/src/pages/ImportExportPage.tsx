@@ -34,7 +34,6 @@ const EXPORT_FIELD_OPTIONS = [
 
 const SIMPLE_EDITABLE_SUGGESTION_FIELDS = [
   "organization_email",
-  "organization_phone",
   "organization_municipalities",
   "organization_website_url",
   "organization_instagram_url",
@@ -45,7 +44,6 @@ const SIMPLE_EDITABLE_SUGGESTION_FIELDS = [
   "organization_description",
   "person_title",
   "person_email",
-  "person_phone",
   "person_municipality",
   "person_website_url",
   "person_instagram_url",
@@ -57,7 +55,6 @@ const SIMPLE_EDITABLE_SUGGESTION_FIELDS = [
 
 const FIELD_LABELS: Record<string, string> = {
   organization_email: "E-post",
-  organization_phone: "Telefon",
   organization_municipalities: "Kommune / steder",
   organization_website_url: "Nettside",
   organization_instagram_url: "Instagram",
@@ -68,7 +65,6 @@ const FIELD_LABELS: Record<string, string> = {
   organization_description: "Beskrivelse",
   person_title: "Tittel",
   person_email: "Person e-post",
-  person_phone: "Person telefon",
   person_municipality: "Personkommune",
   person_website_url: "Personnettside",
   person_instagram_url: "Person Instagram",
@@ -81,8 +77,7 @@ const FIELD_LABELS: Record<string, string> = {
   suggested_tags: "Tags",
 };
 
-const MODE_LABELS: Record<"COMBINED" | "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY", string> = {
-  COMBINED: "Kombinert",
+const MODE_LABELS: Record<"ORGANIZATIONS_ONLY" | "PEOPLE_ONLY", string> = {
   ORGANIZATIONS_ONLY: "Aktører",
   PEOPLE_ONLY: "Personer",
 };
@@ -102,7 +97,7 @@ type SuggestionField = {
 type SuggestionState = "pending" | "accepted" | "ignored";
 
 type ReviewDraft = {
-  organizationDecision: "NONE" | "USE_EXISTING_ORGANIZATION" | "CREATE_NEW_ORGANIZATION";
+  organizationDecision: "NONE" | "USE_EXISTING_ORGANIZATION";
   personDecision: "NONE" | "USE_EXISTING_PERSON" | "CREATE_NEW_PERSON";
   organizationId: number | "";
   personId: number | "";
@@ -111,7 +106,6 @@ type ReviewDraft = {
   tagsText: string;
   organizationInternalTagsText: string;
   personInternalTagsText: string;
-  skipRow: boolean;
   fieldValues: Record<string, string>;
   suggestionStates: Record<string, SuggestionState>;
 };
@@ -135,7 +129,7 @@ export function ImportExportPage() {
   const importJobs = useImportJobs(editor.tenantId);
   const exportJobs = useExportJobs(editor.tenantId);
   const [sourceType, setSourceType] = useState<"CSV" | "XLSX">("CSV");
-  const [importMode, setImportMode] = useState<"COMBINED" | "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY">("COMBINED");
+  const [importMode, setImportMode] = useState<"ORGANIZATIONS_ONLY" | "PEOPLE_ONLY">("ORGANIZATIONS_ONLY");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [expandedRowId, setExpandedRowId] = useState<number | null>(null);
   const [skipUnresolved, setSkipUnresolved] = useState(false);
@@ -169,13 +163,14 @@ export function ImportExportPage() {
   }, [showImportHistory, primaryImportJob, importJobs.selectedJobId, importJobs.setSelectedJobId]);
 
   async function handlePreview() {
-    const selectedJob = importJobs.selectedJob;
-    if (!selectedJob) return;
-    if (!selectedJob.file && selectedFile) {
-      const uploaded = await importJobs.uploadFile(selectedFile);
-      if (!uploaded) return;
-    }
-    await importJobs.runPreview();
+    if (!selectedFile || !editor.tenantId) return;
+    const created = await importJobs.createJob({ source_type: sourceType, import_mode: importMode });
+    if (!created) return;
+    const uploaded = await importJobs.uploadFile(selectedFile, created.id);
+    if (!uploaded) return;
+    const previewed = await importJobs.runPreview(created.id);
+    if (!previewed) return;
+    setSelectedFile(null);
   }
 
   return (
@@ -234,37 +229,25 @@ export function ImportExportPage() {
                 </select>
               </Field>
               <Field label="Importmodus">
-                <select value={importMode} onChange={(e) => setImportMode(e.target.value as "COMBINED" | "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY")}> 
-                  <option value="COMBINED">Combined</option>
+                <select value={importMode} onChange={(e) => setImportMode(e.target.value as "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY")}> 
                   <option value="ORGANIZATIONS_ONLY">Aktører</option>
                   <option value="PEOPLE_ONLY">Personer</option>
                 </select>
               </Field>
-              <button
-                type="button"
-                className="primary-button"
-                disabled={!!importJobs.busyAction || importJobs.forbidden || !editor.tenantId}
-                onClick={() => void importJobs.createJob({ source_type: sourceType, import_mode: importMode })}
-              >
-                Opprett importjobb
-              </button>
             </div>
 
-            {importJobs.selectedJob ? (
-              <ImportReviewWorkspace
-                editor={editor}
-                importJobs={importJobs}
-                selectedFile={selectedFile}
-                setSelectedFile={setSelectedFile}
-                skipUnresolved={skipUnresolved}
-                setSkipUnresolved={setSkipUnresolved}
-                expandedRowId={expandedRowId}
-                setExpandedRowId={setExpandedRowId}
-                onPreview={() => void handlePreview()}
-              />
-            ) : (
-              <div className="empty-state">Opprett eller velg en importjobb for å starte flyten.</div>
-            )}
+            <ImportReviewWorkspace
+              editor={editor}
+              importJobs={importJobs}
+              selectedFile={selectedFile}
+              setSelectedFile={setSelectedFile}
+              skipUnresolved={skipUnresolved}
+              setSkipUnresolved={setSkipUnresolved}
+              expandedRowId={expandedRowId}
+              setExpandedRowId={setExpandedRowId}
+              pendingImportMode={importMode}
+              onPreview={() => void handlePreview()}
+            />
           </div>
         </div>
       </section>
@@ -293,15 +276,16 @@ function ImportReviewWorkspace(props: {
   setSkipUnresolved: (value: boolean) => void;
   expandedRowId: number | null;
   setExpandedRowId: (rowId: number | null) => void;
+  pendingImportMode: "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY";
   onPreview: () => void;
 }) {
-  const { editor, importJobs, selectedFile, setSelectedFile, skipUnresolved, setSkipUnresolved, expandedRowId, setExpandedRowId, onPreview } = props;
-  const selectedJob = importJobs.selectedJob!;
+  const { editor, importJobs, selectedFile, setSelectedFile, skipUnresolved, setSkipUnresolved, expandedRowId, setExpandedRowId, pendingImportMode, onPreview } = props;
+  const selectedJob = importJobs.selectedJob;
   const rows = importJobs.rowsPage?.results ?? [];
-  const summary = selectedJob.summary_json ?? {};
+  const summary = selectedJob?.summary_json ?? {};
   const unresolvedCount = Number(summary.review_required_rows ?? 0);
   const aiStatus = String(summary.ai_generation_status ?? "");
-  const mode = selectedJob.import_mode;
+  const mode = normalizeImportMode(selectedJob?.import_mode, pendingImportMode);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const showPersonColumns = mode !== "ORGANIZATIONS_ONLY";
   const orgLabel = mode === "PEOPLE_ONLY" ? "Knyttet aktør" : "Aktør";
@@ -333,31 +317,25 @@ function ImportReviewWorkspace(props: {
             <button type="button" className="ghost-button" onClick={() => fileInputRef.current?.click()}>
               Velg fil
             </button>
-            <span className="meta">{selectedFile?.name || selectedJob.filename || "Ingen fil valgt ennå"}</span>
+            <span className="meta">{selectedFile?.name || selectedJob?.filename || "Ingen fil valgt ennå"}</span>
           </div>
         </Field>
         <div className="selected-file-card" aria-live="polite">
           <span className="meta">Valgt fil og modus</span>
-          <strong>{selectedFile?.name || selectedJob.filename || "Ingen fil valgt ennå"}</strong>
+          <strong>{selectedFile?.name || selectedJob?.filename || "Ingen fil valgt ennå"}</strong>
           <span className="meta">
-            {MODE_LABELS[mode]} · {SOURCE_TYPE_LABELS[selectedJob.source_type as "CSV" | "XLSX"] ?? selectedJob.source_type}
+            {MODE_LABELS[mode]} · {selectedJob ? (SOURCE_TYPE_LABELS[selectedJob.source_type as "CSV" | "XLSX"] ?? selectedJob.source_type) : "Ikke startet"}
           </span>
-          <span className={`save-pill ${selectedJob.status === "COMPLETED" ? "saved" : selectedJob.status === "FAILED" ? "error" : "idle"}`}>
-            {selectedJob.status}
-          </span>
+          {selectedJob ? (
+            <span className={`save-pill ${selectedJob.status === "COMPLETED" ? "saved" : selectedJob.status === "FAILED" ? "error" : "idle"}`}>
+              {selectedJob.status}
+            </span>
+          ) : null}
         </div>
         <button
           type="button"
-          className="ghost-button"
-          disabled={!selectedFile || importJobs.busyAction === "upload"}
-          onClick={() => selectedFile && void importJobs.uploadFile(selectedFile)}
-        >
-          Last opp
-        </button>
-        <button
-          type="button"
           className="primary-button"
-          disabled={(!selectedJob.file && !selectedFile) || importJobs.busyAction === "preview" || importJobs.busyAction === "upload"}
+          disabled={!selectedFile || importJobs.busyAction === "preview" || importJobs.busyAction === "upload" || importJobs.busyAction === "create"}
           onClick={onPreview}
         >
           Kjør preview
@@ -366,7 +344,8 @@ function ImportReviewWorkspace(props: {
           type="button"
           className="ghost-button"
           disabled={
-            !["PREVIEW_READY", "AWAITING_REVIEW"].includes(selectedJob.status) ||
+            !selectedJob ||
+            !["PREVIEW_READY", "AWAITING_REVIEW"].includes(selectedJob?.status ?? "") ||
             importJobs.busyAction === "generate-ai" ||
             aiStatus === "completed"
           }
@@ -379,16 +358,19 @@ function ImportReviewWorkspace(props: {
               : "Hent AI-forslag"}
         </button>
         <a
-          className={`ghost-button ${selectedJob.error_report_file || summary.invalid_rows || summary.review_required_rows ? "" : "disabled-link"}`}
-          href={editor.tenantId ? getImportJobErrorReportUrl(editor.tenantId, selectedJob.id) : "#"}
+          className={`ghost-button ${selectedJob?.error_report_file || summary.invalid_rows || summary.review_required_rows ? "" : "disabled-link"}`}
+          href={editor.tenantId && selectedJob ? getImportJobErrorReportUrl(editor.tenantId, selectedJob.id) : "#"}
           onClick={(event) => {
-            if (!editor.tenantId) event.preventDefault();
+            if (!editor.tenantId || !selectedJob) event.preventDefault();
           }}
         >
           Feilrapport
         </a>
       </div>
 
+      {!selectedJob ? <div className="empty-state">Velg fil og klikk «Kjør preview» for å opprette en ny importjobb.</div> : null}
+
+      {selectedJob ? (
       <div className="overview-table-wrap import-review-wrap">
         <table className="overview-table import-review-table">
           <thead>
@@ -400,7 +382,6 @@ function ImportReviewWorkspace(props: {
               <th>E-post</th>
               <th>AI e-post</th>
               <th>Telefon</th>
-              <th>AI telefon</th>
               <th>Nå kommune</th>
               <th>AI kommune</th>
               <th>Nå hovedkategori</th>
@@ -429,37 +410,51 @@ function ImportReviewWorkspace(props: {
               const categorySuggestions = getSuggestionValues(row, "suggested_categories");
               const subcategorySuggestions = getSuggestionValues(row, "suggested_subcategories");
               const tagSuggestions = getSuggestionValues(row, "suggested_tags");
-              const municipalitySuggestion = getSuggestionText(row, "organization_municipalities") || getSuggestionText(row, "person_municipality");
-              const websiteSuggestion = getSuggestionText(row, "organization_website_url") || getSuggestionText(row, "person_website_url");
-              const currentEmail = getFirstText(row.raw_payload_json.organization_email, row.raw_payload_json.person_email);
-              const currentPhone = getFirstText(row.raw_payload_json.organization_phone, row.raw_payload_json.person_phone);
-              const suggestedEmail = getSuggestionText(row, "organization_email") || getSuggestionText(row, "person_email");
-              const suggestedPhone = getSuggestionText(row, "organization_phone") || getSuggestionText(row, "person_phone");
-              const currentWebsite = getFirstText(
-                row.raw_payload_json.organization_website_url,
-                row.raw_payload_json.person_website_url,
-              );
+              const municipalitySuggestion = mode === "ORGANIZATIONS_ONLY"
+                ? getSuggestionText(row, "organization_municipalities")
+                : getSuggestionText(row, "person_municipality");
+              const websiteSuggestion = mode === "ORGANIZATIONS_ONLY"
+                ? getSuggestionText(row, "organization_website_url")
+                : getSuggestionText(row, "person_website_url");
+              const currentEmail = getResolvedText(row, mode === "ORGANIZATIONS_ONLY" ? ["organization_email"] : ["person_email"]);
+              const currentPhone = getResolvedText(row, mode === "ORGANIZATIONS_ONLY" ? ["organization_phone"] : ["person_phone"]);
+              const suggestedEmail = mode === "ORGANIZATIONS_ONLY"
+                ? getSuggestionText(row, "organization_email")
+                : getSuggestionText(row, "person_email");
+              const currentWebsite = mode === "ORGANIZATIONS_ONLY"
+                ? getResolvedText(row, ["organization_website_url"])
+                : getResolvedText(row, ["person_website_url"]);
               const currentSocials = summarizeLinkValues([
-                getFirstText(row.raw_payload_json.organization_instagram_url),
-                getFirstText(row.raw_payload_json.organization_tiktok_url),
-                getFirstText(row.raw_payload_json.organization_linkedin_url),
-                getFirstText(row.raw_payload_json.organization_facebook_url),
-                getFirstText(row.raw_payload_json.organization_youtube_url),
-                getFirstText(row.raw_payload_json.person_instagram_url),
-                getFirstText(row.raw_payload_json.person_tiktok_url),
-                getFirstText(row.raw_payload_json.person_linkedin_url),
-                getFirstText(row.raw_payload_json.person_facebook_url),
-                getFirstText(row.raw_payload_json.person_youtube_url),
+                ...(mode === "ORGANIZATIONS_ONLY"
+                  ? [
+                    getResolvedText(row, ["organization_instagram_url"]),
+                    getResolvedText(row, ["organization_tiktok_url"]),
+                    getResolvedText(row, ["organization_linkedin_url"]),
+                    getResolvedText(row, ["organization_facebook_url"]),
+                    getResolvedText(row, ["organization_youtube_url"]),
+                  ]
+                  : [
+                    getResolvedText(row, ["person_instagram_url"]),
+                    getResolvedText(row, ["person_tiktok_url"]),
+                    getResolvedText(row, ["person_linkedin_url"]),
+                    getResolvedText(row, ["person_facebook_url"]),
+                    getResolvedText(row, ["person_youtube_url"]),
+                  ]),
               ]);
               const socialSuggestions = summarizeLinkValues(
-                SIMPLE_EDITABLE_SUGGESTION_FIELDS.filter(
-                  (key) => key.endsWith("_url") && key !== "organization_website_url" && key !== "person_website_url",
-                )
+                SIMPLE_EDITABLE_SUGGESTION_FIELDS.filter((key) => (
+                  key.endsWith("_url")
+                  && key !== "organization_website_url"
+                  && key !== "person_website_url"
+                  && (mode === "ORGANIZATIONS_ONLY" ? key.startsWith("organization_") : key.startsWith("person_"))
+                ))
                   .map((key) => getSuggestionText(row, key))
                   .filter(Boolean),
               );
-              const currentDescription = getFirstText(row.raw_payload_json.organization_description, row.raw_payload_json.person_note);
-              const suggestedDescription = getSuggestionText(row, "organization_description");
+              const currentDescription = mode === "ORGANIZATIONS_ONLY"
+                ? getResolvedText(row, ["organization_description"])
+                : getResolvedText(row, ["person_note"]);
+              const suggestedDescription = mode === "ORGANIZATIONS_ONLY" ? getSuggestionText(row, "organization_description") : "";
               const provider = getProviderLabel(row);
               const diagnosticMeta = getDiagnosticMeta(row);
               const suggestionCount = countSuggestionFields(row);
@@ -487,11 +482,8 @@ function ImportReviewWorkspace(props: {
                       <ReviewValueCell current={currentPhone} fallback="—" />
                     </td>
                     <td>
-                      <ReviewValueCell current={suggestedPhone} fallback="Ingen forslag" onClick={() => setExpandedRowId(row.id)} clickable={Boolean(suggestedPhone)} />
-                    </td>
-                    <td>
                       <ReviewValueCell
-                        current={getFirstText(row.raw_payload_json.organization_municipalities, row.raw_payload_json.person_municipality)}
+                        current={mode === "ORGANIZATIONS_ONLY" ? getResolvedText(row, ["organization_municipalities"]) : getResolvedText(row, ["person_municipality"])}
                         fallback="—"
                       />
                     </td>
@@ -499,26 +491,27 @@ function ImportReviewWorkspace(props: {
                       <ReviewValueCell current={municipalitySuggestion} fallback="Ingen forslag" onClick={() => setExpandedRowId(row.id)} clickable={Boolean(municipalitySuggestion)} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_categories, row.raw_payload_json.person_categories))} suggestedValues={[]} />
+                      <ReviewSuggestionCell variant="category" currentValues={getResolvedArray(row, "suggested_categories", mode === "ORGANIZATIONS_ONLY" ? ["organization_categories"] : ["person_categories"])} suggestedValues={[]} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={[]} suggestedValues={categorySuggestions} onClick={() => setExpandedRowId(row.id)} />
+                      <ReviewSuggestionCell variant="category" currentValues={[]} suggestedValues={categorySuggestions} onClick={() => setExpandedRowId(row.id)} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_subcategories, row.raw_payload_json.person_subcategories))} suggestedValues={[]} />
+                      <ReviewSuggestionCell variant="subcategory" currentValues={getResolvedArray(row, "suggested_subcategories", mode === "ORGANIZATIONS_ONLY" ? ["organization_subcategories"] : ["person_subcategories"])} suggestedValues={[]} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={[]} suggestedValues={subcategorySuggestions} onClick={() => setExpandedRowId(row.id)} />
+                      <ReviewSuggestionCell variant="subcategory" currentValues={[]} suggestedValues={subcategorySuggestions} onClick={() => setExpandedRowId(row.id)} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_tags, row.raw_payload_json.person_tags))} suggestedValues={[]} />
+                      <ReviewSuggestionCell variant="tag" currentValues={getResolvedArray(row, "suggested_tags", mode === "ORGANIZATIONS_ONLY" ? ["organization_tags"] : ["person_tags"])} suggestedValues={[]} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={[]} suggestedValues={tagSuggestions} onClick={() => setExpandedRowId(row.id)} />
+                      <ReviewSuggestionCell variant="tag" currentValues={[]} suggestedValues={tagSuggestions} onClick={() => setExpandedRowId(row.id)} />
                     </td>
                     <td>
                       <ReviewSuggestionCell
-                        currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_internal_tags, row.raw_payload_json.person_internal_tags))}
+                        variant="internal-tag"
+                        currentValues={getResolvedArray(row, mode === "ORGANIZATIONS_ONLY" ? "organization_internal_tags" : "person_internal_tags", mode === "ORGANIZATIONS_ONLY" ? ["organization_internal_tags"] : ["person_internal_tags"])}
                         suggestedValues={[]}
                       />
                     </td>
@@ -566,9 +559,10 @@ function ImportReviewWorkspace(props: {
                   </tr>
                   {expanded ? (
                     <tr key={`${row.id}-editor`} className="import-review-editor-row">
-                      <td colSpan={showPersonColumns ? 28 : 27}>
+                      <td colSpan={showPersonColumns ? 27 : 26}>
                         <InlineReviewEditor
                           row={row}
+                          importMode={mode}
                           organizations={editor.organizations}
                           persons={editor.persons}
                           categories={editor.categories}
@@ -586,6 +580,7 @@ function ImportReviewWorkspace(props: {
           </tbody>
         </table>
       </div>
+      ) : null}
 
       <div className="pagination-row">
         <button
@@ -610,7 +605,8 @@ function ImportReviewWorkspace(props: {
       </div>
 
       <div className="commit-bar">
-        {unresolvedCount > 0 ? (
+        {!selectedJob ? <span className="meta">Ingen preview er kjørt ennå.</span> : null}
+        {selectedJob && unresolvedCount > 0 ? (
           <label className="checkbox-row">
             <input type="checkbox" checked={skipUnresolved} onChange={(e) => setSkipUnresolved(e.target.checked)} />
             Hopp over uavklarte rader ved commit
@@ -622,7 +618,8 @@ function ImportReviewWorkspace(props: {
           type="button"
           className="primary-button"
           disabled={
-            !["PREVIEW_READY", "AWAITING_REVIEW"].includes(selectedJob.status) ||
+            !selectedJob ||
+            !["PREVIEW_READY", "AWAITING_REVIEW"].includes(selectedJob?.status ?? "") ||
             importJobs.busyAction === "commit" ||
             (unresolvedCount > 0 && !skipUnresolved)
           }
@@ -648,6 +645,7 @@ function ImportReviewWorkspace(props: {
 
 function InlineReviewEditor(props: {
   row: ImportRow;
+  importMode: "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY";
   organizations: Organization[];
   persons: Person[];
   categories: Category[];
@@ -656,37 +654,48 @@ function InlineReviewEditor(props: {
   onSave: (payload: Array<{ decision_type: ImportDecision["decision_type"]; payload_json?: Record<string, unknown> }>) => Promise<unknown> | null;
   onClose: () => void;
 }) {
-  const { row, organizations, persons, categories, subcategories, onCreateOrganization, onSave, onClose } = props;
+  const { row, importMode, organizations, persons, categories, subcategories, onCreateOrganization, onSave, onClose } = props;
   const suggestedFields = useMemo(() => getSuggestionFields(row), [row]);
   const categorySuggestions = getSuggestionValues(row, "suggested_categories");
   const subcategorySuggestions = getSuggestionValues(row, "suggested_subcategories");
   const tagSuggestions = getSuggestionValues(row, "suggested_tags");
   const suggestionStates = getExistingSuggestionStates(row);
+  const actorOnly = importMode === "ORGANIZATIONS_ONLY";
+  const personOnly = importMode === "PEOPLE_ONLY";
   const [draft, setDraft] = useState<ReviewDraft>(() => {
     const initialFieldValues: Record<string, string> = {};
     SIMPLE_EDITABLE_SUGGESTION_FIELDS.forEach((key) => {
       initialFieldValues[key] =
         getAcceptedDecisionValue(row, key) ||
         getSuggestionText(row, key) ||
-        getFirstText(row.raw_payload_json[key], getNestedSuggestedFallback(row, key));
+        getResolvedText(row, [key]);
     });
     return {
       organizationDecision: getExistingDecisionType(row, ["USE_EXISTING_ORGANIZATION"]) ?? "NONE",
       personDecision: getExistingDecisionType(row, ["USE_EXISTING_PERSON", "CREATE_NEW_PERSON"]) ?? "NONE",
       organizationId: getExistingDecisionId(row, "USE_EXISTING_ORGANIZATION", "organization_id"),
       personId: getExistingDecisionId(row, "USE_EXISTING_PERSON", "person_id"),
-      categoryId: getExistingDecisionId(row, "MAP_CATEGORY", "category_id") || findCategoryIdByName(categories, categorySuggestions[0] || ""),
+      categoryId:
+        getExistingDecisionId(row, "MAP_CATEGORY", "category_id") ||
+        findCategoryIdByName(
+          categories,
+          getResolvedArray(row, "suggested_categories", actorOnly ? ["organization_categories"] : ["person_categories"])[0] || categorySuggestions[0] || "",
+        ),
       subcategoryId:
         getExistingDecisionId(row, "MAP_SUBCATEGORY", "subcategory_id") ||
-        findSubcategoryIdByName(subcategories, subcategorySuggestions[0] || ""),
-      tagsText: getAcceptedDecisionArray(row, "suggested_tags").join(", ") || tagSuggestions.join(", "),
+        findSubcategoryIdByName(
+          subcategories,
+          getResolvedArray(row, "suggested_subcategories", actorOnly ? ["organization_subcategories"] : ["person_subcategories"])[0]
+            || subcategorySuggestions[0]
+            || "",
+        ),
+      tagsText:
+        getResolvedArray(row, "suggested_tags", actorOnly ? ["organization_tags"] : ["person_tags"]).join(", ")
+        || tagSuggestions.join(", "),
       organizationInternalTagsText:
-        getAcceptedDecisionArray(row, "organization_internal_tags").join(", ") ||
-        splitCsvText(getFirstText(row.raw_payload_json.organization_internal_tags)).join(", "),
+        getResolvedArray(row, "organization_internal_tags", ["organization_internal_tags"]).join(", "),
       personInternalTagsText:
-        getAcceptedDecisionArray(row, "person_internal_tags").join(", ") ||
-        splitCsvText(getFirstText(row.raw_payload_json.person_internal_tags)).join(", "),
-      skipRow: row.decisions.some((decision) => decision.decision_type === "SKIP_ROW"),
+        getResolvedArray(row, "person_internal_tags", ["person_internal_tags"]).join(", "),
       fieldValues: initialFieldValues,
       suggestionStates,
     };
@@ -707,7 +716,7 @@ function InlineReviewEditor(props: {
     setDraft(nextDraft);
     setSaveState("saving");
     try {
-      await Promise.resolve(onSave(buildDecisions(row, nextDraft)));
+      await Promise.resolve(onSave(buildDecisions(row, importMode, nextDraft)));
       setSaveState("saved");
       if (closeAfterSave) {
         onClose();
@@ -799,161 +808,101 @@ function InlineReviewEditor(props: {
     void persistDraft(nextDraft);
   }
 
+  const visibleSuggestionFields = SIMPLE_EDITABLE_SUGGESTION_FIELDS.filter((fieldKey) => (
+    actorOnly ? fieldKey.startsWith("organization_") : fieldKey.startsWith("person_")
+  ));
+
   return (
     <div className="inline-review-editor">
-      <div className="inline-review-grid">
+      <div className="inline-review-grid single-column">
         <section className="editor-detail-section modal-section-card">
           <div className="modal-section-header">
-            <h4>AI-forslag</h4>
+            <h4>Rediger raskt</h4>
             <div className="review-header-meta">
               <span className={`mini-pill ${saveState === "saved" ? "category" : saveState === "error" ? "subcategory" : "tag"}`}>
                 {saveState === "saving" ? "Lagrer…" : saveState === "saved" ? "Lagret" : saveState === "error" ? "Feil ved lagring" : diagnosticMeta.title}
               </span>
             </div>
           </div>
-          {diagnosticMeta.detail ? <p className="meta review-diagnostic-copy">{diagnosticMeta.detail}</p> : null}
-          <div className="review-detail-stack">
-            <div>
-              <strong>Hovedkategori</strong>
-              <SuggestionPills
-                values={categorySuggestions}
-                emptyLabel="Ingen forslag"
-                state={draft.suggestionStates.suggested_categories ?? "pending"}
-                onAccept={(value) => applyCategorySuggestion(value)}
-                onIgnore={() => {
-                  const nextDraft = {
-                    ...draft,
-                    suggestionStates: { ...draft.suggestionStates, suggested_categories: "ignored" as const },
-                  };
-                  void persistDraft(nextDraft);
-                }}
-              />
-            </div>
-            <div>
-              <strong>Underkategori</strong>
-              <SuggestionPills
-                values={subcategorySuggestions}
-                emptyLabel="Ingen forslag"
-                state={draft.suggestionStates.suggested_subcategories ?? "pending"}
-                onAccept={(value) => applySubcategorySuggestion(value)}
-                onIgnore={() => {
-                  const nextDraft = {
-                    ...draft,
-                    suggestionStates: { ...draft.suggestionStates, suggested_subcategories: "ignored" as const },
-                  };
-                  void persistDraft(nextDraft);
-                }}
-              />
-            </div>
-            <div>
-              <strong>Tags</strong>
-              <SuggestionPills
-                values={tagSuggestions}
-                emptyLabel="Ingen forslag"
-                state={draft.suggestionStates.suggested_tags ?? "pending"}
-                onAccept={(value) => applySingleTagSuggestion(value)}
-                onIgnore={() => {
-                  const nextDraft = {
-                    ...draft,
-                    tagsText: "",
-                    suggestionStates: { ...draft.suggestionStates, suggested_tags: "ignored" as const },
-                  };
-                  void persistDraft(nextDraft);
-                }}
-              />
-            </div>
-            <div>
-              <strong>Aktørkandidater</strong>
-              <SuggestionCandidates
-                candidates={asCandidateList(row.ai_suggestions_json.organization_match_candidates)}
-                onUse={(id) => {
-                  const nextDraft = {
-                    ...draft,
-                    organizationDecision: "USE_EXISTING_ORGANIZATION" as const,
-                    organizationId: id,
-                  };
-                  void persistDraft(nextDraft);
-                }}
-                emptyLabel="Ingen aktørkandidater"
-              />
-            </div>
-            <div>
-              <strong>Personkandidater</strong>
-              <SuggestionCandidates
-                candidates={asCandidateList(row.ai_suggestions_json.person_match_candidates)}
-                onUse={(id) => {
-                  const nextDraft = {
-                    ...draft,
-                    personDecision: "USE_EXISTING_PERSON" as const,
-                    personId: id,
-                  };
-                  void persistDraft(nextDraft);
-                }}
-                emptyLabel="Ingen personkandidater"
-              />
-            </div>
-          </div>
-        </section>
-
-        <section className="editor-detail-section modal-section-card">
-          <div className="modal-section-header"><h4>Rediger raskt</h4></div>
           <div className="modal-form-grid review-form-grid">
-            <Field label="Aktørvalg">
-              <select
-                value={draft.organizationDecision}
-                onChange={(e) => {
-                  const nextDecision = e.target.value as ReviewDraft["organizationDecision"];
-                  if (nextDecision === "CREATE_NEW_ORGANIZATION") {
-                    openCreateOrganizationModal();
-                    return;
-                  }
-                  setDraft((current) => ({
-                    ...current,
-                    organizationDecision: nextDecision,
-                    organizationId: nextDecision === "USE_EXISTING_ORGANIZATION" ? current.organizationId : "",
-                  }));
-                }}
-              >
-                <option value="NONE">Ingen</option>
-                <option value="USE_EXISTING_ORGANIZATION">Bruk eksisterende aktør</option>
-                <option value="CREATE_NEW_ORGANIZATION">Opprett ny aktør</option>
-              </select>
-            </Field>
-            <div className="review-inline-cta">
-              <button type="button" className="ghost-button compact-button" onClick={openCreateOrganizationModal}>
-                Opprett ny aktør i eget vindu
-              </button>
-              <span className="meta">Ny aktør lagres først, og kobles deretter tilbake til review-raden.</span>
-            </div>
-            {draft.organizationDecision === "USE_EXISTING_ORGANIZATION" ? (
-              <Field label="Velg aktør">
-                <select value={draft.organizationId} onChange={(e) => setDraft((current) => ({ ...current, organizationId: Number(e.target.value) }))}>
-                  <option value="">Velg aktør</option>
-                  {organizations.map((organization) => (
-                    <option key={organization.id} value={organization.id}>{organization.name}</option>
-                  ))}
-                </select>
-              </Field>
-            ) : null}
-            <Field label="Personvalg">
-              <select
-                value={draft.personDecision}
-                onChange={(e) => setDraft((current) => ({ ...current, personDecision: e.target.value as ReviewDraft["personDecision"] }))}
-              >
-                <option value="NONE">Ingen</option>
-                <option value="USE_EXISTING_PERSON">Bruk eksisterende person</option>
-                <option value="CREATE_NEW_PERSON">Opprett ny person</option>
-              </select>
-            </Field>
-            {draft.personDecision === "USE_EXISTING_PERSON" ? (
-              <Field label="Velg person">
-                <select value={draft.personId} onChange={(e) => setDraft((current) => ({ ...current, personId: Number(e.target.value) }))}>
-                  <option value="">Velg person</option>
-                  {persons.map((person) => (
-                    <option key={person.id} value={person.id}>{person.full_name}</option>
-                  ))}
-                </select>
-              </Field>
+            {personOnly ? (
+              <>
+                <Field label="Aktørvalg">
+                  <select
+                    value={draft.organizationDecision}
+                    onChange={(e) =>
+                      setDraft((current) => ({
+                        ...current,
+                        organizationDecision: e.target.value as ReviewDraft["organizationDecision"],
+                        organizationId: e.target.value === "USE_EXISTING_ORGANIZATION" ? current.organizationId : "",
+                      }))
+                    }
+                  >
+                    <option value="NONE">Ingen</option>
+                    <option value="USE_EXISTING_ORGANIZATION">Bruk eksisterende aktør</option>
+                  </select>
+                </Field>
+                <div className="review-inline-cta">
+                  <button type="button" className="ghost-button compact-button" onClick={openCreateOrganizationModal}>
+                    Opprett ny aktør i eget vindu
+                  </button>
+                  <span className="meta">Brukes bare når personen må kobles til en ny aktør.</span>
+                </div>
+                <SuggestionCandidates
+                  candidates={asCandidateList(row.ai_suggestions_json.organization_match_candidates)}
+                  onUse={(id) => {
+                    const nextDraft = {
+                      ...draft,
+                      organizationDecision: "USE_EXISTING_ORGANIZATION" as const,
+                      organizationId: id,
+                    };
+                    void persistDraft(nextDraft);
+                  }}
+                  emptyLabel="Ingen aktørkandidater"
+                />
+                {draft.organizationDecision === "USE_EXISTING_ORGANIZATION" ? (
+                  <Field label="Velg aktør">
+                    <select value={draft.organizationId} onChange={(e) => setDraft((current) => ({ ...current, organizationId: Number(e.target.value) }))}>
+                      <option value="">Velg aktør</option>
+                      {organizations.map((organization) => (
+                        <option key={organization.id} value={organization.id}>{organization.name}</option>
+                      ))}
+                    </select>
+                  </Field>
+                ) : null}
+                <Field label="Personvalg">
+                  <select
+                    value={draft.personDecision}
+                    onChange={(e) => setDraft((current) => ({ ...current, personDecision: e.target.value as ReviewDraft["personDecision"] }))}
+                  >
+                    <option value="NONE">Ingen</option>
+                    <option value="USE_EXISTING_PERSON">Bruk eksisterende person</option>
+                    <option value="CREATE_NEW_PERSON">Opprett ny person</option>
+                  </select>
+                </Field>
+                <SuggestionCandidates
+                  candidates={asCandidateList(row.ai_suggestions_json.person_match_candidates)}
+                  onUse={(id) => {
+                    const nextDraft = {
+                      ...draft,
+                      personDecision: "USE_EXISTING_PERSON" as const,
+                      personId: id,
+                    };
+                    void persistDraft(nextDraft);
+                  }}
+                  emptyLabel="Ingen personkandidater"
+                />
+                {draft.personDecision === "USE_EXISTING_PERSON" ? (
+                  <Field label="Velg person">
+                    <select value={draft.personId} onChange={(e) => setDraft((current) => ({ ...current, personId: Number(e.target.value) }))}>
+                      <option value="">Velg person</option>
+                      {persons.map((person) => (
+                        <option key={person.id} value={person.id}>{person.full_name}</option>
+                      ))}
+                    </select>
+                  </Field>
+                ) : null}
+              </>
             ) : null}
 
             <Field label="Hovedkategori">
@@ -966,6 +915,21 @@ function InlineReviewEditor(props: {
                   <option key={category.id} value={category.id}>{category.name}</option>
                 ))}
               </select>
+              {categorySuggestions.length > 0 ? (
+                <SuggestionPills
+                  values={categorySuggestions}
+                  emptyLabel="Ingen forslag"
+                  state={draft.suggestionStates.suggested_categories ?? "pending"}
+                  onAccept={(value) => applyCategorySuggestion(value)}
+                  onIgnore={() => {
+                    const nextDraft = {
+                      ...draft,
+                      suggestionStates: { ...draft.suggestionStates, suggested_categories: "ignored" as const },
+                    };
+                    void persistDraft(nextDraft);
+                  }}
+                />
+              ) : null}
             </Field>
             <Field label="Underkategori">
               <select
@@ -977,6 +941,21 @@ function InlineReviewEditor(props: {
                   <option key={subcategory.id} value={subcategory.id}>{subcategory.name}</option>
                 ))}
               </select>
+              {subcategorySuggestions.length > 0 ? (
+                <SuggestionPills
+                  values={subcategorySuggestions}
+                  emptyLabel="Ingen forslag"
+                  state={draft.suggestionStates.suggested_subcategories ?? "pending"}
+                  onAccept={(value) => applySubcategorySuggestion(value)}
+                  onIgnore={() => {
+                    const nextDraft = {
+                      ...draft,
+                      suggestionStates: { ...draft.suggestionStates, suggested_subcategories: "ignored" as const },
+                    };
+                    void persistDraft(nextDraft);
+                  }}
+                />
+              ) : null}
             </Field>
 
             <Field label="Tags (kommaseparert)">
@@ -986,6 +965,22 @@ function InlineReviewEditor(props: {
                   onChange={(e) => setDraft((current) => ({ ...current, tagsText: e.target.value, suggestionStates: { ...current.suggestionStates, suggested_tags: "accepted" } }))}
                   placeholder="jazz, management"
                 />
+                {tagSuggestions.length > 0 ? (
+                  <SuggestionPills
+                    values={tagSuggestions}
+                    emptyLabel="Ingen forslag"
+                    state={draft.suggestionStates.suggested_tags ?? "pending"}
+                    onAccept={(value) => applySingleTagSuggestion(value)}
+                    onIgnore={() => {
+                      const nextDraft = {
+                        ...draft,
+                        tagsText: "",
+                        suggestionStates: { ...draft.suggestionStates, suggested_tags: "ignored" as const },
+                      };
+                      void persistDraft(nextDraft);
+                    }}
+                  />
+                ) : null}
                 {splitCsvText(draft.tagsText).length > 0 ? (
                   <div className="tag-chip-editor" aria-label="Valgte tags">
                     {splitCsvText(draft.tagsText).map((tag) => (
@@ -999,127 +994,66 @@ function InlineReviewEditor(props: {
               </div>
             </Field>
 
-            <Field label="Aktør interne tags">
-              <div className="tag-editor-field">
-                <input
+            {actorOnly ? (
+              <Field label="Aktør interne tags">
+                <TagTextEditor
                   value={draft.organizationInternalTagsText}
-                  onChange={(e) => setDraft((current) => ({ ...current, organizationInternalTagsText: e.target.value }))}
                   placeholder="prioritet, partner, evalueres"
+                  tone="internal"
+                  onChange={(value) => setDraft((current) => ({ ...current, organizationInternalTagsText: value }))}
                 />
-                {splitCsvText(draft.organizationInternalTagsText).length > 0 ? (
-                  <div className="tag-chip-editor" aria-label="Valgte interne aktørtags">
-                    {splitCsvText(draft.organizationInternalTagsText).map((tag) => (
-                      <button
-                        key={`organization-internal-${tag}`}
-                        type="button"
-                        className="tag-chip-edit internal-tag-chip-edit"
-                        onClick={() =>
-                          setDraft((current) => ({
-                            ...current,
-                            organizationInternalTagsText: splitCsvText(current.organizationInternalTagsText)
-                              .filter((item) => item.toLowerCase() !== tag.toLowerCase())
-                              .join(", "),
-                          }))
-                        }
-                      >
-                        <span>{tag}</span>
-                        <span aria-hidden="true">×</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </Field>
-
-            <Field label="Person interne tags">
-              <div className="tag-editor-field">
-                <input
+              </Field>
+            ) : null}
+            {personOnly ? (
+              <Field label="Person interne tags">
+                <TagTextEditor
                   value={draft.personInternalTagsText}
-                  onChange={(e) => setDraft((current) => ({ ...current, personInternalTagsText: e.target.value }))}
                   placeholder="ny kontakt, sensitiv, følges opp"
+                  tone="internal"
+                  onChange={(value) => setDraft((current) => ({ ...current, personInternalTagsText: value }))}
                 />
-                {splitCsvText(draft.personInternalTagsText).length > 0 ? (
-                  <div className="tag-chip-editor" aria-label="Valgte interne persontags">
-                    {splitCsvText(draft.personInternalTagsText).map((tag) => (
-                      <button
-                        key={`person-internal-${tag}`}
-                        type="button"
-                        className="tag-chip-edit internal-tag-chip-edit"
-                        onClick={() =>
-                          setDraft((current) => ({
-                            ...current,
-                            personInternalTagsText: splitCsvText(current.personInternalTagsText)
-                              .filter((item) => item.toLowerCase() !== tag.toLowerCase())
-                              .join(", "),
-                          }))
-                        }
-                      >
-                        <span>{tag}</span>
-                        <span aria-hidden="true">×</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </Field>
+              </Field>
+            ) : null}
 
-            {SIMPLE_EDITABLE_SUGGESTION_FIELDS.map((fieldKey) => {
+            {visibleSuggestionFields.map((fieldKey) => {
               const suggestion = suggestedFields[fieldKey];
               return (
                 <Field key={fieldKey} label={FIELD_LABELS[fieldKey] ?? fieldKey}>
-                  <div className="review-inline-field">
+                  <div className="review-inline-field compact">
                     <input
                       value={draft.fieldValues[fieldKey] ?? ""}
                       onChange={(e) =>
                         setDraft((current) => ({
                           ...current,
                           fieldValues: { ...current.fieldValues, [fieldKey]: e.target.value },
-                          suggestionStates: { ...current.suggestionStates, [fieldKey]: e.target.value ? "accepted" : current.suggestionStates[fieldKey] ?? "pending" },
+                          suggestionStates: {
+                            ...current.suggestionStates,
+                            [fieldKey]: e.target.value ? "accepted" : current.suggestionStates[fieldKey] ?? "pending",
+                          },
                         }))
                       }
                       placeholder={suggestion ? `Forslag: ${renderSuggestionValue(suggestion.value)}` : "Tomt felt"}
                     />
                     {suggestion ? (
-                      <div className="review-inline-actions">
-                        <button
-                          type="button"
-                          className="ghost-button compact-button"
-                          onClick={() => {
-                            const nextDraft = {
-                              ...draft,
-                              fieldValues: { ...draft.fieldValues, [fieldKey]: renderSuggestionValue(suggestion.value) },
-                              suggestionStates: { ...draft.suggestionStates, [fieldKey]: "accepted" as const },
-                            };
-                            void persistDraft(nextDraft);
-                          }}
-                        >
-                          Godta forslag
-                        </button>
-                        <button
-                          type="button"
-                          className="ghost-button compact-button"
-                          onClick={() => {
-                            const nextDraft = {
-                              ...draft,
-                              fieldValues: { ...draft.fieldValues, [fieldKey]: "" },
-                              suggestionStates: { ...draft.suggestionStates, [fieldKey]: "ignored" as const },
-                            };
-                            void persistDraft(nextDraft);
-                          }}
-                        >
-                          Ignorer
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        className="ghost-button compact-button"
+                        onClick={() => {
+                          const nextDraft = {
+                            ...draft,
+                            fieldValues: { ...draft.fieldValues, [fieldKey]: renderSuggestionValue(suggestion.value) },
+                            suggestionStates: { ...draft.suggestionStates, [fieldKey]: "accepted" as const },
+                          };
+                          void persistDraft(nextDraft);
+                        }}
+                      >
+                        Bruk forslag
+                      </button>
                     ) : null}
                   </div>
                 </Field>
               );
             })}
-
-            <label className="checkbox-row review-checkbox-row">
-              <input type="checkbox" checked={draft.skipRow} onChange={(e) => setDraft((current) => ({ ...current, skipRow: e.target.checked }))} />
-              Hopp over denne raden
-            </label>
           </div>
         </section>
       </div>
@@ -1389,6 +1323,7 @@ function validateQuickOrganizationDraft(draft: OrganizationPatch): QuickOrganiza
 
 function buildDecisions(
   row: ImportRow,
+  importMode: "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY",
   draft: ReviewDraft,
 ): Array<{ decision_type: ImportDecision["decision_type"]; payload_json?: Record<string, unknown> }> {
   const decisions: Array<{ decision_type: ImportDecision["decision_type"]; payload_json?: Record<string, unknown> }> = [];
@@ -1418,16 +1353,22 @@ function buildDecisions(
     decisions.push({ decision_type: "IGNORE_AI_SUGGESTION", payload_json: { suggestion_key: "suggested_tags" } });
   }
 
-  decisions.push({
-    decision_type: "ACCEPT_AI_SUGGESTION",
-    payload_json: { suggestion_key: "organization_internal_tags", value: splitCsvText(draft.organizationInternalTagsText) },
-  });
-  decisions.push({
-    decision_type: "ACCEPT_AI_SUGGESTION",
-    payload_json: { suggestion_key: "person_internal_tags", value: splitCsvText(draft.personInternalTagsText) },
-  });
+  if (importMode === "ORGANIZATIONS_ONLY") {
+    decisions.push({
+      decision_type: "ACCEPT_AI_SUGGESTION",
+      payload_json: { suggestion_key: "organization_internal_tags", value: splitCsvText(draft.organizationInternalTagsText) },
+    });
+  }
+  if (importMode === "PEOPLE_ONLY") {
+    decisions.push({
+      decision_type: "ACCEPT_AI_SUGGESTION",
+      payload_json: { suggestion_key: "person_internal_tags", value: splitCsvText(draft.personInternalTagsText) },
+    });
+  }
 
   SIMPLE_EDITABLE_SUGGESTION_FIELDS.forEach((fieldKey) => {
+    if (importMode === "ORGANIZATIONS_ONLY" && !fieldKey.startsWith("organization_")) return;
+    if (importMode === "PEOPLE_ONLY" && !fieldKey.startsWith("person_")) return;
     const fieldValue = draft.fieldValues[fieldKey]?.trim();
     const state = draft.suggestionStates[fieldKey] ?? "pending";
     if (fieldValue) {
@@ -1445,9 +1386,6 @@ function buildDecisions(
   }
   if (draft.suggestionStates.suggested_subcategories === "ignored") {
     decisions.push({ decision_type: "IGNORE_AI_SUGGESTION", payload_json: { suggestion_key: "suggested_subcategories" } });
-  }
-  if (draft.skipRow) {
-    decisions.push({ decision_type: "SKIP_ROW", payload_json: {} });
   }
 
   return decisions;
@@ -1597,7 +1535,12 @@ function ReviewValueCell(props: { current?: string; suggested?: string; fallback
   );
 }
 
-function ReviewSuggestionCell(props: { currentValues: string[]; suggestedValues: string[]; onClick?: () => void }) {
+function ReviewSuggestionCell(props: {
+  variant: "category" | "subcategory" | "tag" | "internal-tag";
+  currentValues: string[];
+  suggestedValues: string[];
+  onClick?: () => void;
+}) {
   const values = props.currentValues.length > 0 ? props.currentValues : props.suggestedValues;
   if (values.length === 0) {
     return <span className="muted">Mangler</span>;
@@ -1605,7 +1548,7 @@ function ReviewSuggestionCell(props: { currentValues: string[]; suggestedValues:
   const content = (
     <div className="review-pill-stack">
       {values.slice(0, 3).map((value) => (
-        <span key={value} className={`mini-pill ${props.currentValues.length > 0 ? "category" : "suggested"}`}>{value}</span>
+        <span key={value} className={`mini-pill ${props.currentValues.length > 0 ? props.variant : "suggested"}`}>{value}</span>
       ))}
       {values.length > 3 ? <span className="meta">+{values.length - 3}</span> : null}
     </div>
@@ -1692,6 +1635,40 @@ function SuggestionPills(props: {
         </span>
         <button type="button" className="ghost-button compact-button" onClick={props.onIgnore}>Ignorer</button>
       </div>
+    </div>
+  );
+}
+
+function TagTextEditor(props: {
+  value: string;
+  placeholder: string;
+  tone?: "default" | "internal";
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="tag-editor-field">
+      <input value={props.value} onChange={(e) => props.onChange(e.target.value)} placeholder={props.placeholder} />
+      {splitCsvText(props.value).length > 0 ? (
+        <div className="tag-chip-editor">
+          {splitCsvText(props.value).map((tag) => (
+            <button
+              key={`${props.tone ?? "default"}-${tag}`}
+              type="button"
+              className={`tag-chip-edit ${props.tone === "internal" ? "internal-tag-chip-edit" : ""}`}
+              onClick={() =>
+                props.onChange(
+                  splitCsvText(props.value)
+                    .filter((item) => item.toLowerCase() !== tag.toLowerCase())
+                    .join(", "),
+                )
+              }
+            >
+              <span>{tag}</span>
+              <span aria-hidden="true">×</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1844,6 +1821,15 @@ function getAiProgressLabel(summary: Record<string, unknown>): string {
   return "Ikke startet";
 }
 
+function normalizeImportMode(
+  value: string | undefined,
+  fallback: "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY",
+): "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY" {
+  if (value === "PEOPLE_ONLY") return "PEOPLE_ONLY";
+  if (value === "ORGANIZATIONS_ONLY") return "ORGANIZATIONS_ONLY";
+  return fallback;
+}
+
 function renderSuggestionValue(value: unknown): string {
   if (Array.isArray(value)) return value.map((item) => String(item)).join(", ");
   if (typeof value === "string") return value;
@@ -1929,6 +1915,40 @@ function getAcceptedDecisionArray(row: ImportRow, suggestionKey: string): string
   return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean) : [];
 }
 
+function getResolvedText(row: ImportRow, suggestionKeys: string[]): string {
+  for (const key of suggestionKeys) {
+    const accepted = getAcceptedDecisionValue(row, key);
+    if (accepted) return accepted;
+    const rawValue = getFirstText(row.raw_payload_json[key], getNestedSuggestedFallback(row, key));
+    if (rawValue) return rawValue;
+  }
+  return "";
+}
+
+function getResolvedArray(row: ImportRow, suggestionKey: string, rawKeys: string[]): string[] {
+  const accepted = getAcceptedDecisionArray(row, suggestionKey);
+  if (accepted.length > 0) return accepted;
+  for (const rawKey of rawKeys) {
+    const rawValue = row.raw_payload_json[rawKey];
+    if (Array.isArray(rawValue)) {
+      const parsedArray = rawValue.map((item) => String(item).trim()).filter(Boolean);
+      if (parsedArray.length > 0) return parsedArray;
+    }
+    if (typeof rawValue === "string") {
+      const parsedString = splitCsvText(rawValue);
+      if (parsedString.length > 0) return parsedString;
+    }
+    const nestedValue = getNestedSuggestedFallbackValue(row, rawKey);
+    if (Array.isArray(nestedValue)) {
+      const parsedNested = nestedValue.map((item) => String(item).trim()).filter(Boolean);
+      if (parsedNested.length > 0) return parsedNested;
+    }
+    const parsed = typeof nestedValue === "string" ? splitCsvText(nestedValue) : [];
+    if (parsed.length > 0) return parsed;
+  }
+  return [];
+}
+
 function findCategoryIdByName(categories: Category[], name: string): number | "" {
   const match = categories.find((category) => category.name.toLowerCase() === name.toLowerCase());
   return match?.id ?? "";
@@ -1951,6 +1971,11 @@ function filterSubcategories(categoryId: number | "", subcategories: Subcategory
 }
 
 function getNestedSuggestedFallback(row: ImportRow, key: string): string {
+  const nested = getNestedSuggestedFallbackValue(row, key);
+  return typeof nested === "string" ? nested : "";
+}
+
+function getNestedSuggestedFallbackValue(row: ImportRow, key: string): unknown {
   const normalized = row.normalized_payload_json as Record<string, any>;
   if (key.startsWith("organization_")) {
     const orgKey = key.replace("organization_", "");

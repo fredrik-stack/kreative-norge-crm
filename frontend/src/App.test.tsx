@@ -26,7 +26,7 @@ vi.mock("./api", async () => {
       tenant: tenantId,
       created_by: 1,
       source_type: "CSV",
-      import_mode: "COMBINED",
+      import_mode: "ORGANIZATIONS_ONLY",
       status: "UPLOADED",
       filename: "import.csv",
       file: "/media/import.csv",
@@ -81,9 +81,6 @@ describe("App integration", () => {
     await userEvent.click(await screen.findByRole("link", { name: "Import / eksport" }));
     expect(await screen.findByRole("heading", { name: "Importjobber" })).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Opprett importjobb" }));
-    expect(await screen.findByText("#1")).toBeInTheDocument();
-
     const fileInput = screen.getByLabelText("Last opp CSV/XLSX");
     const csvFile = new File(["organization_name,person_full_name\nKreativ Demo AS,Ada Editor\n"], "import.csv", {
       type: "text/csv",
@@ -91,14 +88,11 @@ describe("App integration", () => {
     await userEvent.upload(fileInput, csvFile);
     await waitFor(() => {
       expect(screen.getAllByText("import.csv").length).toBeGreaterThan(0);
-      expect(screen.getByRole("button", { name: "Last opp" })).toBeEnabled();
-    });
-    await userEvent.click(screen.getByRole("button", { name: "Last opp" }));
-    await waitFor(() => {
       expect(screen.getByRole("button", { name: "Kjør preview" })).toBeEnabled();
     });
     await userEvent.click(screen.getByRole("button", { name: "Kjør preview" }));
 
+    expect(await screen.findByText("#1")).toBeInTheDocument();
     expect(await screen.findByText("Rader totalt")).toBeInTheDocument();
     expect(await screen.findByText("AI-status")).toBeInTheDocument();
     expect(await screen.findByText("AI fremdrift")).toBeInTheDocument();
@@ -109,10 +103,8 @@ describe("App integration", () => {
       expect(screen.getByText("OpenAI")).toBeInTheDocument();
     });
     await userEvent.click(screen.getByRole("button", { name: "Review" }));
-    expect(await screen.findByText("AI-forslag")).toBeInTheDocument();
     expect(screen.getByText("Rediger raskt")).toBeInTheDocument();
-    await userEvent.click(screen.getAllByRole("button", { name: "Godta forslag" })[0]);
-    await userEvent.click(screen.getAllByRole("button", { name: "Ignorer" })[0]);
+    await userEvent.click(screen.getAllByRole("button", { name: "Bruk forslag" })[0]);
     await waitFor(() => {
       expect(screen.getByText("Lagret")).toBeInTheDocument();
     });

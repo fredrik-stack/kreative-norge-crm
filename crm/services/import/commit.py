@@ -80,16 +80,12 @@ def _apply_accepted_ai_suggestions(row: ImportRow, normalized_payload: dict, res
             payload["person"]["full_name"] = value or ""
         elif suggestion_key == "organization_email":
             payload["organization"]["email"] = value or ""
-        elif suggestion_key == "organization_phone":
-            payload["organization"]["phone"] = value or ""
         elif suggestion_key == "organization_municipalities":
             payload["organization"]["municipalities"] = value or ""
         elif suggestion_key == "person_title":
             payload["person"]["title"] = value or ""
         elif suggestion_key == "person_email":
             payload["person"]["email"] = value or ""
-        elif suggestion_key == "person_phone":
-            payload["person"]["phone"] = value or ""
         elif suggestion_key == "person_municipality":
             payload["person"]["municipality"] = value or ""
         elif suggestion_key == "organization_website_url":
@@ -119,7 +115,15 @@ def _apply_accepted_ai_suggestions(row: ImportRow, normalized_payload: dict, res
         elif suggestion_key == "person_youtube_url":
             payload["person"]["youtube_url"] = value or ""
         elif suggestion_key == "suggested_tags" and isinstance(value, list):
-            combined_tags = payload["organization"]["tags"] + payload["person"]["tags"] + [str(item) for item in value]
+            if row.import_job.import_mode == ImportJob.ImportMode.ORGANIZATIONS_ONLY:
+                combined_tags = payload["organization"]["tags"] + [str(item) for item in value]
+                target_key = "organization"
+            elif row.import_job.import_mode == ImportJob.ImportMode.PEOPLE_ONLY:
+                combined_tags = payload["person"]["tags"] + [str(item) for item in value]
+                target_key = "person"
+            else:
+                combined_tags = payload["organization"]["tags"] + payload["person"]["tags"] + [str(item) for item in value]
+                target_key = "combined"
             seen = set()
             unique_tags = []
             for tag in combined_tags:
@@ -128,18 +132,30 @@ def _apply_accepted_ai_suggestions(row: ImportRow, normalized_payload: dict, res
                     continue
                 seen.add(key)
                 unique_tags.append(tag.strip())
-            payload["organization"]["tags"] = unique_tags
-            payload["person"]["tags"] = unique_tags
+            if target_key in {"organization", "combined"}:
+                payload["organization"]["tags"] = unique_tags
+            if target_key in {"person", "combined"}:
+                payload["person"]["tags"] = unique_tags
         elif suggestion_key == "organization_internal_tags" and isinstance(value, list):
             payload["organization"]["internal_tags"] = [str(item).strip() for item in value if str(item).strip()]
         elif suggestion_key == "person_internal_tags" and isinstance(value, list):
             payload["person"]["internal_tags"] = [str(item).strip() for item in value if str(item).strip()]
         elif suggestion_key == "suggested_categories" and isinstance(value, list):
-            payload["organization"]["categories"] = [str(item) for item in value]
-            payload["person"]["categories"] = [str(item) for item in value]
+            if row.import_job.import_mode == ImportJob.ImportMode.ORGANIZATIONS_ONLY:
+                payload["organization"]["categories"] = [str(item) for item in value]
+            elif row.import_job.import_mode == ImportJob.ImportMode.PEOPLE_ONLY:
+                payload["person"]["categories"] = [str(item) for item in value]
+            else:
+                payload["organization"]["categories"] = [str(item) for item in value]
+                payload["person"]["categories"] = [str(item) for item in value]
         elif suggestion_key == "suggested_subcategories" and isinstance(value, list):
-            payload["organization"]["subcategories"] = [str(item) for item in value]
-            payload["person"]["subcategories"] = [str(item) for item in value]
+            if row.import_job.import_mode == ImportJob.ImportMode.ORGANIZATIONS_ONLY:
+                payload["organization"]["subcategories"] = [str(item) for item in value]
+            elif row.import_job.import_mode == ImportJob.ImportMode.PEOPLE_ONLY:
+                payload["person"]["subcategories"] = [str(item) for item in value]
+            else:
+                payload["organization"]["subcategories"] = [str(item) for item in value]
+                payload["person"]["subcategories"] = [str(item) for item in value]
     return payload
 
 

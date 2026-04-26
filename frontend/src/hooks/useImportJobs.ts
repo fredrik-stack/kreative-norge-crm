@@ -131,12 +131,14 @@ export function useImportJobs(tenantId: number | null) {
     }
   }
 
-  async function uploadFile(file: File) {
-    if (!tenantId || !selectedJobId) return null;
+  async function uploadFile(file: File, jobId?: number) {
+    if (!tenantId) return null;
+    const targetJobId = jobId ?? selectedJobId;
+    if (!targetJobId) return null;
     setBusyAction("upload");
     setError(null);
     try {
-      const updated = await uploadImportJobFile(tenantId, selectedJobId, file);
+      const updated = await uploadImportJobFile(tenantId, targetJobId, file);
       setSelectedJob(updated);
       await refreshJobs(updated.id);
       await refreshSelectedJob(updated.id);
@@ -149,12 +151,14 @@ export function useImportJobs(tenantId: number | null) {
     }
   }
 
-  async function runPreview() {
-    if (!tenantId || !selectedJobId) return null;
+  async function runPreview(jobId?: number) {
+    if (!tenantId) return null;
+    const targetJobId = jobId ?? selectedJobId;
+    if (!targetJobId) return null;
     setBusyAction("preview");
     setError(null);
     try {
-      const updated = await previewImportJob(tenantId, selectedJobId);
+      const updated = await previewImportJob(tenantId, targetJobId);
       setSelectedJob(updated);
       await refreshJobs(updated.id);
       await refreshSelectedJob(updated.id);

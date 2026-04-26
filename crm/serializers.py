@@ -710,6 +710,11 @@ class ImportJobSerializer(serializers.ModelSerializer):
 
 
 class ImportJobCreateSerializer(serializers.ModelSerializer):
+    def validate_import_mode(self, value):
+        if value == ImportJob.ImportMode.COMBINED:
+            raise serializers.ValidationError("Combined import mode is no longer available.")
+        return value
+
     class Meta:
         model = ImportJob
         fields = ["id", "source_type", "import_mode", "status", "tenant", "created_by", "created_at"]

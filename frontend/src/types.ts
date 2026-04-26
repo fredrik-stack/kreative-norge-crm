@@ -158,7 +158,7 @@ export type ImportJob = {
   tenant: number;
   created_by: number;
   source_type: "CSV" | "XLSX" | "GOOGLE_SHEET" | "CHECKIN" | "MAILMOJO" | "MANUAL_API";
-  import_mode: "COMBINED" | "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY";
+  import_mode: "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY";
   status:
     | "DRAFT"
     | "UPLOADED"
