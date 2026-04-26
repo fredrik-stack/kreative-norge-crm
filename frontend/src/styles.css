@@ -1109,7 +1109,7 @@ select,
 }
 
 .import-review-modal {
-  width: min(860px, calc(100vw - 3rem));
+  width: min(940px, calc(100vw - 3rem));
   max-height: min(88vh, 920px);
   padding: 0.9rem 1rem 1rem;
 }
@@ -1384,8 +1384,8 @@ select,
 }
 
 .review-inline-field.compact {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
 }
 
 .review-inline-cta {
@@ -1435,6 +1435,7 @@ select,
   display: flex;
   gap: 0.32rem;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .review-value-cell {
@@ -1488,9 +1489,11 @@ select,
 
 .review-copy-snippet {
   margin: 0;
-  font-size: 0.76rem;
-  line-height: 1.35;
+  font-size: 0.8rem;
+  line-height: 1.45;
   color: var(--ink);
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .review-pill-stack {

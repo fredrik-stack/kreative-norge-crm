@@ -6,7 +6,7 @@ import { useEditor } from "../context/EditorContext";
 import { getExportJobFileUrl, type OrganizationPatch } from "../api";
 import { useExportJobs } from "../hooks/useExportJobs";
 import { useImportJobs } from "../hooks/useImportJobs";
-import type { Category, ImportDecision, ImportRow, Organization, Person, Subcategory } from "../types";
+import type { Category, ImportDecision, ImportRow, Organization, Subcategory } from "../types";
 
 const EXPORT_FIELD_OPTIONS = [
   "organization_name",
@@ -361,6 +361,7 @@ function ImportReviewWorkspace(props: {
               <th>Rad</th>
               <th>{orgLabel}</th>
               {showPersonColumns ? <th>Person</th> : null}
+              {showPersonColumns ? <th>Tittel</th> : null}
               <th>Org.nr</th>
               <th>E-post</th>
               <th>AI e-post</th>
@@ -393,6 +394,11 @@ function ImportReviewWorkspace(props: {
               const categorySuggestions = getSuggestionValues(row, "suggested_categories");
               const subcategorySuggestions = getSuggestionValues(row, "suggested_subcategories");
               const tagSuggestions = getSuggestionValues(row, "suggested_tags");
+              const currentOrganizationLabel = mode === "PEOPLE_ONLY"
+                ? getCurrentOrganizationLabel(row, editor.organizations)
+                : getFirstText(row.raw_payload_json.organization_name);
+              const currentPersonLabel = getFirstText(row.raw_payload_json.person_full_name);
+              const currentPersonTitle = getCurrentText(row, ["person_title"]);
               const municipalitySuggestion = mode === "ORGANIZATIONS_ONLY"
                 ? getSuggestionText(row, "organization_municipalities")
                 : getSuggestionText(row, "person_municipality");
@@ -447,11 +453,16 @@ function ImportReviewWorkspace(props: {
                   <tr key={row.id} className={expanded ? "expanded" : ""}>
                     <td>{row.row_number}</td>
                     <td>
-                      <ReviewValueCell current={getFirstText(row.raw_payload_json.organization_name)} fallback="—" />
+                      <ReviewValueCell current={currentOrganizationLabel} fallback="—" />
                     </td>
                     {showPersonColumns ? (
                       <td>
-                        <ReviewValueCell current={getFirstText(row.raw_payload_json.person_full_name)} fallback="—" />
+                        <ReviewValueCell current={currentPersonLabel} fallback="—" />
+                      </td>
+                    ) : null}
+                    {showPersonColumns ? (
+                      <td>
+                        <ReviewValueCell current={currentPersonTitle} fallback="—" />
                       </td>
                     ) : null}
                     <td>{getFirstText(row.raw_payload_json.organization_org_number) || "—"}</td>
@@ -474,13 +485,21 @@ function ImportReviewWorkspace(props: {
                       <ReviewValueCell current={municipalitySuggestion} fallback="Ingen forslag" onClick={() => setExpandedRowId(row.id)} clickable={Boolean(municipalitySuggestion)} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell variant="category" currentValues={getCurrentArray(row, mode === "ORGANIZATIONS_ONLY" ? ["organization_categories"] : ["person_categories"])} suggestedValues={[]} />
+                      <ReviewSuggestionCell
+                        variant="category"
+                        currentValues={getCurrentCategoryValues(row, mode, editor.categories)}
+                        suggestedValues={[]}
+                      />
                     </td>
                     <td>
                       <ReviewSuggestionCell variant="category" currentValues={[]} suggestedValues={categorySuggestions} onClick={() => setExpandedRowId(row.id)} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell variant="subcategory" currentValues={getCurrentArray(row, mode === "ORGANIZATIONS_ONLY" ? ["organization_subcategories"] : ["person_subcategories"])} suggestedValues={[]} />
+                      <ReviewSuggestionCell
+                        variant="subcategory"
+                        currentValues={getCurrentSubcategoryValues(row, mode, editor.subcategories)}
+                        suggestedValues={[]}
+                      />
                     </td>
                     <td>
                       <ReviewSuggestionCell variant="subcategory" currentValues={[]} suggestedValues={subcategorySuggestions} onClick={() => setExpandedRowId(row.id)} />
@@ -554,7 +573,6 @@ function ImportReviewWorkspace(props: {
             row={rows.find((candidate) => candidate.id === expandedRowId)!}
             importMode={mode}
             organizations={editor.organizations}
-            persons={editor.persons}
             categories={editor.categories}
             subcategories={editor.subcategories}
             onCreateOrganization={editor.quickCreateOrganization}
@@ -629,14 +647,13 @@ function InlineReviewEditor(props: {
   row: ImportRow;
   importMode: "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY";
   organizations: Organization[];
-  persons: Person[];
   categories: Category[];
   subcategories: Subcategory[];
   onCreateOrganization: (draft: OrganizationPatch) => Promise<Organization>;
   onSave: (payload: Array<{ decision_type: ImportDecision["decision_type"]; payload_json?: Record<string, unknown> }>) => Promise<unknown> | null;
   onClose: () => void;
 }) {
-  const { row, importMode, organizations, persons, categories, subcategories, onCreateOrganization, onSave, onClose } = props;
+  const { row, importMode, organizations, categories, subcategories, onCreateOrganization, onSave, onClose } = props;
   const suggestedFields = useMemo(() => getSuggestionFields(row), [row]);
   const categorySuggestions = getSuggestionValues(row, "suggested_categories");
   const subcategorySuggestions = getSuggestionValues(row, "suggested_subcategories");
@@ -644,8 +661,8 @@ function InlineReviewEditor(props: {
   const suggestionStates = getExistingSuggestionStates(row);
   const actorOnly = importMode === "ORGANIZATIONS_ONLY";
   const personOnly = importMode === "PEOPLE_ONLY";
-  const currentCategoryNames = getCurrentArray(row, actorOnly ? ["organization_categories"] : ["person_categories"]);
-  const currentSubcategoryNames = getCurrentArray(row, actorOnly ? ["organization_subcategories"] : ["person_subcategories"]);
+  const currentCategoryNames = getCurrentCategoryValues(row, importMode, categories);
+  const currentSubcategoryNames = getCurrentSubcategoryValues(row, importMode, subcategories);
   const currentSubcategoryId = findSubcategoryIdByName(subcategories, currentSubcategoryNames[0] || "");
   const [draft, setDraft] = useState<ReviewDraft>(() => {
     const initialFieldValues: Record<string, string> = {};
@@ -860,38 +877,6 @@ function InlineReviewEditor(props: {
                       <option value="">Velg aktør</option>
                       {organizations.map((organization) => (
                         <option key={organization.id} value={organization.id}>{organization.name}</option>
-                      ))}
-                    </select>
-                  </Field>
-                ) : null}
-                <Field label="Personvalg">
-                  <select
-                    value={draft.personDecision}
-                    onChange={(e) => setDraft((current) => ({ ...current, personDecision: e.target.value as ReviewDraft["personDecision"] }))}
-                  >
-                    <option value="NONE">Ingen</option>
-                    <option value="USE_EXISTING_PERSON">Bruk eksisterende person</option>
-                    <option value="CREATE_NEW_PERSON">Opprett ny person</option>
-                  </select>
-                </Field>
-                <SuggestionCandidates
-                  candidates={asCandidateList(row.ai_suggestions_json.person_match_candidates)}
-                  onUse={(id) => {
-                    const nextDraft = {
-                      ...draft,
-                      personDecision: "USE_EXISTING_PERSON" as const,
-                      personId: id,
-                    };
-                    void persistDraft(nextDraft);
-                  }}
-                  emptyLabel="Ingen personkandidater"
-                />
-                {draft.personDecision === "USE_EXISTING_PERSON" ? (
-                  <Field label="Velg person">
-                    <select value={draft.personId} onChange={(e) => setDraft((current) => ({ ...current, personId: Number(e.target.value) }))}>
-                      <option value="">Velg person</option>
-                      {persons.map((person) => (
-                        <option key={person.id} value={person.id}>{person.full_name}</option>
                       ))}
                     </select>
                   </Field>
@@ -1366,12 +1351,6 @@ function buildDecisions(
 
   if (draft.organizationDecision === "USE_EXISTING_ORGANIZATION" && draft.organizationId) {
     decisions.push({ decision_type: "USE_EXISTING_ORGANIZATION", payload_json: { organization_id: draft.organizationId } });
-  }
-  if (draft.personDecision === "USE_EXISTING_PERSON" && draft.personId) {
-    decisions.push({ decision_type: "USE_EXISTING_PERSON", payload_json: { person_id: draft.personId } });
-  }
-  if (draft.personDecision === "CREATE_NEW_PERSON") {
-    decisions.push({ decision_type: "CREATE_NEW_PERSON", payload_json: {} });
   }
   if (draft.categoryId) {
     decisions.push({ decision_type: "MAP_CATEGORY", payload_json: { category_id: draft.categoryId } });
@@ -1957,6 +1936,8 @@ function getAcceptedDecisionArray(row: ImportRow, suggestionKey: string): string
 
 function getCurrentText(row: ImportRow, keys: string[]): string {
   for (const key of keys) {
+    const accepted = getAcceptedDecisionValue(row, key);
+    if (accepted) return accepted;
     const rawValue = getFirstText(row.raw_payload_json[key], getNestedSuggestedFallback(row, key));
     if (rawValue) return rawValue;
   }
@@ -1965,6 +1946,8 @@ function getCurrentText(row: ImportRow, keys: string[]): string {
 
 function getCurrentArray(row: ImportRow, keys: string[]): string[] {
   for (const key of keys) {
+    const accepted = getAcceptedDecisionArray(row, key);
+    if (accepted.length > 0) return accepted;
     const rawValue = row.raw_payload_json[key];
     if (Array.isArray(rawValue)) {
       const values = rawValue.map((item) => String(item).trim()).filter(Boolean);
@@ -1984,6 +1967,41 @@ function getCurrentArray(row: ImportRow, keys: string[]): string[] {
     }
   }
   return [];
+}
+
+function getCurrentOrganizationLabel(row: ImportRow, organizations: Organization[]): string {
+  const selectedOrganizationId = getExistingDecisionId(row, "USE_EXISTING_ORGANIZATION", "organization_id");
+  if (selectedOrganizationId) {
+    const match = organizations.find((organization) => organization.id === selectedOrganizationId);
+    if (match) return match.name;
+  }
+  return getFirstText(row.raw_payload_json.organization_name);
+}
+
+function getCurrentCategoryValues(
+  row: ImportRow,
+  importMode: "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY",
+  categories: Category[],
+): string[] {
+  const mappedCategoryId = getExistingDecisionId(row, "MAP_CATEGORY", "category_id");
+  if (mappedCategoryId) {
+    const match = categories.find((category) => category.id === mappedCategoryId);
+    if (match) return [match.name];
+  }
+  return getCurrentArray(row, importMode === "ORGANIZATIONS_ONLY" ? ["organization_categories"] : ["person_categories"]);
+}
+
+function getCurrentSubcategoryValues(
+  row: ImportRow,
+  importMode: "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY",
+  subcategories: Subcategory[],
+): string[] {
+  const mappedSubcategoryId = getExistingDecisionId(row, "MAP_SUBCATEGORY", "subcategory_id");
+  if (mappedSubcategoryId) {
+    const match = subcategories.find((subcategory) => subcategory.id === mappedSubcategoryId);
+    if (match) return [match.name];
+  }
+  return getCurrentArray(row, importMode === "ORGANIZATIONS_ONLY" ? ["organization_subcategories"] : ["person_subcategories"]);
 }
 
 function getResolvedText(row: ImportRow, suggestionKeys: string[]): string {
