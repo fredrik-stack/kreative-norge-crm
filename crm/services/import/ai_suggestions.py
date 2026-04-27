@@ -618,16 +618,31 @@ def _suggest_municipality_from_known_values(text: str) -> str | None:
 def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_result: dict) -> dict:
     organization = normalized_payload["organization"]
     person = normalized_payload["person"]
-    website_url = _infer_website_url(normalized_payload) or organization.get("website_url") or person.get("website_url")
+    brreg_candidate = best_brreg_candidate(normalized_payload)
+    website_url = (
+        organization.get("website_url")
+        or (brreg_candidate.website_url if brreg_candidate else "")
+        or _infer_website_url(normalized_payload)
+        or person.get("website_url")
+    )
     website_signals = _extract_contact_signals_from_website(website_url)
     organization_search = search_organization_signals(normalized_payload)
     person_search = search_person_signals(normalized_payload)
-    brreg_candidate = best_brreg_candidate(normalized_payload)
     preferred_domain = normalize_domain(
-        organization_search.website_url or website_signals.get("final_url") or website_url or ""
+        organization_search.website_url
+        or (brreg_candidate.website_url if brreg_candidate else "")
+        or website_signals.get("final_url")
+        or website_url
+        or ""
     )
     preferred_organization_email = _preferred_public_email(
-        _unique_casefold([*(website_signals.get("emails") or []), *(organization_search.emails or [])]),
+        _unique_casefold(
+            [
+                *(website_signals.get("emails") or []),
+                *(organization_search.emails or []),
+                *([brreg_candidate.email] if brreg_candidate and brreg_candidate.email else []),
+            ]
+        ),
         preferred_domain,
     )
     preferred_person_email = _preferred_public_email(person_search.emails or [], None)
@@ -658,7 +673,7 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
             "requires_review": True,
         }
 
-    if not organization.get("org_number") and brreg_candidate and brreg_candidate.score >= 0.55:
+    if not organization.get("org_number") and brreg_candidate and brreg_candidate.score >= 0.5:
         suggested_fields["organization_org_number"] = {
             "value": brreg_candidate.org_number,
             "confidence": brreg_candidate.score,
@@ -667,23 +682,34 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
         }
 
     public_website_url = (
-        _sanitize_url(organization_search.website_url)
+        _sanitize_url(brreg_candidate.website_url if brreg_candidate else "")
+        or _sanitize_url(organization_search.website_url)
         or _sanitize_url(website_signals.get("final_url"))
         or _sanitize_url(website_url)
     )
     if public_website_url:
+        confidence = 0.87 if brreg_candidate and public_website_url == _sanitize_url(brreg_candidate.website_url) else 0.81 if organization_search.website_url else 0.74
+        source = (
+            "brreg_enhetsregisteret"
+            if brreg_candidate and public_website_url == _sanitize_url(brreg_candidate.website_url)
+            else "web_search"
+            if organization_search.website_url
+            else "website_final_url"
+            if website_signals.get("final_url")
+            else "heuristic_enrichment"
+        )
         suggested_fields["organization_website_url"] = {
             "value": public_website_url,
-            "confidence": 0.79 if organization_search.website_url else 0.74,
-            "source": "web_search" if organization_search.website_url else "website_final_url" if website_signals.get("final_url") else "heuristic_enrichment",
+            "confidence": confidence,
+            "source": source,
             "requires_review": True,
         }
 
     if not organization.get("email") and preferred_organization_email:
         suggested_fields["organization_email"] = {
             "value": preferred_organization_email,
-            "confidence": 0.81,
-            "source": "website_contact_signal",
+            "confidence": 0.86 if brreg_candidate and preferred_organization_email == brreg_candidate.email else 0.81,
+            "source": "brreg_enhetsregisteret" if brreg_candidate and preferred_organization_email == brreg_candidate.email else "website_contact_signal",
             "requires_review": True,
         }
 
@@ -697,7 +723,7 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
         if organization_municipality:
             suggested_fields["organization_municipalities"] = {
                 "value": organization_municipality,
-                "confidence": 0.82 if exact_org_municipality else 0.86 if brreg_candidate and organization_municipality == brreg_candidate.municipality else 0.68,
+                "confidence": 0.82 if exact_org_municipality else 0.89 if brreg_candidate and organization_municipality == brreg_candidate.municipality else 0.68,
                 "source": "matched_record" if exact_org_municipality else "brreg_enhetsregisteret" if brreg_candidate and organization_municipality == brreg_candidate.municipality else "website_location_signal",
                 "requires_review": True,
             }
@@ -714,7 +740,7 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
                 "source": "matched_record" if exact_person_municipality else "website_location_signal",
                 "requires_review": True,
             }
-
+    
     for field_name, payload_key in (
         ("instagram_url", "organization_instagram_url"),
         ("tiktok_url", "organization_tiktok_url"),
@@ -728,8 +754,8 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
             if value:
                 suggested_fields[payload_key] = {
                     "value": value,
-                    "confidence": 0.8 if exact_match_value else 0.73,
-                    "source": "matched_record" if exact_match_value else "website_contact_signal",
+                    "confidence": 0.8 if exact_match_value else 0.76 if organization_search.socials and payload_key in organization_search.socials else 0.73,
+                    "source": "matched_record" if exact_match_value else "web_search" if organization_search.socials and payload_key in organization_search.socials else "website_contact_signal",
                     "requires_review": True,
                 }
 

@@ -76,7 +76,12 @@ const FIELD_LABELS: Record<string, string> = {
   person_youtube_url: "Person YouTube",
   suggested_categories: "Hovedkategori",
   suggested_subcategories: "Underkategori",
-  suggested_tags: "Tags",
+};
+
+const SUBCATEGORY_ALIASES: Record<string, string> = {
+  "produksjon": "Filmproduksjon",
+  "foto/lys": "Foto/ Lys",
+  "foto / lys": "Foto/ Lys",
 };
 
 const MODE_LABELS: Record<"ORGANIZATIONS_ONLY" | "PEOPLE_ONLY", string> = {
@@ -375,14 +380,12 @@ function ImportReviewWorkspace(props: {
               <th>Nå underkategori</th>
               <th>AI underkategori</th>
               <th>Nå tags</th>
-              <th>AI tags</th>
               <th>Nå interne tags</th>
               <th>Nå nettside</th>
               <th>AI nettside</th>
               <th>Nå profiler</th>
               <th>AI profiler</th>
               <th>Nå beskrivelse</th>
-              <th>AI beskrivelse</th>
               <th>Provider</th>
               <th>Status</th>
               <th>Advarsler</th>
@@ -444,7 +447,6 @@ function ImportReviewWorkspace(props: {
               const currentDescription = mode === "ORGANIZATIONS_ONLY"
                 ? getCurrentText(row, ["organization_description"])
                 : getCurrentText(row, ["person_note"]);
-              const suggestedDescription = "";
               const provider = getProviderLabel(row);
               const diagnosticMeta = getDiagnosticMeta(row);
               const suggestionCount = countSuggestionFields(row);
@@ -509,9 +511,6 @@ function ImportReviewWorkspace(props: {
                       <ReviewSuggestionCell variant="tag" currentValues={getCurrentArray(row, mode === "ORGANIZATIONS_ONLY" ? ["organization_tags"] : ["person_tags"])} suggestedValues={[]} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell variant="tag" currentValues={[]} suggestedValues={[]} />
-                    </td>
-                    <td>
                       <ReviewSuggestionCell
                         variant="internal-tag"
                         currentValues={getCurrentArray(row, mode === "ORGANIZATIONS_ONLY" ? ["organization_internal_tags"] : ["person_internal_tags"])}
@@ -532,9 +531,6 @@ function ImportReviewWorkspace(props: {
                     </td>
                     <td>
                       <ReviewTextCell value={currentDescription} emptyLabel="Mangler" />
-                    </td>
-                    <td>
-                      <ReviewTextCell value={suggestedDescription} emptyLabel="Ingen forslag" onClick={() => setExpandedRowId(row.id)} clickable={Boolean(suggestedDescription)} />
                     </td>
                     <td>
                       <div className="review-provider-cell">
@@ -913,6 +909,11 @@ function InlineReviewEditor(props: {
                   <option key={subcategory.id} value={subcategory.id}>{subcategory.name}</option>
                 ))}
               </select>
+              {draft.subcategoryId ? (
+                <p className="meta">
+                  Valgt: {subcategories.find((subcategory) => subcategory.id === draft.subcategoryId)?.name || "—"}
+                </p>
+              ) : null}
               {currentSubcategoryNames.length > 0 ? (
                 <div className="review-current-pill-row">
                   {currentSubcategoryNames.map((name) => (
@@ -2021,7 +2022,8 @@ function findCategoryIdByName(categories: Category[], name: string): number | ""
 }
 
 function findSubcategoryIdByName(subcategories: Subcategory[], name: string): number | "" {
-  const match = subcategories.find((subcategory) => subcategory.name.toLowerCase() === name.toLowerCase());
+  const normalizedInput = normalizeSubcategoryName(name);
+  const match = subcategories.find((subcategory) => normalizeSubcategoryName(subcategory.name) === normalizedInput);
   return match?.id ?? "";
 }
 
@@ -2034,6 +2036,13 @@ function findCategoryIdForSubcategory(subcategories: Subcategory[], subcategoryI
 function filterSubcategories(categoryId: number | "", subcategories: Subcategory[]): Subcategory[] {
   if (!categoryId) return [];
   return subcategories.filter((subcategory) => subcategory.category.id === categoryId);
+}
+
+function normalizeSubcategoryName(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const normalized = trimmed.toLowerCase();
+  return (SUBCATEGORY_ALIASES[normalized] ?? trimmed).toLowerCase();
 }
 
 function getNestedSuggestedFallback(row: ImportRow, key: string): string {

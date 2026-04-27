@@ -1268,6 +1268,8 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
                 name="Nordlyd AS",
                 municipality="Bodø",
                 postal_place="BODØ",
+                website_url="https://nordlyd.no",
+                email="post@nordlyd.no",
                 score=0.91,
             ),
         ), patch.object(
@@ -1303,6 +1305,8 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
 
         self.assertEqual(suggestions["suggested_fields"]["organization_org_number"]["value"], "123456785")
         self.assertEqual(suggestions["suggested_fields"]["organization_municipalities"]["value"], "Bodø")
+        self.assertEqual(suggestions["suggested_fields"]["organization_website_url"]["value"], "https://nordlyd.no")
+        self.assertEqual(suggestions["suggested_fields"]["organization_email"]["value"], "post@nordlyd.no")
 
     @override_settings(OPENAI_IMPORT_ENABLED=False, OPENAI_API_KEY="")
     def test_generate_ai_suggestions_uses_person_specific_search_signals(self):

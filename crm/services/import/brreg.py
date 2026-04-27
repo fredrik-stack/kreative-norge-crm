@@ -7,11 +7,25 @@ from urllib.request import Request, urlopen
 
 from django.conf import settings
 
-from .normalizers import normalize_name, normalize_space
+from .normalizers import normalize_domain, normalize_name, normalize_space
 
 
 BRREG_API_BASE = "https://data.brreg.no/enhetsregisteret/api/enheter"
 BRREG_USER_AGENT = "KreativeNorgeCRM/1.0 (+https://github.com/fredrik-stack/kreative-norge-crm)"
+COMPANY_SUFFIXES = {
+    "as",
+    "asa",
+    "ans",
+    "ba",
+    "da",
+    "enk",
+    "forening",
+    "foreningen",
+    "ikb",
+    "ks",
+    "nuf",
+    "sa",
+}
 
 
 @dataclass
@@ -20,6 +34,8 @@ class BrregCandidate:
     name: str
     municipality: str
     postal_place: str
+    website_url: str
+    email: str
     score: float
 
 
@@ -47,19 +63,89 @@ def _fetch_brreg_json(url: str) -> dict:
         return json.loads(response.read().decode("utf-8"))
 
 
-def search_brreg(name: str, *, municipality: str = "", limit: int = 5) -> list[BrregCandidate]:
+def _normalize_entity_name_for_match(value: str) -> str:
+    normalized = normalize_name(value)
+    tokens = [token for token in normalized.split() if token not in COMPANY_SUFFIXES]
+    return " ".join(tokens)
+
+
+def _score_candidate(
+    *,
+    query_name: str,
+    entity_name: str,
+    municipality: str,
+    entity_municipality: str,
+    postal_place: str,
+    website_hint: str,
+    entity_website: str,
+) -> float:
+    normalized_query = _normalize_entity_name_for_match(query_name)
+    normalized_entity = _normalize_entity_name_for_match(entity_name)
+    normalized_municipality = normalize_name(municipality)
+    normalized_entity_municipality = normalize_name(entity_municipality)
+    normalized_postal_place = normalize_name(postal_place)
+    hinted_domain = normalize_domain(website_hint.split("@", 1)[1] if "@" in website_hint else website_hint)
+    entity_domain = normalize_domain(entity_website)
+
+    score = 0.15
+    if normalized_query and normalized_query == normalized_entity:
+        score += 0.62
+    elif normalized_query and normalized_query in normalized_entity:
+        score += 0.42
+    elif normalized_entity and normalized_entity in normalized_query:
+        score += 0.34
+
+    query_tokens = [token for token in normalized_query.split() if len(token) > 2]
+    entity_tokens = set(normalized_entity.split())
+    overlap = sum(1 for token in query_tokens if token in entity_tokens)
+    if query_tokens:
+        score += min(0.18, (overlap / len(query_tokens)) * 0.18)
+
+    if normalized_municipality:
+        if normalized_municipality == normalized_entity_municipality:
+            score += 0.17
+        elif normalized_municipality == normalized_postal_place:
+            score += 0.14
+
+    if hinted_domain and entity_domain and hinted_domain == entity_domain:
+        score += 0.16
+
+    return min(score, 0.99)
+
+
+def _extract_contact_fields(payload: dict) -> tuple[str, str]:
+    website_url = normalize_space(
+        payload.get("hjemmeside")
+        or payload.get("hjemmesideUrl")
+        or payload.get("hjemmeside_url")
+    )
+    email = normalize_space(
+        payload.get("epostadresse")
+        or payload.get("epost")
+        or payload.get("email")
+    ).lower()
+    return website_url, email
+
+
+def _fetch_entity_details(org_number: str) -> dict:
+    return _fetch_brreg_json(f"{BRREG_API_BASE}/{quote(org_number)}")
+
+
+def search_brreg(name: str, *, municipality: str = "", website_hint: str = "", limit: int = 5) -> list[BrregCandidate]:
     query_name = normalize_space(name)
     if not query_name or not settings.BRREG_ENRICHMENT_ENABLED:
         return []
 
-    query = f"navn={quote(query_name)}&size={max(1, min(limit, 10))}"
+    query = (
+        f"navn={quote(query_name)}"
+        f"&navnMetodeForSoek=FORTLOEPENDE"
+        f"&size={max(1, min(limit, 10))}"
+    )
     try:
         payload = _fetch_brreg_json(f"{BRREG_API_BASE}?{query}")
     except Exception:
         return []
     entries = (payload.get("_embedded") or {}).get("enheter") or []
-    normalized_name = normalize_name(query_name)
-    normalized_municipality = normalize_name(municipality)
     candidates: list[BrregCandidate] = []
 
     for entry in entries:
@@ -70,23 +156,33 @@ def search_brreg(name: str, *, municipality: str = "", limit: int = 5) -> list[B
         entity_municipality = normalize_space(address.get("kommune"))
         if not org_number or not entity_name:
             continue
-        score = 0.2
-        if normalize_name(entity_name) == normalized_name:
-            score += 0.5
-        elif normalized_name and normalized_name in normalize_name(entity_name):
-            score += 0.3
-        if normalized_municipality:
-            if normalize_name(entity_municipality) == normalized_municipality:
-                score += 0.2
-            elif normalize_name(postal_place) == normalized_municipality:
-                score += 0.15
+        details = entry
+        try:
+            details = _fetch_entity_details(org_number)
+        except Exception:
+            details = entry
+        details_address = details.get("forretningsadresse") or address
+        postal_place = normalize_space(details_address.get("poststed")) or postal_place
+        entity_municipality = normalize_space(details_address.get("kommune")) or entity_municipality
+        website_url, email = _extract_contact_fields(details)
+        score = _score_candidate(
+            query_name=query_name,
+            entity_name=entity_name,
+            municipality=municipality,
+            entity_municipality=entity_municipality,
+            postal_place=postal_place,
+            website_hint=website_hint,
+            entity_website=website_url,
+        )
         candidates.append(
             BrregCandidate(
                 org_number=org_number,
                 name=entity_name,
                 municipality=entity_municipality,
                 postal_place=postal_place,
-                score=min(score, 0.99),
+                website_url=website_url,
+                email=email,
+                score=score,
             )
         )
 
@@ -101,6 +197,10 @@ def best_brreg_candidate(normalized_payload: dict) -> BrregCandidate | None:
     candidates = search_brreg(
         organization.get("name", ""),
         municipality=organization.get("municipalities", ""),
+        website_hint=organization.get("website_url", "") or organization.get("email", ""),
         limit=5,
     )
-    return candidates[0] if candidates else None
+    if not candidates:
+        return None
+    best = candidates[0]
+    return best if best.score >= 0.5 else None
