@@ -12,12 +12,31 @@ from .validators import validate_normalized_row
 AI_BATCH_SIZE = 1
 
 
+def _runtime_error_suggestions(*, stage: str, exc: Exception) -> dict:
+    error_text = str(exc).strip() or exc.__class__.__name__
+    provider_status = f"fallback_{stage}_error"
+    return {
+        "organization_match_candidates": [],
+        "person_match_candidates": [],
+        "suggested_fields": {},
+        "provider": "heuristic_fallback",
+        "diagnostic": {
+            "primary_provider": "heuristic_fallback",
+            "provider_status": provider_status,
+            "fallback_reason": f"{stage}_error",
+            "openai_attempted": stage == "openai",
+            "openai_error": error_text,
+            "useful_suggestion_count": 0,
+        },
+    }
+
+
 def _ai_summary(rows: list[ImportRow]) -> dict:
     diagnostics = [row.ai_suggestions_json.get("diagnostic", {}) for row in rows]
     provider_statuses = [str(diagnostic.get("provider_status") or "") for diagnostic in diagnostics]
     pending_count = sum(1 for status in provider_statuses if status == "pending_openai")
     completed_count = sum(1 for status in provider_statuses if status in {"openai", "openai_empty"})
-    failed_count = sum(1 for status in provider_statuses if status == "fallback_openai_error")
+    failed_count = sum(1 for status in provider_statuses if status.startswith("fallback_") and status.endswith("_error"))
     if pending_count:
         generation_status = "running" if completed_count or failed_count else "pending"
     elif failed_count and completed_count:
@@ -135,7 +154,10 @@ def run_import_preview(import_job: ImportJob) -> ImportJob:
             normalized_payload = normalize_import_row(raw_payload, import_job.import_mode)
             errors, warnings = validate_normalized_row(import_job.tenant, normalized_payload)
             matches = match_row_entities(import_job.tenant, normalized_payload)
-            ai_suggestions = build_pending_ai_suggestions(import_job.tenant, normalized_payload, matches)
+            try:
+                ai_suggestions = build_pending_ai_suggestions(import_job.tenant, normalized_payload, matches)
+            except Exception as exc:
+                ai_suggestions = _runtime_error_suggestions(stage="preview", exc=exc)
             row_status, proposed_action = _row_outcome(normalized_payload, errors, warnings, matches)
             row_instances.append(
                 ImportRow(
@@ -179,11 +201,14 @@ def generate_import_job_ai(import_job: ImportJob, *, retry_failed: bool = False,
 
     with transaction.atomic():
         for row in pending_rows:
-            row.ai_suggestions_json = generate_ai_suggestions(
-                import_job.tenant,
-                row.normalized_payload_json,
-                row.match_result_json,
-            )
+            try:
+                row.ai_suggestions_json = generate_ai_suggestions(
+                    import_job.tenant,
+                    row.normalized_payload_json,
+                    row.match_result_json,
+                )
+            except Exception as exc:
+                row.ai_suggestions_json = _runtime_error_suggestions(stage="openai", exc=exc)
             row.save(update_fields=["ai_suggestions_json", "updated_at"])
 
     update_job_preview_status(import_job)

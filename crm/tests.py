@@ -643,6 +643,19 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(self.job.summary_json["ai_generation_status"], "pending")
         self.assertEqual(self.job.summary_json["rows_ai_pending"], 1)
 
+    def test_preview_falls_back_when_pending_ai_builder_errors(self):
+        self._upload_csv()
+        with patch.object(import_preview_module, "build_pending_ai_suggestions", side_effect=RuntimeError("preview boom")):
+            response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(response.status_code, 200, response.content)
+
+        self.job.refresh_from_db()
+        row = self.job.rows.get()
+        self.assertEqual(row.ai_suggestions_json["diagnostic"]["provider_status"], "fallback_preview_error")
+        self.assertEqual(row.ai_suggestions_json["diagnostic"]["openai_error"], "preview boom")
+        self.assertEqual(self.job.summary_json["rows_ai_failed"], 1)
+        self.assertEqual(self.job.summary_json["ai_generation_status"], "failed")
+
     @override_settings(OPENAI_IMPORT_ENABLED=True, OPENAI_API_KEY="test-key")
     def test_generate_ai_endpoint_processes_pending_rows_in_batches(self):
         self._upload_csv([self.base_row, self.base_row | {"organization_name": "Nordlyd 2", "organization_org_number": "987654321"}])
@@ -700,6 +713,45 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(self.job.summary_json["rows_ai_completed"], 1)
         self.assertEqual(self.job.summary_json["rows_ai_pending"], 1)
         self.assertEqual(self.job.summary_json["ai_generation_status"], "running")
+
+    @override_settings(OPENAI_IMPORT_ENABLED=True, OPENAI_API_KEY="test-key")
+    def test_generate_ai_endpoint_falls_back_when_row_generation_errors(self):
+        self._upload_csv()
+        pending_payload = {
+            "organization_match_candidates": [],
+            "person_match_candidates": [],
+            "suggested_fields": {},
+            "provider": "pending_openai",
+            "diagnostic": {
+                "primary_provider": "pending_openai",
+                "provider_status": "pending_openai",
+                "fallback_reason": "awaiting_openai",
+                "openai_attempted": False,
+                "openai_error": None,
+                "useful_suggestion_count": 0,
+            },
+        }
+        with patch.object(import_preview_module, "build_pending_ai_suggestions", return_value=pending_payload):
+            self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+
+        with patch.object(import_preview_module, "generate_ai_suggestions", side_effect=RuntimeError("openai boom")), patch.object(
+            import_preview_module,
+            "openai_is_ready",
+            return_value=True,
+        ):
+            response = self.client.post(
+                f"{self.import_jobs_url()}{self.job.id}/generate-ai/",
+                {"batch_size": 1},
+                format="json",
+            )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.job.refresh_from_db()
+        row = self.job.rows.get()
+        self.assertEqual(row.ai_suggestions_json["diagnostic"]["provider_status"], "fallback_openai_error")
+        self.assertEqual(row.ai_suggestions_json["diagnostic"]["openai_error"], "openai boom")
+        self.assertEqual(self.job.summary_json["rows_ai_failed"], 1)
+        self.assertEqual(self.job.summary_json["rows_ai_pending"], 0)
+        self.assertEqual(self.job.summary_json["ai_generation_status"], "failed")
 
     def test_xlsx_preview_creates_rows(self):
         self._upload_xlsx()
