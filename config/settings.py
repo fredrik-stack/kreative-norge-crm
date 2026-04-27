@@ -186,3 +186,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 OPENAI_IMPORT_ENABLED = os.getenv("OPENAI_IMPORT_ENABLED", "True").lower() == "true"
 OPENAI_IMPORT_MODEL = os.getenv("OPENAI_IMPORT_MODEL", "gpt-5.4").strip() or "gpt-5.4"
 OPENAI_IMPORT_TIMEOUT = float(os.getenv("OPENAI_IMPORT_TIMEOUT", "20"))
+SEARCH_ENRICHMENT_ENABLED = os.getenv("SEARCH_ENRICHMENT_ENABLED", "True").lower() == "true"
+SEARCH_ENRICHMENT_TIMEOUT = float(os.getenv("SEARCH_ENRICHMENT_TIMEOUT", "10"))
+BRREG_ENRICHMENT_ENABLED = os.getenv("BRREG_ENRICHMENT_ENABLED", "True").lower() == "true"
+BRREG_TIMEOUT = float(os.getenv("BRREG_TIMEOUT", "8"))

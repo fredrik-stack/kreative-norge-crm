@@ -1109,7 +1109,7 @@ select,
 }
 
 .import-review-modal {
-  width: min(940px, calc(100vw - 3rem));
+  width: min(980px, calc(100vw - 3rem));
   max-height: min(88vh, 920px);
   padding: 0.9rem 1rem 1rem;
 }
@@ -1386,6 +1386,14 @@ select,
 .review-inline-field.compact {
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
+}
+
+.review-inline-field.compact input,
+.review-inline-field.compact select,
+.review-inline-field.compact textarea,
+.tag-editor-field input {
+  width: 100%;
+  min-width: 0;
 }
 
 .review-inline-cta {

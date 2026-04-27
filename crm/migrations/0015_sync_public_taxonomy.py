@@ -14,8 +14,7 @@ SEED_CATEGORIES = {
         "Regi & Manus",
         "Foto/ Lys",
         "Filmlyd",
-        "Produksjon",
-        "Arenaer",
+        "Filmproduksjon",
     ],
     "Kunst & Design": [
         "Visuell kunst",

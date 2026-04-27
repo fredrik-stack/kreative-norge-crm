@@ -33,6 +33,7 @@ const EXPORT_FIELD_OPTIONS = [
 ];
 
 const SIMPLE_EDITABLE_SUGGESTION_FIELDS = [
+  "organization_org_number",
   "organization_email",
   "organization_municipalities",
   "organization_website_url",
@@ -54,6 +55,7 @@ const SIMPLE_EDITABLE_SUGGESTION_FIELDS = [
 ] as const;
 
 const FIELD_LABELS: Record<string, string> = {
+  organization_org_number: "Org.nr",
   organization_email: "E-post",
   organization_municipalities: "Kommune / steder",
   organization_website_url: "Nettside",
@@ -393,7 +395,6 @@ function ImportReviewWorkspace(props: {
               const expanded = expandedRowId === row.id;
               const categorySuggestions = getSuggestionValues(row, "suggested_categories");
               const subcategorySuggestions = getSuggestionValues(row, "suggested_subcategories");
-              const tagSuggestions = getSuggestionValues(row, "suggested_tags");
               const currentOrganizationLabel = mode === "PEOPLE_ONLY"
                 ? getCurrentOrganizationLabel(row, editor.organizations)
                 : getFirstText(row.raw_payload_json.organization_name);
@@ -443,7 +444,7 @@ function ImportReviewWorkspace(props: {
               const currentDescription = mode === "ORGANIZATIONS_ONLY"
                 ? getCurrentText(row, ["organization_description"])
                 : getCurrentText(row, ["person_note"]);
-              const suggestedDescription = mode === "ORGANIZATIONS_ONLY" ? getSuggestionText(row, "organization_description") : "";
+              const suggestedDescription = "";
               const provider = getProviderLabel(row);
               const diagnosticMeta = getDiagnosticMeta(row);
               const suggestionCount = countSuggestionFields(row);
@@ -465,7 +466,7 @@ function ImportReviewWorkspace(props: {
                         <ReviewValueCell current={currentPersonTitle} fallback="—" />
                       </td>
                     ) : null}
-                    <td>{getFirstText(row.raw_payload_json.organization_org_number) || "—"}</td>
+                    <td>{getCurrentText(row, ["organization_org_number"]) || "—"}</td>
                     <td>
                       <ReviewValueCell current={currentEmail} fallback="—" />
                     </td>
@@ -508,7 +509,7 @@ function ImportReviewWorkspace(props: {
                       <ReviewSuggestionCell variant="tag" currentValues={getCurrentArray(row, mode === "ORGANIZATIONS_ONLY" ? ["organization_tags"] : ["person_tags"])} suggestedValues={[]} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell variant="tag" currentValues={[]} suggestedValues={tagSuggestions} onClick={() => setExpandedRowId(row.id)} />
+                      <ReviewSuggestionCell variant="tag" currentValues={[]} suggestedValues={[]} />
                     </td>
                     <td>
                       <ReviewSuggestionCell
@@ -657,13 +658,13 @@ function InlineReviewEditor(props: {
   const suggestedFields = useMemo(() => getSuggestionFields(row), [row]);
   const categorySuggestions = getSuggestionValues(row, "suggested_categories");
   const subcategorySuggestions = getSuggestionValues(row, "suggested_subcategories");
-  const tagSuggestions = getSuggestionValues(row, "suggested_tags");
   const suggestionStates = getExistingSuggestionStates(row);
   const actorOnly = importMode === "ORGANIZATIONS_ONLY";
   const personOnly = importMode === "PEOPLE_ONLY";
   const currentCategoryNames = getCurrentCategoryValues(row, importMode, categories);
   const currentSubcategoryNames = getCurrentSubcategoryValues(row, importMode, subcategories);
   const currentSubcategoryId = findSubcategoryIdByName(subcategories, currentSubcategoryNames[0] || "");
+  const inferredCategoryId = findCategoryIdForSubcategory(subcategories, currentSubcategoryId);
   const [draft, setDraft] = useState<ReviewDraft>(() => {
     const initialFieldValues: Record<string, string> = {};
     SIMPLE_EDITABLE_SUGGESTION_FIELDS.forEach((key) => {
@@ -678,6 +679,7 @@ function InlineReviewEditor(props: {
       personId: getExistingDecisionId(row, "USE_EXISTING_PERSON", "person_id"),
       categoryId:
         getExistingDecisionId(row, "MAP_CATEGORY", "category_id") ||
+        inferredCategoryId ||
         findCategoryIdByName(
           categories,
           currentCategoryNames[0] || "",
@@ -704,18 +706,19 @@ function InlineReviewEditor(props: {
   useEffect(() => {
     if (draft.categoryId) return;
     if (!currentSubcategoryId) return;
-    const inferredCategoryId = findCategoryIdForSubcategory(subcategories, currentSubcategoryId);
     if (!inferredCategoryId) return;
     setDraft((current) => (current.categoryId ? current : { ...current, categoryId: inferredCategoryId }));
-  }, [currentSubcategoryId, draft.categoryId, subcategories]);
+  }, [currentSubcategoryId, draft.categoryId, inferredCategoryId]);
 
-  const filteredSubcategories = useMemo(
-    () => filterSubcategories(draft.categoryId, subcategories),
-    [draft.categoryId, subcategories],
-  );
+  const filteredSubcategories = useMemo(() => {
+    const options = filterSubcategories(draft.categoryId, subcategories);
+    if (!draft.subcategoryId) return options;
+    const selected = subcategories.find((subcategory) => subcategory.id === draft.subcategoryId);
+    if (!selected) return options;
+    return options.some((subcategory) => subcategory.id === selected.id) ? options : [selected, ...options];
+  }, [draft.categoryId, draft.subcategoryId, subcategories]);
   const visibleCategorySuggestions = (draft.suggestionStates.suggested_categories ?? "pending") === "ignored" ? [] : categorySuggestions;
   const visibleSubcategorySuggestions = (draft.suggestionStates.suggested_subcategories ?? "pending") === "ignored" ? [] : subcategorySuggestions;
-  const visibleTagSuggestions = (draft.suggestionStates.suggested_tags ?? "pending") === "ignored" ? [] : tagSuggestions;
   const diagnosticMeta = getDiagnosticMeta(row);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [createOrganizationOpen, setCreateOrganizationOpen] = useState(false);
@@ -796,16 +799,6 @@ function InlineReviewEditor(props: {
         ...draft.suggestionStates,
         suggested_subcategories: subcategoryId ? "accepted" : draft.suggestionStates.suggested_subcategories,
       },
-    };
-    void persistDraft(nextDraft);
-  }
-
-  function applySingleTagSuggestion(value: string) {
-    const merged = Array.from(new Set([...splitCsvText(draft.tagsText), value]));
-    const nextDraft = {
-      ...draft,
-      tagsText: merged.join(", "),
-      suggestionStates: { ...draft.suggestionStates, suggested_tags: "accepted" as const },
     };
     void persistDraft(nextDraft);
   }
@@ -951,22 +944,6 @@ function InlineReviewEditor(props: {
                   onChange={(e) => setDraft((current) => ({ ...current, tagsText: e.target.value, suggestionStates: { ...current.suggestionStates, suggested_tags: "accepted" } }))}
                   placeholder="jazz, management"
                 />
-                {visibleTagSuggestions.length > 0 ? (
-                  <SuggestionPills
-                    values={visibleTagSuggestions}
-                    emptyLabel="Ingen forslag"
-                    state={draft.suggestionStates.suggested_tags ?? "pending"}
-                    onAccept={(value) => applySingleTagSuggestion(value)}
-                    onIgnore={() => {
-                      const nextDraft = {
-                        ...draft,
-                        tagsText: "",
-                        suggestionStates: { ...draft.suggestionStates, suggested_tags: "ignored" as const },
-                      };
-                      void persistDraft(nextDraft);
-                    }}
-                  />
-                ) : null}
                 {splitCsvText(draft.tagsText).length > 0 ? (
                   <div className="tag-chip-editor" aria-label="Valgte tags">
                     {splitCsvText(draft.tagsText).map((tag) => (

@@ -76,6 +76,8 @@ def _apply_accepted_ai_suggestions(row: ImportRow, normalized_payload: dict, res
     for suggestion_key, value in accepted.items():
         if suggestion_key == "organization_name":
             payload["organization"]["name"] = value or ""
+        elif suggestion_key == "organization_org_number":
+            payload["organization"]["org_number"] = value or ""
         elif suggestion_key == "person_full_name":
             payload["person"]["full_name"] = value or ""
         elif suggestion_key == "organization_email":

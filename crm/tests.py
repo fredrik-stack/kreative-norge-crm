@@ -973,7 +973,6 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
                 '{"suggested_fields":{"organization_municipalities":{"value":"Oslo","confidence":0.84,"source":"ai_enrichment","requires_review":true},'
                 '"organization_website_url":{"value":"https://nordlyd.no","confidence":0.81,"source":"ai_enrichment","requires_review":true},'
                 '"organization_instagram_url":{"value":"https://instagram.com/nordlyd","confidence":0.73,"source":"ai_enrichment","requires_review":true},'
-                '"organization_description":{"value":"Nordlyd er en norsk arrangor.","confidence":0.77,"source":"ai_enrichment","requires_review":true},'
                 '"suggested_categories":{"value":["Musikk"],"confidence":0.91,"source":"ai_enrichment","requires_review":true},'
                 '"suggested_subcategories":{"value":["Artister & Band"],"confidence":0.79,"source":"ai_enrichment","requires_review":true},'
                 '"organization_is_published":{"value":true,"confidence":0.99,"source":"ai_enrichment","requires_review":true}},'
@@ -1036,8 +1035,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
     def test_generate_ai_suggestions_discards_invalid_taxonomy_and_non_norwegian_description(self):
         class FakeResponse:
             output_text = (
-                '{"suggested_fields":{"organization_description":{"value":"The company creates events for artists.","confidence":0.8,"source":"ai_enrichment","requires_review":true},'
-                '"suggested_categories":{"value":["Musikk"],"confidence":0.9,"source":"ai_enrichment","requires_review":true},'
+                '{"suggested_fields":{"suggested_categories":{"value":["Musikk"],"confidence":0.9,"source":"ai_enrichment","requires_review":true},'
                 '"suggested_subcategories":{"value":["Interiørarkitektur"],"confidence":0.7,"source":"ai_enrichment","requires_review":true}},'
                 '"provider":"openai"}'
             )
@@ -1070,17 +1068,13 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
 
         self.assertEqual(suggestions["suggested_fields"]["suggested_categories"]["value"], ["Musikk"])
         self.assertNotIn("suggested_subcategories", suggestions["suggested_fields"])
-        self.assertNotEqual(
-            suggestions["suggested_fields"].get("organization_description", {}).get("value"),
-            "The company creates events for artists.",
-        )
+        self.assertNotIn("organization_description", suggestions["suggested_fields"])
 
     @override_settings(
         OPENAI_IMPORT_ENABLED=False,
         OPENAI_API_KEY="",
     )
     def test_generate_ai_suggestions_can_use_website_signals_for_contacts_and_taxonomy(self):
-        Tag.objects.create(tenant=self.tenant, name="jazz")
         Organization.objects.create(
             tenant=self.tenant,
             name="Bergen Scenehus",
@@ -1120,7 +1114,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(suggestions["suggested_fields"]["organization_instagram_url"]["value"], "https://instagram.com/scenehuset")
         self.assertEqual(suggestions["suggested_fields"]["suggested_subcategories"]["value"], ["Artister & Band"])
         self.assertEqual(suggestions["suggested_fields"]["suggested_categories"]["value"], ["Musikk"])
-        self.assertEqual(suggestions["suggested_fields"]["suggested_tags"]["value"], ["jazz"])
+        self.assertNotIn("suggested_tags", suggestions["suggested_fields"])
 
     @override_settings(OPENAI_IMPORT_ENABLED=False, OPENAI_API_KEY="")
     def test_generate_ai_suggestions_does_not_suggest_counties_as_municipalities(self):
@@ -1180,7 +1174,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertNotIn("suggested_tags", suggestions["suggested_fields"])
 
     @override_settings(OPENAI_IMPORT_ENABLED=False, OPENAI_API_KEY="")
-    def test_generate_ai_suggestions_prefers_domain_email_and_website_description(self):
+    def test_generate_ai_suggestions_prefers_domain_email_and_website(self):
         with patch.object(
             import_ai_suggestions_module,
             "_extract_contact_signals_from_website",
@@ -1189,9 +1183,6 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
                 "phones": ["22 22 22 22", "+47 11 11 11 11"],
                 "socials": {},
                 "text_snippet": "Nordlyd utvikler og produserer konserter og turneer i Oslo.",
-                "description_candidates": [
-                    "Nordlyd er en uavhengig konsertarrangør i Oslo som utvikler og produserer liveopplevelser.",
-                ],
                 "final_url": "https://nordlyd.no/om-oss",
             },
         ):
@@ -1214,10 +1205,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(suggestions["suggested_fields"]["organization_website_url"]["value"], "https://nordlyd.no/om-oss")
         self.assertEqual(suggestions["suggested_fields"]["organization_email"]["value"], "kontakt@nordlyd.no")
         self.assertNotIn("organization_phone", suggestions["suggested_fields"])
-        self.assertEqual(
-            suggestions["suggested_fields"]["organization_description"]["value"],
-            "Nordlyd er en uavhengig konsertarrangør i Oslo som utvikler og produserer liveopplevelser.",
-        )
+        self.assertNotIn("organization_description", suggestions["suggested_fields"])
 
     @override_settings(OPENAI_IMPORT_ENABLED=False, OPENAI_API_KEY="")
     def test_generate_ai_suggestions_exposes_domain_based_actor_candidates_for_person_import(self):
@@ -1268,6 +1256,102 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
 
         self.assertEqual(suggestions["organization_match_candidates"][0]["id"], existing.id)
         self.assertEqual(suggestions["organization_match_candidates"][0]["reason"], "contact_domain")
+
+    @override_settings(OPENAI_IMPORT_ENABLED=False, OPENAI_API_KEY="")
+    def test_generate_ai_suggestions_can_use_brreg_org_number_and_municipality(self):
+        BrregCandidate = importlib.import_module("crm.services.import.brreg").BrregCandidate
+        with patch.object(
+            import_ai_suggestions_module,
+            "best_brreg_candidate",
+            return_value=BrregCandidate(
+                org_number="123456785",
+                name="Nordlyd AS",
+                municipality="Bodø",
+                postal_place="BODØ",
+                score=0.91,
+            ),
+        ), patch.object(
+            import_ai_suggestions_module,
+            "search_organization_signals",
+            return_value=importlib.import_module("crm.services.import.search_enrichment").SearchSignals(
+                website_url=None,
+                emails=[],
+                socials={},
+                text_snippets=[],
+            ),
+        ), patch.object(
+            import_ai_suggestions_module,
+            "search_person_signals",
+            return_value=importlib.import_module("crm.services.import.search_enrichment").SearchSignals(
+                website_url=None,
+                emails=[],
+                socials={},
+                text_snippets=[],
+            ),
+        ):
+            suggestions = generate_ai_suggestions(
+                self.tenant,
+                normalize_import_row(
+                    self.base_row
+                    | {
+                        "organization_org_number": "",
+                        "organization_municipalities": "",
+                    }
+                ),
+                {"organization": {}, "person": {}},
+            )
+
+        self.assertEqual(suggestions["suggested_fields"]["organization_org_number"]["value"], "123456785")
+        self.assertEqual(suggestions["suggested_fields"]["organization_municipalities"]["value"], "Bodø")
+
+    @override_settings(OPENAI_IMPORT_ENABLED=False, OPENAI_API_KEY="")
+    def test_generate_ai_suggestions_uses_person_specific_search_signals(self):
+        SearchSignals = importlib.import_module("crm.services.import.search_enrichment").SearchSignals
+        with patch.object(
+            import_ai_suggestions_module,
+            "search_organization_signals",
+            return_value=SearchSignals(
+                website_url="https://nordlyd.no",
+                emails=["kontakt@nordlyd.no"],
+                socials={"organization_instagram_url": "https://instagram.com/nordlyd"},
+                text_snippets=["Nordlyd er et produksjonsselskap i Oslo."],
+            ),
+        ), patch.object(
+            import_ai_suggestions_module,
+            "search_person_signals",
+            return_value=SearchSignals(
+                website_url="https://adastorm.no",
+                emails=["ada@adastorm.no"],
+                socials={"person_instagram_url": "https://instagram.com/adastorm"},
+                text_snippets=["Ada Storm er musiker og produsent bosatt i Oslo."],
+            ),
+        ), patch.object(
+            import_ai_suggestions_module,
+            "_extract_contact_signals_from_website",
+            return_value={"emails": [], "phones": [], "socials": {}, "text_snippet": "", "final_url": ""},
+        ):
+            suggestions = generate_ai_suggestions(
+                self.tenant,
+                normalize_import_row(
+                    self.base_row
+                    | {
+                        "organization_name": "Nordlyd AS",
+                        "organization_org_number": "",
+                        "organization_email": "",
+                        "organization_website_url": "",
+                        "person_full_name": "Ada Storm",
+                        "person_email": "",
+                        "person_website_url": "",
+                        "person_instagram_url": "",
+                    }
+                ),
+                {"organization": {}, "person": {}},
+            )
+
+        self.assertEqual(suggestions["suggested_fields"]["person_email"]["value"], "ada@adastorm.no")
+        self.assertEqual(suggestions["suggested_fields"]["person_website_url"]["value"], "https://adastorm.no")
+        self.assertEqual(suggestions["suggested_fields"]["person_instagram_url"]["value"], "https://instagram.com/adastorm")
+        self.assertEqual(suggestions["suggested_fields"]["organization_website_url"]["value"], "https://nordlyd.no")
 
     @patch("crm.services.import.commit.refresh_organization_open_graph")
     def test_accepted_ai_suggestion_can_influence_commit(self, refresh_mock):
