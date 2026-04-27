@@ -57,6 +57,8 @@ def _search(query: str, *, limit: int = 6) -> list[dict[str, str]]:
     params = (
         f"q={quote(query)}"
         f"&count={max(1, min(limit, settings.BRAVE_SEARCH_MAX_RESULTS))}"
+        "&country=NO"
+        "&spellcheck=false"
     )
     request = Request(
         f"{BRAVE_SEARCH_API_URL}?{params}",
@@ -89,20 +91,37 @@ def _search(query: str, *, limit: int = 6) -> list[dict[str, str]]:
     return cleaned
 
 
-def _score_result(query_tokens: set[str], result: dict[str, str]) -> float:
+def _score_result(query_tokens: set[str], result: dict[str, str], *, exact_phrase: str = "") -> float:
     haystack = normalize_name(" ".join([result.get("title", ""), result.get("snippet", ""), result.get("url", "")]))
     if not haystack:
         return 0.0
     hits = sum(1 for token in query_tokens if token and token in haystack)
+    if exact_phrase and exact_phrase in haystack:
+        hits += 1.4
     if _is_social_url(result.get("url", "")):
         hits += 0.2
     return hits / max(len(query_tokens), 1)
 
 
-def _pick_best_results(query: str, *, limit: int = 4) -> list[dict[str, str]]:
-    results = _search(query, limit=max(limit, 6))
-    query_tokens = {token for token in normalize_name(query).split() if len(token) > 2}
-    ranked = sorted(results, key=lambda item: _score_result(query_tokens, item), reverse=True)
+def _merge_ranked_results(queries: list[str], *, target_name: str, limit: int = 4) -> list[dict[str, str]]:
+    merged: list[dict[str, str]] = []
+    seen_urls: set[str] = set()
+    normalized_target = normalize_name(target_name)
+    query_tokens = {token for token in normalized_target.split() if len(token) > 2}
+
+    for query in queries:
+        for result in _search(query, limit=max(limit, 6)):
+            url = result.get("url", "")
+            if not url or url in seen_urls:
+                continue
+            seen_urls.add(url)
+            merged.append(result)
+
+    ranked = sorted(
+        merged,
+        key=lambda item: _score_result(query_tokens, item, exact_phrase=normalized_target),
+        reverse=True,
+    )
     return [item for item in ranked if item.get("url")][:limit]
 
 
@@ -166,9 +185,35 @@ def _score_social_result(result: dict[str, str], *, target_name: str, organizati
 def _pick_primary_website(results: list[dict[str, str]]) -> str | None:
     for result in results:
         url = result.get("url", "")
+        haystack = normalize_name(" ".join([result.get("title", ""), result.get("snippet", ""), url]))
+        if " nordlys " in f" {haystack} ":
+            continue
         if url and not _is_social_url(url):
             return url
     return None
+
+
+def _organization_queries(name: str, municipality: str) -> list[str]:
+    queries = [
+        f'"{name}"',
+        f'"{name}" Norge',
+        f'"{name}" kontakt',
+    ]
+    if municipality:
+        queries.insert(1, f'"{name}" "{municipality}"')
+        queries.append(f'"{name}" "{municipality}" kontakt')
+    return queries
+
+
+def _person_queries(person_name: str, organization_name: str, municipality: str) -> list[str]:
+    queries = [f'"{person_name}"']
+    if organization_name:
+        queries.append(f'"{person_name}" "{organization_name}"')
+    if municipality:
+        queries.append(f'"{person_name}" "{municipality}"')
+    if organization_name and municipality:
+        queries.append(f'"{person_name}" "{organization_name}" "{municipality}"')
+    return queries
 
 
 def _extract_search_signals(
@@ -180,6 +225,19 @@ def _extract_search_signals(
 ) -> SearchSignals:
     snippets = [normalize_space(result.get("snippet", "")) for result in results if normalize_space(result.get("snippet", ""))]
     website_url = _pick_primary_website(results)
+    normalized_target = normalize_name(target_name)
+    if website_url:
+        website_haystack = normalize_name(
+            " ".join(
+                [
+                    website_url,
+                    *[result.get("title", "") for result in results],
+                    *[result.get("snippet", "") for result in results],
+                ]
+            )
+        )
+        if normalized_target and normalized_target not in website_haystack:
+            website_url = None
     page_emails: list[str] = []
     socials: dict[str, str] = {}
 
@@ -227,11 +285,7 @@ def search_organization_signals(normalized_payload: dict) -> SearchSignals:
     municipality = normalize_space(organization.get("municipalities"))
     if not name:
         return SearchSignals(emails=[], socials={}, text_snippets=[])
-    query_parts = [f"\"{name}\""]
-    if municipality:
-        query_parts.append(f"\"{municipality}\"")
-    query_parts.append("Norge")
-    results = _pick_best_results(" ".join(query_parts), limit=5)
+    results = _merge_ranked_results(_organization_queries(name, municipality), target_name=name, limit=5)
     return _extract_search_signals(results, target_name=name)
 
 
@@ -243,13 +297,11 @@ def search_person_signals(normalized_payload: dict) -> SearchSignals:
     municipality = normalize_space(person.get("municipality") or organization.get("municipalities"))
     if not person_name:
         return SearchSignals(emails=[], socials={}, text_snippets=[])
-    query_parts = [f"\"{person_name}\""]
-    if organization_name:
-        query_parts.append(f"\"{organization_name}\"")
-    if municipality:
-        query_parts.append(f"\"{municipality}\"")
-    query_parts.append("Norge")
-    results = _pick_best_results(" ".join(query_parts), limit=5)
+    results = _merge_ranked_results(
+        _person_queries(person_name, organization_name, municipality),
+        target_name=person_name,
+        limit=5,
+    )
     return _extract_search_signals(
         results,
         target_name=person_name,
