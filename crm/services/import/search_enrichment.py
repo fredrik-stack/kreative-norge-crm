@@ -57,8 +57,6 @@ def _search(query: str, *, limit: int = 6) -> list[dict[str, str]]:
     params = (
         f"q={quote(query)}"
         f"&count={max(1, min(limit, settings.BRAVE_SEARCH_MAX_RESULTS))}"
-        "&country=no"
-        "&search_lang=no"
     )
     request = Request(
         f"{BRAVE_SEARCH_API_URL}?{params}",
