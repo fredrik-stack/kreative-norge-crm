@@ -861,8 +861,70 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
     return _enforce_suggestion_quality(tenant, normalized_payload, payload)
 
 
+def _preview_only_suggestions(tenant: Tenant, normalized_payload: dict, match_result: dict) -> dict:
+    organization = normalized_payload["organization"]
+    person = normalized_payload["person"]
+    suggested_fields: dict[str, dict[str, Any]] = {}
+
+    inferred_website = _infer_website_url(normalized_payload)
+    if inferred_website and not organization.get("website_url"):
+        suggested_fields["organization_website_url"] = {
+            "value": inferred_website,
+            "confidence": 0.42,
+            "source": "preview_domain_inference",
+            "requires_review": True,
+        }
+
+    organization_candidates = []
+    if match_result.get("organization", {}).get("status") == "FUZZY":
+        organization_rule = (match_result["organization"].get("rule") or "").upper()
+        organization_reason = "fuzzy_name"
+        organization_score = 0.68
+        if organization_rule == "CONTACT_DOMAIN":
+            organization_reason = "contact_domain"
+            organization_score = 0.82
+        elif organization_rule == "NAME_AND_CONTACT_DOMAIN":
+            organization_reason = "name_and_contact_domain"
+            organization_score = 0.86
+        organization_candidates = _score_candidates(
+            match_result["organization"].get("candidates", []),
+            organization_reason,
+            organization_score,
+        )
+
+    person_candidates = []
+    if match_result.get("person", {}).get("status") == "FUZZY":
+        person_candidates = _score_candidates(
+            match_result["person"].get("candidates", []),
+            "fuzzy_name",
+            0.7,
+        )
+
+    payload = {
+        "organization_match_candidates": organization_candidates,
+        "person_match_candidates": person_candidates,
+        "suggested_fields": suggested_fields,
+        "provider": "preview_fastpath",
+        "diagnostic": {
+            "primary_provider": "preview_fastpath",
+            "provider_status": "preview_fastpath",
+            "fallback_reason": "preview_fastpath",
+            "openai_attempted": False,
+            "openai_error": None,
+            "useful_suggestion_count": _count_useful_suggestions(
+                {
+                    "organization_match_candidates": organization_candidates,
+                    "person_match_candidates": person_candidates,
+                    "suggested_fields": suggested_fields,
+                }
+            ),
+        },
+    }
+    return _enforce_suggestion_quality(tenant, normalized_payload, payload)
+
+
 def build_pending_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_result: dict) -> dict:
-    heuristic = _sanitize_suggestions(_heuristic_suggestions(tenant, normalized_payload, match_result), "heuristic_fallback")
+    heuristic = _sanitize_suggestions(_preview_only_suggestions(tenant, normalized_payload, match_result), "preview_fastpath")
     if openai_is_ready():
         heuristic["provider"] = "pending_openai"
         heuristic["diagnostic"].update(
