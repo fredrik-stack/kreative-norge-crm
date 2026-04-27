@@ -25,8 +25,6 @@ SOCIAL_HOSTS = {
 LIKELY_CONTACT_PATHS = (
     "/kontakt",
     "/contact",
-    "/om-oss",
-    "/about",
 )
 
 
@@ -219,31 +217,6 @@ def _score_social_result(result: dict[str, str], *, target_name: str, organizati
     return score
 
 
-def _collect_social_candidates(target_name: str, *, organization_name: str = "", person_specific: bool = False) -> dict[str, str]:
-    socials: dict[str, str] = {}
-    for domain, label in SOCIAL_HOSTS.items():
-        query_parts = [f"site:{domain}", f"\"{target_name}\""]
-        if organization_name:
-            query_parts.append(f"\"{organization_name}\"")
-        if person_specific:
-            query_parts.append("Norge")
-        results = _search(" ".join(query_parts), limit=5)
-        ranked = sorted(
-            results,
-            key=lambda item: _score_social_result(item, target_name=target_name, organization_name=organization_name),
-            reverse=True,
-        )
-        for result in ranked:
-            url = result.get("url", "")
-            if not url:
-                continue
-            if person_specific and _score_social_result(result, target_name=target_name, organization_name=organization_name) < 0.8:
-                continue
-            socials[label] = url
-            break
-    return socials
-
-
 def _pick_primary_website(results: list[dict[str, str]]) -> str | None:
     for result in results:
         url = result.get("url", "")
@@ -265,6 +238,19 @@ def _extract_search_signals(
     page_emails: list[str] = []
     socials: dict[str, str] = {}
 
+    for result in results:
+        url = result.get("url", "")
+        if not url or not _is_social_url(url):
+            continue
+        host = (urlparse(url).hostname or "").lower()
+        score = _score_social_result(result, target_name=target_name, organization_name=organization_name)
+        if person_specific and score < 0.8:
+            continue
+        for domain, label in SOCIAL_HOSTS.items():
+            if domain in host and label not in socials:
+                socials[label] = url
+                break
+
     if website_url:
         root_emails, root_socials, root_text = _extract_page_signals(website_url)
         page_emails = _merge_emails(page_emails, root_emails)
@@ -280,14 +266,6 @@ def _extract_search_signals(
             snippets.extend([nested_text] if nested_text else [])
             for key, value in nested_socials.items():
                 socials.setdefault(key, value)
-
-    search_socials = _collect_social_candidates(
-        target_name,
-        organization_name=organization_name,
-        person_specific=person_specific,
-    )
-    for key, value in search_socials.items():
-        socials.setdefault(key, value)
 
     prefix = "person_" if person_specific else "organization_"
     return SearchSignals(

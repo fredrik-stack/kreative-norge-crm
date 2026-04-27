@@ -638,7 +638,7 @@ class ImportCommitRequestSerializer(serializers.Serializer):
 
 class ImportJobGenerateAiSerializer(serializers.Serializer):
     retry_failed = serializers.BooleanField(required=False, default=False)
-    batch_size = serializers.IntegerField(required=False, min_value=1, max_value=10, default=1)
+    batch_size = serializers.IntegerField(required=False, min_value=1, max_value=10, default=3)
 
 
 class ImportRowSerializer(serializers.ModelSerializer):

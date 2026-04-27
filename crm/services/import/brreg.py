@@ -148,6 +148,7 @@ def search_brreg(name: str, *, municipality: str = "", website_hint: str = "", l
     entries = (payload.get("_embedded") or {}).get("enheter") or []
     candidates: list[BrregCandidate] = []
 
+    scored_entries: list[tuple[float, dict]] = []
     for entry in entries:
         org_number = normalize_org_number_candidate(entry.get("organisasjonsnummer"))
         entity_name = normalize_space(entry.get("navn"))
@@ -156,6 +157,24 @@ def search_brreg(name: str, *, municipality: str = "", website_hint: str = "", l
         entity_municipality = normalize_space(address.get("kommune"))
         if not org_number or not entity_name:
             continue
+        initial_website_url, _ = _extract_contact_fields(entry)
+        initial_score = _score_candidate(
+            query_name=query_name,
+            entity_name=entity_name,
+            municipality=municipality,
+            entity_municipality=entity_municipality,
+            postal_place=postal_place,
+            website_hint=website_hint,
+            entity_website=initial_website_url,
+        )
+        scored_entries.append((initial_score, entry))
+
+    for initial_score, entry in sorted(scored_entries, key=lambda item: item[0], reverse=True)[:2]:
+        org_number = normalize_org_number_candidate(entry.get("organisasjonsnummer"))
+        entity_name = normalize_space(entry.get("navn"))
+        address = entry.get("forretningsadresse") or {}
+        postal_place = normalize_space(address.get("poststed"))
+        entity_municipality = normalize_space(address.get("kommune"))
         details = entry
         try:
             details = _fetch_entity_details(org_number)
