@@ -1,19 +1,19 @@
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
-from html import unescape
-from html.parser import HTMLParser
-from urllib.parse import parse_qs, quote, unquote, urlparse
+from urllib.parse import quote, urlparse
+from urllib.request import Request, urlopen
 
 from django.conf import settings
 
 from crm.services.open_graph import MAX_HTML_BYTES, _fetch_url
 
-from .normalizers import normalize_domain, normalize_name, normalize_space
+from .normalizers import normalize_name, normalize_space
 
 
-SEARCH_BASE_URL = "https://html.duckduckgo.com/html/?q="
+BRAVE_SEARCH_API_URL = "https://api.search.brave.com/res/v1/web/search"
 EMAIL_RE = re.compile(r"\b[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}\b", re.IGNORECASE)
 SOCIAL_HOSTS = {
     "instagram.com": "instagram",
@@ -36,59 +36,6 @@ class SearchSignals:
     text_snippets: list[str] | None = None
 
 
-class _DuckDuckGoParser(HTMLParser):
-    def __init__(self) -> None:
-        super().__init__()
-        self.results: list[dict[str, str]] = []
-        self._current_href: str | None = None
-        self._collect_link_text = False
-        self._current_link_text = ""
-        self._current_snippet = ""
-        self._inside_snippet = False
-
-    def handle_starttag(self, tag: str, attrs) -> None:  # type: ignore[override]
-        attrs_dict = {k.lower(): v for k, v in attrs if k and v}
-        if tag.lower() == "a" and attrs_dict.get("class", "") == "result__a":
-            self._current_href = attrs_dict.get("href")
-            self._collect_link_text = True
-            self._current_link_text = ""
-            self._current_snippet = ""
-        elif tag.lower() in {"a", "div"} and "result__snippet" in attrs_dict.get("class", ""):
-            self._inside_snippet = True
-
-    def handle_endtag(self, tag: str) -> None:  # type: ignore[override]
-        lowered = tag.lower()
-        if lowered == "a" and self._collect_link_text and self._current_href:
-            self.results.append(
-                {
-                    "url": self._current_href,
-                    "title": normalize_space(unescape(self._current_link_text)),
-                    "snippet": normalize_space(unescape(self._current_snippet)),
-                }
-            )
-            self._current_href = None
-            self._collect_link_text = False
-            self._current_link_text = ""
-            self._current_snippet = ""
-        if lowered in {"a", "div"}:
-            self._inside_snippet = False
-
-    def handle_data(self, data: str) -> None:  # type: ignore[override]
-        if self._collect_link_text:
-            self._current_link_text += data
-        if self._inside_snippet:
-            self._current_snippet += data
-
-
-def _unwrap_result_url(url: str) -> str:
-    parsed = urlparse(url)
-    if parsed.netloc.lower().endswith("duckduckgo.com"):
-        uddg = parse_qs(parsed.query).get("uddg", [])
-        if uddg:
-            return unquote(uddg[0])
-    return url
-
-
 def _sanitize_url(url: str | None) -> str | None:
     if not url:
         return None
@@ -99,30 +46,44 @@ def _sanitize_url(url: str | None) -> str | None:
     return candidate
 
 
+def _is_social_url(url: str) -> bool:
+    host = (urlparse(url).hostname or "").lower()
+    return any(domain in host for domain in SOCIAL_HOSTS)
+
+
 def _search(query: str, *, limit: int = 6) -> list[dict[str, str]]:
-    if not settings.SEARCH_ENRICHMENT_ENABLED or not query.strip():
+    if not settings.SEARCH_ENRICHMENT_ENABLED or not settings.BRAVE_SEARCH_API_KEY or not query.strip():
         return []
+    params = (
+        f"q={quote(query)}"
+        f"&count={max(1, min(limit, settings.BRAVE_SEARCH_MAX_RESULTS))}"
+        "&country=no"
+        "&search_lang=no"
+    )
+    request = Request(
+        f"{BRAVE_SEARCH_API_URL}?{params}",
+        headers={
+            "X-Subscription-Token": settings.BRAVE_SEARCH_API_KEY,
+            "Accept": "application/json",
+            "User-Agent": "KreativeNorgeCRM/1.0",
+        },
+    )
     try:
-        result = _fetch_url(
-            f"{SEARCH_BASE_URL}{quote(query)}",
-            timeout_seconds=min(settings.SEARCH_ENRICHMENT_TIMEOUT, 5),
-            max_bytes=MAX_HTML_BYTES,
-            allowed_content_prefixes=("text/html",),
-        )
+        with urlopen(request, timeout=settings.SEARCH_ENRICHMENT_TIMEOUT) as response:  # noqa: S310 - fixed trusted host
+            payload = json.loads(response.read().decode("utf-8"))
     except Exception:
         return []
-    parser = _DuckDuckGoParser()
-    parser.feed(result.body.decode("utf-8", errors="ignore"))
+    results = (payload.get("web") or {}).get("results") or []
     cleaned: list[dict[str, str]] = []
-    for item in parser.results:
-        unwrapped = _sanitize_url(_unwrap_result_url(item.get("url", "")))
-        if not unwrapped:
+    for item in results:
+        url = _sanitize_url(item.get("url"))
+        if not url:
             continue
         cleaned.append(
             {
-                "url": unwrapped,
-                "title": item.get("title", ""),
-                "snippet": item.get("snippet", ""),
+                "url": url,
+                "title": normalize_space(item.get("title", "")),
+                "snippet": normalize_space(item.get("description", "")),
             }
         )
         if len(cleaned) >= limit:
@@ -130,33 +91,20 @@ def _search(query: str, *, limit: int = 6) -> list[dict[str, str]]:
     return cleaned
 
 
-def _is_social_url(url: str) -> bool:
-    host = (urlparse(url).hostname or "").lower()
-    return any(domain in host for domain in SOCIAL_HOSTS)
-
-
-def _score_result(query_tokens: set[str], result: dict[str, str], *, website_hint: str = "") -> float:
+def _score_result(query_tokens: set[str], result: dict[str, str]) -> float:
     haystack = normalize_name(" ".join([result.get("title", ""), result.get("snippet", ""), result.get("url", "")]))
     if not haystack:
         return 0.0
     hits = sum(1 for token in query_tokens if token and token in haystack)
     if _is_social_url(result.get("url", "")):
         hits += 0.2
-    hinted_domain = normalize_domain(website_hint)
-    result_domain = normalize_domain(result.get("url", ""))
-    if hinted_domain and result_domain and hinted_domain == result_domain:
-        hits += 0.6
     return hits / max(len(query_tokens), 1)
 
 
-def _pick_best_results(query: str, *, website_hint: str = "", limit: int = 4) -> list[dict[str, str]]:
-    results = _search(query, limit=10)
+def _pick_best_results(query: str, *, limit: int = 4) -> list[dict[str, str]]:
+    results = _search(query, limit=max(limit, 6))
     query_tokens = {token for token in normalize_name(query).split() if len(token) > 2}
-    ranked = sorted(
-        results,
-        key=lambda item: _score_result(query_tokens, item, website_hint=website_hint),
-        reverse=True,
-    )
+    ranked = sorted(results, key=lambda item: _score_result(query_tokens, item), reverse=True)
     return [item for item in ranked if item.get("url")][:limit]
 
 
@@ -230,7 +178,6 @@ def _extract_search_signals(
     *,
     target_name: str,
     organization_name: str = "",
-    website_hint: str = "",
     person_specific: bool = False,
 ) -> SearchSignals:
     snippets = [normalize_space(result.get("snippet", "")) for result in results if normalize_space(result.get("snippet", ""))]
@@ -256,7 +203,7 @@ def _extract_search_signals(
         page_emails = _merge_emails(page_emails, root_emails)
         snippets.extend([root_text] if root_text else [])
         for key, value in root_socials.items():
-            socials[key] = value
+            socials.setdefault(key, value)
         for path in LIKELY_CONTACT_PATHS:
             candidate_url = _sanitize_url(f"{website_url.rstrip('/')}{path}")
             if not candidate_url:
@@ -269,7 +216,7 @@ def _extract_search_signals(
 
     prefix = "person_" if person_specific else "organization_"
     return SearchSignals(
-        website_url=website_url or _sanitize_url(website_hint),
+        website_url=website_url,
         emails=page_emails,
         socials={f"{prefix}{key}_url": value for key, value in socials.items()},
         text_snippets=[snippet for snippet in snippets if snippet][:8],
@@ -280,19 +227,14 @@ def search_organization_signals(normalized_payload: dict) -> SearchSignals:
     organization = normalized_payload.get("organization") or {}
     name = normalize_space(organization.get("name"))
     municipality = normalize_space(organization.get("municipalities"))
-    website_hint = normalize_space(organization.get("website_url") or organization.get("email"))
     if not name:
         return SearchSignals(emails=[], socials={}, text_snippets=[])
     query_parts = [f"\"{name}\""]
     if municipality:
         query_parts.append(f"\"{municipality}\"")
     query_parts.append("Norge")
-    results = _pick_best_results(" ".join(query_parts), website_hint=website_hint, limit=5)
-    return _extract_search_signals(
-        results,
-        target_name=name,
-        website_hint=website_hint,
-    )
+    results = _pick_best_results(" ".join(query_parts), limit=5)
+    return _extract_search_signals(results, target_name=name)
 
 
 def search_person_signals(normalized_payload: dict) -> SearchSignals:
