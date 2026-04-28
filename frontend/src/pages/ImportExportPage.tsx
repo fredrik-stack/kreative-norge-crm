@@ -84,6 +84,30 @@ const SUBCATEGORY_ALIASES: Record<string, string> = {
   "foto / lys": "Foto/ Lys",
 };
 
+const CANONICAL_CATEGORY_ORDER = [
+  "Musikk",
+  "Film",
+  "Kunst & Design",
+  "Scenekunst",
+] as const;
+
+const CANONICAL_SUBCATEGORY_ORDER = [
+  "Artister & Band",
+  "Konsertarrangører",
+  "Musikere",
+  "Musikkbransjen",
+  "Produsent",
+  "Regi & Manus",
+  "Foto/ Lys",
+  "Filmlyd",
+  "Filmproduksjon",
+  "Visuell kunst",
+  "Grafisk design",
+  "Klesdesign",
+  "Teater",
+  "Dans",
+] as const;
+
 const MODE_LABELS: Record<"ORGANIZATIONS_ONLY" | "PEOPLE_ONLY", string> = {
   ORGANIZATIONS_ONLY: "Aktører",
   PEOPLE_ONLY: "Personer",
@@ -297,6 +321,28 @@ function ImportReviewWorkspace(props: {
   const showPersonColumns = mode !== "ORGANIZATIONS_ONLY";
   const orgLabel = mode === "PEOPLE_ONLY" ? "Knyttet aktør" : "Aktør";
   const aiProgressLabel = getAiProgressLabel(summary);
+  const importCategories = useMemo(
+    () =>
+      editor.categories
+        .filter((category) => CANONICAL_CATEGORY_ORDER.includes(category.name as (typeof CANONICAL_CATEGORY_ORDER)[number]))
+        .sort(
+          (a, b) =>
+            CANONICAL_CATEGORY_ORDER.indexOf(a.name as (typeof CANONICAL_CATEGORY_ORDER)[number]) -
+            CANONICAL_CATEGORY_ORDER.indexOf(b.name as (typeof CANONICAL_CATEGORY_ORDER)[number]),
+        ),
+    [editor.categories],
+  );
+  const importSubcategories = useMemo(
+    () =>
+      editor.subcategories
+        .filter((subcategory) => CANONICAL_SUBCATEGORY_ORDER.includes(subcategory.name as (typeof CANONICAL_SUBCATEGORY_ORDER)[number]))
+        .sort(
+          (a, b) =>
+            CANONICAL_SUBCATEGORY_ORDER.indexOf(a.name as (typeof CANONICAL_SUBCATEGORY_ORDER)[number]) -
+            CANONICAL_SUBCATEGORY_ORDER.indexOf(b.name as (typeof CANONICAL_SUBCATEGORY_ORDER)[number]),
+        ),
+    [editor.subcategories],
+  );
 
   return (
     <>
@@ -570,8 +616,8 @@ function ImportReviewWorkspace(props: {
             row={rows.find((candidate) => candidate.id === expandedRowId)!}
             importMode={mode}
             organizations={editor.organizations}
-            categories={editor.categories}
-            subcategories={editor.subcategories}
+            categories={importCategories}
+            subcategories={importSubcategories}
             onCreateOrganization={editor.quickCreateOrganization}
             onSave={(payload) => importJobs.saveDecisions([{ row_id: expandedRowId, decisions: payload }])}
             onClose={() => setExpandedRowId(null)}
@@ -716,6 +762,7 @@ function InlineReviewEditor(props: {
   const visibleCategorySuggestions = (draft.suggestionStates.suggested_categories ?? "pending") === "ignored" ? [] : categorySuggestions;
   const visibleSubcategorySuggestions = (draft.suggestionStates.suggested_subcategories ?? "pending") === "ignored" ? [] : subcategorySuggestions;
   const brregCandidates = getBrregCandidates(row);
+  const websiteCandidates = getWebsiteCandidates(row);
   const diagnosticMeta = getDiagnosticMeta(row);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [createOrganizationOpen, setCreateOrganizationOpen] = useState(false);
@@ -831,6 +878,15 @@ function InlineReviewEditor(props: {
     void persistDraft(nextDraft);
   }
 
+  function applyWebsiteCandidate(url: string) {
+    const nextDraft = {
+      ...draft,
+      fieldValues: { ...draft.fieldValues, organization_website_url: url },
+      suggestionStates: { ...draft.suggestionStates, organization_website_url: "accepted" as const },
+    };
+    void persistDraft(nextDraft);
+  }
+
   const visibleSuggestionFields = SIMPLE_EDITABLE_SUGGESTION_FIELDS.filter((fieldKey) => (
     actorOnly ? fieldKey.startsWith("organization_") : fieldKey.startsWith("person_")
   ));
@@ -869,7 +925,7 @@ function InlineReviewEditor(props: {
                   <button type="button" className="ghost-button compact-button" onClick={openCreateOrganizationModal}>
                     Opprett ny aktør i eget vindu
                   </button>
-                  <span className="meta">Brukes bare når personen må kobles til en ny aktør.</span>
+                  <span className="meta">Aktørkobling er valgfri for personimport.</span>
                 </div>
                 <SuggestionCandidates
                   candidates={asCandidateList(row.ai_suggestions_json.organization_match_candidates)}
@@ -908,6 +964,23 @@ function InlineReviewEditor(props: {
               </Field>
             ) : null}
 
+            {actorOnly ? (
+              <Field label="Nettsidekandidater">
+                <SuggestionCandidates
+                  candidates={websiteCandidates.map((candidate) => ({
+                    id: candidate.url,
+                    label: candidate.title || candidate.url,
+                    reason: "web",
+                  }))}
+                  onUse={(id) => {
+                    if (typeof id !== "string") return;
+                    applyWebsiteCandidate(id);
+                  }}
+                  emptyLabel="Ingen nettsidekandidater"
+                />
+              </Field>
+            ) : null}
+
             <Field label="Hovedkategori">
               <select
                 value={draft.categoryId}
@@ -935,13 +1008,16 @@ function InlineReviewEditor(props: {
               ) : null}
             </Field>
             <Field label="Underkategori">
+              {(!draft.subcategoryId && currentSubcategoryNames[0]) ? (
+                <p className="meta">Nå: {currentSubcategoryNames[0]}</p>
+              ) : null}
               <select
-                value={draft.subcategoryId}
+                value={draft.subcategoryId || ""}
                 onChange={(e) => setDraft((current) => ({ ...current, subcategoryId: Number(e.target.value) || "" }))}
               >
                 <option value="">Ingen</option>
                 {filteredSubcategories.map((subcategory) => (
-                  <option key={subcategory.id} value={subcategory.id}>{subcategory.name}</option>
+                  <option key={subcategory.id} value={subcategory.id}>{subcategory.category.name} · {subcategory.name}</option>
                 ))}
               </select>
               {draft.subcategoryId ? (
@@ -1753,6 +1829,21 @@ function getBrregCandidates(row: ImportRow): BrregCandidate[] {
     : [];
 }
 
+type WebsiteCandidate = {
+  url: string;
+  title?: string;
+};
+
+function getWebsiteCandidates(row: ImportRow): WebsiteCandidate[] {
+  const value = row.ai_suggestions_json?.website_candidates;
+  return Array.isArray(value)
+    ? value.filter(
+        (item): item is WebsiteCandidate =>
+          Boolean(item && typeof item === "object" && typeof (item as { url?: unknown }).url === "string"),
+      )
+    : [];
+}
+
 function getSuggestionValues(row: ImportRow, key: string): string[] {
   const value = getSuggestionFields(row)[key]?.value;
   if (Array.isArray(value)) {
@@ -2088,7 +2179,7 @@ function findCategoryIdForSubcategory(subcategories: Subcategory[], subcategoryI
 }
 
 function filterSubcategories(categoryId: number | "", subcategories: Subcategory[]): Subcategory[] {
-  if (!categoryId) return [];
+  if (!categoryId) return subcategories;
   return subcategories.filter((subcategory) => subcategory.category.id === categoryId);
 }
 

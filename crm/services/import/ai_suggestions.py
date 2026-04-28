@@ -874,7 +874,7 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
         if not candidate.org_number or candidate.org_number in seen_brreg_org_numbers:
             continue
         seen_brreg_org_numbers.add(candidate.org_number)
-        if candidate.score < 0.38:
+        if candidate.score < 0.15:
             continue
         label_bits = [candidate.name, candidate.org_number]
         if candidate.municipality:
@@ -905,6 +905,7 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
         "organization_match_candidates": organization_candidates,
         "person_match_candidates": person_candidates,
         "brreg_candidates": brreg_candidates,
+        "website_candidates": organization_search.website_candidates or [],
         "suggested_fields": suggested_fields,
         "provider": "heuristic_fallback",
     }

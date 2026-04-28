@@ -35,6 +35,7 @@ class SearchSignals:
     socials: dict[str, str] | None = None
     text_snippets: list[str] | None = None
     org_numbers: list[str] | None = None
+    website_candidates: list[dict[str, str]] | None = None
 
 
 DIRECTORY_HOST_PATTERNS = (
@@ -321,6 +322,11 @@ def _extract_search_signals(
         socials={f"{prefix}{key}_url": value for key, value in socials.items()},
         text_snippets=[snippet for snippet in snippets if snippet][:8],
         org_numbers=_extract_org_numbers(results),
+        website_candidates=[
+            {"url": result.get("url", ""), "title": result.get("title", "")}
+            for result in results
+            if result.get("url") and not _is_social_url(result.get("url", "")) and not _is_directory_url(result.get("url", ""))
+        ][:4],
     )
 
 
