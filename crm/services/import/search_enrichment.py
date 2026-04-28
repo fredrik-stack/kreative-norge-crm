@@ -34,6 +34,20 @@ class SearchSignals:
     emails: list[str] | None = None
     socials: dict[str, str] | None = None
     text_snippets: list[str] | None = None
+    org_numbers: list[str] | None = None
+
+
+DIRECTORY_HOST_PATTERNS = (
+    "proff.no",
+    "sceneweb.no",
+    "wikipedia.org",
+    "facebook.com",
+    "instagram.com",
+    "linkedin.com",
+    "youtube.com",
+    "tiktok.com",
+)
+ORG_NUMBER_RE = re.compile(r"\b(\d{3})[\s\-]?(\d{3})[\s\-]?(\d{3})\b")
 
 
 def _sanitize_url(url: str | None) -> str | None:
@@ -49,6 +63,11 @@ def _sanitize_url(url: str | None) -> str | None:
 def _is_social_url(url: str) -> bool:
     host = (urlparse(url).hostname or "").lower()
     return any(domain in host for domain in SOCIAL_HOSTS)
+
+
+def _is_directory_url(url: str) -> bool:
+    host = (urlparse(url).hostname or "").lower()
+    return any(pattern in host for pattern in DIRECTORY_HOST_PATTERNS)
 
 
 def _search(query: str, *, limit: int = 6) -> list[dict[str, str]]:
@@ -100,6 +119,8 @@ def _score_result(query_tokens: set[str], result: dict[str, str], *, exact_phras
         hits += 1.4
     if _is_social_url(result.get("url", "")):
         hits += 0.2
+    if _is_directory_url(result.get("url", "")):
+        hits -= 0.45
     return hits / max(len(query_tokens), 1)
 
 
@@ -123,6 +144,20 @@ def _merge_ranked_results(queries: list[str], *, target_name: str, limit: int = 
         reverse=True,
     )
     return [item for item in ranked if item.get("url")][:limit]
+
+
+def _extract_org_numbers(results: list[dict[str, str]]) -> list[str]:
+    seen: set[str] = set()
+    numbers: list[str] = []
+    for result in results:
+        haystack = " ".join([result.get("title", ""), result.get("snippet", ""), result.get("url", "")])
+        for match in ORG_NUMBER_RE.finditer(haystack):
+            value = "".join(match.groups())
+            if value in seen:
+                continue
+            seen.add(value)
+            numbers.append(value)
+    return numbers
 
 
 def _extract_page_signals(url: str) -> tuple[list[str], dict[str, str], str]:
@@ -188,7 +223,7 @@ def _pick_primary_website(results: list[dict[str, str]]) -> str | None:
         haystack = normalize_name(" ".join([result.get("title", ""), result.get("snippet", ""), url]))
         if " nordlys " in f" {haystack} ":
             continue
-        if url and not _is_social_url(url):
+        if url and not _is_social_url(url) and not _is_directory_url(url):
             return url
     return None
 
@@ -276,6 +311,7 @@ def _extract_search_signals(
         emails=page_emails,
         socials={f"{prefix}{key}_url": value for key, value in socials.items()},
         text_snippets=[snippet for snippet in snippets if snippet][:8],
+        org_numbers=_extract_org_numbers(results),
     )
 
 

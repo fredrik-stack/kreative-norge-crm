@@ -1169,6 +1169,37 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertNotIn("suggested_tags", suggestions["suggested_fields"])
 
     @override_settings(OPENAI_IMPORT_ENABLED=False, OPENAI_API_KEY="")
+    def test_generate_ai_suggestions_skips_private_like_organization_email_suggestions(self):
+        with patch.object(
+            import_ai_suggestions_module,
+            "_extract_contact_signals_from_website",
+            return_value={
+                "emails": ["ola@nordlyd.no"],
+                "phones": [],
+                "socials": {},
+                "text_snippet": "Nordlyd kontaktinformasjon.",
+                "final_url": "https://nordlyd.no",
+            },
+        ), patch.object(
+            import_ai_suggestions_module,
+            "search_organization_signals",
+            return_value=importlib.import_module("crm.services.import.search_enrichment").SearchSignals(
+                website_url="https://nordlyd.no",
+                emails=["ola@nordlyd.no"],
+                socials={},
+                text_snippets=[],
+                org_numbers=[],
+            ),
+        ):
+            suggestions = generate_ai_suggestions(
+                self.tenant,
+                normalize_import_row(self.base_row | {"organization_email": ""}),
+                {"organization": {}, "person": {}},
+            )
+
+        self.assertNotIn("organization_email", suggestions["suggested_fields"])
+
+    @override_settings(OPENAI_IMPORT_ENABLED=False, OPENAI_API_KEY="")
     def test_generate_ai_suggestions_does_not_suggest_counties_as_municipalities(self):
         Organization.objects.create(
             tenant=self.tenant,
@@ -1195,6 +1226,64 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
 
         self.assertNotIn("organization_municipalities", suggestions["suggested_fields"])
         self.assertNotIn("person_municipality", suggestions["suggested_fields"])
+
+    @override_settings(OPENAI_IMPORT_ENABLED=False, OPENAI_API_KEY="")
+    def test_generate_ai_suggestions_can_use_verified_org_number_from_search_results(self):
+        BrregCandidate = importlib.import_module("crm.services.import.brreg").BrregCandidate
+
+        with patch.object(
+            import_ai_suggestions_module,
+            "best_brreg_candidate",
+            return_value=None,
+        ), patch.object(
+            import_ai_suggestions_module,
+            "candidate_for_org_number",
+            return_value=BrregCandidate(
+                org_number="934051106",
+                name="Nordlyd Ungdomsbedrift",
+                municipality="Tromsø",
+                postal_place="Tromsø",
+                website_url="",
+                email="",
+                score=0.0,
+            ),
+        ), patch.object(
+            import_ai_suggestions_module,
+            "search_organization_signals",
+            return_value=importlib.import_module("crm.services.import.search_enrichment").SearchSignals(
+                website_url="http://www.nordlyd.no/",
+                emails=[],
+                socials={},
+                text_snippets=[],
+                org_numbers=["934051106"],
+            ),
+        ), patch.object(
+            import_ai_suggestions_module,
+            "_extract_contact_signals_from_website",
+            return_value={
+                "emails": [],
+                "phones": [],
+                "socials": {},
+                "text_snippet": "",
+                "final_url": "http://www.nordlyd.no/",
+            },
+        ):
+            suggestions = generate_ai_suggestions(
+                self.tenant,
+                normalize_import_row(
+                    self.base_row
+                    | {
+                        "organization_name": "Nordlyd Ungdomsbedrift",
+                        "organization_org_number": "",
+                        "organization_municipalities": "",
+                        "organization_website_url": "",
+                    }
+                ),
+                {"organization": {}, "person": {}},
+            )
+
+        self.assertEqual(suggestions["suggested_fields"]["organization_org_number"]["value"], "934051106")
+        self.assertEqual(suggestions["suggested_fields"]["organization_municipalities"]["value"], "Tromsø")
 
     @override_settings(OPENAI_IMPORT_ENABLED=False, OPENAI_API_KEY="")
     def test_generate_ai_suggestions_skips_fields_that_already_have_values(self):

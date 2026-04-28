@@ -131,6 +131,32 @@ def _fetch_entity_details(org_number: str) -> dict:
     return _fetch_brreg_json(f"{BRREG_API_BASE}/{quote(org_number)}")
 
 
+def candidate_for_org_number(org_number: str) -> BrregCandidate | None:
+    normalized = normalize_org_number_candidate(org_number)
+    if not is_valid_org_number(normalized):
+        return None
+    try:
+        details = _fetch_entity_details(normalized)
+    except Exception:
+        return None
+    entity_name = normalize_space(details.get("navn"))
+    address = details.get("forretningsadresse") or {}
+    postal_place = normalize_space(address.get("poststed"))
+    entity_municipality = normalize_space(address.get("kommune"))
+    website_url, email = _extract_contact_fields(details)
+    if not entity_name:
+        return None
+    return BrregCandidate(
+        org_number=normalized,
+        name=entity_name,
+        municipality=entity_municipality,
+        postal_place=postal_place,
+        website_url=website_url,
+        email=email,
+        score=0.0,
+    )
+
+
 def search_brreg(name: str, *, municipality: str = "", website_hint: str = "", limit: int = 5) -> list[BrregCandidate]:
     query_name = normalize_space(name)
     if not query_name or not settings.BRREG_ENRICHMENT_ENABLED:

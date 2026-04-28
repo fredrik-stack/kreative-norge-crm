@@ -9,7 +9,7 @@ from django.conf import settings
 
 from crm.models import Category, Organization, Person, Subcategory, Tenant
 from crm.services.open_graph import MAX_HTML_BYTES, MetaParser, _fetch_url
-from .brreg import best_brreg_candidate, is_valid_org_number, normalize_org_number_candidate
+from .brreg import best_brreg_candidate, candidate_for_org_number, is_valid_org_number, normalize_org_number_candidate
 from .search_enrichment import search_organization_signals, search_person_signals
 from .normalizers import normalize_domain, normalize_name, normalize_space
 
@@ -431,6 +431,20 @@ def _preferred_public_email(emails: list[str], preferred_domain: str | None) -> 
     return ranked[0][1]
 
 
+def _is_confident_public_email(email: str | None, preferred_domain: str | None) -> bool:
+    candidate = normalize_space(email or "").lower()
+    if not candidate or not EMAIL_RE.fullmatch(candidate):
+        return False
+    local, _, domain = candidate.partition("@")
+    if domain in GENERIC_EMAIL_DOMAINS:
+        return False
+    if preferred_domain and domain != preferred_domain:
+        return False
+    if local in PREFERRED_PUBLIC_EMAIL_LOCALS:
+        return True
+    return any(marker in local for marker in ("kontakt", "post", "info", "booking", "admin", "support"))
+
+
 def _preferred_phone(phones: list[str]) -> str | None:
     ranked: list[tuple[int, str]] = []
     for phone in phones:
@@ -618,7 +632,20 @@ def _suggest_municipality_from_known_values(text: str) -> str | None:
 def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_result: dict) -> dict:
     organization = normalized_payload["organization"]
     person = normalized_payload["person"]
+    organization_search = search_organization_signals(normalized_payload)
     brreg_candidate = best_brreg_candidate(normalized_payload)
+    if not brreg_candidate:
+        for org_number in organization_search.org_numbers or []:
+            verified_candidate = candidate_for_org_number(org_number)
+            if not verified_candidate:
+                continue
+            verified_name = normalize_name(verified_candidate.name)
+            target_name = normalize_name(organization.get("name", ""))
+            if target_name and target_name not in verified_name and verified_name not in target_name:
+                continue
+            verified_candidate.score = 0.78
+            brreg_candidate = verified_candidate
+            break
     website_url = (
         organization.get("website_url")
         or (brreg_candidate.website_url if brreg_candidate else "")
@@ -626,7 +653,6 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
         or person.get("website_url")
     )
     website_signals = _extract_contact_signals_from_website(website_url)
-    organization_search = search_organization_signals(normalized_payload)
     person_search = search_person_signals(normalized_payload)
     preferred_domain = normalize_domain(
         organization_search.website_url
@@ -705,7 +731,7 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
             "requires_review": True,
         }
 
-    if not organization.get("email") and preferred_organization_email:
+    if not organization.get("email") and _is_confident_public_email(preferred_organization_email, preferred_domain):
         suggested_fields["organization_email"] = {
             "value": preferred_organization_email,
             "confidence": 0.86 if brreg_candidate and preferred_organization_email == brreg_candidate.email else 0.81,
@@ -718,11 +744,9 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
         organization_municipality = exact_org_municipality
         if not organization_municipality and brreg_candidate and brreg_candidate.municipality:
             organization_municipality = brreg_candidate.municipality
-        if not organization_municipality and organization_text:
-            organization_municipality = _suggest_municipality_from_known_values(organization_text)
         if organization_municipality:
             suggested_fields["organization_municipalities"] = {
-                "value": organization_municipality,
+                "value": normalize_space(organization_municipality),
                 "confidence": 0.82 if exact_org_municipality else 0.89 if brreg_candidate and organization_municipality == brreg_candidate.municipality else 0.68,
                 "source": "matched_record" if exact_org_municipality else "brreg_enhetsregisteret" if brreg_candidate and organization_municipality == brreg_candidate.municipality else "website_location_signal",
                 "requires_review": True,
@@ -731,11 +755,9 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
     if not person.get("municipality"):
         exact_person_municipality = _suggest_field_from_exact_match(tenant, match_result, "person", "municipality")
         person_municipality = exact_person_municipality
-        if not person_municipality and person_text:
-            person_municipality = _suggest_municipality_from_known_values(person_text)
         if person_municipality:
             suggested_fields["person_municipality"] = {
-                "value": person_municipality,
+                "value": normalize_space(person_municipality),
                 "confidence": 0.82 if exact_person_municipality else 0.66,
                 "source": "matched_record" if exact_person_municipality else "website_location_signal",
                 "requires_review": True,
