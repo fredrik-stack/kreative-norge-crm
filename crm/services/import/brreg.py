@@ -249,3 +249,15 @@ def best_brreg_candidate(normalized_payload: dict) -> BrregCandidate | None:
         return None
     best = candidates[0]
     return best if best.score >= 0.5 else None
+
+
+def brreg_candidates_for_payload(normalized_payload: dict, *, limit: int = 5) -> list[BrregCandidate]:
+    organization = normalized_payload.get("organization") or {}
+    if organization.get("org_number"):
+        return []
+    return search_brreg(
+        organization.get("name", ""),
+        municipality=organization.get("municipalities", ""),
+        website_hint=organization.get("website_url", "") or organization.get("email", ""),
+        limit=limit,
+    )

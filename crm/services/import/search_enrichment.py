@@ -218,14 +218,23 @@ def _score_social_result(result: dict[str, str], *, target_name: str, organizati
 
 
 def _pick_primary_website(results: list[dict[str, str]]) -> str | None:
+    ranked_candidates: list[tuple[float, str]] = []
     for result in results:
         url = result.get("url", "")
         haystack = normalize_name(" ".join([result.get("title", ""), result.get("snippet", ""), url]))
         if " nordlys " in f" {haystack} ":
             continue
-        if url and not _is_social_url(url) and not _is_directory_url(url):
-            return url
-    return None
+        if not url or _is_social_url(url) or _is_directory_url(url):
+            continue
+        host = (urlparse(url).hostname or "").lower()
+        host_tokens = set(normalize_name(host.replace("www.", "").replace(".no", "").replace(".com", "")).split())
+        haystack_tokens = set(haystack.split())
+        overlap = len(host_tokens & haystack_tokens)
+        ranked_candidates.append((overlap, url))
+    if not ranked_candidates:
+        return None
+    ranked_candidates.sort(key=lambda item: item[0], reverse=True)
+    return ranked_candidates[0][1]
 
 
 def _organization_queries(name: str, municipality: str) -> list[str]:

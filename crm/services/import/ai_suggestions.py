@@ -9,7 +9,13 @@ from django.conf import settings
 
 from crm.models import Category, Organization, Person, Subcategory, Tenant
 from crm.services.open_graph import MAX_HTML_BYTES, MetaParser, _fetch_url
-from .brreg import best_brreg_candidate, candidate_for_org_number, is_valid_org_number, normalize_org_number_candidate
+from .brreg import (
+    best_brreg_candidate,
+    brreg_candidates_for_payload,
+    candidate_for_org_number,
+    is_valid_org_number,
+    normalize_org_number_candidate,
+)
 from .search_enrichment import search_organization_signals, search_person_signals
 from .normalizers import normalize_domain, normalize_name, normalize_space
 
@@ -513,6 +519,8 @@ def _normalize_text_suggestion(key: str, value: str) -> str | None:
     if key == "organization_org_number":
         candidate = normalize_org_number_candidate(text)
         return candidate if is_valid_org_number(candidate) else None
+    if key in {"organization_municipalities", "person_municipality"}:
+        return None if normalize_name(text) in NORWEGIAN_COUNTY_NAMES else text
     if key in {"organization_email", "person_email"}:
         candidate = text.casefold()
         return candidate if EMAIL_RE.fullmatch(candidate) else None
@@ -633,7 +641,8 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
     organization = normalized_payload["organization"]
     person = normalized_payload["person"]
     organization_search = search_organization_signals(normalized_payload)
-    brreg_candidate = best_brreg_candidate(normalized_payload)
+    raw_brreg_candidates = brreg_candidates_for_payload(normalized_payload, limit=5)
+    brreg_candidate = raw_brreg_candidates[0] if raw_brreg_candidates and raw_brreg_candidates[0].score >= 0.5 else best_brreg_candidate(normalized_payload)
     if not brreg_candidate:
         for org_number in organization_search.org_numbers or []:
             verified_candidate = candidate_for_org_number(org_number)
@@ -856,6 +865,34 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
             organization_score,
         )
 
+    brreg_candidates = []
+    seen_brreg_org_numbers: set[str] = set()
+    candidate_pool = list(raw_brreg_candidates)
+    if brreg_candidate and brreg_candidate.org_number not in {candidate.org_number for candidate in candidate_pool}:
+        candidate_pool.insert(0, brreg_candidate)
+    for candidate in candidate_pool:
+        if not candidate.org_number or candidate.org_number in seen_brreg_org_numbers:
+            continue
+        seen_brreg_org_numbers.add(candidate.org_number)
+        if candidate.score < 0.38:
+            continue
+        label_bits = [candidate.name, candidate.org_number]
+        if candidate.municipality:
+            label_bits.append(candidate.municipality)
+        brreg_candidates.append(
+            {
+                "id": candidate.org_number,
+                "label": " · ".join(bit for bit in label_bits if bit),
+                "score": candidate.score,
+                "reason": "brreg",
+                "org_number": candidate.org_number,
+                "name": candidate.name,
+                "municipality": candidate.municipality,
+                "website_url": candidate.website_url,
+                "email": candidate.email,
+            }
+        )
+
     person_candidates = []
     if match_result.get("person", {}).get("status") == "FUZZY":
         person_candidates = _score_candidates(
@@ -867,6 +904,7 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
     payload = {
         "organization_match_candidates": organization_candidates,
         "person_match_candidates": person_candidates,
+        "brreg_candidates": brreg_candidates,
         "suggested_fields": suggested_fields,
         "provider": "heuristic_fallback",
     }

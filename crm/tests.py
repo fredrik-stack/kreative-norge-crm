@@ -1284,6 +1284,37 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
 
         self.assertEqual(suggestions["suggested_fields"]["organization_org_number"]["value"], "934051106")
         self.assertEqual(suggestions["suggested_fields"]["organization_municipalities"]["value"], "Tromsø")
+        self.assertTrue((suggestions.get("brreg_candidates") or []))
+
+    @override_settings(
+        OPENAI_IMPORT_ENABLED=True,
+        OPENAI_API_KEY="test-key",
+        OPENAI_IMPORT_MODEL="gpt-5.4",
+        OPENAI_IMPORT_TIMEOUT=5,
+    )
+    def test_openai_municipality_suggestion_rejects_county_values(self):
+        class FakeResponse:
+            output_text = (
+                '{"suggested_fields":{"organization_municipalities":{"value":"Nordland","confidence":0.84,"source":"ai_enrichment","requires_review":true}},'
+                '"provider":"openai"}'
+            )
+
+        class FakeResponses:
+            def create(self, **kwargs):
+                return FakeResponse()
+
+        class FakeOpenAI:
+            def __init__(self, api_key, timeout):
+                self.responses = FakeResponses()
+
+        with patch.object(import_ai_suggestions_module, "OpenAI", FakeOpenAI):
+            suggestions = generate_ai_suggestions(
+                self.tenant,
+                normalize_import_row(self.base_row | {"organization_municipalities": ""}),
+                {"organization": {}, "person": {}},
+            )
+
+        self.assertNotIn("organization_municipalities", suggestions["suggested_fields"])
 
     @override_settings(OPENAI_IMPORT_ENABLED=False, OPENAI_API_KEY="")
     def test_generate_ai_suggestions_skips_fields_that_already_have_values(self):

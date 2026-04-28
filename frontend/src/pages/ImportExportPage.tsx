@@ -715,6 +715,7 @@ function InlineReviewEditor(props: {
   }, [draft.categoryId, draft.subcategoryId, subcategories]);
   const visibleCategorySuggestions = (draft.suggestionStates.suggested_categories ?? "pending") === "ignored" ? [] : categorySuggestions;
   const visibleSubcategorySuggestions = (draft.suggestionStates.suggested_subcategories ?? "pending") === "ignored" ? [] : subcategorySuggestions;
+  const brregCandidates = getBrregCandidates(row);
   const diagnosticMeta = getDiagnosticMeta(row);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [createOrganizationOpen, setCreateOrganizationOpen] = useState(false);
@@ -808,6 +809,28 @@ function InlineReviewEditor(props: {
     void persistDraft(nextDraft);
   }
 
+  function applyBrregCandidate(candidateId: number | string) {
+    const candidate = brregCandidates.find((item) => item.id === String(candidateId));
+    if (!candidate) return;
+    const nextFieldValues = { ...draft.fieldValues };
+    if (candidate.org_number) nextFieldValues.organization_org_number = candidate.org_number;
+    if (candidate.municipality) nextFieldValues.organization_municipalities = candidate.municipality;
+    if (candidate.website_url) nextFieldValues.organization_website_url = candidate.website_url;
+    if (candidate.email) nextFieldValues.organization_email = candidate.email;
+    const nextDraft = {
+      ...draft,
+      fieldValues: nextFieldValues,
+      suggestionStates: {
+        ...draft.suggestionStates,
+        organization_org_number: candidate.org_number ? "accepted" as const : draft.suggestionStates.organization_org_number,
+        organization_municipalities: candidate.municipality ? "accepted" as const : draft.suggestionStates.organization_municipalities,
+        organization_website_url: candidate.website_url ? "accepted" as const : draft.suggestionStates.organization_website_url,
+        organization_email: candidate.email ? "accepted" as const : draft.suggestionStates.organization_email,
+      },
+    };
+    void persistDraft(nextDraft);
+  }
+
   const visibleSuggestionFields = SIMPLE_EDITABLE_SUGGESTION_FIELDS.filter((fieldKey) => (
     actorOnly ? fieldKey.startsWith("organization_") : fieldKey.startsWith("person_")
   ));
@@ -851,10 +874,12 @@ function InlineReviewEditor(props: {
                 <SuggestionCandidates
                   candidates={asCandidateList(row.ai_suggestions_json.organization_match_candidates)}
                   onUse={(id) => {
+                    const organizationId = typeof id === "number" ? id : Number(id);
+                    if (!organizationId) return;
                     const nextDraft = {
                       ...draft,
                       organizationDecision: "USE_EXISTING_ORGANIZATION" as const,
-                      organizationId: id,
+                      organizationId,
                     };
                     void persistDraft(nextDraft);
                   }}
@@ -871,6 +896,16 @@ function InlineReviewEditor(props: {
                   </Field>
                 ) : null}
               </>
+            ) : null}
+
+            {actorOnly ? (
+              <Field label="BRREG-kandidater">
+                <SuggestionCandidates
+                  candidates={brregCandidates}
+                  onUse={applyBrregCandidate}
+                  emptyLabel="Ingen BRREG-kandidater"
+                />
+              </Field>
             ) : null}
 
             <Field label="Hovedkategori">
@@ -1667,8 +1702,8 @@ function TagTextEditor(props: {
 }
 
 function SuggestionCandidates(props: {
-  candidates: Array<{ id: number; label?: string; score?: number; reason?: string }>;
-  onUse: (id: number) => void;
+  candidates: Array<{ id: number | string; label?: string; score?: number; reason?: string }>;
+  onUse: (id: number | string) => void;
   emptyLabel: string;
 }) {
   if (props.candidates.length === 0) {
@@ -1697,6 +1732,25 @@ function getSuggestionFields(row: ImportRow): Record<string, SuggestionField> {
   return Object.fromEntries(
     Object.entries(rawFields).filter(([key]) => (states[key] ?? "pending") === "pending"),
   );
+}
+
+type BrregCandidate = {
+  id: string;
+  label?: string;
+  score?: number;
+  reason?: string;
+  org_number?: string;
+  name?: string;
+  municipality?: string;
+  website_url?: string;
+  email?: string;
+};
+
+function getBrregCandidates(row: ImportRow): BrregCandidate[] {
+  const value = row.ai_suggestions_json?.brreg_candidates;
+  return Array.isArray(value)
+    ? value.filter((item): item is BrregCandidate => Boolean(item && typeof item === "object" && typeof (item as { id?: unknown }).id === "string"))
+    : [];
 }
 
 function getSuggestionValues(row: ImportRow, key: string): string[] {
