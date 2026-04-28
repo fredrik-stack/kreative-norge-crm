@@ -759,6 +759,8 @@ function InlineReviewEditor(props: {
     if (!selected) return options;
     return options.some((subcategory) => subcategory.id === selected.id) ? options : [selected, ...options];
   }, [draft.categoryId, draft.subcategoryId, subcategories]);
+  const currentSubcategoryLabel = currentSubcategoryNames[0] || "";
+  const subcategorySelectValue = draft.subcategoryId ? String(draft.subcategoryId) : currentSubcategoryLabel;
   const visibleCategorySuggestions = (draft.suggestionStates.suggested_categories ?? "pending") === "ignored" ? [] : categorySuggestions;
   const visibleSubcategorySuggestions = (draft.suggestionStates.suggested_subcategories ?? "pending") === "ignored" ? [] : subcategorySuggestions;
   const brregCandidates = getBrregCandidates(row);
@@ -1008,23 +1010,23 @@ function InlineReviewEditor(props: {
               ) : null}
             </Field>
             <Field label="Underkategori">
-              {(!draft.subcategoryId && currentSubcategoryNames[0]) ? (
-                <p className="meta">Nå: {currentSubcategoryNames[0]}</p>
-              ) : null}
               <select
-                value={draft.subcategoryId || ""}
-                onChange={(e) => setDraft((current) => ({ ...current, subcategoryId: Number(e.target.value) || "" }))}
+                value={subcategorySelectValue}
+                onChange={(e) =>
+                  setDraft((current) => ({
+                    ...current,
+                    subcategoryId: Number(e.target.value) || "",
+                  }))
+                }
               >
                 <option value="">Ingen</option>
+                {!draft.subcategoryId && currentSubcategoryLabel ? (
+                  <option value={currentSubcategoryLabel}>{currentSubcategoryLabel}</option>
+                ) : null}
                 {filteredSubcategories.map((subcategory) => (
-                  <option key={subcategory.id} value={subcategory.id}>{subcategory.category.name} · {subcategory.name}</option>
+                  <option key={subcategory.id} value={subcategory.id}>{subcategory.name}</option>
                 ))}
               </select>
-              {draft.subcategoryId ? (
-                <p className="meta">
-                  Valgt: {subcategories.find((subcategory) => subcategory.id === draft.subcategoryId)?.name || "—"}
-                </p>
-              ) : null}
               {currentSubcategoryNames.length > 0 ? (
                 <div className="review-current-pill-row">
                   {currentSubcategoryNames.map((name) => (

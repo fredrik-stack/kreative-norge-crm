@@ -68,7 +68,6 @@ ALLOWED_SUGGESTION_FIELD_KEYS = (
 
 OPENAI_SCHEMA_FIELD_KEYS = (
     "organization_email",
-    "organization_municipalities",
     "organization_website_url",
     "organization_instagram_url",
     "organization_tiktok_url",
@@ -76,7 +75,6 @@ OPENAI_SCHEMA_FIELD_KEYS = (
     "organization_facebook_url",
     "organization_youtube_url",
     "person_email",
-    "person_municipality",
     "person_website_url",
     "person_instagram_url",
     "person_tiktok_url",
@@ -1030,9 +1028,21 @@ def _sanitize_suggestions(payload: dict[str, Any], fallback_provider: str) -> di
     }
     organization_match_candidates = payload.get("organization_match_candidates") or []
     person_match_candidates = payload.get("person_match_candidates") or []
+    brreg_candidates = [
+        candidate
+        for candidate in (payload.get("brreg_candidates") or [])
+        if isinstance(candidate, dict) and (candidate.get("id") or candidate.get("org_number"))
+    ]
+    website_candidates = [
+        candidate
+        for candidate in (payload.get("website_candidates") or [])
+        if isinstance(candidate, dict) and candidate.get("url")
+    ]
     sanitized = {
         "organization_match_candidates": organization_match_candidates,
         "person_match_candidates": person_match_candidates,
+        "brreg_candidates": brreg_candidates,
+        "website_candidates": website_candidates,
         "suggested_fields": suggested_fields,
         "provider": payload.get("provider") or fallback_provider,
     }
@@ -1063,7 +1073,6 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
             "empty_or_missing": [
                 key for key, suggestion_key in (
                     ("email", "organization_email"),
-                    ("municipalities", "organization_municipalities"),
                     ("website_url", "organization_website_url"),
                     ("instagram_url", "organization_instagram_url"),
                     ("tiktok_url", "organization_tiktok_url"),
@@ -1079,7 +1088,6 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
                 key for key, suggestion_key in (
                     ("title", "person_title"),
                     ("email", "person_email"),
-                    ("municipality", "person_municipality"),
                     ("website_url", "person_website_url"),
                     ("instagram_url", "person_instagram_url"),
                     ("tiktok_url", "person_tiktok_url"),
@@ -1176,7 +1184,6 @@ def _openai_schema() -> dict[str, Any]:
                     "additionalProperties": False,
                     "properties": {
                         "organization_email": string_field_value,
-                        "organization_municipalities": string_field_value,
                         "organization_website_url": string_field_value,
                         "organization_instagram_url": string_field_value,
                         "organization_tiktok_url": string_field_value,
@@ -1184,7 +1191,6 @@ def _openai_schema() -> dict[str, Any]:
                         "organization_facebook_url": string_field_value,
                         "organization_youtube_url": string_field_value,
                         "person_email": string_field_value,
-                        "person_municipality": string_field_value,
                         "person_website_url": string_field_value,
                         "person_instagram_url": string_field_value,
                         "person_tiktok_url": string_field_value,
@@ -1297,6 +1303,8 @@ def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_resu
     merged = {
         "organization_match_candidates": openai_suggestions.get("organization_match_candidates") or heuristic.get("organization_match_candidates", []),
         "person_match_candidates": openai_suggestions.get("person_match_candidates") or heuristic.get("person_match_candidates", []),
+        "brreg_candidates": heuristic.get("brreg_candidates", []),
+        "website_candidates": heuristic.get("website_candidates", []),
         "suggested_fields": merged_fields,
         "provider": openai_suggestions.get("provider") or "openai",
         "diagnostic": {
