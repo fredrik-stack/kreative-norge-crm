@@ -56,6 +56,7 @@ from .serializers import (
     ImportDecisionSerializer,
     ImportCommitRequestSerializer,
     ImportJobGenerateAiSerializer,
+    ImportJobBrregLookupSerializer,
 )
 from .services.open_graph import refresh_organization_open_graph
 
@@ -63,6 +64,7 @@ import_normalizers_module = importlib.import_module("crm.services.import.normali
 import_commit_module = importlib.import_module("crm.services.import.commit")
 import_preview_module = importlib.import_module("crm.services.import.preview")
 import_reporting_module = importlib.import_module("crm.services.import.reporting")
+import_brreg_module = importlib.import_module("crm.services.import.brreg")
 ImportCommitBlocked = import_commit_module.ImportCommitBlocked
 commit_import_job = import_commit_module.commit_import_job
 run_import_preview = import_preview_module.run_import_preview
@@ -70,6 +72,7 @@ update_job_preview_status = import_preview_module.update_job_preview_status
 generate_import_job_ai = import_preview_module.generate_import_job_ai
 save_error_report = import_reporting_module.save_error_report
 build_import_template_config = import_normalizers_module.build_import_template_config
+candidate_for_org_number = import_brreg_module.candidate_for_org_number
 
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
@@ -365,6 +368,8 @@ class ImportJobViewSet(
             return ImportRowSerializer
         if self.action == "generate_ai":
             return ImportJobGenerateAiSerializer
+        if self.action == "brreg_lookup":
+            return ImportJobBrregLookupSerializer
         return ImportJobSerializer
 
     def perform_create(self, serializer):
@@ -436,6 +441,26 @@ class ImportJobViewSet(
         )
         response_serializer = ImportJobSerializer(job, context=self.get_serializer_context())
         return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="brreg-lookup")
+    def brreg_lookup(self, request, tenant_id=None, pk=None):
+        self.get_object()
+        serializer = self.get_serializer(data=request.data or {})
+        serializer.is_valid(raise_exception=True)
+        candidate = candidate_for_org_number(serializer.validated_data["org_number"])
+        if not candidate:
+            raise ValidationError({"org_number": "Fant ikke gyldig BRREG-enhet for dette organisasjonsnummeret."})
+        return Response(
+            {
+                "org_number": candidate.org_number,
+                "name": candidate.name,
+                "municipality": candidate.municipality,
+                "postal_place": candidate.postal_place,
+                "website_url": candidate.website_url,
+                "email": candidate.email,
+            },
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=True, methods=["post"], url_path="decisions")
     def decisions(self, request, tenant_id=None, pk=None):

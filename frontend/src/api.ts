@@ -460,6 +460,15 @@ export type ImportDecisionPayload = {
   }>;
 };
 
+export type ImportBrregLookupResult = {
+  org_number: string;
+  name: string;
+  municipality: string;
+  postal_place: string;
+  website_url: string;
+  email: string;
+};
+
 export async function saveImportJobDecisions(
   tenantId: number,
   importJobId: number,
@@ -468,6 +477,17 @@ export async function saveImportJobDecisions(
   return request(`/api/tenants/${tenantId}/import-jobs/${importJobId}/decisions/`, {
     method: "POST",
     body: JSON.stringify({ rows }),
+  });
+}
+
+export async function lookupImportJobBrreg(
+  tenantId: number,
+  importJobId: number,
+  orgNumber: string,
+): Promise<ImportBrregLookupResult> {
+  return request<ImportBrregLookupResult>(`/api/tenants/${tenantId}/import-jobs/${importJobId}/brreg-lookup/`, {
+    method: "POST",
+    body: JSON.stringify({ org_number: orgNumber }),
   });
 }
 

@@ -3,7 +3,7 @@ import { Fragment } from "react";
 import { createPortal } from "react-dom";
 import { Field } from "../components/Field";
 import { useEditor } from "../context/EditorContext";
-import { getExportJobFileUrl, type OrganizationPatch } from "../api";
+import { getExportJobFileUrl, lookupImportJobBrreg, type OrganizationPatch } from "../api";
 import { useExportJobs } from "../hooks/useExportJobs";
 import { useImportJobs } from "../hooks/useImportJobs";
 import type { Category, ImportDecision, ImportRow, Organization, Subcategory } from "../types";
@@ -33,6 +33,7 @@ const EXPORT_FIELD_OPTIONS = [
 ];
 
 const SIMPLE_EDITABLE_SUGGESTION_FIELDS = [
+  "organization_name",
   "organization_org_number",
   "organization_email",
   "organization_municipalities",
@@ -55,6 +56,7 @@ const SIMPLE_EDITABLE_SUGGESTION_FIELDS = [
 ] as const;
 
 const FIELD_LABELS: Record<string, string> = {
+  organization_name: "Aktørnavn",
   organization_org_number: "Org.nr",
   organization_email: "E-post",
   organization_municipalities: "Kommune / steder",
@@ -446,8 +448,8 @@ function ImportReviewWorkspace(props: {
               const subcategorySuggestions = getSuggestionValues(row, "suggested_subcategories");
               const currentOrganizationLabel = mode === "PEOPLE_ONLY"
                 ? getCurrentOrganizationLabel(row, editor.organizations)
-                : getFirstText(row.raw_payload_json.organization_name);
-              const currentPersonLabel = getFirstText(row.raw_payload_json.person_full_name);
+                : getCurrentText(row, ["organization_name"]);
+              const currentPersonLabel = getCurrentText(row, ["person_full_name"]);
               const currentPersonTitle = getCurrentText(row, ["person_title"]);
               const municipalitySuggestion = mode === "ORGANIZATIONS_ONLY"
                 ? getSuggestionText(row, "organization_municipalities")
@@ -619,6 +621,8 @@ function ImportReviewWorkspace(props: {
             categories={importCategories}
             subcategories={importSubcategories}
             onCreateOrganization={editor.quickCreateOrganization}
+            tenantId={editor.tenantId}
+            importJobId={selectedJob.id}
             onSave={(payload) => importJobs.saveDecisions([{ row_id: expandedRowId, decisions: payload }])}
             onClose={() => setExpandedRowId(null)}
           />
@@ -693,10 +697,12 @@ function InlineReviewEditor(props: {
   categories: Category[];
   subcategories: Subcategory[];
   onCreateOrganization: (draft: OrganizationPatch) => Promise<Organization>;
+  tenantId: number | null;
+  importJobId: number;
   onSave: (payload: Array<{ decision_type: ImportDecision["decision_type"]; payload_json?: Record<string, unknown> }>) => Promise<unknown> | null;
   onClose: () => void;
 }) {
-  const { row, importMode, organizations, categories, subcategories, onCreateOrganization, onSave, onClose } = props;
+  const { row, importMode, organizations, categories, subcategories, onCreateOrganization, tenantId, importJobId, onSave, onClose } = props;
   const suggestedFields = useMemo(() => getSuggestionFields(row), [row]);
   const categorySuggestions = getSuggestionValues(row, "suggested_categories");
   const subcategorySuggestions = getSuggestionValues(row, "suggested_subcategories");
@@ -764,9 +770,11 @@ function InlineReviewEditor(props: {
   const visibleCategorySuggestions = (draft.suggestionStates.suggested_categories ?? "pending") === "ignored" ? [] : categorySuggestions;
   const visibleSubcategorySuggestions = (draft.suggestionStates.suggested_subcategories ?? "pending") === "ignored" ? [] : subcategorySuggestions;
   const brregCandidates = getBrregCandidates(row);
-  const websiteCandidates = getWebsiteCandidates(row);
   const diagnosticMeta = getDiagnosticMeta(row);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [brregLookupState, setBrregLookupState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [brregLookupMessage, setBrregLookupMessage] = useState("");
+  const lastBrregLookupRef = useRef("");
   const [createOrganizationOpen, setCreateOrganizationOpen] = useState(false);
   const [organizationCreateState, setOrganizationCreateState] = useState<"idle" | "saving" | "error">("idle");
   const [organizationCreateError, setOrganizationCreateError] = useState<string | null>(null);
@@ -880,14 +888,69 @@ function InlineReviewEditor(props: {
     void persistDraft(nextDraft);
   }
 
-  function applyWebsiteCandidate(url: string) {
-    const nextDraft = {
-      ...draft,
-      fieldValues: { ...draft.fieldValues, organization_website_url: url },
-      suggestionStates: { ...draft.suggestionStates, organization_website_url: "accepted" as const },
-    };
-    void persistDraft(nextDraft);
+  async function syncOrganizationNumberFromBrreg(orgNumberInput: string) {
+    const normalizedOrgNumber = orgNumberInput.replace(/\D/g, "");
+    if (!actorOnly || !tenantId || !importJobId || normalizedOrgNumber.length !== 9) return;
+    if (lastBrregLookupRef.current === normalizedOrgNumber) return;
+
+    setBrregLookupState("loading");
+    setBrregLookupMessage("Henter fra BRREG…");
+    try {
+      const candidate = await lookupImportJobBrreg(tenantId, importJobId, normalizedOrgNumber);
+      lastBrregLookupRef.current = normalizedOrgNumber;
+      setBrregLookupState("done");
+      setBrregLookupMessage(
+        candidate.name
+          ? `BRREG: ${candidate.name}${candidate.municipality ? ` · ${candidate.municipality}` : ""}`
+          : "BRREG-data hentet",
+      );
+      setDraft((current) => {
+        const nextFieldValues = { ...current.fieldValues };
+        nextFieldValues.organization_org_number = candidate.org_number || normalizedOrgNumber;
+        if (!nextFieldValues.organization_name?.trim()) {
+          nextFieldValues.organization_name = candidate.name || "";
+        }
+        nextFieldValues.organization_municipalities = candidate.municipality || nextFieldValues.organization_municipalities || "";
+        if (!nextFieldValues.organization_website_url?.trim() && candidate.website_url) {
+          nextFieldValues.organization_website_url = candidate.website_url;
+        }
+        if (!nextFieldValues.organization_email?.trim() && candidate.email) {
+          nextFieldValues.organization_email = candidate.email;
+        }
+        return {
+          ...current,
+          fieldValues: nextFieldValues,
+          suggestionStates: {
+            ...current.suggestionStates,
+            organization_org_number: "accepted",
+            organization_municipalities: candidate.municipality ? "accepted" : current.suggestionStates.organization_municipalities,
+            organization_website_url: candidate.website_url ? "accepted" : current.suggestionStates.organization_website_url,
+            organization_email: candidate.email ? "accepted" : current.suggestionStates.organization_email,
+          },
+        };
+      });
+    } catch (error) {
+      setBrregLookupState("error");
+      setBrregLookupMessage(error instanceof Error ? error.message : "Fant ikke BRREG-data for dette org.nr.");
+    }
   }
+
+  useEffect(() => {
+    if (!actorOnly) return;
+    const normalizedOrgNumber = (draft.fieldValues.organization_org_number || "").replace(/\D/g, "");
+    if (normalizedOrgNumber.length !== 9) {
+      if (brregLookupState !== "idle") {
+        setBrregLookupState("idle");
+        setBrregLookupMessage("");
+      }
+      lastBrregLookupRef.current = "";
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void syncOrganizationNumberFromBrreg(normalizedOrgNumber);
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [actorOnly, brregLookupState, draft.fieldValues.organization_org_number, importJobId, tenantId]);
 
   const visibleSuggestionFields = SIMPLE_EDITABLE_SUGGESTION_FIELDS.filter((fieldKey) => (
     actorOnly ? fieldKey.startsWith("organization_") : fieldKey.startsWith("person_")
@@ -962,23 +1025,6 @@ function InlineReviewEditor(props: {
                   candidates={brregCandidates}
                   onUse={applyBrregCandidate}
                   emptyLabel="Ingen BRREG-kandidater"
-                />
-              </Field>
-            ) : null}
-
-            {actorOnly ? (
-              <Field label="Nettsidekandidater">
-                <SuggestionCandidates
-                  candidates={websiteCandidates.map((candidate) => ({
-                    id: candidate.url,
-                    label: candidate.title || candidate.url,
-                    reason: "web",
-                  }))}
-                  onUse={(id) => {
-                    if (typeof id !== "string") return;
-                    applyWebsiteCandidate(id);
-                  }}
-                  emptyLabel="Ingen nettsidekandidater"
                 />
               </Field>
             ) : null}
@@ -1112,6 +1158,20 @@ function InlineReviewEditor(props: {
                       }
                       placeholder={suggestion ? `Forslag: ${renderSuggestionValue(suggestion.value)}` : "Tomt felt"}
                     />
+                    {actorOnly && fieldKey === "organization_org_number" ? (
+                      <div className="review-inline-actions">
+                        <button
+                          type="button"
+                          className="ghost-button compact-button"
+                          onClick={() => void syncOrganizationNumberFromBrreg(draft.fieldValues.organization_org_number || "")}
+                        >
+                          Synk fra BRREG
+                        </button>
+                        {brregLookupMessage ? (
+                          <span className={`meta ${brregLookupState === "error" ? "error-text" : ""}`}>{brregLookupMessage}</span>
+                        ) : null}
+                      </div>
+                    ) : null}
                     {suggestion ? (
                       <div className="review-inline-actions">
                         <span className={`mini-pill ${state === "accepted" ? "category" : state === "ignored" ? "subcategory" : "tag"}`}>
@@ -1828,21 +1888,6 @@ function getBrregCandidates(row: ImportRow): BrregCandidate[] {
   const value = row.ai_suggestions_json?.brreg_candidates;
   return Array.isArray(value)
     ? value.filter((item): item is BrregCandidate => Boolean(item && typeof item === "object" && typeof (item as { id?: unknown }).id === "string"))
-    : [];
-}
-
-type WebsiteCandidate = {
-  url: string;
-  title?: string;
-};
-
-function getWebsiteCandidates(row: ImportRow): WebsiteCandidate[] {
-  const value = row.ai_suggestions_json?.website_candidates;
-  return Array.isArray(value)
-    ? value.filter(
-        (item): item is WebsiteCandidate =>
-          Boolean(item && typeof item === "object" && typeof (item as { url?: unknown }).url === "string"),
-      )
     : [];
 }
 

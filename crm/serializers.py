@@ -641,6 +641,16 @@ class ImportJobGenerateAiSerializer(serializers.Serializer):
     batch_size = serializers.IntegerField(required=False, min_value=1, max_value=10, default=3)
 
 
+class ImportJobBrregLookupSerializer(serializers.Serializer):
+    org_number = serializers.CharField()
+
+    def validate_org_number(self, value):
+        digits = "".join(ch for ch in str(value or "") if ch.isdigit())
+        if len(digits) != 9:
+            raise serializers.ValidationError("Organisasjonsnummer må være 9 sifre.")
+        return digits
+
+
 class ImportRowSerializer(serializers.ModelSerializer):
     decisions = ImportDecisionSerializer(many=True, read_only=True)
 

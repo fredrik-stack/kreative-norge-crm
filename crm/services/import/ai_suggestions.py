@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 from html import unescape
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 from typing import Any
 from django.conf import settings
 
@@ -350,14 +350,26 @@ def _sanitize_phone(value: str | None) -> str | None:
     return value.strip()
 
 
-def _extract_contact_signals_from_website(url: str | None) -> dict[str, Any]:
-    safe_url = _sanitize_url(url)
-    if not safe_url:
-        return {}
+def _merge_contact_signal_payloads(base: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]:
+    merged_socials = {**(base.get("socials") or {})}
+    for key, value in (extra.get("socials") or {}).items():
+        if key not in merged_socials:
+            merged_socials[key] = value
+    return {
+        "emails": _unique_casefold([*(base.get("emails") or []), *(extra.get("emails") or [])])[:5],
+        "phones": _unique_casefold([*(base.get("phones") or []), *(extra.get("phones") or [])])[:5],
+        "socials": merged_socials,
+        "text_snippet": normalize_space(" ".join(part for part in [base.get("text_snippet") or "", extra.get("text_snippet") or ""] if part))[:1600],
+        "description_candidates": _unique_casefold([*(base.get("description_candidates") or []), *(extra.get("description_candidates") or [])])[:10],
+        "final_url": extra.get("final_url") or base.get("final_url") or "",
+    }
+
+
+def _fetch_single_contact_signal_page(url: str) -> dict[str, Any]:
     try:
         result = _fetch_url(
-            safe_url,
-            timeout_seconds=min(settings.OPENAI_IMPORT_TIMEOUT, 5),
+            url,
+            timeout_seconds=min(settings.OPENAI_IMPORT_TIMEOUT, 4),
             max_bytes=MAX_HTML_BYTES,
             allowed_content_prefixes=("text/html",),
         )
@@ -410,6 +422,26 @@ def _extract_contact_signals_from_website(url: str | None) -> dict[str, Any]:
         "description_candidates": description_candidates[:8],
         "final_url": result.final_url,
     }
+
+
+def _extract_contact_signals_from_website(url: str | None) -> dict[str, Any]:
+    safe_url = _sanitize_url(url)
+    if not safe_url:
+        return {}
+    base_signals = _fetch_single_contact_signal_page(safe_url)
+    final_url = base_signals.get("final_url") or safe_url
+    merged_signals = dict(base_signals)
+    for candidate_url in [
+        urljoin(final_url, "/kontakt"),
+        urljoin(final_url, "/kontakt-oss"),
+        urljoin(final_url, "/om-oss"),
+        urljoin(final_url, "/contact"),
+        urljoin(final_url, "/about"),
+    ]:
+        extra_signals = _fetch_single_contact_signal_page(candidate_url)
+        if extra_signals:
+            merged_signals = _merge_contact_signal_payloads(merged_signals, extra_signals)
+    return merged_signals
 
 
 def _preferred_public_email(emails: list[str], preferred_domain: str | None) -> str | None:

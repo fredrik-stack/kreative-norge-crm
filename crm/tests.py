@@ -322,6 +322,28 @@ class ImportExportApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(response.json()["count"], 0)
         self.assertEqual(response.json()["results"], [])
 
+    def test_brreg_lookup_endpoint_returns_candidate_for_org_number(self):
+        BrregCandidate = importlib.import_module("crm.services.import.brreg").BrregCandidate
+
+        with patch("crm.views.candidate_for_org_number", return_value=BrregCandidate(
+            org_number="934051106",
+            name="Nordlyd Ungdomsbedrift",
+            municipality="Tromsø",
+            postal_place="Tromsø",
+            website_url="https://nordlyd.no",
+            email="post@nordlyd.no",
+            score=0.0,
+        )):
+            response = self.client.post(
+                f"{self.import_jobs_url()}{self.import_job.id}/brreg-lookup/",
+                {"org_number": "934 051 106"},
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["org_number"], "934051106")
+        self.assertEqual(response.json()["municipality"], "Tromsø")
+
     def test_rows_endpoint_returns_existing_rows(self):
         row = ImportRow.objects.create(
             import_job=self.import_job,
