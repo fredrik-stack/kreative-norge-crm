@@ -952,9 +952,12 @@ function InlineReviewEditor(props: {
     return () => window.clearTimeout(timer);
   }, [actorOnly, brregLookupState, draft.fieldValues.organization_org_number, importJobId, tenantId]);
 
-  const visibleSuggestionFields = SIMPLE_EDITABLE_SUGGESTION_FIELDS.filter((fieldKey) => (
-    actorOnly ? fieldKey.startsWith("organization_") : fieldKey.startsWith("person_")
-  ));
+  const visibleSuggestionFields = SIMPLE_EDITABLE_SUGGESTION_FIELDS.filter((fieldKey) => {
+    if (actorOnly && (fieldKey === "organization_name" || fieldKey === "organization_org_number")) {
+      return false;
+    }
+    return actorOnly ? fieldKey.startsWith("organization_") : fieldKey.startsWith("person_");
+  });
 
   return (
     <div className="inline-review-editor">
@@ -1026,6 +1029,60 @@ function InlineReviewEditor(props: {
                   onUse={applyBrregCandidate}
                   emptyLabel="Ingen BRREG-kandidater"
                 />
+              </Field>
+            ) : null}
+
+            {actorOnly ? (
+              <Field label="Aktørnavn">
+                <div className="review-inline-field compact">
+                  <input
+                    value={draft.fieldValues.organization_name ?? ""}
+                    onChange={(e) =>
+                      setDraft((current) => ({
+                        ...current,
+                        fieldValues: { ...current.fieldValues, organization_name: e.target.value },
+                        suggestionStates: {
+                          ...current.suggestionStates,
+                          organization_name: e.target.value ? "accepted" : current.suggestionStates.organization_name ?? "pending",
+                        },
+                      }))
+                    }
+                    placeholder="Offentlig navn på aktøren"
+                  />
+                </div>
+              </Field>
+            ) : null}
+
+            {actorOnly ? (
+              <Field label="Org.nr">
+                <div className="review-inline-field compact">
+                  <input
+                    value={draft.fieldValues.organization_org_number ?? ""}
+                    onChange={(e) =>
+                      setDraft((current) => ({
+                        ...current,
+                        fieldValues: { ...current.fieldValues, organization_org_number: e.target.value },
+                        suggestionStates: {
+                          ...current.suggestionStates,
+                          organization_org_number: e.target.value ? "accepted" : current.suggestionStates.organization_org_number ?? "pending",
+                        },
+                      }))
+                    }
+                    placeholder="9 sifre"
+                  />
+                  <div className="review-inline-actions">
+                    <button
+                      type="button"
+                      className="ghost-button compact-button"
+                      onClick={() => void syncOrganizationNumberFromBrreg(draft.fieldValues.organization_org_number || "")}
+                    >
+                      Synk fra BRREG
+                    </button>
+                    {brregLookupMessage ? (
+                      <span className={`meta ${brregLookupState === "error" ? "error-text" : ""}`}>{brregLookupMessage}</span>
+                    ) : null}
+                  </div>
+                </div>
               </Field>
             ) : null}
 
@@ -1158,20 +1215,6 @@ function InlineReviewEditor(props: {
                       }
                       placeholder={suggestion ? `Forslag: ${renderSuggestionValue(suggestion.value)}` : "Tomt felt"}
                     />
-                    {actorOnly && fieldKey === "organization_org_number" ? (
-                      <div className="review-inline-actions">
-                        <button
-                          type="button"
-                          className="ghost-button compact-button"
-                          onClick={() => void syncOrganizationNumberFromBrreg(draft.fieldValues.organization_org_number || "")}
-                        >
-                          Synk fra BRREG
-                        </button>
-                        {brregLookupMessage ? (
-                          <span className={`meta ${brregLookupState === "error" ? "error-text" : ""}`}>{brregLookupMessage}</span>
-                        ) : null}
-                      </div>
-                    ) : null}
                     {suggestion ? (
                       <div className="review-inline-actions">
                         <span className={`mini-pill ${state === "accepted" ? "category" : state === "ignored" ? "subcategory" : "tag"}`}>
@@ -1520,6 +1563,18 @@ function buildDecisions(
   }
 
   if (importMode === "ORGANIZATIONS_ONLY") {
+    if (draft.fieldValues.organization_name?.trim()) {
+      decisions.push({
+        decision_type: "ACCEPT_AI_SUGGESTION",
+        payload_json: { suggestion_key: "organization_name", value: draft.fieldValues.organization_name.trim() },
+      });
+    }
+    if (draft.fieldValues.organization_org_number?.trim()) {
+      decisions.push({
+        decision_type: "ACCEPT_AI_SUGGESTION",
+        payload_json: { suggestion_key: "organization_org_number", value: draft.fieldValues.organization_org_number.trim() },
+      });
+    }
     decisions.push({
       decision_type: "ACCEPT_AI_SUGGESTION",
       payload_json: { suggestion_key: "organization_internal_tags", value: splitCsvText(draft.organizationInternalTagsText) },

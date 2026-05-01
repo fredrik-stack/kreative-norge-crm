@@ -781,7 +781,7 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
     if not organization.get("municipalities"):
         exact_org_municipality = _suggest_field_from_exact_match(tenant, match_result, "organization", "municipalities")
         organization_municipality = exact_org_municipality
-        if not organization_municipality and brreg_candidate and brreg_candidate.municipality:
+        if not organization_municipality and brreg_candidate and brreg_candidate.municipality and brreg_candidate.score >= 0.75:
             organization_municipality = brreg_candidate.municipality
         if organization_municipality:
             suggested_fields["organization_municipalities"] = {
