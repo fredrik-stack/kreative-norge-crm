@@ -334,7 +334,10 @@ def _sanitize_url(value: str | None) -> str | None:
     candidate = value.strip()
     if not candidate:
         return None
-    parsed = urlparse(candidate)
+    try:
+        parsed = urlparse(candidate)
+    except ValueError:
+        return None
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         return None
     return candidate
@@ -431,13 +434,14 @@ def _extract_contact_signals_from_website(url: str | None) -> dict[str, Any]:
     base_signals = _fetch_single_contact_signal_page(safe_url)
     final_url = base_signals.get("final_url") or safe_url
     merged_signals = dict(base_signals)
-    for candidate_url in [
-        urljoin(final_url, "/kontakt"),
-        urljoin(final_url, "/kontakt-oss"),
-        urljoin(final_url, "/om-oss"),
-        urljoin(final_url, "/contact"),
-        urljoin(final_url, "/about"),
-    ]:
+    candidate_urls = []
+    for path in ["/kontakt", "/kontakt-oss", "/om-oss", "/contact", "/about"]:
+        try:
+            candidate_url = urljoin(final_url, path)
+        except ValueError:
+            continue
+        candidate_urls.append(candidate_url)
+    for candidate_url in candidate_urls:
         extra_signals = _fetch_single_contact_signal_page(candidate_url)
         if extra_signals:
             merged_signals = _merge_contact_signal_payloads(merged_signals, extra_signals)

@@ -55,7 +55,10 @@ def _sanitize_url(url: str | None) -> str | None:
     if not url:
         return None
     candidate = url.strip()
-    parsed = urlparse(candidate)
+    try:
+        parsed = urlparse(candidate)
+    except ValueError:
+        return None
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         return None
     return candidate
