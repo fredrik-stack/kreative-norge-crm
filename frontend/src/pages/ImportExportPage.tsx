@@ -318,12 +318,15 @@ function ImportReviewWorkspace(props: {
   const summary = selectedJob?.summary_json ?? {};
   const unresolvedCount = Number(summary.review_required_rows ?? 0);
   const aiStatus = String(summary.ai_generation_status ?? "");
+  const commitReadyStatuses = ["PREVIEW_READY", "AWAITING_REVIEW", "FAILED"];
   const commitBlockedReason = !selectedJob
     ? "Ingen preview er kjørt ennå."
-    : !["PREVIEW_READY", "AWAITING_REVIEW"].includes(selectedJob?.status ?? "")
+    : !commitReadyStatuses.includes(selectedJob?.status ?? "")
       ? "Importjobben er ikke klar for commit ennå."
       : importJobs.busyAction === "commit"
         ? "Commit pågår…"
+        : selectedJob.status === "FAILED"
+          ? "Forrige commit feilet. Du kan prøve commit på nytt."
         : unresolvedCount > 0 && !skipUnresolved
           ? `${unresolvedCount} rad${unresolvedCount === 1 ? "" : "er"} står fortsatt til review. Fullfør review eller kryss av for å hoppe over uavklarte rader.`
           : null;
@@ -400,7 +403,7 @@ function ImportReviewWorkspace(props: {
             type="button"
             className="ghost-button compact-button"
             disabled={
-              !["PREVIEW_READY", "AWAITING_REVIEW"].includes(selectedJob?.status ?? "") ||
+              !commitReadyStatuses.includes(selectedJob?.status ?? "") ||
               importJobs.busyAction === "generate-ai" ||
               aiStatus === "completed"
             }

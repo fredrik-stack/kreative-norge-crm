@@ -258,7 +258,11 @@ def _upsert_person_contacts(person: Person, data: dict, row: ImportRow, job: Imp
 
 
 def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -> ImportJob:
-    if import_job.status not in {ImportJob.Status.PREVIEW_READY, ImportJob.Status.AWAITING_REVIEW}:
+    if import_job.status not in {
+        ImportJob.Status.PREVIEW_READY,
+        ImportJob.Status.AWAITING_REVIEW,
+        ImportJob.Status.FAILED,
+    }:
         raise ImportCommitBlocked("Import job must be previewed before commit.")
 
     unresolved = import_job.rows.filter(row_status=ImportRow.RowStatus.REVIEW_REQUIRED)
