@@ -21,6 +21,8 @@ from crm.models import (
     Tag,
 )
 from crm.services.open_graph import refresh_organization_open_graph
+from .matchers import match_organization
+from .normalizers import normalize_domain, normalize_name, parse_bool
 
 
 class ImportCommitBlocked(Exception):
@@ -76,10 +78,12 @@ def _apply_accepted_ai_suggestions(row: ImportRow, normalized_payload: dict, res
     for suggestion_key, value in accepted.items():
         if suggestion_key == "organization_name":
             payload["organization"]["name"] = value or ""
+            payload["organization"]["normalized_name"] = normalize_name(value or "")
         elif suggestion_key == "organization_org_number":
             payload["organization"]["org_number"] = value or ""
         elif suggestion_key == "person_full_name":
             payload["person"]["full_name"] = value or ""
+            payload["person"]["normalized_full_name"] = normalize_name(value or "")
         elif suggestion_key == "organization_email":
             payload["organization"]["email"] = value or ""
         elif suggestion_key == "organization_municipalities":
@@ -92,6 +96,7 @@ def _apply_accepted_ai_suggestions(row: ImportRow, normalized_payload: dict, res
             payload["person"]["municipality"] = value or ""
         elif suggestion_key == "organization_website_url":
             payload["organization"]["website_url"] = value or ""
+            payload["organization"]["website_domain"] = normalize_domain(value or "")
         elif suggestion_key == "organization_instagram_url":
             payload["organization"]["instagram_url"] = value or ""
         elif suggestion_key == "organization_tiktok_url":
@@ -104,6 +109,8 @@ def _apply_accepted_ai_suggestions(row: ImportRow, normalized_payload: dict, res
             payload["organization"]["youtube_url"] = value or ""
         elif suggestion_key == "organization_description":
             payload["organization"]["description"] = value or ""
+        elif suggestion_key == "organization_is_published":
+            payload["organization"]["is_published"] = parse_bool(value, default=False)
         elif suggestion_key == "person_website_url":
             payload["person"]["website_url"] = value or ""
         elif suggestion_key == "person_instagram_url":
@@ -159,6 +166,27 @@ def _apply_accepted_ai_suggestions(row: ImportRow, normalized_payload: dict, res
                 payload["organization"]["subcategories"] = [str(item) for item in value]
                 payload["person"]["subcategories"] = [str(item) for item in value]
     return payload
+
+
+def _resolve_existing_organization(import_job: ImportJob, organization_data: dict, matches: dict, resolved: ResolvedRowDecision) -> tuple[Organization | None, str | None]:
+    organization_id = resolved.organization_id or (matches.get("organization") or {}).get("exact_id")
+    if organization_id:
+        return Organization.objects.get(id=organization_id, tenant=import_job.tenant), ImportCommitLog.Action.UPDATED
+
+    org_number = organization_data.get("org_number") or None
+    if org_number:
+        existing = Organization.objects.filter(tenant=import_job.tenant, org_number=org_number).first()
+        if existing:
+            return existing, ImportCommitLog.Action.UPDATED
+
+    refreshed_matches = match_organization(import_job.tenant, {"organization": organization_data, "person": {"website_url": "", "email": ""}})
+    exact_id = (refreshed_matches.get("exact_id") if isinstance(refreshed_matches, dict) else None)
+    if exact_id:
+        existing = Organization.objects.filter(id=exact_id, tenant=import_job.tenant).first()
+        if existing:
+            return existing, ImportCommitLog.Action.UPDATED
+
+    return None, None
 
 
 def _get_or_create_tags(tenant, names: list[str]) -> list[Tag]:
@@ -304,11 +332,8 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
 
                 organization = None
                 organization_action = None
-                organization_id = resolved.organization_id or (matches.get("organization") or {}).get("exact_id")
-                if organization_id:
-                    organization = Organization.objects.get(id=organization_id, tenant=import_job.tenant)
-                    organization_action = ImportCommitLog.Action.UPDATED
-                elif organization_data["name"]:
+                organization, organization_action = _resolve_existing_organization(import_job, organization_data, matches, resolved)
+                if not organization and organization_data["name"]:
                     organization = Organization.objects.create(
                         tenant=import_job.tenant,
                         name=organization_data["name"],

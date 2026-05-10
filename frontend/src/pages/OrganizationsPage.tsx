@@ -1180,6 +1180,7 @@ function getOverviewPills(organization: {
   categories: Array<{ id: number; name: string }>;
   subcategories: Array<{ id: number; name: string }>;
   tags: Array<{ id: number; name: string }>;
+  internal_tags: Array<{ id: number; name: string }>;
 }) {
   const pills = [
     ...organization.categories.map((category) => ({
@@ -1196,6 +1197,11 @@ function getOverviewPills(organization: {
       key: `tag-${tag.id}`,
       label: tag.name,
       kind: "tag" as const,
+    })),
+    ...organization.internal_tags.map((tag) => ({
+      key: `internal-tag-${tag.id}`,
+      label: tag.name,
+      kind: "internal-tag" as const,
     })),
   ];
   if (pills.length <= 5) return pills;

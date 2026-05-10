@@ -139,6 +139,7 @@ type ReviewDraft = {
   tagsText: string;
   organizationInternalTagsText: string;
   personInternalTagsText: string;
+  organizationIsPublished: boolean;
   fieldValues: Record<string, string>;
   suggestionStates: Record<string, SuggestionState>;
 };
@@ -177,10 +178,10 @@ export function ImportExportPage() {
   ]);
   const [filterQuery, setFilterQuery] = useState("");
   const primaryImportJob = useMemo(() => (
-    importJobs.jobs.find((job) => !["COMPLETED", "CANCELLED"].includes(job.status))
+    importJobs.jobs.find((job) => job.id === importJobs.selectedJobId)
     ?? importJobs.jobs[0]
     ?? null
-  ), [importJobs.jobs]);
+  ), [importJobs.jobs, importJobs.selectedJobId]);
 
   const visibleImportJobs = useMemo(() => {
     if (showImportHistory) return importJobs.jobs;
@@ -756,6 +757,9 @@ function InlineReviewEditor(props: {
       personInternalTagsText:
         getAcceptedDecisionArray(row, "person_internal_tags").join(", ")
         || getCurrentArray(row, ["person_internal_tags"]).join(", "),
+      organizationIsPublished:
+        getAcceptedDecisionBoolean(row, "organization_is_published")
+        ?? getCurrentBoolean(row, ["organization_is_published"]),
       fieldValues: initialFieldValues,
       suggestionStates,
     };
@@ -1038,6 +1042,25 @@ function InlineReviewEditor(props: {
                   onUse={applyBrregCandidate}
                   emptyLabel="Ingen BRREG-kandidater"
                 />
+              </Field>
+            ) : null}
+
+            {actorOnly ? (
+              <Field label="Publisering">
+                <label className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={draft.organizationIsPublished}
+                    onChange={(e) => {
+                      const nextDraft = {
+                        ...draft,
+                        organizationIsPublished: e.target.checked,
+                      };
+                      void persistDraft(nextDraft);
+                    }}
+                  />
+                  <span>Publiser aktør. Synlig i public API når slått på.</span>
+                </label>
               </Field>
             ) : null}
 
@@ -1587,6 +1610,10 @@ function buildDecisions(
     decisions.push({
       decision_type: "ACCEPT_AI_SUGGESTION",
       payload_json: { suggestion_key: "organization_internal_tags", value: splitCsvText(draft.organizationInternalTagsText) },
+    });
+    decisions.push({
+      decision_type: "ACCEPT_AI_SUGGESTION",
+      payload_json: { suggestion_key: "organization_is_published", value: draft.organizationIsPublished },
     });
   }
   if (importMode === "PEOPLE_ONLY") {
@@ -2168,6 +2195,14 @@ function getAcceptedDecisionArray(row: ImportRow, suggestionKey: string): string
   return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean) : [];
 }
 
+function getAcceptedDecisionBoolean(row: ImportRow, suggestionKey: string): boolean | null {
+  const match = row.decisions.find(
+    (decision) => decision.decision_type === "ACCEPT_AI_SUGGESTION" && decision.payload_json.suggestion_key === suggestionKey,
+  );
+  const value = match?.payload_json?.value;
+  return typeof value === "boolean" ? value : null;
+}
+
 function getCurrentText(row: ImportRow, keys: string[]): string {
   for (const key of keys) {
     const accepted = getAcceptedDecisionValue(row, key);
@@ -2201,6 +2236,23 @@ function getCurrentArray(row: ImportRow, keys: string[]): string[] {
     }
   }
   return [];
+}
+
+function getCurrentBoolean(row: ImportRow, keys: string[]): boolean {
+  for (const key of keys) {
+    const accepted = getAcceptedDecisionBoolean(row, key);
+    if (accepted !== null) return accepted;
+    const rawValue = row.raw_payload_json[key];
+    if (typeof rawValue === "boolean") return rawValue;
+    if (typeof rawValue === "string") {
+      const normalized = rawValue.trim().toLowerCase();
+      if (["1", "true", "yes", "ja", "on"].includes(normalized)) return true;
+      if (["0", "false", "no", "nei", "off"].includes(normalized)) return false;
+    }
+    const nested = getNestedSuggestedFallbackValue(row, key);
+    if (typeof nested === "boolean") return nested;
+  }
+  return false;
 }
 
 function getCurrentOrganizationLabel(row: ImportRow, organizations: Organization[]): string {
