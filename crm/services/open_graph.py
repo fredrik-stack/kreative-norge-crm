@@ -348,6 +348,11 @@ def refresh_organization_open_graph(
     force: bool = False,
     min_refresh_interval: timedelta = timedelta(hours=12),
 ) -> None:
+    def _fit(value: str | None, max_length: int) -> str | None:
+        if not value:
+            return None
+        return value[:max_length]
+
     primary = organization.get_primary_link()
     now = timezone.now()
 
@@ -377,15 +382,15 @@ def refresh_organization_open_graph(
 
     try:
         og = fetch_open_graph(primary)
-        organization.og_title = og.title
+        organization.og_title = _fit(og.title, 255)
         organization.og_description = og.description
-        organization.og_image_url = og.image_url
-        organization.auto_thumbnail_url = choose_best_thumbnail(primary, og.image_candidates)
+        organization.og_image_url = _fit(og.image_url, 200)
+        organization.auto_thumbnail_url = _fit(choose_best_thumbnail(primary, og.image_candidates), 200)
     except Exception:
         organization.og_image_url = None
         organization.auto_thumbnail_url = None
         if not organization.og_title:
-            organization.og_title = organization.name
+            organization.og_title = _fit(organization.name, 255)
     organization.og_last_fetched_at = now
     organization.save(
         update_fields=[
