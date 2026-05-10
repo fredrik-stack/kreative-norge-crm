@@ -435,11 +435,17 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
             import_job.status = ImportJob.Status.COMPLETED
             import_job.committed_at = timezone.now()
             logs = list(import_job.commit_logs.all())
+            committed_rows = import_job.rows.filter(row_status=ImportRow.RowStatus.COMMITTED).count()
+            skipped_rows = import_job.rows.filter(row_status=ImportRow.RowStatus.SKIPPED).count()
+            failed_rows = import_job.rows.filter(row_status=ImportRow.RowStatus.COMMIT_FAILED).count()
             import_job.summary_json = {
                 **(import_job.summary_json or {}),
-                "committed_rows": import_job.rows.filter(row_status=ImportRow.RowStatus.COMMITTED).count(),
-                "rows_skipped": import_job.rows.filter(row_status=ImportRow.RowStatus.SKIPPED).count(),
-                "rows_failed": import_job.rows.filter(row_status=ImportRow.RowStatus.COMMIT_FAILED).count(),
+                "committed_rows": committed_rows,
+                "rows_skipped": skipped_rows,
+                "rows_failed": failed_rows,
+                "review_required_rows": 0,
+                "invalid_rows": 0,
+                "valid_rows": committed_rows,
                 "organizations_created": sum(
                     1
                     for log in logs

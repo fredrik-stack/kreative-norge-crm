@@ -508,6 +508,7 @@ class ImportJobViewSet(
             commit_import_job(job, skip_unresolved=serializer.validated_data["skip_unresolved"])
         except ImportCommitBlocked as exc:
             raise ValidationError({"detail": str(exc)})
+        job.refresh_from_db()
         response_serializer = ImportJobSerializer(job, context=self.get_serializer_context())
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
