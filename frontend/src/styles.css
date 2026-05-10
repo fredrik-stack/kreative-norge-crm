@@ -384,6 +384,10 @@ select,
   justify-content: space-between;
 }
 
+.commit-hint {
+  max-width: 720px;
+}
+
 .checkbox-row {
   display: inline-flex;
   align-items: center;

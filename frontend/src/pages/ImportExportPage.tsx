@@ -318,6 +318,15 @@ function ImportReviewWorkspace(props: {
   const summary = selectedJob?.summary_json ?? {};
   const unresolvedCount = Number(summary.review_required_rows ?? 0);
   const aiStatus = String(summary.ai_generation_status ?? "");
+  const commitBlockedReason = !selectedJob
+    ? "Ingen preview er kjørt ennå."
+    : !["PREVIEW_READY", "AWAITING_REVIEW"].includes(selectedJob?.status ?? "")
+      ? "Importjobben er ikke klar for commit ennå."
+      : importJobs.busyAction === "commit"
+        ? "Commit pågår…"
+        : unresolvedCount > 0 && !skipUnresolved
+          ? `${unresolvedCount} rad${unresolvedCount === 1 ? "" : "er"} står fortsatt til review. Fullfør review eller kryss av for å hoppe over uavklarte rader.`
+          : null;
   const mode = normalizeImportMode(selectedJob?.import_mode, pendingImportMode);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const showPersonColumns = mode !== "ORGANIZATIONS_ONLY";
@@ -652,7 +661,7 @@ function ImportReviewWorkspace(props: {
       </div>
 
       <div className="commit-bar">
-        {!selectedJob ? <span className="meta">Ingen preview er kjørt ennå.</span> : null}
+        {commitBlockedReason ? <span className="meta commit-hint">{commitBlockedReason}</span> : null}
         {selectedJob && unresolvedCount > 0 ? (
           <label className="checkbox-row">
             <input type="checkbox" checked={skipUnresolved} onChange={(e) => setSkipUnresolved(e.target.checked)} />
@@ -664,12 +673,7 @@ function ImportReviewWorkspace(props: {
         <button
           type="button"
           className="primary-button"
-          disabled={
-            !selectedJob ||
-            !["PREVIEW_READY", "AWAITING_REVIEW"].includes(selectedJob?.status ?? "") ||
-            importJobs.busyAction === "commit" ||
-            (unresolvedCount > 0 && !skipUnresolved)
-          }
+          disabled={Boolean(commitBlockedReason)}
           onClick={() => void importJobs.commit(skipUnresolved)}
         >
           Commit import
