@@ -308,6 +308,12 @@ export async function createOrganization(
   });
 }
 
+export async function deleteOrganization(tenantId: number, organizationId: number): Promise<void> {
+  await request(`/api/tenants/${tenantId}/organizations/${organizationId}/`, {
+    method: "DELETE",
+  });
+}
+
 export type OrganizationPersonCreate = Pick<
   OrganizationPerson,
   "organization" | "person" | "status" | "publish_person"

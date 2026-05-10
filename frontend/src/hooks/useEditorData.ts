@@ -9,6 +9,7 @@ import {
   createOrganizationPerson,
   createPerson,
   createPersonContact,
+  deleteOrganization,
   getSubcategories,
   deleteOrganizationPerson,
   deletePerson,
@@ -739,6 +740,17 @@ export function useEditorData() {
     await submitOrganizationDraft();
   }
 
+  async function onDeleteOrganization() {
+    if (!tenantId || typeof selectedOrgId !== "number") return;
+    try {
+      setError(null);
+      await deleteOrganization(tenantId, selectedOrgId);
+      await reloadOrganizations();
+    } catch (err) {
+      setError(apiErrorMessage(err, "Kunne ikke slette aktør"));
+    }
+  }
+
   async function onRefreshOrganizationPreview() {
     if (!tenantId || typeof selectedOrgId !== "number") return;
     setPreviewRefreshState("saving");
@@ -1267,6 +1279,7 @@ export function useEditorData() {
     selectedOrganizationLinks,
     availablePersonsForLink,
     onSubmit,
+    onDeleteOrganization,
     onRefreshOrganizationPreview,
     onCreateLink,
     onCreateLinkedPerson,

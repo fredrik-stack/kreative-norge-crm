@@ -783,6 +783,7 @@ function InlineReviewEditor(props: {
   const visibleCategorySuggestions = (draft.suggestionStates.suggested_categories ?? "pending") === "ignored" ? [] : categorySuggestions;
   const visibleSubcategorySuggestions = (draft.suggestionStates.suggested_subcategories ?? "pending") === "ignored" ? [] : subcategorySuggestions;
   const brregCandidates = getBrregCandidates(row);
+  const duplicateCandidates = asCandidateList(row.ai_suggestions_json.organization_match_candidates);
   const diagnosticMeta = getDiagnosticMeta(row);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [brregLookupState, setBrregLookupState] = useState<"idle" | "loading" | "done" | "error">("idle");
@@ -1036,6 +1037,25 @@ function InlineReviewEditor(props: {
             ) : null}
 
             {actorOnly ? (
+              <Field label="Potensiell dublettkonflikt">
+                <SuggestionCandidates
+                  candidates={duplicateCandidates}
+                  onUse={(id) => {
+                    const organizationId = typeof id === "number" ? id : Number(id);
+                    if (!organizationId) return;
+                    const nextDraft = {
+                      ...draft,
+                      organizationDecision: "USE_EXISTING_ORGANIZATION" as const,
+                      organizationId,
+                    };
+                    void persistDraft(nextDraft);
+                  }}
+                  emptyLabel="Ingen dublettkandidater"
+                />
+              </Field>
+            ) : null}
+
+            {actorOnly ? (
               <Field label="BRREG-kandidater">
                 <SuggestionCandidates
                   candidates={brregCandidates}
@@ -1121,7 +1141,14 @@ function InlineReviewEditor(props: {
             <Field label="Hovedkategori">
               <select
                 value={draft.categoryId}
-                onChange={(e) => setDraft((current) => ({ ...current, categoryId: Number(e.target.value) || "", subcategoryId: "" }))}
+                onChange={(e) => {
+                  const nextDraft = {
+                    ...draft,
+                    categoryId: (Number(e.target.value) || "") as number | "",
+                    subcategoryId: "" as number | "",
+                  };
+                  void persistDraft(nextDraft);
+                }}
               >
                 <option value="">Ingen</option>
                 {categories.map((category) => (
@@ -1147,12 +1174,13 @@ function InlineReviewEditor(props: {
             <Field label="Underkategori">
               <select
                 value={subcategorySelectValue}
-                onChange={(e) =>
-                  setDraft((current) => ({
-                    ...current,
-                    subcategoryId: Number(e.target.value) || "",
-                  }))
-                }
+                onChange={(e) => {
+                  const nextDraft = {
+                    ...draft,
+                    subcategoryId: (Number(e.target.value) || "") as number | "",
+                  };
+                  void persistDraft(nextDraft);
+                }}
               >
                 <option value="">Ingen</option>
                 {!draft.subcategoryId && currentSubcategoryLabel ? (

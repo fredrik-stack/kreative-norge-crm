@@ -875,7 +875,7 @@ select,
 
 .editor-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
   gap: 0.8rem;
   margin-top: 1rem;
   align-items: stretch;
@@ -889,7 +889,7 @@ select,
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.8);
   border: 1px solid var(--line);
-  min-height: 170px;
+  min-height: 190px;
   overflow: hidden;
 }
 
@@ -952,7 +952,7 @@ select,
 .editor-card-head .meta {
   flex-shrink: 0;
   text-align: right;
-  max-width: 7.5rem;
+  max-width: 9rem;
   overflow-wrap: anywhere;
 }
 

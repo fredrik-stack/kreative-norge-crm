@@ -602,6 +602,18 @@ function OrganizationEditorPanel(props: {
               <button type="button" className="ghost-button" onClick={editor.onResetOrganizationDraft}>
                 Nullstill
               </button>
+              <button
+                type="button"
+                className="link-delete"
+                onClick={() => {
+                  if (window.confirm("Slette valgt aktør? Dette kan påvirke koblinger og importdata.")) {
+                    editor.onDeleteOrganization();
+                  }
+                }}
+                disabled={typeof editor.selectedOrgId !== "number" || !editor.canDelete}
+              >
+                Slett aktør
+              </button>
               {editor.isPending ? <span className="meta">Oppdaterer visning...</span> : null}
             </div>
           </form>
