@@ -16,6 +16,16 @@ import {
 } from "../api";
 import type { ImportJob, ImportRow, Paginated } from "../types";
 
+function summarizeAiProgress(job: ImportJob | null) {
+  const summary = job?.summary_json ?? {};
+  return {
+    status: String(summary.ai_generation_status ?? ""),
+    pending: Number(summary.rows_ai_pending ?? 0),
+    completed: Number(summary.rows_ai_completed ?? 0),
+    failed: Number(summary.rows_ai_failed ?? 0),
+  };
+}
+
 export function useImportJobs(tenantId: number | null) {
   const [jobs, setJobs] = useState<ImportJob[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
@@ -177,15 +187,44 @@ export function useImportJobs(tenantId: number | null) {
     setBusyAction("generate-ai");
     setError(null);
     try {
-      const updated = await generateImportJobAi(tenantId, selectedJobId, {
-        retry_failed: retryFailed,
-        batch_size: 1,
-      });
-      setSelectedJob(updated);
-      await refreshJobs(updated.id);
-      await refreshSelectedJob(updated.id);
-      await refreshRows(undefined, updated.id);
-      return updated;
+      let latestJob: ImportJob | null = null;
+      let nextRetryFailed = retryFailed;
+      let previousSignature = "";
+
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        const updated = await generateImportJobAi(tenantId, selectedJobId, {
+          retry_failed: nextRetryFailed,
+          batch_size: 1,
+        });
+        latestJob = updated;
+        setSelectedJob(updated);
+
+        const progress = summarizeAiProgress(updated);
+        const signature = `${progress.status}:${progress.pending}:${progress.completed}:${progress.failed}`;
+        const hasMorePending = progress.pending > 0;
+        const hasRetryableFailures = progress.failed > 0;
+
+        if (progress.status === "completed") break;
+        if (signature === previousSignature) break;
+        previousSignature = signature;
+
+        if (hasMorePending) {
+          nextRetryFailed = false;
+          continue;
+        }
+        if (hasRetryableFailures) {
+          nextRetryFailed = true;
+          continue;
+        }
+        break;
+      }
+
+      if (latestJob) {
+        await refreshJobs(latestJob.id);
+        await refreshSelectedJob(latestJob.id);
+        await refreshRows(undefined, latestJob.id);
+      }
+      return latestJob;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Kunne ikke generere AI-forslag.");
       return null;
