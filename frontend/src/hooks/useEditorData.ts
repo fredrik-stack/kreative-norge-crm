@@ -21,6 +21,7 @@ import {
   getTags,
   getInternalTags,
   getTenants,
+  mergeOrganization,
   patchOrganization,
   patchOrganizationPerson,
   patchPerson,
@@ -751,6 +752,19 @@ export function useEditorData() {
     }
   }
 
+  async function onMergeOrganization(targetOrganizationId: number) {
+    if (!tenantId || typeof selectedOrgId !== "number") return null;
+    try {
+      setError(null);
+      const merged = await mergeOrganization(tenantId, selectedOrgId, targetOrganizationId);
+      await Promise.all([reloadOrganizations(merged.id), reloadPeopleAndLinks()]);
+      return merged;
+    } catch (err) {
+      setError(apiErrorMessage(err, "Kunne ikke slå sammen aktører"));
+      return null;
+    }
+  }
+
   async function onRefreshOrganizationPreview() {
     if (!tenantId || typeof selectedOrgId !== "number") return;
     setPreviewRefreshState("saving");
@@ -1280,6 +1294,7 @@ export function useEditorData() {
     availablePersonsForLink,
     onSubmit,
     onDeleteOrganization,
+    onMergeOrganization,
     onRefreshOrganizationPreview,
     onCreateLink,
     onCreateLinkedPerson,

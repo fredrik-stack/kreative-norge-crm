@@ -67,6 +67,7 @@ ALLOWED_SUGGESTION_FIELD_KEYS = (
 )
 
 OPENAI_SCHEMA_FIELD_KEYS = (
+    "organization_municipalities",
     "organization_email",
     "organization_website_url",
     "organization_instagram_url",
@@ -74,7 +75,9 @@ OPENAI_SCHEMA_FIELD_KEYS = (
     "organization_linkedin_url",
     "organization_facebook_url",
     "organization_youtube_url",
+    "person_title",
     "person_email",
+    "person_municipality",
     "person_website_url",
     "person_instagram_url",
     "person_tiktok_url",
@@ -785,7 +788,7 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
     if not organization.get("municipalities"):
         exact_org_municipality = _suggest_field_from_exact_match(tenant, match_result, "organization", "municipalities")
         organization_municipality = exact_org_municipality
-        if not organization_municipality and brreg_candidate and brreg_candidate.municipality and brreg_candidate.score >= 0.75:
+        if not organization_municipality and brreg_candidate and brreg_candidate.municipality and brreg_candidate.score >= 0.55:
             organization_municipality = brreg_candidate.municipality
         if organization_municipality:
             suggested_fields["organization_municipalities"] = {
@@ -1099,6 +1102,19 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
     person = normalized_payload.get("person") or {}
     website_url = _infer_website_url(normalized_payload) or organization.get("website_url") or person.get("website_url")
     website_signals = _extract_contact_signals_from_website(website_url)
+    organization_search = search_organization_signals(normalized_payload)
+    person_search = search_person_signals(normalized_payload) if person.get("full_name") else None
+    brreg_candidates = [
+        {
+            "org_number": candidate.org_number,
+            "name": candidate.name,
+            "municipality": candidate.municipality,
+            "website_url": candidate.website_url,
+            "email": candidate.email,
+            "score": candidate.score,
+        }
+        for candidate in brreg_candidates_for_payload(normalized_payload, limit=4)
+    ]
     populated_keys = _existing_suggestion_keys(normalized_payload)
     taxonomy = {
         "categories": list(Category.objects.values_list("name", flat=True)),
@@ -1154,6 +1170,22 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
         "normalized_payload": normalized_payload,
         "match_result": match_result,
         "website_signals": website_signals,
+        "organization_search_signals": {
+            "website_url": organization_search.website_url,
+            "emails": organization_search.emails or [],
+            "socials": organization_search.socials or {},
+            "text_snippets": organization_search.text_snippets or [],
+            "org_numbers": organization_search.org_numbers or [],
+        },
+        "person_search_signals": {
+            "website_url": person_search.website_url,
+            "emails": person_search.emails or [],
+            "socials": person_search.socials or {},
+            "text_snippets": person_search.text_snippets or [],
+        }
+        if person_search
+        else None,
+        "brreg_candidates": brreg_candidates,
         "taxonomy": taxonomy,
         "review_targets": editable_targets,
         "rules": {
@@ -1171,7 +1203,10 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
             "Suggest main category separately from subcategory.",
             "Keep tags separate from categories and subcategories.",
             "Only use existing category and subcategory names from the provided taxonomy lists.",
+            "Use organization categories, subcategories, and internal tags as strong context when evaluating municipality, official website, and social profiles.",
             "Use website_signals for public email, municipality clues, and social profile URLs when available.",
+            "Use organization_search_signals and person_search_signals when website_signals are incomplete.",
+            "Use BRREG candidates as stronger evidence for municipality and official organization identity than generic web snippets.",
             "Only suggest municipality when reasonably confident.",
             "Only suggest public email when it is clearly present in website_signals or the normalized data.",
             "Only suggest website or social profile URLs when plausible and editorially useful.",
@@ -1219,6 +1254,7 @@ def _openai_schema() -> dict[str, Any]:
                     "type": "object",
                     "additionalProperties": False,
                     "properties": {
+                        "organization_municipalities": string_field_value,
                         "organization_email": string_field_value,
                         "organization_website_url": string_field_value,
                         "organization_instagram_url": string_field_value,
@@ -1226,7 +1262,9 @@ def _openai_schema() -> dict[str, Any]:
                         "organization_linkedin_url": string_field_value,
                         "organization_facebook_url": string_field_value,
                         "organization_youtube_url": string_field_value,
+                        "person_title": string_field_value,
                         "person_email": string_field_value,
+                        "person_municipality": string_field_value,
                         "person_website_url": string_field_value,
                         "person_instagram_url": string_field_value,
                         "person_tiktok_url": string_field_value,
@@ -1236,7 +1274,7 @@ def _openai_schema() -> dict[str, Any]:
                         "suggested_categories": array_field_value,
                         "suggested_subcategories": array_field_value,
                     },
-                    "required": list(OPENAI_SCHEMA_FIELD_KEYS),
+                    "required": [],
                 },
                 "provider": {"type": "string"},
             },

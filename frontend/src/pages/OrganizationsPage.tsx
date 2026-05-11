@@ -340,6 +340,22 @@ function OrganizationEditorPanel(props: {
 }) {
   const { navigate, orgId, invalidOrgRoute } = props;
   const editor = useEditor();
+  const [mergeQuery, setMergeQuery] = useState("");
+  const [mergeTargetId, setMergeTargetId] = useState<number | "">("");
+  const mergeCandidates = useMemo(() => {
+    if (typeof editor.selectedOrgId !== "number") return [];
+    const query = mergeQuery.trim().toLowerCase();
+    return editor.organizations
+      .filter((organization) => organization.id !== editor.selectedOrgId)
+      .filter((organization) => {
+        if (!query) return true;
+        return [organization.name, organization.org_number ?? "", organization.municipalities ?? ""]
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+      })
+      .slice(0, 25);
+  }, [editor.organizations, editor.selectedOrgId, mergeQuery]);
 
   return (
     <section className="panel editor">
@@ -616,6 +632,55 @@ function OrganizationEditorPanel(props: {
               </button>
               {editor.isPending ? <span className="meta">Oppdaterer visning...</span> : null}
             </div>
+
+            {typeof editor.selectedOrgId === "number" && editor.canDelete ? (
+              <div className="merge-panel">
+                <div className="merge-panel-head">
+                  <strong>Slå sammen dublett</strong>
+                  <span className="meta">Flytt koblinger, tags og metadata inn i valgt målaktør.</span>
+                </div>
+                <div className="merge-panel-grid">
+                  <input
+                    value={mergeQuery}
+                    onChange={(event) => setMergeQuery(event.target.value)}
+                    placeholder="Søk etter målaktør"
+                  />
+                  <select
+                    value={mergeTargetId}
+                    onChange={(event) => setMergeTargetId(Number(event.target.value) || "")}
+                  >
+                    <option value="">Velg målaktør</option>
+                    {mergeCandidates.map((organization) => (
+                      <option key={organization.id} value={organization.id}>
+                        {organization.name}
+                        {organization.municipalities ? ` · ${organization.municipalities}` : ""}
+                        {organization.org_number ? ` · ${organization.org_number}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    disabled={!mergeTargetId}
+                    onClick={async () => {
+                      if (!mergeTargetId) return;
+                      const confirmed = window.confirm(
+                        "Slå sammen denne aktøren inn i valgt målaktør? Kildeaktøren slettes etterpå.",
+                      );
+                      if (!confirmed) return;
+                      const merged = await editor.onMergeOrganization(mergeTargetId);
+                      if (merged) {
+                        setMergeQuery("");
+                        setMergeTargetId("");
+                        navigate(`/organizations/${merged.id}`);
+                      }
+                    }}
+                  >
+                    Slå sammen i valgt aktør
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </form>
 
           <OrganizationLinksPanel navigate={navigate} />
@@ -1279,15 +1344,9 @@ function TagSuggestions(props: {
 }
 
 function getTagSuggestions(value: string, tags: Array<{ id: number; name: string }>) {
-  const parsed = value.split(",");
-  const activeTerm = (parsed[parsed.length - 1] ?? "").trim().toLocaleLowerCase("nb");
-  const chosen = new Set(
-    parsed
-      .slice(0, -1)
-      .map((item) => item.trim().toLocaleLowerCase("nb"))
-      .filter(Boolean),
-  );
+  const { completedTags, activeTerm } = parseTagInputState(value);
   if (!activeTerm) return [];
+  const chosen = new Set(completedTags.map((item) => item.toLocaleLowerCase("nb")));
   return tags
     .filter((tag) => !chosen.has(tag.name.toLocaleLowerCase("nb")))
     .filter((tag) => tag.name.toLocaleLowerCase("nb").includes(activeTerm))
@@ -1295,13 +1354,19 @@ function getTagSuggestions(value: string, tags: Array<{ id: number; name: string
 }
 
 function applyTagSuggestion(currentValue: string, tagName: string) {
-  const parts = currentValue
-    .split(",")
+  const { completedTags } = parseTagInputState(currentValue);
+  return [...completedTags, tagName].join(", ");
+}
+
+function parseTagInputState(value: string) {
+  const segments = value.split(",");
+  const endsWithComma = /\s*,\s*$/.test(value);
+  const completedTags = segments
+    .slice(0, endsWithComma ? segments.length : -1)
     .map((item) => item.trim())
     .filter(Boolean);
-  if (parts.length === 0) return tagName;
-  parts[parts.length - 1] = tagName;
-  return parts.join(", ");
+  const activeTerm = (endsWithComma ? "" : segments[segments.length - 1] ?? "").trim().toLocaleLowerCase("nb");
+  return { completedTags, activeTerm };
 }
 
 function matchesOrganizationFilters(input: {

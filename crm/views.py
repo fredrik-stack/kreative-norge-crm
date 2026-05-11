@@ -43,6 +43,7 @@ from .serializers import (
     CategorySerializer,
     SubcategorySerializer,
     OrganizationSerializer,
+    OrganizationMergeSerializer,
     PersonSerializer,
     OrganizationPersonSerializer,
     PersonContactSerializer,
@@ -59,6 +60,7 @@ from .serializers import (
     ImportJobBrregLookupSerializer,
 )
 from .services.open_graph import refresh_organization_open_graph
+from .services.organization_merge import merge_organization_into
 
 import_normalizers_module = importlib.import_module("crm.services.import.normalizers")
 import_commit_module = importlib.import_module("crm.services.import.commit")
@@ -255,6 +257,18 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         organization.refresh_from_db()
         serializer = self.get_serializer(organization)
         return Response(serializer.data)
+
+    @action(detail=True, methods=["post"], url_path="merge-into")
+    def merge_into(self, request, tenant_id=None, pk=None):
+        source = self.get_object()
+        serializer = OrganizationMergeSerializer(
+            data=request.data,
+            context={"request": request, "organization": source},
+        )
+        serializer.is_valid(raise_exception=True)
+        target = serializer.validated_data["target_organization"]
+        merged = merge_organization_into(source=source, target=target)
+        return Response(self.get_serializer(merged).data)
 
 
 class PersonViewSet(viewsets.ModelViewSet):

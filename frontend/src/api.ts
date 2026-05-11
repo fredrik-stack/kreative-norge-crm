@@ -314,6 +314,17 @@ export async function deleteOrganization(tenantId: number, organizationId: numbe
   });
 }
 
+export async function mergeOrganization(
+  tenantId: number,
+  sourceOrganizationId: number,
+  targetOrganizationId: number,
+): Promise<Organization> {
+  return request<Organization>(`/api/tenants/${tenantId}/organizations/${sourceOrganizationId}/merge-into/`, {
+    method: "POST",
+    body: JSON.stringify({ target_organization_id: targetOrganizationId }),
+  });
+}
+
 export type OrganizationPersonCreate = Pick<
   OrganizationPerson,
   "organization" | "person" | "status" | "publish_person"

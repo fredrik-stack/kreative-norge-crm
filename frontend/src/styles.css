@@ -889,7 +889,7 @@ select,
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.8);
   border: 1px solid var(--line);
-  min-height: 190px;
+  min-height: 164px;
   overflow: hidden;
 }
 
@@ -928,7 +928,7 @@ select,
 .editor-card-body {
   min-width: 0;
   display: grid;
-  gap: 0.5rem;
+  gap: 0.4rem;
   align-content: start;
 }
 
@@ -1002,6 +1002,26 @@ select,
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+}
+
+.merge-panel {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.9rem;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.merge-panel-head {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.merge-panel-grid {
+  display: grid;
+  gap: 0.6rem;
 }
 
 .editor-card-actions .ghost-button,

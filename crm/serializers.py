@@ -279,6 +279,27 @@ class OrganizationSerializer(serializers.ModelSerializer):
     def get_preview_image_url(self, obj):
         return obj.get_preview_image_url()
 
+
+class OrganizationMergeSerializer(serializers.Serializer):
+    target_organization_id = serializers.PrimaryKeyRelatedField(
+        queryset=Organization.objects.all(),
+        source="target_organization",
+    )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        source = self.context.get("organization")
+        target = attrs.get("target_organization")
+        if source is None:
+            raise serializers.ValidationError("Source organization is required.")
+        if target is None:
+            raise serializers.ValidationError({"target_organization_id": ["Velg en målaktør."]})
+        if source.pk == target.pk:
+            raise serializers.ValidationError({"target_organization_id": ["Kan ikke slå sammen en aktør med seg selv."]})
+        if source.tenant_id != target.tenant_id:
+            raise serializers.ValidationError({"target_organization_id": ["Målaktøren må tilhøre samme tenant."]})
+        return attrs
+
 class PersonContactSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         attrs = super().validate(attrs)
