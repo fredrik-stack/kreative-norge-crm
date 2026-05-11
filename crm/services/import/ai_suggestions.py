@@ -1244,6 +1244,39 @@ def _openai_schema() -> dict[str, Any]:
         },
         "required": ["value", "confidence", "source", "requires_review"],
     }
+    nullable_string_field_value = {
+        "anyOf": [
+            string_field_value,
+            {"type": "null"},
+        ]
+    }
+    nullable_array_field_value = {
+        "anyOf": [
+            array_field_value,
+            {"type": "null"},
+        ]
+    }
+    suggested_field_properties = {
+        "organization_municipalities": nullable_string_field_value,
+        "organization_email": nullable_string_field_value,
+        "organization_website_url": nullable_string_field_value,
+        "organization_instagram_url": nullable_string_field_value,
+        "organization_tiktok_url": nullable_string_field_value,
+        "organization_linkedin_url": nullable_string_field_value,
+        "organization_facebook_url": nullable_string_field_value,
+        "organization_youtube_url": nullable_string_field_value,
+        "person_title": nullable_string_field_value,
+        "person_email": nullable_string_field_value,
+        "person_municipality": nullable_string_field_value,
+        "person_website_url": nullable_string_field_value,
+        "person_instagram_url": nullable_string_field_value,
+        "person_tiktok_url": nullable_string_field_value,
+        "person_linkedin_url": nullable_string_field_value,
+        "person_facebook_url": nullable_string_field_value,
+        "person_youtube_url": nullable_string_field_value,
+        "suggested_categories": nullable_array_field_value,
+        "suggested_subcategories": nullable_array_field_value,
+    }
     return {
         "name": "import_ai_suggestions",
         "schema": {
@@ -1253,28 +1286,8 @@ def _openai_schema() -> dict[str, Any]:
                 "suggested_fields": {
                     "type": "object",
                     "additionalProperties": False,
-                    "properties": {
-                        "organization_municipalities": string_field_value,
-                        "organization_email": string_field_value,
-                        "organization_website_url": string_field_value,
-                        "organization_instagram_url": string_field_value,
-                        "organization_tiktok_url": string_field_value,
-                        "organization_linkedin_url": string_field_value,
-                        "organization_facebook_url": string_field_value,
-                        "organization_youtube_url": string_field_value,
-                        "person_title": string_field_value,
-                        "person_email": string_field_value,
-                        "person_municipality": string_field_value,
-                        "person_website_url": string_field_value,
-                        "person_instagram_url": string_field_value,
-                        "person_tiktok_url": string_field_value,
-                        "person_linkedin_url": string_field_value,
-                        "person_facebook_url": string_field_value,
-                        "person_youtube_url": string_field_value,
-                        "suggested_categories": array_field_value,
-                        "suggested_subcategories": array_field_value,
-                    },
-                    "required": [],
+                    "properties": suggested_field_properties,
+                    "required": list(suggested_field_properties.keys()),
                 },
                 "provider": {"type": "string"},
             },

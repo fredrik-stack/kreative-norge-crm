@@ -1583,6 +1583,32 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(signals.emails, ["post@nordlyd.no"])
         self.assertTrue(any("booking og info" in snippet for snippet in signals.text_snippets or []))
 
+    def test_openai_schema_requires_all_suggested_fields_and_allows_null_values(self):
+        schema = import_ai_suggestions_module._openai_schema()["schema"]
+        suggested_fields = schema["properties"]["suggested_fields"]
+        properties = suggested_fields["properties"]
+
+        self.assertEqual(set(suggested_fields["required"]), set(properties.keys()))
+        self.assertEqual(
+            properties["organization_municipalities"],
+            {
+                "anyOf": [
+                    {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "value": {"type": "string"},
+                            "confidence": {"type": "number"},
+                            "source": {"type": "string"},
+                            "requires_review": {"type": "boolean"},
+                        },
+                        "required": ["value", "confidence", "source", "requires_review"],
+                    },
+                    {"type": "null"},
+                ]
+            },
+        )
+
     @patch("crm.services.import.commit.refresh_organization_open_graph")
     def test_accepted_ai_suggestion_can_influence_commit(self, refresh_mock):
         row = self.base_row | {"organization_website_url": "", "organization_note": "Sterk aktør i musikkfeltet."}
