@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
 import { Field } from "../components/Field";
@@ -493,6 +494,10 @@ function OrganizationEditorPanel(props: {
               <input
                 value={editor.organizationTagInput}
                 onChange={(e) => editor.setOrganizationTagInput(e.target.value)}
+                onKeyDown={(event) =>
+                  handleCommaSeparatedTagInputKeyDown(event, editor.organizationTagInput, editor.setOrganizationTagInput, 5)
+                }
+                onBlur={() => editor.setOrganizationTagInput(normalizeTagInputDisplay(editor.organizationTagInput, 5))}
                 placeholder="f.eks. live, management, booking"
               />
               <TagSuggestions
@@ -509,6 +514,10 @@ function OrganizationEditorPanel(props: {
               <input
                 value={editor.organizationInternalTagInput}
                 onChange={(e) => editor.setOrganizationInternalTagInput(e.target.value)}
+                onKeyDown={(event) =>
+                  handleCommaSeparatedTagInputKeyDown(event, editor.organizationInternalTagInput, editor.setOrganizationInternalTagInput)
+                }
+                onBlur={() => editor.setOrganizationInternalTagInput(normalizeTagInputDisplay(editor.organizationInternalTagInput))}
                 placeholder="f.eks. prioritet, partner, evalueres"
               />
               <TagSuggestions
@@ -1356,6 +1365,32 @@ function getTagSuggestions(value: string, tags: Array<{ id: number; name: string
 function applyTagSuggestion(currentValue: string, tagName: string) {
   const { completedTags } = parseTagInputState(currentValue);
   return [...completedTags, tagName].join(", ");
+}
+
+function handleCommaSeparatedTagInputKeyDown(
+  event: KeyboardEvent<HTMLInputElement>,
+  currentValue: string,
+  onChange: (nextValue: string) => void,
+  maxCount?: number,
+) {
+  if (event.key !== "," && event.key !== "Enter") return;
+  event.preventDefault();
+  const normalized = normalizeTagInputDisplay(currentValue, maxCount);
+  if (!normalized) {
+    onChange("");
+    return;
+  }
+  onChange(`${normalized}, `);
+}
+
+function normalizeTagInputDisplay(value: string, maxCount?: number) {
+  const names = [...new Set(
+    value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean),
+  )];
+  return (typeof maxCount === "number" ? names.slice(0, maxCount) : names).join(", ");
 }
 
 function parseTagInputState(value: string) {
