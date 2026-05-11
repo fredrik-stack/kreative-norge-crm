@@ -179,7 +179,7 @@ export function useImportJobs(tenantId: number | null) {
     try {
       const updated = await generateImportJobAi(tenantId, selectedJobId, {
         retry_failed: retryFailed,
-        batch_size: 3,
+        batch_size: 1,
       });
       setSelectedJob(updated);
       await refreshJobs(updated.id);
@@ -201,7 +201,7 @@ export function useImportJobs(tenantId: number | null) {
     if (busyAction) return;
     const timer = window.setTimeout(() => {
       void generateAi(false);
-    }, 900);
+    }, 2500);
     return () => window.clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId, selectedJobId, selectedJob, busyAction]);

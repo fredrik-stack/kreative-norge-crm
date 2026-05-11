@@ -8,8 +8,6 @@ from urllib.request import Request, urlopen
 
 from django.conf import settings
 
-from crm.services.open_graph import MAX_HTML_BYTES, _fetch_url
-
 from .normalizers import normalize_name, normalize_space
 
 
@@ -22,15 +20,6 @@ SOCIAL_HOSTS = {
     "facebook.com": "facebook",
     "youtube.com": "youtube",
 }
-LIKELY_CONTACT_PATHS = (
-    "/kontakt",
-    "/kontaktinfo",
-    "/kontakt-oss",
-    "/om",
-    "/om-oss",
-    "/contact",
-    "/about",
-)
 
 
 @dataclass
@@ -197,35 +186,6 @@ def _extract_org_numbers(results: list[dict[str, str]]) -> list[str]:
     return numbers
 
 
-def _extract_page_signals(url: str) -> tuple[list[str], dict[str, str], str]:
-    safe_url = _sanitize_url(url)
-    if not safe_url:
-        return [], {}, ""
-    try:
-        result = _fetch_url(
-            safe_url,
-            timeout_seconds=min(settings.SEARCH_ENRICHMENT_TIMEOUT, 5),
-            max_bytes=MAX_HTML_BYTES,
-            allowed_content_prefixes=("text/html",),
-        )
-    except Exception:
-        return [], {}, ""
-    html = result.body.decode("utf-8", errors="ignore")
-    emails = list(dict.fromkeys(match.group(0).lower() for match in EMAIL_RE.finditer(html)))
-    urls = re.findall(r"https?://[^\s\"'<>]+", html, flags=re.IGNORECASE)
-    socials: dict[str, str] = {}
-    for candidate in urls:
-        normalized = _sanitize_url(candidate.rstrip(").,;"))
-        if not normalized:
-            continue
-        host = (urlparse(normalized).hostname or "").lower()
-        for domain, label in SOCIAL_HOSTS.items():
-            if domain in host and label not in socials:
-                socials[label] = normalized
-    text = normalize_space(re.sub(r"<[^>]+>", " ", html))
-    return emails, socials, text
-
-
 def _merge_emails(*email_lists: list[str]) -> list[str]:
     merged: list[str] = []
     seen: set[str] = set()
@@ -364,7 +324,12 @@ def _extract_search_signals(
         )
         if normalized_target and normalized_target not in website_haystack:
             website_url = None
-    page_emails: list[str] = []
+    snippet_emails = _merge_emails(
+        *[
+            [match.group(0).lower() for match in EMAIL_RE.finditer(" ".join([result.get("title", ""), result.get("snippet", "")]))]
+            for result in results
+        ]
+    )
     socials: dict[str, str] = {}
 
     for result in results:
@@ -380,26 +345,10 @@ def _extract_search_signals(
                 socials[label] = url
                 break
 
-    if website_url:
-        root_emails, root_socials, root_text = _extract_page_signals(website_url)
-        page_emails = _merge_emails(page_emails, root_emails)
-        snippets.extend([root_text] if root_text else [])
-        for key, value in root_socials.items():
-            socials.setdefault(key, value)
-        for path in LIKELY_CONTACT_PATHS:
-            candidate_url = _sanitize_url(f"{website_url.rstrip('/')}{path}")
-            if not candidate_url:
-                continue
-            emails, nested_socials, nested_text = _extract_page_signals(candidate_url)
-            page_emails = _merge_emails(page_emails, emails)
-            snippets.extend([nested_text] if nested_text else [])
-            for key, value in nested_socials.items():
-                socials.setdefault(key, value)
-
     prefix = "person_" if person_specific else "organization_"
     return SearchSignals(
         website_url=website_url,
-        emails=page_emails,
+        emails=snippet_emails,
         socials={f"{prefix}{key}_url": value for key, value in socials.items()},
         text_snippets=[snippet for snippet in snippets if snippet][:8],
         org_numbers=_extract_org_numbers(results),

@@ -1551,6 +1551,38 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(suggestions["suggested_fields"]["person_instagram_url"]["value"], "https://instagram.com/adastorm")
         self.assertEqual(suggestions["suggested_fields"]["organization_website_url"]["value"], "https://nordlyd.no")
 
+    def test_search_organization_signals_extracts_primary_site_and_socials_from_search_results(self):
+        search_enrichment_module = importlib.import_module("crm.services.import.search_enrichment")
+        fake_results = [
+            {
+                "url": "https://www.nordlyd.no/kontakt",
+                "title": "Nordlyd AS",
+                "snippet": "Kontakt Nordlyd på post@nordlyd.no for booking og info.",
+            },
+            {
+                "url": "https://www.instagram.com/nordlyd",
+                "title": "Nordlyd på Instagram",
+                "snippet": "Nordlyd deler oppdateringer fra musikkmiljøet.",
+            },
+        ]
+
+        with patch.object(search_enrichment_module, "_search", return_value=fake_results):
+            signals = search_enrichment_module.search_organization_signals(
+                normalize_import_row(
+                    self.base_row
+                    | {
+                        "organization_email": "",
+                        "organization_website_url": "",
+                        "organization_instagram_url": "",
+                    }
+                )
+            )
+
+        self.assertEqual(signals.website_url, "https://www.nordlyd.no/kontakt")
+        self.assertEqual(signals.socials["organization_instagram_url"], "https://www.instagram.com/nordlyd")
+        self.assertEqual(signals.emails, ["post@nordlyd.no"])
+        self.assertTrue(any("booking og info" in snippet for snippet in signals.text_snippets or []))
+
     @patch("crm.services.import.commit.refresh_organization_open_graph")
     def test_accepted_ai_suggestion_can_influence_commit(self, refresh_mock):
         row = self.base_row | {"organization_website_url": "", "organization_note": "Sterk aktør i musikkfeltet."}
