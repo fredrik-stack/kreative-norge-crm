@@ -939,6 +939,58 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertGreater(self.job.commit_logs.count(), 0)
         refresh_mock.assert_called_once()
 
+    @patch("crm.services.import.commit.refresh_organization_open_graph")
+    def test_commit_preserves_existing_subcategories_when_import_row_has_none(self, refresh_mock):
+        existing = Organization.objects.create(
+            tenant=self.tenant,
+            name="Nordlyd AS",
+            org_number="123456789",
+            website_url="https://nordlyd.no",
+        )
+        existing.categories.set([self.music])
+        existing.subcategories.set([self.band])
+
+        row = self.base_row | {
+            "organization_categories": "",
+            "organization_subcategories": "",
+        }
+        self._upload_csv([row])
+        preview_response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(preview_response.status_code, 200, preview_response.content)
+
+        commit_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/commit/",
+            {"skip_unresolved": False},
+            format="json",
+        )
+        self.assertEqual(commit_response.status_code, 200, commit_response.content)
+
+        existing.refresh_from_db()
+        self.assertEqual(set(existing.subcategories.values_list("name", flat=True)), {"Artister & Band"})
+        self.assertEqual(set(existing.categories.values_list("name", flat=True)), {"Musikk"})
+        refresh_mock.assert_called_once()
+
+    @patch("crm.services.import.commit.refresh_organization_open_graph")
+    def test_commit_normalizes_website_urls_without_scheme(self, refresh_mock):
+        row = self.base_row | {
+            "organization_org_number": "987654321",
+            "organization_website_url": "nordlyd.no",
+        }
+        self._upload_csv([row])
+        preview_response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(preview_response.status_code, 200, preview_response.content)
+
+        commit_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/commit/",
+            {"skip_unresolved": False},
+            format="json",
+        )
+        self.assertEqual(commit_response.status_code, 200, commit_response.content)
+
+        organization = Organization.objects.get(tenant=self.tenant, org_number="987654321")
+        self.assertEqual(organization.website_url, "https://nordlyd.no")
+        refresh_mock.assert_called_once()
+
     def test_commit_is_blocked_by_unresolved_rows(self):
         review_row = self.base_row | {"organization_categories": "Ukjent kategori"}
         self._upload_csv([review_row])

@@ -22,7 +22,7 @@ from crm.models import (
 )
 from crm.services.open_graph import refresh_organization_open_graph
 from .matchers import match_organization
-from .normalizers import normalize_domain, normalize_name, parse_bool
+from .normalizers import normalize_domain, normalize_name, normalize_public_url, parse_bool
 
 
 class ImportCommitBlocked(Exception):
@@ -95,34 +95,35 @@ def _apply_accepted_ai_suggestions(row: ImportRow, normalized_payload: dict, res
         elif suggestion_key == "person_municipality":
             payload["person"]["municipality"] = value or ""
         elif suggestion_key == "organization_website_url":
-            payload["organization"]["website_url"] = value or ""
-            payload["organization"]["website_domain"] = normalize_domain(value or "")
+            normalized_url = normalize_public_url(value)
+            payload["organization"]["website_url"] = normalized_url
+            payload["organization"]["website_domain"] = normalize_domain(normalized_url)
         elif suggestion_key == "organization_instagram_url":
-            payload["organization"]["instagram_url"] = value or ""
+            payload["organization"]["instagram_url"] = normalize_public_url(value)
         elif suggestion_key == "organization_tiktok_url":
-            payload["organization"]["tiktok_url"] = value or ""
+            payload["organization"]["tiktok_url"] = normalize_public_url(value)
         elif suggestion_key == "organization_linkedin_url":
-            payload["organization"]["linkedin_url"] = value or ""
+            payload["organization"]["linkedin_url"] = normalize_public_url(value)
         elif suggestion_key == "organization_facebook_url":
-            payload["organization"]["facebook_url"] = value or ""
+            payload["organization"]["facebook_url"] = normalize_public_url(value)
         elif suggestion_key == "organization_youtube_url":
-            payload["organization"]["youtube_url"] = value or ""
+            payload["organization"]["youtube_url"] = normalize_public_url(value)
         elif suggestion_key == "organization_description":
             payload["organization"]["description"] = value or ""
         elif suggestion_key == "organization_is_published":
             payload["organization"]["is_published"] = parse_bool(value, default=False)
         elif suggestion_key == "person_website_url":
-            payload["person"]["website_url"] = value or ""
+            payload["person"]["website_url"] = normalize_public_url(value)
         elif suggestion_key == "person_instagram_url":
-            payload["person"]["instagram_url"] = value or ""
+            payload["person"]["instagram_url"] = normalize_public_url(value)
         elif suggestion_key == "person_tiktok_url":
-            payload["person"]["tiktok_url"] = value or ""
+            payload["person"]["tiktok_url"] = normalize_public_url(value)
         elif suggestion_key == "person_linkedin_url":
-            payload["person"]["linkedin_url"] = value or ""
+            payload["person"]["linkedin_url"] = normalize_public_url(value)
         elif suggestion_key == "person_facebook_url":
-            payload["person"]["facebook_url"] = value or ""
+            payload["person"]["facebook_url"] = normalize_public_url(value)
         elif suggestion_key == "person_youtube_url":
-            payload["person"]["youtube_url"] = value or ""
+            payload["person"]["youtube_url"] = normalize_public_url(value)
         elif suggestion_key == "suggested_tags" and isinstance(value, list):
             if row.import_job.import_mode == ImportJob.ImportMode.ORGANIZATIONS_ONLY:
                 combined_tags = payload["organization"]["tags"] + [str(item) for item in value]
@@ -221,6 +222,10 @@ def _resolve_subcategories(names: list[str], mapped_ids: list[int] | None = None
     if mapped_ids:
         queryset = queryset | Subcategory.objects.filter(id__in=mapped_ids)
     return list(queryset.distinct())
+
+
+def _has_taxonomy_updates(names: list[str], mapped_ids: list[int] | None = None) -> bool:
+    return bool(names or mapped_ids)
 
 
 def _get_primary_contact(person: Person, contact_type: str):
@@ -443,13 +448,17 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
                 if organization:
                     organization.tags.set(org_tags)
                     organization.internal_tags.set(org_internal_tags)
-                    organization.categories.set(_resolve_categories(organization_data["categories"], resolved.category_ids))
-                    organization.subcategories.set(_resolve_subcategories(organization_data["subcategories"], resolved.subcategory_ids))
+                    if organization_action == ImportCommitLog.Action.CREATED or _has_taxonomy_updates(organization_data["categories"], resolved.category_ids):
+                        organization.categories.set(_resolve_categories(organization_data["categories"], resolved.category_ids))
+                    if organization_action == ImportCommitLog.Action.CREATED or _has_taxonomy_updates(organization_data["subcategories"], resolved.subcategory_ids):
+                        organization.subcategories.set(_resolve_subcategories(organization_data["subcategories"], resolved.subcategory_ids))
                 if person:
                     person.tags.set(person_tags)
                     person.internal_tags.set(person_internal_tags)
-                    person.categories.set(_resolve_categories(person_data["categories"], resolved.category_ids))
-                    person.subcategories.set(_resolve_subcategories(person_data["subcategories"], resolved.subcategory_ids))
+                    if person_action == ImportCommitLog.Action.CREATED or _has_taxonomy_updates(person_data["categories"], resolved.category_ids):
+                        person.categories.set(_resolve_categories(person_data["categories"], resolved.category_ids))
+                    if person_action == ImportCommitLog.Action.CREATED or _has_taxonomy_updates(person_data["subcategories"], resolved.subcategory_ids):
+                        person.subcategories.set(_resolve_subcategories(person_data["subcategories"], resolved.subcategory_ids))
 
                 if organization and organization.get_primary_link():
                     refresh_organization_open_graph(organization, force=True)

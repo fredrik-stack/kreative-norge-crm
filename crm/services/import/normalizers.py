@@ -162,6 +162,19 @@ def normalize_domain(url: str) -> str:
     return host.split("/")[0]
 
 
+def normalize_public_url(value) -> str:
+    text = clean_string(value)
+    if not text or any(character.isspace() for character in text):
+        return ""
+    candidate = text if "://" in text else f"https://{text.lstrip('/')}"
+    parsed = urlparse(candidate)
+    if parsed.scheme.lower() not in {"http", "https"}:
+        return ""
+    if not parsed.netloc:
+        return ""
+    return candidate
+
+
 def parse_bool(value, default: bool = False) -> bool:
     text = clean_string(value).lower()
     if not text:
@@ -213,13 +226,13 @@ def normalize_import_row(raw_payload: dict, import_mode: str = "COMBINED") -> di
             "phone": normalize_phone(raw_payload.get("organization_phone")),
             "publish_phone": parse_bool(raw_payload.get("organization_publish_phone"), default=False),
             "municipalities": normalize_space(raw_payload.get("organization_municipalities")),
-            "website_url": clean_string(raw_payload.get("organization_website_url")),
+            "website_url": normalize_public_url(raw_payload.get("organization_website_url")),
             "website_domain": normalize_domain(raw_payload.get("organization_website_url")),
-            "instagram_url": clean_string(raw_payload.get("organization_instagram_url")),
-            "tiktok_url": clean_string(raw_payload.get("organization_tiktok_url")),
-            "linkedin_url": clean_string(raw_payload.get("organization_linkedin_url")),
-            "facebook_url": clean_string(raw_payload.get("organization_facebook_url")),
-            "youtube_url": clean_string(raw_payload.get("organization_youtube_url")),
+            "instagram_url": normalize_public_url(raw_payload.get("organization_instagram_url")),
+            "tiktok_url": normalize_public_url(raw_payload.get("organization_tiktok_url")),
+            "linkedin_url": normalize_public_url(raw_payload.get("organization_linkedin_url")),
+            "facebook_url": normalize_public_url(raw_payload.get("organization_facebook_url")),
+            "youtube_url": normalize_public_url(raw_payload.get("organization_youtube_url")),
             "description": clean_string(raw_payload.get("organization_description")),
             "note": clean_string(raw_payload.get("organization_note")),
             "is_published": parse_bool(raw_payload.get("organization_is_published"), default=False),
@@ -235,12 +248,12 @@ def normalize_import_row(raw_payload: dict, import_mode: str = "COMBINED") -> di
             "email": person_email,
             "phone": person_phone,
             "municipality": normalize_space(raw_payload.get("person_municipality")),
-            "website_url": clean_string(raw_payload.get("person_website_url")),
-            "instagram_url": clean_string(raw_payload.get("person_instagram_url")),
-            "tiktok_url": clean_string(raw_payload.get("person_tiktok_url")),
-            "linkedin_url": clean_string(raw_payload.get("person_linkedin_url")),
-            "facebook_url": clean_string(raw_payload.get("person_facebook_url")),
-            "youtube_url": clean_string(raw_payload.get("person_youtube_url")),
+            "website_url": normalize_public_url(raw_payload.get("person_website_url")),
+            "instagram_url": normalize_public_url(raw_payload.get("person_instagram_url")),
+            "tiktok_url": normalize_public_url(raw_payload.get("person_tiktok_url")),
+            "linkedin_url": normalize_public_url(raw_payload.get("person_linkedin_url")),
+            "facebook_url": normalize_public_url(raw_payload.get("person_facebook_url")),
+            "youtube_url": normalize_public_url(raw_payload.get("person_youtube_url")),
             "note": clean_string(raw_payload.get("person_note")),
             "categories": split_values(raw_payload.get("person_categories")),
             "subcategories": split_values(raw_payload.get("person_subcategories")),
