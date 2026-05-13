@@ -337,6 +337,10 @@ function ImportReviewWorkspace(props: {
   const showPersonColumns = mode !== "ORGANIZATIONS_ONLY";
   const orgLabel = mode === "PEOPLE_ONLY" ? "Knyttet aktør" : "Aktør";
   const aiProgressLabel = getAiProgressLabel(summary);
+  const expandedRow = useMemo(
+    () => rows.find((candidate) => candidate.id === expandedRowId) ?? null,
+    [rows, expandedRowId],
+  );
   const importCategories = useMemo(
     () =>
       editor.categories
@@ -359,6 +363,12 @@ function ImportReviewWorkspace(props: {
         ),
     [editor.subcategories],
   );
+
+  useEffect(() => {
+    if (expandedRowId && !expandedRow) {
+      setExpandedRowId(null);
+    }
+  }, [expandedRowId, expandedRow, setExpandedRowId]);
 
   return (
     <>
@@ -626,10 +636,10 @@ function ImportReviewWorkspace(props: {
       </div>
       ) : null}
 
-      {selectedJob && expandedRowId ? (
+      {selectedJob && expandedRow ? (
         <ReviewRowModal onClose={() => setExpandedRowId(null)}>
           <InlineReviewEditor
-            row={rows.find((candidate) => candidate.id === expandedRowId)!}
+            row={expandedRow}
             importMode={mode}
             organizations={editor.organizations}
             categories={importCategories}
@@ -637,7 +647,7 @@ function ImportReviewWorkspace(props: {
             onCreateOrganization={editor.quickCreateOrganization}
             tenantId={editor.tenantId}
             importJobId={selectedJob.id}
-            onSave={(payload) => importJobs.saveDecisions([{ row_id: expandedRowId, decisions: payload }])}
+            onSave={(payload) => importJobs.saveDecisions([{ row_id: expandedRow.id, decisions: payload }])}
             onClose={() => setExpandedRowId(null)}
           />
         </ReviewRowModal>
