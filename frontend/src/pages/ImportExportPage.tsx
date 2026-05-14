@@ -788,7 +788,13 @@ function InlineReviewEditor(props: {
     if (!selected) return options;
     return options.some((subcategory) => subcategory.id === selected.id) ? options : [selected, ...options];
   }, [draft.categoryId, draft.subcategoryId, subcategories]);
-  const currentSubcategoryLabel = currentSubcategoryNames[0] || "";
+  const currentSubcategoryCategoryId = findCategoryIdForSubcategory(subcategories, currentSubcategoryId);
+  const canDisplayCurrentSubcategory =
+    !currentSubcategoryId
+    || !draft.categoryId
+    || currentSubcategoryCategoryId === draft.categoryId;
+  const visibleCurrentSubcategoryNames = canDisplayCurrentSubcategory ? currentSubcategoryNames : [];
+  const currentSubcategoryLabel = visibleCurrentSubcategoryNames[0] || "";
   const subcategorySelectValue = draft.subcategoryId ? String(draft.subcategoryId) : currentSubcategoryLabel;
   const visibleCategorySuggestions = (draft.suggestionStates.suggested_categories ?? "pending") === "ignored" ? [] : categorySuggestions;
   const visibleSubcategorySuggestions = (draft.suggestionStates.suggested_subcategories ?? "pending") === "ignored" ? [] : subcategorySuggestions;
@@ -1105,7 +1111,11 @@ function InlineReviewEditor(props: {
                         fieldValues: { ...current.fieldValues, organization_name: e.target.value },
                         suggestionStates: {
                           ...current.suggestionStates,
-                          organization_name: e.target.value ? "accepted" : current.suggestionStates.organization_name ?? "pending",
+                          organization_name: e.target.value
+                            ? "accepted"
+                            : getSuggestionText(row, "organization_name")
+                              ? "ignored"
+                              : current.suggestionStates.organization_name ?? "pending",
                         },
                       }))
                     }
@@ -1126,7 +1136,11 @@ function InlineReviewEditor(props: {
                         fieldValues: { ...current.fieldValues, organization_org_number: e.target.value },
                         suggestionStates: {
                           ...current.suggestionStates,
-                          organization_org_number: e.target.value ? "accepted" : current.suggestionStates.organization_org_number ?? "pending",
+                          organization_org_number: e.target.value
+                            ? "accepted"
+                            : getSuggestionText(row, "organization_org_number")
+                              ? "ignored"
+                              : current.suggestionStates.organization_org_number ?? "pending",
                         },
                       }))
                     }
@@ -1200,9 +1214,9 @@ function InlineReviewEditor(props: {
                   <option key={subcategory.id} value={subcategory.id}>{subcategory.name}</option>
                 ))}
               </select>
-              {currentSubcategoryNames.length > 0 ? (
+              {visibleCurrentSubcategoryNames.length > 0 ? (
                 <div className="review-current-pill-row">
-                  {currentSubcategoryNames.map((name) => (
+                  {visibleCurrentSubcategoryNames.map((name) => (
                     <span key={name} className="mini-pill subcategory">{name}</span>
                   ))}
                 </div>
@@ -1276,13 +1290,17 @@ function InlineReviewEditor(props: {
                       onChange={(e) =>
                         setDraft((current) => ({
                           ...current,
-                          fieldValues: { ...current.fieldValues, [fieldKey]: e.target.value },
-                          suggestionStates: {
-                            ...current.suggestionStates,
-                            [fieldKey]: e.target.value ? "accepted" : current.suggestionStates[fieldKey] ?? "pending",
-                          },
-                        }))
-                      }
+                        fieldValues: { ...current.fieldValues, [fieldKey]: e.target.value },
+                        suggestionStates: {
+                          ...current.suggestionStates,
+                          [fieldKey]: e.target.value
+                            ? "accepted"
+                            : getSuggestionText(row, fieldKey)
+                              ? "ignored"
+                              : current.suggestionStates[fieldKey] ?? "pending",
+                        },
+                      }))
+                    }
                       placeholder={suggestion ? `Forslag: ${renderSuggestionValue(suggestion.value)}` : "Tomt felt"}
                     />
                     {suggestion ? (
