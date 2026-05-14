@@ -611,7 +611,7 @@ function ImportReviewWorkspace(props: {
                         {diagnosticMeta.helper ? <span className="meta">{diagnosticMeta.helper}</span> : null}
                       </div>
                     </td>
-                    <td><span className="mini-pill subcategory">{row.row_status}</span></td>
+                    <td><span className="mini-pill subcategory">{getRowStatusLabel(row)}</span></td>
                     <td>{row.warnings_json.length}</td>
                     <td>{row.validation_errors_json.length}</td>
                     <td>
@@ -2117,6 +2117,29 @@ function getProviderLabel(row: ImportRow): { label: string; variant: "category" 
     return { label: "Fallback", variant: "subcategory" };
   }
   return { label: "Ukjent", variant: "tag" };
+}
+
+function getRowStatusLabel(row: ImportRow): string {
+  const providerStatus = String((row.ai_suggestions_json?.diagnostic as Record<string, unknown> | undefined)?.provider_status || row.ai_suggestions_json?.provider || "").toLowerCase();
+  if (providerStatus === "pending_openai") {
+    return "AI jobber";
+  }
+  switch (row.row_status) {
+    case "VALID":
+      return "Klar til commit";
+    case "REVIEW_REQUIRED":
+      return "Trenger review";
+    case "INVALID":
+      return "Feil";
+    case "SKIPPED":
+      return "Hoppet over";
+    case "COMMITTED":
+      return "Commit";
+    case "COMMIT_FAILED":
+      return "Commit-feil";
+    default:
+      return row.row_status;
+  }
 }
 
 function getDiagnosticMeta(row: ImportRow): { title: string; detail: string; helper: string } {

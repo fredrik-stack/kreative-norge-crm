@@ -250,6 +250,34 @@ def _score_candidates(candidates: list[dict], reason: str, score: float) -> list
     ]
 
 
+def _existing_organization_candidate(tenant: Tenant, match_result: dict) -> list[dict]:
+    organization_match = match_result.get("organization", {}) or {}
+    if organization_match.get("status") != "EXACT":
+        return []
+    exact_id = organization_match.get("exact_id")
+    if not exact_id:
+        return []
+    candidate = Organization.objects.filter(tenant=tenant, id=exact_id).only("id", "name").first()
+    if not candidate:
+        return []
+    rule = str(organization_match.get("rule") or "").upper()
+    reason = "existing_actor"
+    score = 0.88
+    if rule == "ORG_NUMBER":
+        reason = "org_number_exact"
+        score = 0.97
+    elif rule == "NAME_AND_DOMAIN":
+        reason = "name_and_domain_exact"
+        score = 0.93
+    elif rule == "NAME_AND_MUNICIPALITY":
+        reason = "name_and_municipality_exact"
+        score = 0.9
+    elif rule == "NAME_AND_CONTACT_DOMAIN":
+        reason = "name_and_contact_domain_exact"
+        score = 0.92
+    return [{"id": candidate.id, "label": candidate.name, "score": score, "reason": reason}]
+
+
 def _suggest_name(value: str) -> str | None:
     if not value:
         return None
@@ -910,6 +938,8 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
             organization_reason,
             organization_score,
         )
+    elif match_result.get("organization", {}).get("status") == "EXACT":
+        organization_candidates = _existing_organization_candidate(tenant, match_result)
 
     brreg_candidates = []
     seen_brreg_org_numbers: set[str] = set()
@@ -998,6 +1028,8 @@ def _preview_only_suggestions(tenant: Tenant, normalized_payload: dict, match_re
             organization_reason,
             organization_score,
         )
+    elif match_result.get("organization", {}).get("status") == "EXACT":
+        organization_candidates = _existing_organization_candidate(tenant, match_result)
 
     person_candidates = []
     if match_result.get("person", {}).get("status") == "FUZZY":

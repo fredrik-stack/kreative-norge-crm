@@ -1042,12 +1042,16 @@ select,
 }
 
 .review-publish-toggle {
-  width: 100%;
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
   justify-content: flex-start;
+  width: min(100%, 32rem);
+  margin-right: auto;
 }
 
 .review-publish-toggle span {
-  max-width: 40rem;
+  max-width: none;
 }
 
 .review-lock-message {

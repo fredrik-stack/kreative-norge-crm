@@ -883,6 +883,49 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(match["organization"]["rule"], "CONTACT_DOMAIN")
         self.assertEqual(match["organization"]["candidates"][0]["id"], existing.id)
 
+    def test_organizations_only_preview_requires_review_for_exact_existing_actor(self):
+        existing = Organization.objects.create(
+            tenant=self.tenant,
+            name="Nordlyd AS",
+            org_number="123456789",
+            municipalities="Oslo",
+            website_url="https://nordlyd.no",
+        )
+        job = ImportJob.objects.create(
+            tenant=self.tenant,
+            created_by=self.user,
+            source_type=ImportJob.SourceType.CSV,
+            import_mode=ImportJob.ImportMode.ORGANIZATIONS_ONLY,
+            status=ImportJob.Status.UPLOADED,
+        )
+        row = {
+            key: value
+            for key, value in self.base_row.items()
+            if key.startswith("organization_")
+        }
+        row["organization_internal_tags"] = ""
+        row["organization_tags"] = ""
+        upload = SimpleUploadedFile(
+            "import.csv",
+            ",".join(row.keys()).encode("utf-8") + b"\n" + ",".join(str(value) for value in row.values()).encode("utf-8"),
+            content_type="text/csv",
+        )
+        job.file = upload
+        job.filename = "import.csv"
+        job.save(update_fields=["file", "filename", "updated_at"])
+
+        response = self.client.post(f"{self.import_jobs_url()}{job.id}/preview/", {}, format="json")
+        self.assertEqual(response.status_code, 200, response.content)
+
+        preview_row = job.rows.get()
+        self.assertEqual(preview_row.row_status, ImportRow.RowStatus.REVIEW_REQUIRED)
+        self.assertEqual(preview_row.proposed_action, ImportRow.ProposedAction.UPDATE)
+        self.assertEqual(preview_row.match_result_json["organization"]["exact_id"], existing.id)
+        self.assertEqual(
+            preview_row.ai_suggestions_json["organization_match_candidates"][0]["id"],
+            existing.id,
+        )
+
     def test_decisions_are_saved(self):
         review_row = self.base_row | {"organization_categories": "Ukjent kategori"}
         self._upload_csv([review_row])

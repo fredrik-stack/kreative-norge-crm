@@ -115,7 +115,7 @@ def update_job_preview_status(import_job: ImportJob) -> None:
     import_job.save(update_fields=["summary_json", "status", "updated_at"])
 
 
-def _row_outcome(normalized_payload: dict, errors: list[str], warnings: list[str], matches: dict) -> tuple[str, str]:
+def _row_outcome(import_mode: str, normalized_payload: dict, errors: list[str], warnings: list[str], matches: dict) -> tuple[str, str]:
     if errors:
         return ImportRow.RowStatus.INVALID, ImportRow.ProposedAction.SKIP
 
@@ -129,6 +129,8 @@ def _row_outcome(normalized_payload: dict, errors: list[str], warnings: list[str
 
     org_match = matches["organization"]
     person_match = matches["person"]
+    if import_mode == ImportJob.ImportMode.ORGANIZATIONS_ONLY and org_match["status"] == "EXACT":
+        return ImportRow.RowStatus.REVIEW_REQUIRED, ImportRow.ProposedAction.UPDATE
     if org_match["status"] == "EXACT" or person_match["status"] == "EXACT":
         if org_match["status"] == "EXACT" and person_match["status"] == "EXACT":
             return ImportRow.RowStatus.VALID, ImportRow.ProposedAction.LINK_ONLY
@@ -158,7 +160,7 @@ def run_import_preview(import_job: ImportJob) -> ImportJob:
                 ai_suggestions = build_pending_ai_suggestions(import_job.tenant, normalized_payload, matches)
             except Exception as exc:
                 ai_suggestions = _runtime_error_suggestions(stage="preview", exc=exc)
-            row_status, proposed_action = _row_outcome(normalized_payload, errors, warnings, matches)
+            row_status, proposed_action = _row_outcome(import_job.import_mode, normalized_payload, errors, warnings, matches)
             row_instances.append(
                 ImportRow(
                     import_job=import_job,
