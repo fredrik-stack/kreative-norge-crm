@@ -1016,6 +1016,42 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         refresh_mock.assert_called_once()
 
     @patch("crm.services.import.commit.refresh_organization_open_graph")
+    def test_organizations_only_commit_accepts_subcategory_alias(self, refresh_mock):
+        job = ImportJob.objects.create(
+            tenant=self.tenant,
+            created_by=self.user,
+            source_type=ImportJob.SourceType.CSV,
+            import_mode=ImportJob.ImportMode.ORGANIZATIONS_ONLY,
+            status=ImportJob.Status.UPLOADED,
+        )
+        row = {
+            key: value
+            for key, value in self.base_row.items()
+            if key.startswith("organization_")
+        }
+        row["organization_subcategories"] = "Artister og band"
+        row["organization_internal_tags"] = ""
+        row["organization_tags"] = ""
+        upload = SimpleUploadedFile("import.csv", ",".join(row.keys()).encode("utf-8") + b"\n" + ",".join(str(value) for value in row.values()).encode("utf-8"), content_type="text/csv")
+        job.file = upload
+        job.filename = "import.csv"
+        job.save(update_fields=["file", "filename", "updated_at"])
+
+        preview_response = self.client.post(f"{self.import_jobs_url()}{job.id}/preview/", {}, format="json")
+        self.assertEqual(preview_response.status_code, 200, preview_response.content)
+
+        commit_response = self.client.post(
+            f"{self.import_jobs_url()}{job.id}/commit/",
+            {"skip_unresolved": False},
+            format="json",
+        )
+        self.assertEqual(commit_response.status_code, 200, commit_response.content)
+
+        organization = Organization.objects.get(tenant=self.tenant, org_number="123456789")
+        self.assertEqual(set(organization.subcategories.values_list("name", flat=True)), {"Artister & Band"})
+        refresh_mock.assert_called_once()
+
+    @patch("crm.services.import.commit.refresh_organization_open_graph")
     def test_commit_preserves_existing_subcategories_when_import_row_has_none(self, refresh_mock):
         existing = Organization.objects.create(
             tenant=self.tenant,
@@ -1127,6 +1163,73 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         organization = Organization.objects.get(tenant=self.tenant, org_number="123456789")
         self.assertEqual(set(organization.categories.values_list("name", flat=True)), {"Scenekunst"})
         refresh_mock.assert_called_once()
+
+    @patch("crm.services.import.commit.refresh_organization_open_graph")
+    def test_use_existing_organization_preserves_existing_committed_data(self, refresh_mock):
+        existing = Organization.objects.create(
+            tenant=self.tenant,
+            name="Smeltedigelen musikkfestival",
+            org_number="999888777",
+            email="behold@festival.no",
+            municipalities="Bodø",
+            website_url="https://festival.no",
+            description="Behold denne teksten",
+        )
+        existing.categories.set([self.music])
+        existing.subcategories.set([self.band])
+        existing.internal_tags.add(InternalTag.objects.create(tenant=self.tenant, name="godkjent"))
+
+        row = self.base_row | {
+            "organization_name": "Smeltedigelen musikkfestival",
+            "organization_org_number": "",
+            "organization_email": "overskriv@festival.no",
+            "organization_municipalities": "Oslo",
+            "organization_website_url": "https://feil.no",
+            "organization_description": "Ny dårlig tekst",
+            "organization_categories": "Scenekunst",
+            "organization_subcategories": "Teater",
+            "organization_internal_tags": "arrangør Nordland",
+        }
+        self._upload_csv([row])
+        preview_response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(preview_response.status_code, 200, preview_response.content)
+
+        preview_row = self.job.rows.get()
+        decisions_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/decisions/",
+            {
+                "rows": [
+                    {
+                        "row_id": preview_row.id,
+                        "decisions": [
+                            {
+                                "decision_type": "USE_EXISTING_ORGANIZATION",
+                                "payload_json": {"organization_id": existing.id},
+                            }
+                        ],
+                    }
+                ]
+            },
+            format="json",
+        )
+        self.assertEqual(decisions_response.status_code, 200, decisions_response.content)
+
+        commit_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/commit/",
+            {"skip_unresolved": False},
+            format="json",
+        )
+        self.assertEqual(commit_response.status_code, 200, commit_response.content)
+
+        existing.refresh_from_db()
+        self.assertEqual(existing.email, "behold@festival.no")
+        self.assertEqual(existing.municipalities, "Bodø")
+        self.assertEqual(existing.website_url, "https://festival.no")
+        self.assertEqual(existing.description, "Behold denne teksten")
+        self.assertEqual(set(existing.categories.values_list("name", flat=True)), {"Musikk"})
+        self.assertEqual(set(existing.subcategories.values_list("name", flat=True)), {"Artister & Band"})
+        self.assertEqual(set(existing.internal_tags.values_list("name", flat=True)), {"godkjent"})
+        refresh_mock.assert_not_called()
 
     @patch("crm.services.import.commit.refresh_organization_open_graph")
     def test_commit_normalizes_website_urls_without_scheme(self, refresh_mock):
@@ -1789,7 +1892,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
                 )
             )
 
-        self.assertEqual(signals.website_url, "https://www.nordlyd.no/kontakt")
+        self.assertEqual(signals.website_url, "https://nordlyd.no/kontakt")
         self.assertEqual(signals.socials["organization_instagram_url"], "https://www.instagram.com/nordlyd")
         self.assertEqual(signals.emails, ["post@nordlyd.no"])
         self.assertTrue(any("booking og info" in snippet for snippet in signals.text_snippets or []))

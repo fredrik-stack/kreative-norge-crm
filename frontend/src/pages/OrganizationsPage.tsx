@@ -358,6 +358,10 @@ function OrganizationEditorPanel(props: {
       .slice(0, 25);
   }, [editor.organizations, editor.selectedOrgId, mergeQuery]);
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [orgId]);
+
   return (
     <section className="panel editor">
       {editor.tenantDataLoading ? (

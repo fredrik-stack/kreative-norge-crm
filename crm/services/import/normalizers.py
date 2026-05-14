@@ -7,6 +7,12 @@ SUBCATEGORY_ALIASES = {
     "produksjon": "Filmproduksjon",
     "foto/lys": "Foto/ Lys",
     "foto / lys": "Foto/ Lys",
+    "artister og band": "Artister & Band",
+    "artist og band": "Artister & Band",
+    "artister/band": "Artister & Band",
+    "artist/band": "Artister & Band",
+    "konsertarrangør": "Konsertarrangører",
+    "konsertarrangor": "Konsertarrangører",
 }
 
 
@@ -153,7 +159,11 @@ def normalize_subcategory_name(value: str) -> str:
     if not trimmed:
         return ""
     lowered = trimmed.casefold()
-    return normalize_space(SUBCATEGORY_ALIASES.get(lowered, trimmed)).casefold()
+    canonical = normalize_space(SUBCATEGORY_ALIASES.get(lowered, trimmed)).casefold()
+    canonical = canonical.replace("&", " og ")
+    canonical = re.sub(r"\s*/\s*", " ", canonical)
+    canonical = re.sub(r"[^0-9a-zæøå]+", "", canonical)
+    return canonical
 
 
 def normalize_org_number(value) -> str:

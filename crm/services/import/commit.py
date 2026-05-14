@@ -110,8 +110,6 @@ def _apply_accepted_ai_suggestions(row: ImportRow, normalized_payload: dict, res
             payload["organization"]["youtube_url"] = normalize_public_url(value)
         elif suggestion_key == "organization_description":
             payload["organization"]["description"] = value or ""
-        elif suggestion_key == "organization_is_published":
-            payload["organization"]["is_published"] = parse_bool(value, default=False)
         elif suggestion_key == "person_website_url":
             payload["person"]["website_url"] = normalize_public_url(value)
         elif suggestion_key == "person_instagram_url":
@@ -353,6 +351,7 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
 
                 organization = None
                 organization_action = None
+                explicit_existing_organization = resolved.organization_id is not None
                 organization, organization_action = _resolve_existing_organization(import_job, organization_data, matches, resolved)
                 if not organization and organization_data["name"]:
                     organization = Organization.objects.create(
@@ -374,7 +373,7 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
                         youtube_url=organization_data["youtube_url"] or None,
                     )
                     organization_action = ImportCommitLog.Action.CREATED
-                if organization and organization_action == ImportCommitLog.Action.UPDATED:
+                if organization and organization_action == ImportCommitLog.Action.UPDATED and not explicit_existing_organization:
                     for field, value in {
                         "name": organization_data["name"],
                         "org_number": organization_data["org_number"] or None,
@@ -399,6 +398,7 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
 
                 person = None
                 person_action = None
+                explicit_existing_person = resolved.person_id is not None
                 person_id = resolved.person_id or (matches.get("person") or {}).get("exact_id")
                 if person_id:
                     person = Person.objects.get(id=person_id, tenant=import_job.tenant)
@@ -420,7 +420,7 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
                         note=person_data["note"] or None,
                     )
                     person_action = ImportCommitLog.Action.CREATED
-                if person and person_action == ImportCommitLog.Action.UPDATED:
+                if person and person_action == ImportCommitLog.Action.UPDATED and not explicit_existing_person:
                     for field, value in {
                         "full_name": person_data["full_name"],
                         "title": person_data["title"] or None,
@@ -439,7 +439,8 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
                     person.save()
                 if person:
                     _log(import_job, row, ImportCommitLog.EntityType.PERSON, person.id, person_action, {})
-                    _upsert_person_contacts(person, person_data, row, import_job)
+                    if not explicit_existing_person:
+                        _upsert_person_contacts(person, person_data, row, import_job)
 
                 if organization and person:
                     link, created = OrganizationPerson.objects.get_or_create(
@@ -462,41 +463,43 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
                     )
 
                 if organization:
-                    organization.tags.set(org_tags)
-                    organization.internal_tags.set(org_internal_tags)
-                    resolved_categories = _resolve_categories(organization_data["categories"], resolved.category_ids)
-                    resolved_subcategories = _resolve_subcategories(organization_data["subcategories"], resolved.subcategory_ids)
-                    if organization_action == ImportCommitLog.Action.CREATED or _should_apply_taxonomy_update(
-                        organization_data["categories"],
-                        resolved.category_ids,
-                        resolved_categories,
-                    ):
-                        organization.categories.set(resolved_categories)
-                    if organization_action == ImportCommitLog.Action.CREATED or _should_apply_taxonomy_update(
-                        organization_data["subcategories"],
-                        resolved.subcategory_ids,
-                        resolved_subcategories,
-                    ):
-                        organization.subcategories.set(resolved_subcategories)
+                    if not explicit_existing_organization:
+                        organization.tags.set(org_tags)
+                        organization.internal_tags.set(org_internal_tags)
+                        resolved_categories = _resolve_categories(organization_data["categories"], resolved.category_ids)
+                        resolved_subcategories = _resolve_subcategories(organization_data["subcategories"], resolved.subcategory_ids)
+                        if organization_action == ImportCommitLog.Action.CREATED or _should_apply_taxonomy_update(
+                            organization_data["categories"],
+                            resolved.category_ids,
+                            resolved_categories,
+                        ):
+                            organization.categories.set(resolved_categories)
+                        if organization_action == ImportCommitLog.Action.CREATED or _should_apply_taxonomy_update(
+                            organization_data["subcategories"],
+                            resolved.subcategory_ids,
+                            resolved_subcategories,
+                        ):
+                            organization.subcategories.set(resolved_subcategories)
                 if person:
-                    person.tags.set(person_tags)
-                    person.internal_tags.set(person_internal_tags)
-                    resolved_categories = _resolve_categories(person_data["categories"], resolved.category_ids)
-                    resolved_subcategories = _resolve_subcategories(person_data["subcategories"], resolved.subcategory_ids)
-                    if person_action == ImportCommitLog.Action.CREATED or _should_apply_taxonomy_update(
-                        person_data["categories"],
-                        resolved.category_ids,
-                        resolved_categories,
-                    ):
-                        person.categories.set(resolved_categories)
-                    if person_action == ImportCommitLog.Action.CREATED or _should_apply_taxonomy_update(
-                        person_data["subcategories"],
-                        resolved.subcategory_ids,
-                        resolved_subcategories,
-                    ):
-                        person.subcategories.set(resolved_subcategories)
+                    if not explicit_existing_person:
+                        person.tags.set(person_tags)
+                        person.internal_tags.set(person_internal_tags)
+                        resolved_categories = _resolve_categories(person_data["categories"], resolved.category_ids)
+                        resolved_subcategories = _resolve_subcategories(person_data["subcategories"], resolved.subcategory_ids)
+                        if person_action == ImportCommitLog.Action.CREATED or _should_apply_taxonomy_update(
+                            person_data["categories"],
+                            resolved.category_ids,
+                            resolved_categories,
+                        ):
+                            person.categories.set(resolved_categories)
+                        if person_action == ImportCommitLog.Action.CREATED or _should_apply_taxonomy_update(
+                            person_data["subcategories"],
+                            resolved.subcategory_ids,
+                            resolved_subcategories,
+                        ):
+                            person.subcategories.set(resolved_subcategories)
 
-                if organization and organization.get_primary_link():
+                if organization and not explicit_existing_organization and organization.get_primary_link():
                     refresh_organization_open_graph(organization, force=True)
 
                 row.row_status = ImportRow.RowStatus.COMMITTED

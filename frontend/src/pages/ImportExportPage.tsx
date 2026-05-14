@@ -826,7 +826,6 @@ function InlineReviewEditor(props: {
         onClose();
         return;
       }
-      window.setTimeout(() => setSaveState((current) => (current === "saved" ? "idle" : current)), 1400);
     } catch {
       setSaveState("error");
     }
