@@ -731,6 +731,9 @@ function InlineReviewEditor(props: {
   const personOnly = importMode === "PEOPLE_ONLY";
   const currentCategoryNames = getCurrentCategoryValues(row, importMode, categories);
   const currentSubcategoryNames = getCurrentSubcategoryValues(row, importMode, subcategories);
+  const acceptedSuggestedTags = getAcceptedArrayState(row, "suggested_tags");
+  const acceptedOrganizationInternalTags = getAcceptedArrayState(row, "organization_internal_tags");
+  const acceptedPersonInternalTags = getAcceptedArrayState(row, "person_internal_tags");
   const currentSubcategoryId = findSubcategoryIdByName(subcategories, currentSubcategoryNames[0] || "");
   const inferredCategoryId = findCategoryIdForSubcategory(subcategories, currentSubcategoryId);
   const [draft, setDraft] = useState<ReviewDraft>(() => {
@@ -759,14 +762,17 @@ function InlineReviewEditor(props: {
           currentSubcategoryNames[0] || "",
         ),
       tagsText:
-        getAcceptedDecisionArray(row, "suggested_tags").join(", ")
-        || getCurrentArray(row, actorOnly ? ["organization_tags"] : ["person_tags"]).join(", "),
+        acceptedSuggestedTags.exists
+          ? acceptedSuggestedTags.value.join(", ")
+          : getCurrentArray(row, actorOnly ? ["organization_tags"] : ["person_tags"]).join(", "),
       organizationInternalTagsText:
-        getAcceptedDecisionArray(row, "organization_internal_tags").join(", ")
-        || getCurrentArray(row, ["organization_internal_tags"]).join(", "),
+        acceptedOrganizationInternalTags.exists
+          ? acceptedOrganizationInternalTags.value.join(", ")
+          : getCurrentArray(row, ["organization_internal_tags"]).join(", "),
       personInternalTagsText:
-        getAcceptedDecisionArray(row, "person_internal_tags").join(", ")
-        || getCurrentArray(row, ["person_internal_tags"]).join(", "),
+        acceptedPersonInternalTags.exists
+          ? acceptedPersonInternalTags.value.join(", ")
+          : getCurrentArray(row, ["person_internal_tags"]).join(", "),
       organizationIsPublished:
         getAcceptedDecisionBoolean(row, "organization_is_published")
         ?? getCurrentBoolean(row, ["organization_is_published"]),
@@ -2225,6 +2231,12 @@ function getExistingSuggestionStates(row: ImportRow): Record<string, SuggestionS
   return states;
 }
 
+function hasAcceptedSuggestionDecision(row: ImportRow, suggestionKey: string): boolean {
+  return row.decisions.some(
+    (decision) => decision.decision_type === "ACCEPT_AI_SUGGESTION" && decision.payload_json.suggestion_key === suggestionKey,
+  );
+}
+
 function getExistingDecisionType<T extends ImportDecision["decision_type"]>(row: ImportRow, decisionTypes: T[]): T | null {
   const match = row.decisions.find((decision) => decisionTypes.includes(decision.decision_type as T));
   return (match?.decision_type as T | undefined) ?? null;
@@ -2251,6 +2263,13 @@ function getAcceptedDecisionArray(row: ImportRow, suggestionKey: string): string
   return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean) : [];
 }
 
+function getAcceptedArrayState(row: ImportRow, suggestionKey: string): { exists: boolean; value: string[] } {
+  return {
+    exists: hasAcceptedSuggestionDecision(row, suggestionKey),
+    value: getAcceptedDecisionArray(row, suggestionKey),
+  };
+}
+
 function getAcceptedDecisionBoolean(row: ImportRow, suggestionKey: string): boolean | null {
   const match = row.decisions.find(
     (decision) => decision.decision_type === "ACCEPT_AI_SUGGESTION" && decision.payload_json.suggestion_key === suggestionKey,
@@ -2271,8 +2290,8 @@ function getCurrentText(row: ImportRow, keys: string[]): string {
 
 function getCurrentArray(row: ImportRow, keys: string[]): string[] {
   for (const key of keys) {
-    const accepted = getAcceptedDecisionArray(row, key);
-    if (accepted.length > 0) return accepted;
+    const accepted = getAcceptedArrayState(row, key);
+    if (accepted.exists) return accepted.value;
     const rawValue = row.raw_payload_json[key];
     if (Array.isArray(rawValue)) {
       const values = rawValue.map((item) => String(item).trim()).filter(Boolean);

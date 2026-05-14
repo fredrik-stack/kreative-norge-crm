@@ -944,6 +944,78 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         refresh_mock.assert_called_once()
 
     @patch("crm.services.import.commit.refresh_organization_open_graph")
+    def test_commit_can_clear_organization_internal_tags_via_review(self, refresh_mock):
+        row = self.base_row | {"organization_internal_tags": "arrangør Nordland"}
+        self._upload_csv([row])
+        self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        preview_row = self.job.rows.get()
+
+        decisions_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/decisions/",
+            {
+                "rows": [
+                    {
+                        "row_id": preview_row.id,
+                        "decisions": [
+                            {
+                                "decision_type": "ACCEPT_AI_SUGGESTION",
+                                "payload_json": {"suggestion_key": "organization_internal_tags", "value": []},
+                            }
+                        ],
+                    }
+                ]
+            },
+            format="json",
+        )
+        self.assertEqual(decisions_response.status_code, 200, decisions_response.content)
+
+        commit_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/commit/",
+            {"skip_unresolved": False},
+            format="json",
+        )
+        self.assertEqual(commit_response.status_code, 200, commit_response.content)
+
+        organization = Organization.objects.get(tenant=self.tenant, org_number="123456789")
+        self.assertEqual(list(organization.internal_tags.values_list("name", flat=True)), [])
+        refresh_mock.assert_called_once()
+
+    @patch("crm.services.import.commit.refresh_organization_open_graph")
+    def test_organizations_only_commit_preserves_exact_subcategories(self, refresh_mock):
+        job = ImportJob.objects.create(
+            tenant=self.tenant,
+            created_by=self.user,
+            source_type=ImportJob.SourceType.CSV,
+            import_mode=ImportJob.ImportMode.ORGANIZATIONS_ONLY,
+            status=ImportJob.Status.UPLOADED,
+        )
+        row = {
+            key: value
+            for key, value in self.base_row.items()
+            if key.startswith("organization_")
+        }
+        row["organization_internal_tags"] = ""
+        row["organization_tags"] = ""
+        upload = SimpleUploadedFile("import.csv", ",".join(row.keys()).encode("utf-8") + b"\n" + ",".join(str(value) for value in row.values()).encode("utf-8"), content_type="text/csv")
+        job.file = upload
+        job.filename = "import.csv"
+        job.save(update_fields=["file", "filename", "updated_at"])
+
+        preview_response = self.client.post(f"{self.import_jobs_url()}{job.id}/preview/", {}, format="json")
+        self.assertEqual(preview_response.status_code, 200, preview_response.content)
+
+        commit_response = self.client.post(
+            f"{self.import_jobs_url()}{job.id}/commit/",
+            {"skip_unresolved": False},
+            format="json",
+        )
+        self.assertEqual(commit_response.status_code, 200, commit_response.content)
+
+        organization = Organization.objects.get(tenant=self.tenant, org_number="123456789")
+        self.assertEqual(set(organization.subcategories.values_list("name", flat=True)), {"Artister & Band"})
+        refresh_mock.assert_called_once()
+
+    @patch("crm.services.import.commit.refresh_organization_open_graph")
     def test_commit_preserves_existing_subcategories_when_import_row_has_none(self, refresh_mock):
         existing = Organization.objects.create(
             tenant=self.tenant,

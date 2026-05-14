@@ -3,6 +3,12 @@ from __future__ import annotations
 import re
 from urllib.parse import urlparse, urlunparse
 
+SUBCATEGORY_ALIASES = {
+    "produksjon": "Filmproduksjon",
+    "foto/lys": "Foto/ Lys",
+    "foto / lys": "Foto/ Lys",
+}
+
 
 ORGANIZATION_IMPORT_FIELDS = [
     "organization_name",
@@ -140,6 +146,14 @@ def normalize_space(value: str) -> str:
 
 def normalize_name(value: str) -> str:
     return normalize_space(value).casefold()
+
+
+def normalize_subcategory_name(value: str) -> str:
+    trimmed = normalize_space(value)
+    if not trimmed:
+        return ""
+    lowered = trimmed.casefold()
+    return normalize_space(SUBCATEGORY_ALIASES.get(lowered, trimmed)).casefold()
 
 
 def normalize_org_number(value) -> str:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from crm.models import Category, Subcategory
+from .normalizers import normalize_subcategory_name
 
 
 def validate_normalized_row(tenant, normalized_payload: dict) -> tuple[list[str], list[str]]:
@@ -27,7 +28,7 @@ def validate_normalized_row(tenant, normalized_payload: dict) -> tuple[list[str]
         for item in Category.objects.values_list("name", flat=True)
     }
     existing_subcategories = {
-        item.casefold(): item
+        normalize_subcategory_name(item): item
         for item in Subcategory.objects.values_list("name", flat=True)
     }
 
@@ -35,7 +36,7 @@ def validate_normalized_row(tenant, normalized_payload: dict) -> tuple[list[str]
         if name.casefold() not in existing_categories:
             warnings.append(f"Unknown category: {name}")
     for name in organization["subcategories"] + person["subcategories"]:
-        if name.casefold() not in existing_subcategories:
+        if normalize_subcategory_name(name) not in existing_subcategories:
             warnings.append(f"Unknown subcategory: {name}")
 
     seen_secondary = set()

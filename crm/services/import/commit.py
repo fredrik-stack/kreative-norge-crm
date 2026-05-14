@@ -22,7 +22,7 @@ from crm.models import (
 )
 from crm.services.open_graph import refresh_organization_open_graph
 from .matchers import match_organization
-from .normalizers import normalize_domain, normalize_name, normalize_public_url, parse_bool
+from .normalizers import normalize_domain, normalize_name, normalize_public_url, normalize_subcategory_name, parse_bool
 
 
 class ImportCommitBlocked(Exception):
@@ -218,10 +218,14 @@ def _resolve_categories(names: list[str], mapped_ids: list[int] | None = None) -
 def _resolve_subcategories(names: list[str], mapped_ids: list[int] | None = None) -> list[Subcategory]:
     if mapped_ids:
         return list(Subcategory.objects.filter(id__in=mapped_ids).distinct())
-    queryset = Subcategory.objects.none()
-    if names:
-        queryset = queryset | Subcategory.objects.filter(name__in=names)
-    return list(queryset.distinct())
+    normalized_names = {normalize_subcategory_name(name) for name in names if normalize_subcategory_name(name)}
+    if not normalized_names:
+        return []
+    return [
+        subcategory
+        for subcategory in Subcategory.objects.select_related("category").all()
+        if normalize_subcategory_name(subcategory.name) in normalized_names
+    ]
 
 
 def _has_taxonomy_updates(names: list[str], mapped_ids: list[int] | None = None) -> bool:
