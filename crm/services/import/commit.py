@@ -228,6 +228,18 @@ def _has_taxonomy_updates(names: list[str], mapped_ids: list[int] | None = None)
     return bool(names or mapped_ids)
 
 
+def _should_apply_taxonomy_update(
+    names: list[str],
+    mapped_ids: list[int] | None,
+    resolved_items: list[Category] | list[Subcategory],
+) -> bool:
+    if mapped_ids:
+        return True
+    if resolved_items:
+        return True
+    return False
+
+
 def _get_primary_contact(person: Person, contact_type: str):
     return PersonContact.objects.filter(person=person, tenant=person.tenant, type=contact_type, is_primary=True).first()
 
@@ -448,17 +460,37 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
                 if organization:
                     organization.tags.set(org_tags)
                     organization.internal_tags.set(org_internal_tags)
-                    if organization_action == ImportCommitLog.Action.CREATED or _has_taxonomy_updates(organization_data["categories"], resolved.category_ids):
-                        organization.categories.set(_resolve_categories(organization_data["categories"], resolved.category_ids))
-                    if organization_action == ImportCommitLog.Action.CREATED or _has_taxonomy_updates(organization_data["subcategories"], resolved.subcategory_ids):
-                        organization.subcategories.set(_resolve_subcategories(organization_data["subcategories"], resolved.subcategory_ids))
+                    resolved_categories = _resolve_categories(organization_data["categories"], resolved.category_ids)
+                    resolved_subcategories = _resolve_subcategories(organization_data["subcategories"], resolved.subcategory_ids)
+                    if organization_action == ImportCommitLog.Action.CREATED or _should_apply_taxonomy_update(
+                        organization_data["categories"],
+                        resolved.category_ids,
+                        resolved_categories,
+                    ):
+                        organization.categories.set(resolved_categories)
+                    if organization_action == ImportCommitLog.Action.CREATED or _should_apply_taxonomy_update(
+                        organization_data["subcategories"],
+                        resolved.subcategory_ids,
+                        resolved_subcategories,
+                    ):
+                        organization.subcategories.set(resolved_subcategories)
                 if person:
                     person.tags.set(person_tags)
                     person.internal_tags.set(person_internal_tags)
-                    if person_action == ImportCommitLog.Action.CREATED or _has_taxonomy_updates(person_data["categories"], resolved.category_ids):
-                        person.categories.set(_resolve_categories(person_data["categories"], resolved.category_ids))
-                    if person_action == ImportCommitLog.Action.CREATED or _has_taxonomy_updates(person_data["subcategories"], resolved.subcategory_ids):
-                        person.subcategories.set(_resolve_subcategories(person_data["subcategories"], resolved.subcategory_ids))
+                    resolved_categories = _resolve_categories(person_data["categories"], resolved.category_ids)
+                    resolved_subcategories = _resolve_subcategories(person_data["subcategories"], resolved.subcategory_ids)
+                    if person_action == ImportCommitLog.Action.CREATED or _should_apply_taxonomy_update(
+                        person_data["categories"],
+                        resolved.category_ids,
+                        resolved_categories,
+                    ):
+                        person.categories.set(resolved_categories)
+                    if person_action == ImportCommitLog.Action.CREATED or _should_apply_taxonomy_update(
+                        person_data["subcategories"],
+                        resolved.subcategory_ids,
+                        resolved_subcategories,
+                    ):
+                        person.subcategories.set(resolved_subcategories)
 
                 if organization and organization.get_primary_link():
                     refresh_organization_open_graph(organization, force=True)

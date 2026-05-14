@@ -8,7 +8,7 @@ from urllib.request import Request, urlopen
 
 from django.conf import settings
 
-from .normalizers import normalize_name, normalize_space
+from .normalizers import canonicalize_public_website_url, normalize_name, normalize_space
 
 
 BRAVE_SEARCH_API_URL = "https://api.search.brave.com/res/v1/web/search"
@@ -241,7 +241,7 @@ def _pick_primary_website(results: list[dict[str, str]], *, target_name: str, co
     if not ranked_candidates:
         return None
     ranked_candidates.sort(key=lambda item: item[0], reverse=True)
-    return ranked_candidates[0][1]
+    return canonicalize_public_website_url(ranked_candidates[0][1])
 
 
 def _search_context_terms(normalized_payload: dict, *, person_specific: bool = False) -> list[str]:

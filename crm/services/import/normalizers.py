@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 
 ORGANIZATION_IMPORT_FIELDS = [
@@ -173,6 +173,23 @@ def normalize_public_url(value) -> str:
     if not parsed.netloc:
         return ""
     return candidate
+
+
+def canonicalize_public_website_url(value) -> str:
+    normalized = normalize_public_url(value)
+    if not normalized:
+        return ""
+    parsed = urlparse(normalized)
+    host = (parsed.hostname or "").lower()
+    if not host.startswith("www."):
+        return normalized
+    stripped_host = host[4:]
+    if not stripped_host:
+        return normalized
+    netloc = stripped_host
+    if parsed.port:
+        netloc = f"{netloc}:{parsed.port}"
+    return urlunparse(parsed._replace(netloc=netloc))
 
 
 def parse_bool(value, default: bool = False) -> bool:

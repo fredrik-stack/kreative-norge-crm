@@ -17,7 +17,7 @@ from .brreg import (
     normalize_org_number_candidate,
 )
 from .search_enrichment import search_organization_signals, search_person_signals
-from .normalizers import normalize_domain, normalize_name, normalize_space
+from .normalizers import canonicalize_public_website_url, normalize_domain, normalize_name, normalize_space
 
 try:
     from openai import OpenAI
@@ -753,7 +753,7 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
             "requires_review": True,
         }
 
-    public_website_url = (
+    public_website_url = canonicalize_public_website_url(
         _sanitize_url(brreg_candidate.website_url if brreg_candidate else "")
         or _sanitize_url(organization_search.website_url)
         or _sanitize_url(website_signals.get("final_url"))
