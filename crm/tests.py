@@ -2026,7 +2026,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
             )
 
         self.assertEqual(signals.website_url, "https://nordlyd.no/kontakt")
-        self.assertEqual(signals.socials["organization_instagram_url"], "https://www.instagram.com/nordlyd")
+        self.assertEqual(signals.socials["organization_instagram_url"], "https://instagram.com/nordlyd")
         self.assertEqual(signals.emails, ["post@nordlyd.no"])
         self.assertTrue(any("booking og info" in snippet for snippet in signals.text_snippets or []))
 
@@ -2064,7 +2064,80 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
             )
 
         self.assertEqual(signals.website_url, "https://svommehallenscene.no")
-        self.assertEqual(signals.socials["organization_facebook_url"], "https://www.facebook.com/svommehallenscene")
+        self.assertEqual(signals.socials["organization_facebook_url"], "https://facebook.com/svommehallenscene")
+
+    def test_search_organization_signals_uses_confirmed_existing_actor_prior(self):
+        search_enrichment_module = importlib.import_module("crm.services.import.search_enrichment")
+        Organization.objects.create(
+            tenant=self.tenant,
+            name="Pott og Panne",
+            municipalities="Bodø",
+            website_url="https://pottogpanne.no",
+            facebook_url="https://facebook.com/pottogpanne",
+        )
+        fake_results = [
+            {
+                "url": "https://www.proff.no/selskap/pott-og-panne",
+                "title": "Pott og Panne - Proff",
+                "snippet": "Bedriftsinformasjon om Pott og Panne.",
+            }
+        ]
+
+        with patch.object(search_enrichment_module, "_search", return_value=fake_results):
+            signals = search_enrichment_module.search_organization_signals(
+                normalize_import_row(
+                    self.base_row
+                    | {
+                        "organization_name": "Pott og Panne",
+                        "organization_municipalities": "",
+                        "organization_website_url": "",
+                        "organization_facebook_url": "",
+                    }
+                ),
+                tenant=self.tenant,
+            )
+
+        self.assertEqual(signals.website_url, "https://pottogpanne.no")
+        self.assertEqual(signals.socials["organization_facebook_url"], "https://facebook.com/pottogpanne")
+        self.assertEqual(signals.municipality_candidates[0]["value"], "Bodø")
+
+    @patch("crm.services.import.commit.refresh_organization_open_graph")
+    def test_skip_row_decision_excludes_row_from_commit(self, refresh_mock):
+        self._upload_csv()
+        preview_response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(preview_response.status_code, 200, preview_response.content)
+        row = self.job.rows.get()
+
+        decisions_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/decisions/",
+            {
+                "rows": [
+                    {
+                        "row_id": row.id,
+                        "decisions": [
+                            {
+                                "decision_type": "SKIP_ROW",
+                                "payload_json": {},
+                            }
+                        ],
+                    }
+                ]
+            },
+            format="json",
+        )
+        self.assertEqual(decisions_response.status_code, 200, decisions_response.content)
+
+        commit_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/commit/",
+            {"skip_unresolved": False},
+            format="json",
+        )
+        self.assertEqual(commit_response.status_code, 200, commit_response.content)
+
+        row.refresh_from_db()
+        self.assertEqual(row.row_status, ImportRow.RowStatus.SKIPPED)
+        self.assertFalse(Organization.objects.filter(tenant=self.tenant, org_number="123456789").exists())
+        refresh_mock.assert_not_called()
 
     def test_openai_schema_requires_all_suggested_fields_and_allows_null_values(self):
         schema = import_ai_suggestions_module._openai_schema()["schema"]

@@ -712,7 +712,7 @@ def _suggest_municipality_from_known_values(text: str) -> str | None:
 def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_result: dict) -> dict:
     organization = normalized_payload["organization"]
     person = normalized_payload["person"]
-    organization_search = search_organization_signals(normalized_payload)
+    organization_search = search_organization_signals(normalized_payload, tenant=tenant)
     raw_brreg_candidates = brreg_candidates_for_payload(normalized_payload, limit=5)
     brreg_candidate = raw_brreg_candidates[0] if raw_brreg_candidates and raw_brreg_candidates[0].score >= 0.5 else best_brreg_candidate(normalized_payload)
     if not brreg_candidate:
@@ -734,7 +734,7 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
         or person.get("website_url")
     )
     website_signals = _extract_contact_signals_from_website(website_url)
-    person_search = search_person_signals(normalized_payload)
+    person_search = search_person_signals(normalized_payload, tenant=tenant)
     preferred_domain = normalize_domain(
         organization_search.website_url
         or (brreg_candidate.website_url if brreg_candidate else "")
@@ -825,6 +825,8 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
         organization_municipality = exact_org_municipality
         if not organization_municipality and brreg_candidate and brreg_candidate.municipality and brreg_candidate.score >= 0.55:
             organization_municipality = brreg_candidate.municipality
+        if not organization_municipality and organization_search.municipality_candidates:
+            organization_municipality = str(organization_search.municipality_candidates[0].get("value") or "")
         if not organization_municipality:
             organization_municipality = _suggest_municipality_from_known_values(organization_text)
         if organization_municipality:
@@ -838,6 +840,8 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
     if not person.get("municipality"):
         exact_person_municipality = _suggest_field_from_exact_match(tenant, match_result, "person", "municipality")
         person_municipality = exact_person_municipality
+        if not person_municipality and person_search.municipality_candidates:
+            person_municipality = str(person_search.municipality_candidates[0].get("value") or "")
         if person_municipality:
             suggested_fields["person_municipality"] = {
                 "value": normalize_space(person_municipality),
@@ -1143,8 +1147,8 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
     person = normalized_payload.get("person") or {}
     website_url = _infer_website_url(normalized_payload) or organization.get("website_url") or person.get("website_url")
     website_signals = _extract_contact_signals_from_website(website_url)
-    organization_search = search_organization_signals(normalized_payload)
-    person_search = search_person_signals(normalized_payload) if person.get("full_name") else None
+    organization_search = search_organization_signals(normalized_payload, tenant=tenant)
+    person_search = search_person_signals(normalized_payload, tenant=tenant) if person.get("full_name") else None
     brreg_candidates = [
         {
             "org_number": candidate.org_number,
@@ -1217,12 +1221,20 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
             "socials": organization_search.socials or {},
             "text_snippets": organization_search.text_snippets or [],
             "org_numbers": organization_search.org_numbers or [],
+            "website_candidates": organization_search.website_candidates or [],
+            "social_candidates": organization_search.social_candidates or {},
+            "municipality_candidates": organization_search.municipality_candidates or [],
+            "confirmed_signals": organization_search.confirmed_signals or {},
         },
         "person_search_signals": {
             "website_url": person_search.website_url,
             "emails": person_search.emails or [],
             "socials": person_search.socials or {},
             "text_snippets": person_search.text_snippets or [],
+            "website_candidates": person_search.website_candidates or [],
+            "social_candidates": person_search.social_candidates or {},
+            "municipality_candidates": person_search.municipality_candidates or [],
+            "confirmed_signals": person_search.confirmed_signals or {},
         }
         if person_search
         else None,
@@ -1239,6 +1251,7 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
             "prefer_empty_fields": True,
             "skip_populated_fields": True,
             "language_hint": "Norwegian editorial data, but return field keys in English exactly as provided.",
+            "candidate_selection_only": True,
         },
         "instructions": [
             "Suggest main category separately from subcategory.",
@@ -1247,7 +1260,10 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
             "Use organization categories, subcategories, and internal tags as strong context when evaluating municipality, official website, and social profiles.",
             "Use website_signals for public email, municipality clues, and social profile URLs when available.",
             "Use organization_search_signals and person_search_signals when website_signals are incomplete.",
+            "Prioritize confirmed_signals and ranked website_candidates/social_candidates over generic snippets.",
             "Use BRREG candidates as stronger evidence for municipality and official organization identity than generic web snippets.",
+            "Choose website, municipality, and social profile suggestions from the provided candidate lists whenever possible.",
+            "Do not invent website URLs or social profile URLs from a name alone.",
             "Only suggest municipality when reasonably confident.",
             "Only suggest public email when it is clearly present in website_signals or the normalized data.",
             "Only suggest website or social profile URLs when plausible and editorially useful.",

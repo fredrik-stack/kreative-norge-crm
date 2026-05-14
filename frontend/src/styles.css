@@ -1050,6 +1050,15 @@ select,
   margin-right: auto;
 }
 
+.review-skip-toggle {
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  justify-content: flex-start;
+  width: min(100%, 28rem);
+  margin-right: auto;
+}
+
 .review-publish-toggle span {
   max-width: none;
 }

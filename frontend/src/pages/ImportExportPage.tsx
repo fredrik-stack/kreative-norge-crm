@@ -130,6 +130,7 @@ type SuggestionField = {
 type SuggestionState = "pending" | "accepted" | "ignored";
 
 type ReviewDraft = {
+  skipRow: boolean;
   organizationDecision: "NONE" | "USE_EXISTING_ORGANIZATION";
   personDecision: "NONE" | "USE_EXISTING_PERSON" | "CREATE_NEW_PERSON";
   organizationId: number | "";
@@ -744,6 +745,7 @@ function InlineReviewEditor(props: {
         getResolvedText(row, [key]);
     });
     return {
+      skipRow: getExistingDecisionType(row, ["SKIP_ROW"]) === "SKIP_ROW",
       organizationDecision: getExistingDecisionType(row, ["USE_EXISTING_ORGANIZATION"]) ?? "NONE",
       personDecision: getExistingDecisionType(row, ["USE_EXISTING_PERSON", "CREATE_NEW_PERSON"]) ?? "NONE",
       organizationId: getExistingDecisionId(row, "USE_EXISTING_ORGANIZATION", "organization_id"),
@@ -808,6 +810,8 @@ function InlineReviewEditor(props: {
   const duplicateCandidates = asCandidateList(row.ai_suggestions_json.organization_match_candidates);
   const diagnosticMeta = getDiagnosticMeta(row);
   const organizationLockedToExisting = actorOnly && draft.organizationDecision === "USE_EXISTING_ORGANIZATION" && Boolean(draft.organizationId);
+  const reviewLocked = draft.skipRow;
+  const organizationDataLocked = organizationLockedToExisting || reviewLocked;
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [brregLookupState, setBrregLookupState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [brregLookupMessage, setBrregLookupMessage] = useState("");
@@ -869,7 +873,7 @@ function InlineReviewEditor(props: {
   }
 
   function applyCategorySuggestion(name: string) {
-    if (organizationLockedToExisting) return;
+    if (organizationDataLocked) return;
     const categoryId = findCategoryIdByName(categories, name);
     const nextDraft = {
       ...draft,
@@ -880,7 +884,7 @@ function InlineReviewEditor(props: {
   }
 
   function applySubcategorySuggestion(name: string) {
-    if (organizationLockedToExisting) return;
+    if (organizationDataLocked) return;
     const subcategoryId = findSubcategoryIdByName(subcategories, name);
     const relatedCategoryId = findCategoryIdForSubcategory(subcategories, subcategoryId);
     const nextDraft = {
@@ -896,7 +900,7 @@ function InlineReviewEditor(props: {
   }
 
   function removeTag(tag: string) {
-    if (organizationLockedToExisting) return;
+    if (organizationDataLocked) return;
     const nextDraft = {
       ...draft,
       tagsText: splitCsvText(draft.tagsText).filter((item) => item.toLowerCase() !== tag.toLowerCase()).join(", "),
@@ -1091,12 +1095,31 @@ function InlineReviewEditor(props: {
             ) : null}
 
             {actorOnly ? (
+              <Field label="Commit">
+                <label className="checkbox-row review-skip-toggle">
+                  <input
+                    type="checkbox"
+                    checked={draft.skipRow}
+                    onChange={(e) => {
+                      const nextDraft = {
+                        ...draft,
+                        skipRow: e.target.checked,
+                      };
+                      void persistDraft(nextDraft);
+                    }}
+                  />
+                  <span>Ikke ta med denne raden i commit.</span>
+                </label>
+              </Field>
+            ) : null}
+
+            {actorOnly ? (
               <Field label="Publisering">
                 <label className="checkbox-row review-publish-toggle">
                   <input
                     type="checkbox"
                     checked={draft.organizationIsPublished}
-                    disabled={organizationLockedToExisting}
+                    disabled={organizationDataLocked}
                     onChange={(e) => {
                       const nextDraft = {
                         ...draft,
@@ -1110,6 +1133,12 @@ function InlineReviewEditor(props: {
               </Field>
             ) : null}
 
+            {reviewLocked ? (
+              <p className="meta review-lock-message">
+                Raden er markert for å hoppes over og tas ikke med i commit.
+              </p>
+            ) : null}
+
             {organizationLockedToExisting ? (
               <p className="meta review-lock-message">
                 Eksisterende aktør er valgt. Aktørdata beholdes ved commit, og feltene under brukes ikke til å overskrive den.
@@ -1121,7 +1150,7 @@ function InlineReviewEditor(props: {
                 <div className="review-inline-field compact">
                   <input
                     value={draft.fieldValues.organization_name ?? ""}
-                    disabled={organizationLockedToExisting}
+                    disabled={organizationDataLocked}
                     onChange={(e) =>
                       setDraft((current) => ({
                         ...current,
@@ -1147,7 +1176,7 @@ function InlineReviewEditor(props: {
                 <div className="review-inline-field compact">
                   <input
                     value={draft.fieldValues.organization_org_number ?? ""}
-                    disabled={organizationLockedToExisting}
+                    disabled={organizationDataLocked}
                     onChange={(e) =>
                       setDraft((current) => ({
                         ...current,
@@ -1168,7 +1197,7 @@ function InlineReviewEditor(props: {
                     <button
                       type="button"
                       className="ghost-button compact-button"
-                      disabled={organizationLockedToExisting}
+                      disabled={organizationDataLocked}
                       onClick={() => void syncOrganizationNumberFromBrreg(draft.fieldValues.organization_org_number || "")}
                     >
                       Synk fra BRREG
@@ -1184,7 +1213,7 @@ function InlineReviewEditor(props: {
             <Field label="Hovedkategori">
               <select
                 value={draft.categoryId}
-                disabled={organizationLockedToExisting}
+                disabled={organizationDataLocked}
                 onChange={(e) => {
                   const nextDraft = {
                     ...draft,
@@ -1218,7 +1247,7 @@ function InlineReviewEditor(props: {
             <Field label="Underkategori">
               <select
                 value={subcategorySelectValue}
-                disabled={organizationLockedToExisting}
+                disabled={organizationDataLocked}
                 onChange={(e) => {
                   const nextDraft = {
                     ...draft,
@@ -1263,7 +1292,7 @@ function InlineReviewEditor(props: {
               <div className="tag-editor-field">
                 <input
                   value={draft.tagsText}
-                  disabled={organizationLockedToExisting}
+                  disabled={organizationDataLocked}
                   onChange={(e) => setDraft((current) => ({ ...current, tagsText: e.target.value, suggestionStates: { ...current.suggestionStates, suggested_tags: "accepted" } }))}
                   placeholder="jazz, management"
                 />
@@ -1286,7 +1315,7 @@ function InlineReviewEditor(props: {
                   value={draft.organizationInternalTagsText}
                   placeholder="prioritet, partner, evalueres"
                   tone="internal"
-                  disabled={organizationLockedToExisting}
+                  disabled={organizationDataLocked}
                   onChange={(value) => setDraft((current) => ({ ...current, organizationInternalTagsText: value }))}
                 />
               </Field>
@@ -1310,7 +1339,7 @@ function InlineReviewEditor(props: {
                   <div className="review-inline-field compact">
                     <input
                       value={draft.fieldValues[fieldKey] ?? ""}
-                      disabled={organizationLockedToExisting}
+                      disabled={organizationDataLocked}
                       onChange={(e) =>
                         setDraft((current) => ({
                           ...current,
@@ -1335,7 +1364,7 @@ function InlineReviewEditor(props: {
                         <button
                           type="button"
                           className="ghost-button compact-button"
-                          disabled={organizationLockedToExisting}
+                          disabled={organizationDataLocked}
                           onClick={() => {
                             const nextDraft = {
                               ...draft,
@@ -1350,7 +1379,7 @@ function InlineReviewEditor(props: {
                         <button
                           type="button"
                           className="ghost-button compact-button"
-                          disabled={organizationLockedToExisting}
+                          disabled={organizationDataLocked}
                           onClick={() => {
                             const nextDraft = {
                               ...draft,
@@ -1661,6 +1690,10 @@ function buildDecisions(
     value,
     manual_override: true,
   });
+
+  if (draft.skipRow) {
+    return [{ decision_type: "SKIP_ROW" }];
+  }
 
   if (draft.organizationDecision === "USE_EXISTING_ORGANIZATION" && draft.organizationId) {
     decisions.push({ decision_type: "USE_EXISTING_ORGANIZATION", payload_json: { organization_id: draft.organizationId } });
