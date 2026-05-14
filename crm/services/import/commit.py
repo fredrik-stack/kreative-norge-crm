@@ -207,20 +207,20 @@ def _get_or_create_internal_tags(tenant, names: list[str]) -> list[InternalTag]:
 
 
 def _resolve_categories(names: list[str], mapped_ids: list[int] | None = None) -> list[Category]:
+    if mapped_ids:
+        return list(Category.objects.filter(id__in=mapped_ids).distinct())
     queryset = Category.objects.none()
     if names:
         queryset = queryset | Category.objects.filter(name__in=names)
-    if mapped_ids:
-        queryset = queryset | Category.objects.filter(id__in=mapped_ids)
     return list(queryset.distinct())
 
 
 def _resolve_subcategories(names: list[str], mapped_ids: list[int] | None = None) -> list[Subcategory]:
+    if mapped_ids:
+        return list(Subcategory.objects.filter(id__in=mapped_ids).distinct())
     queryset = Subcategory.objects.none()
     if names:
         queryset = queryset | Subcategory.objects.filter(name__in=names)
-    if mapped_ids:
-        queryset = queryset | Subcategory.objects.filter(id__in=mapped_ids)
     return list(queryset.distinct())
 
 

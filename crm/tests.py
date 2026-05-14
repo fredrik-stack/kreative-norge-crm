@@ -1010,6 +1010,49 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         refresh_mock.assert_called_once()
 
     @patch("crm.services.import.commit.refresh_organization_open_graph")
+    def test_commit_uses_mapped_category_instead_of_original_import_category(self, refresh_mock):
+        scenekunst = Category.objects.get(name="Scenekunst")
+
+        row = self.base_row | {
+            "organization_categories": "Musikk",
+            "organization_subcategories": "",
+        }
+        self._upload_csv([row])
+        preview_response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(preview_response.status_code, 200, preview_response.content)
+
+        preview_row = self.job.rows.get()
+        decisions_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/decisions/",
+            {
+                "rows": [
+                    {
+                        "row_id": preview_row.id,
+                        "decisions": [
+                            {
+                                "decision_type": "MAP_CATEGORY",
+                                "payload_json": {"category_id": scenekunst.id},
+                            }
+                        ],
+                    }
+                ]
+            },
+            format="json",
+        )
+        self.assertEqual(decisions_response.status_code, 200, decisions_response.content)
+
+        commit_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/commit/",
+            {"skip_unresolved": False},
+            format="json",
+        )
+        self.assertEqual(commit_response.status_code, 200, commit_response.content)
+
+        organization = Organization.objects.get(tenant=self.tenant, org_number="123456789")
+        self.assertEqual(set(organization.categories.values_list("name", flat=True)), {"Scenekunst"})
+        refresh_mock.assert_called_once()
+
+    @patch("crm.services.import.commit.refresh_organization_open_graph")
     def test_commit_normalizes_website_urls_without_scheme(self, refresh_mock):
         row = self.base_row | {
             "organization_org_number": "987654321",
