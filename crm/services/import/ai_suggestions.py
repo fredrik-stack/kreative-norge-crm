@@ -709,11 +709,31 @@ def _suggest_municipality_from_known_values(text: str) -> str | None:
     return None
 
 
-def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_result: dict) -> dict:
+def _build_ai_enrichment_context(tenant: Tenant, normalized_payload: dict) -> dict[str, Any]:
+    organization = normalized_payload.get("organization") or {}
+    person = normalized_payload.get("person") or {}
+    website_url = _infer_website_url(normalized_payload) or organization.get("website_url") or person.get("website_url")
+    return {
+        "website_url": website_url,
+        "website_signals": _extract_contact_signals_from_website(website_url),
+        "organization_search": search_organization_signals(normalized_payload, tenant=tenant),
+        "person_search": search_person_signals(normalized_payload, tenant=tenant) if person.get("full_name") else None,
+        "raw_brreg_candidates": brreg_candidates_for_payload(normalized_payload, limit=5),
+    }
+
+
+def _heuristic_suggestions(
+    tenant: Tenant,
+    normalized_payload: dict,
+    match_result: dict,
+    *,
+    enrichment_context: dict[str, Any] | None = None,
+) -> dict:
     organization = normalized_payload["organization"]
     person = normalized_payload["person"]
-    organization_search = search_organization_signals(normalized_payload, tenant=tenant)
-    raw_brreg_candidates = brreg_candidates_for_payload(normalized_payload, limit=5)
+    enrichment_context = enrichment_context or _build_ai_enrichment_context(tenant, normalized_payload)
+    organization_search = enrichment_context["organization_search"]
+    raw_brreg_candidates = list(enrichment_context["raw_brreg_candidates"])
     brreg_candidate = raw_brreg_candidates[0] if raw_brreg_candidates and raw_brreg_candidates[0].score >= 0.5 else best_brreg_candidate(normalized_payload)
     if not brreg_candidate:
         for org_number in organization_search.org_numbers or []:
@@ -733,8 +753,16 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
         or _infer_website_url(normalized_payload)
         or person.get("website_url")
     )
-    website_signals = _extract_contact_signals_from_website(website_url)
-    person_search = search_person_signals(normalized_payload, tenant=tenant)
+    website_signals = enrichment_context["website_signals"]
+    person_search = enrichment_context["person_search"] or SearchSignals(
+        emails=[],
+        socials={},
+        text_snippets=[],
+        website_candidates=[],
+        social_candidates={},
+        municipality_candidates=[],
+        confirmed_signals={},
+    )
     preferred_domain = normalize_domain(
         organization_search.website_url
         or (brreg_candidate.website_url if brreg_candidate else "")
@@ -1142,13 +1170,19 @@ def _sanitize_suggestions(payload: dict[str, Any], fallback_provider: str) -> di
     return sanitized
 
 
-def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: dict) -> str:
+def _build_openai_input(
+    tenant: Tenant,
+    normalized_payload: dict,
+    match_result: dict,
+    *,
+    enrichment_context: dict[str, Any] | None = None,
+) -> str:
     organization = normalized_payload.get("organization") or {}
     person = normalized_payload.get("person") or {}
-    website_url = _infer_website_url(normalized_payload) or organization.get("website_url") or person.get("website_url")
-    website_signals = _extract_contact_signals_from_website(website_url)
-    organization_search = search_organization_signals(normalized_payload, tenant=tenant)
-    person_search = search_person_signals(normalized_payload, tenant=tenant) if person.get("full_name") else None
+    enrichment_context = enrichment_context or _build_ai_enrichment_context(tenant, normalized_payload)
+    website_signals = enrichment_context["website_signals"]
+    organization_search = enrichment_context["organization_search"]
+    person_search = enrichment_context["person_search"]
     brreg_candidates = [
         {
             "org_number": candidate.org_number,
@@ -1158,7 +1192,7 @@ def _build_openai_input(tenant: Tenant, normalized_payload: dict, match_result: 
             "email": candidate.email,
             "score": candidate.score,
         }
-        for candidate in brreg_candidates_for_payload(normalized_payload, limit=4)
+        for candidate in enrichment_context["raw_brreg_candidates"][:4]
     ]
     populated_keys = _existing_suggestion_keys(normalized_payload)
     taxonomy = {
@@ -1357,7 +1391,13 @@ def _openai_schema() -> dict[str, Any]:
     }
 
 
-def _generate_openai_suggestions(tenant: Tenant, normalized_payload: dict, match_result: dict) -> dict | None:
+def _generate_openai_suggestions(
+    tenant: Tenant,
+    normalized_payload: dict,
+    match_result: dict,
+    *,
+    enrichment_context: dict[str, Any] | None = None,
+) -> dict | None:
     if not settings.OPENAI_IMPORT_ENABLED or not settings.OPENAI_API_KEY or OpenAI is None:
         return None
 
@@ -1365,7 +1405,12 @@ def _generate_openai_suggestions(tenant: Tenant, normalized_payload: dict, match
     client = OpenAI(api_key=settings.OPENAI_API_KEY, timeout=settings.OPENAI_IMPORT_TIMEOUT)
     response = client.responses.create(
         model=settings.OPENAI_IMPORT_MODEL,
-        input=_build_openai_input(tenant, normalized_payload, match_result),
+        input=_build_openai_input(
+            tenant,
+            normalized_payload,
+            match_result,
+            enrichment_context=enrichment_context,
+        ),
         text={
             "format": {
                 "type": "json_schema",
@@ -1391,7 +1436,16 @@ def _generate_openai_suggestions(tenant: Tenant, normalized_payload: dict, match
 
 
 def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_result: dict) -> dict:
-    heuristic = _sanitize_suggestions(_heuristic_suggestions(tenant, normalized_payload, match_result), "heuristic_fallback")
+    enrichment_context = _build_ai_enrichment_context(tenant, normalized_payload)
+    heuristic = _sanitize_suggestions(
+        _heuristic_suggestions(
+            tenant,
+            normalized_payload,
+            match_result,
+            enrichment_context=enrichment_context,
+        ),
+        "heuristic_fallback",
+    )
     if not settings.OPENAI_IMPORT_ENABLED:
         heuristic["diagnostic"].update(
             {
@@ -1420,7 +1474,12 @@ def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_resu
         )
         return heuristic
     try:
-        openai_suggestions = _generate_openai_suggestions(tenant, normalized_payload, match_result)
+        openai_suggestions = _generate_openai_suggestions(
+            tenant,
+            normalized_payload,
+            match_result,
+            enrichment_context=enrichment_context,
+        )
     except Exception as exc:
         openai_suggestions = None
         openai_error = str(exc).strip() or exc.__class__.__name__

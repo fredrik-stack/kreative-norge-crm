@@ -1550,6 +1550,81 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         OPENAI_IMPORT_MODEL="gpt-5.4",
         OPENAI_IMPORT_TIMEOUT=5,
     )
+    def test_generate_ai_suggestions_reuses_enrichment_context_for_person_imports(self):
+        SearchSignals = importlib.import_module("crm.services.import.search_enrichment").SearchSignals
+
+        class FakeResponse:
+            output_text = '{"suggested_fields":{},"provider":"openai"}'
+
+        class FakeResponses:
+            def create(self, **kwargs):
+                return FakeResponse()
+
+        class FakeOpenAI:
+            def __init__(self, api_key, timeout):
+                self.responses = FakeResponses()
+
+        with patch.object(import_ai_suggestions_module, "OpenAI", FakeOpenAI), patch.object(
+            import_ai_suggestions_module,
+            "search_organization_signals",
+            return_value=SearchSignals(
+                website_url="https://nordlyd.no",
+                emails=[],
+                socials={},
+                text_snippets=[],
+                org_numbers=[],
+                website_candidates=[],
+                social_candidates={},
+                municipality_candidates=[],
+                confirmed_signals={},
+            ),
+        ) as organization_search_mock, patch.object(
+            import_ai_suggestions_module,
+            "search_person_signals",
+            return_value=SearchSignals(
+                website_url="https://adastorm.no",
+                emails=["ada@adastorm.no"],
+                socials={"person_instagram_url": "https://instagram.com/adastorm"},
+                text_snippets=["Ada Storm er musiker i Bodø."],
+                website_candidates=[],
+                social_candidates={},
+                municipality_candidates=[{"value": "Bodø", "score": 0.8, "source": "search"}],
+                confirmed_signals={},
+            ),
+        ) as person_search_mock, patch.object(
+            import_ai_suggestions_module,
+            "_extract_contact_signals_from_website",
+            return_value={"emails": [], "phones": [], "socials": {}, "text_snippet": "", "final_url": ""},
+        ) as website_signal_mock:
+            generate_ai_suggestions(
+                self.tenant,
+                normalize_import_row(
+                    self.base_row
+                    | {
+                        "organization_name": "",
+                        "organization_org_number": "",
+                        "organization_email": "",
+                        "organization_website_url": "",
+                        "person_full_name": "Ada Storm",
+                        "person_email": "",
+                        "person_website_url": "",
+                        "person_instagram_url": "",
+                        "person_municipality": "",
+                    }
+                ),
+                {"organization": {}, "person": {}},
+            )
+
+        self.assertEqual(organization_search_mock.call_count, 1)
+        self.assertEqual(person_search_mock.call_count, 1)
+        self.assertEqual(website_signal_mock.call_count, 1)
+
+    @override_settings(
+        OPENAI_IMPORT_ENABLED=True,
+        OPENAI_API_KEY="test-key",
+        OPENAI_IMPORT_MODEL="gpt-5.4",
+        OPENAI_IMPORT_TIMEOUT=5,
+    )
     def test_generate_ai_suggestions_discards_invalid_taxonomy_and_non_norwegian_description(self):
         class FakeResponse:
             output_text = (
