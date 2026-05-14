@@ -38,6 +38,7 @@ class ResolvedRowDecision:
     subcategory_ids: list[int] | None = None
     accepted_ai_suggestions: dict[str, object] | None = None
     ignored_ai_suggestions: set[str] | None = None
+    manual_review_overrides: dict[str, object] | None = None
 
 
 def _log(job, row, entity_type, entity_id, action, details_json):
@@ -52,7 +53,13 @@ def _log(job, row, entity_type, entity_id, action, details_json):
 
 
 def _resolve_decisions(row: ImportRow) -> ResolvedRowDecision:
-    result = ResolvedRowDecision(category_ids=[], subcategory_ids=[], accepted_ai_suggestions={}, ignored_ai_suggestions=set())
+    result = ResolvedRowDecision(
+        category_ids=[],
+        subcategory_ids=[],
+        accepted_ai_suggestions={},
+        ignored_ai_suggestions=set(),
+        manual_review_overrides={},
+    )
     for decision in row.decisions.all():
         payload = decision.payload_json or {}
         if decision.decision_type == ImportDecision.DecisionType.USE_EXISTING_ORGANIZATION:
@@ -66,7 +73,12 @@ def _resolve_decisions(row: ImportRow) -> ResolvedRowDecision:
         elif decision.decision_type == ImportDecision.DecisionType.MAP_SUBCATEGORY and payload.get("subcategory_id"):
             result.subcategory_ids.append(payload["subcategory_id"])
         elif decision.decision_type == ImportDecision.DecisionType.ACCEPT_AI_SUGGESTION and payload.get("suggestion_key"):
-            result.accepted_ai_suggestions[payload["suggestion_key"]] = payload.get("value")
+            suggestion_key = payload["suggestion_key"]
+            if payload.get("manual_override"):
+                result.manual_review_overrides[suggestion_key] = payload.get("value")
+                result.accepted_ai_suggestions[suggestion_key] = payload.get("value")
+            elif suggestion_key != "organization_is_published":
+                result.accepted_ai_suggestions[suggestion_key] = payload.get("value")
         elif decision.decision_type == ImportDecision.DecisionType.IGNORE_AI_SUGGESTION and payload.get("suggestion_key"):
             result.ignored_ai_suggestions.add(payload["suggestion_key"])
     return result
@@ -75,6 +87,7 @@ def _resolve_decisions(row: ImportRow) -> ResolvedRowDecision:
 def _apply_accepted_ai_suggestions(row: ImportRow, normalized_payload: dict, resolved: ResolvedRowDecision) -> dict:
     payload = deepcopy(normalized_payload)
     accepted = resolved.accepted_ai_suggestions or {}
+    manual_overrides = resolved.manual_review_overrides or {}
     for suggestion_key, value in accepted.items():
         if suggestion_key == "organization_name":
             payload["organization"]["name"] = value or ""
@@ -110,6 +123,8 @@ def _apply_accepted_ai_suggestions(row: ImportRow, normalized_payload: dict, res
             payload["organization"]["youtube_url"] = normalize_public_url(value)
         elif suggestion_key == "organization_description":
             payload["organization"]["description"] = value or ""
+        elif suggestion_key == "organization_is_published" and suggestion_key in manual_overrides:
+            payload["organization"]["is_published"] = parse_bool(value, default=False)
         elif suggestion_key == "person_website_url":
             payload["person"]["website_url"] = normalize_public_url(value)
         elif suggestion_key == "person_instagram_url":

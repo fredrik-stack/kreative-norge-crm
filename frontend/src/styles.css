@@ -1041,6 +1041,19 @@ select,
   margin-top: 0.15rem;
 }
 
+.review-publish-toggle {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.review-publish-toggle span {
+  max-width: 40rem;
+}
+
+.review-lock-message {
+  margin: -0.2rem 0 0.1rem;
+}
+
 .editor-detail-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

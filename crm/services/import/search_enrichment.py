@@ -56,6 +56,10 @@ GENERIC_CONTEXT_TOKENS = {
 }
 
 
+def _compact_text(value: str) -> str:
+    return re.sub(r"[^0-9a-zæøå]+", "", normalize_name(value))
+
+
 def _sanitize_url(url: str | None) -> str | None:
     if not url:
         return None
@@ -217,6 +221,7 @@ def _score_social_result(result: dict[str, str], *, target_name: str, organizati
 def _pick_primary_website(results: list[dict[str, str]], *, target_name: str, context_terms: list[str] | None = None) -> str | None:
     ranked_candidates: list[tuple[float, str]] = []
     normalized_target = normalize_name(target_name)
+    compact_target = _compact_text(target_name)
     for result in results:
         url = result.get("url", "")
         haystack = normalize_name(" ".join([result.get("title", ""), result.get("snippet", ""), url]))
@@ -224,15 +229,29 @@ def _pick_primary_website(results: list[dict[str, str]], *, target_name: str, co
             continue
         if not url or _is_social_url(url) or _is_directory_url(url):
             continue
-        host = (urlparse(url).hostname or "").lower()
+        parsed = urlparse(url)
+        host = (parsed.hostname or "").lower()
+        compact_host = _compact_text(host.replace("www.", "").replace(".no", "").replace(".com", ""))
         host_tokens = set(normalize_name(host.replace("www.", "").replace(".no", "").replace(".com", "")).split())
         haystack_tokens = set(haystack.split())
         overlap = len(host_tokens & haystack_tokens)
         score = float(overlap)
+        if compact_target and compact_host:
+            if compact_target == compact_host:
+                score += 3.1
+            elif compact_target in compact_host or compact_host in compact_target:
+                score += 1.6
         if normalized_target and normalized_target in haystack:
             score += 2.2
         elif any(token in haystack_tokens for token in normalized_target.split() if len(token) > 2):
             score += 0.7
+        path = parsed.path.strip("/").casefold()
+        if not path:
+            score += 0.35
+        elif path in {"kontakt", "om", "om-oss", "about", "kontakt-oss"}:
+            score += 0.15
+        elif path.count("/") >= 2:
+            score -= 0.2
         for context_term in context_terms or []:
             normalized_context = normalize_name(context_term)
             if normalized_context and normalized_context in haystack:
@@ -273,17 +292,39 @@ def _organization_queries(name: str, municipality: str, context_terms: list[str]
     queries = [
         f'"{name}"',
         f'"{name}" Norge',
+        f'"{name}" nettside',
+        f'"{name}" offisiell',
         f'"{name}" kontakt',
+        f'"{name}" instagram',
+        f'"{name}" facebook',
     ]
+    simplified_name = normalize_space(re.sub(r"[&/,+-]+", " ", name))
+    if simplified_name and simplified_name != name:
+        queries.extend(
+            [
+                f'"{simplified_name}"',
+                f'"{simplified_name}" nettside',
+                f'"{simplified_name}" kontakt',
+            ]
+        )
     if municipality:
         queries.insert(1, f'"{name}" "{municipality}"')
         queries.append(f'"{name}" "{municipality}" kontakt')
+        queries.append(f'"{name}" "{municipality}" nettside')
     for context_term in context_terms[:2]:
         queries.append(f'"{name}" "{context_term}"')
         queries.append(f'"{name}" "{context_term}" kontakt')
         if municipality:
             queries.append(f'"{name}" "{municipality}" "{context_term}"')
-    return queries
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for query in queries:
+        normalized_query = normalize_space(query)
+        if not normalized_query or normalized_query in seen:
+            continue
+        seen.add(normalized_query)
+        deduped.append(normalized_query)
+    return deduped
 
 
 def _person_queries(person_name: str, organization_name: str, municipality: str, context_terms: list[str]) -> list[str]:

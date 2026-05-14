@@ -132,6 +132,10 @@ NORWEGIAN_COUNTY_NAMES = {
     "østfold",
 }
 
+MUNICIPALITY_COUNTY_EXCEPTIONS = {
+    "oslo",
+}
+
 PREFERRED_PUBLIC_EMAIL_LOCALS = (
     "post",
     "info",
@@ -557,7 +561,10 @@ def _normalize_text_suggestion(key: str, value: str) -> str | None:
         candidate = normalize_org_number_candidate(text)
         return candidate if is_valid_org_number(candidate) else None
     if key in {"organization_municipalities", "person_municipality"}:
-        return None if normalize_name(text) in NORWEGIAN_COUNTY_NAMES else text
+        normalized_text = normalize_name(text)
+        if normalized_text in NORWEGIAN_COUNTY_NAMES and normalized_text not in MUNICIPALITY_COUNTY_EXCEPTIONS:
+            return None
+        return text
     if key in {"organization_email", "person_email"}:
         candidate = text.casefold()
         return candidate if EMAIL_RE.fullmatch(candidate) else None
@@ -667,7 +674,7 @@ def _suggest_municipality_from_known_values(text: str) -> str | None:
 
     for value in _unique_casefold([normalize_space(item) for item in split_values if normalize_space(item)]):
         normalized_value = normalize_name(value)
-        if normalized_value in NORWEGIAN_COUNTY_NAMES:
+        if normalized_value in NORWEGIAN_COUNTY_NAMES and normalized_value not in MUNICIPALITY_COUNTY_EXCEPTIONS:
             continue
         if normalized_value in normalized:
             return value
@@ -790,6 +797,8 @@ def _heuristic_suggestions(tenant: Tenant, normalized_payload: dict, match_resul
         organization_municipality = exact_org_municipality
         if not organization_municipality and brreg_candidate and brreg_candidate.municipality and brreg_candidate.score >= 0.55:
             organization_municipality = brreg_candidate.municipality
+        if not organization_municipality:
+            organization_municipality = _suggest_municipality_from_known_values(organization_text)
         if organization_municipality:
             suggested_fields["organization_municipalities"] = {
                 "value": normalize_space(organization_municipality),

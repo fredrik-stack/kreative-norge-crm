@@ -981,6 +981,94 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         refresh_mock.assert_called_once()
 
     @patch("crm.services.import.commit.refresh_organization_open_graph")
+    def test_manual_review_changes_persist_through_commit(self, refresh_mock):
+        self.job.import_mode = ImportJob.ImportMode.ORGANIZATIONS_ONLY
+        self.job.save(update_fields=["import_mode", "updated_at"])
+        row = {key: value for key, value in self.base_row.items() if key.startswith("organization_")}
+        row["organization_email"] = ""
+        row["organization_website_url"] = ""
+        row["organization_description"] = ""
+        row["organization_is_published"] = ""
+        row["organization_internal_tags"] = ""
+        self._upload_csv([row])
+
+        preview_response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(preview_response.status_code, 200, preview_response.content)
+        preview_row = self.job.rows.get()
+
+        scenekunst = Category.objects.get(name="Scenekunst")
+        teater = Subcategory.objects.get(name="Teater")
+        decisions_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/decisions/",
+            {
+                "rows": [
+                    {
+                        "row_id": preview_row.id,
+                        "decisions": [
+                            {"decision_type": "MAP_CATEGORY", "payload_json": {"category_id": scenekunst.id}},
+                            {"decision_type": "MAP_SUBCATEGORY", "payload_json": {"subcategory_id": teater.id}},
+                            {
+                                "decision_type": "ACCEPT_AI_SUGGESTION",
+                                "payload_json": {
+                                    "suggestion_key": "organization_email",
+                                    "value": "kontakt@sortlandjazz.no",
+                                    "manual_override": True,
+                                },
+                            },
+                            {
+                                "decision_type": "ACCEPT_AI_SUGGESTION",
+                                "payload_json": {
+                                    "suggestion_key": "organization_website_url",
+                                    "value": "https://sortlandjazz.no",
+                                    "manual_override": True,
+                                },
+                            },
+                            {
+                                "decision_type": "ACCEPT_AI_SUGGESTION",
+                                "payload_json": {
+                                    "suggestion_key": "organization_description",
+                                    "value": "Sortland Jazz og viseklubb arrangerer konserter i Sortland.",
+                                    "manual_override": True,
+                                },
+                            },
+                            {
+                                "decision_type": "ACCEPT_AI_SUGGESTION",
+                                "payload_json": {
+                                    "suggestion_key": "organization_internal_tags",
+                                    "value": ["arrangor", "nordland"],
+                                    "manual_override": True,
+                                },
+                            },
+                            {
+                                "decision_type": "ACCEPT_AI_SUGGESTION",
+                                "payload_json": {
+                                    "suggestion_key": "organization_is_published",
+                                    "value": True,
+                                    "manual_override": True,
+                                },
+                            },
+                        ],
+                    }
+                ]
+            },
+            format="json",
+        )
+        self.assertEqual(decisions_response.status_code, 200, decisions_response.content)
+
+        commit_response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/commit/", {"skip_unresolved": False}, format="json")
+        self.assertEqual(commit_response.status_code, 200, commit_response.content)
+
+        organization = Organization.objects.get(tenant=self.tenant, org_number="123456789")
+        self.assertEqual(organization.email, "kontakt@sortlandjazz.no")
+        self.assertEqual(organization.website_url, "https://sortlandjazz.no")
+        self.assertEqual(organization.description, "Sortland Jazz og viseklubb arrangerer konserter i Sortland.")
+        self.assertTrue(organization.is_published)
+        self.assertEqual(set(organization.categories.values_list("name", flat=True)), {"Scenekunst"})
+        self.assertEqual(set(organization.subcategories.values_list("name", flat=True)), {"Teater"})
+        self.assertEqual(set(organization.internal_tags.values_list("name", flat=True)), {"arrangor", "nordland"})
+        refresh_mock.assert_called_once()
+
+    @patch("crm.services.import.commit.refresh_organization_open_graph")
     def test_organizations_only_commit_preserves_exact_subcategories(self, refresh_mock):
         job = ImportJob.objects.create(
             tenant=self.tenant,
@@ -1806,6 +1894,8 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
                     | {
                         "organization_org_number": "",
                         "organization_municipalities": "",
+                        "organization_email": "",
+                        "organization_website_url": "",
                     }
                 ),
                 {"organization": {}, "person": {}},
@@ -1896,6 +1986,42 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(signals.socials["organization_instagram_url"], "https://www.instagram.com/nordlyd")
         self.assertEqual(signals.emails, ["post@nordlyd.no"])
         self.assertTrue(any("booking og info" in snippet for snippet in signals.text_snippets or []))
+
+    def test_search_organization_signals_prefers_official_domain_over_directory_results(self):
+        search_enrichment_module = importlib.import_module("crm.services.import.search_enrichment")
+        fake_results = [
+            {
+                "url": "https://www.proff.no/selskap/sv%C3%B8mmehallen-scene",
+                "title": "Svømmehallen Scene - Proff",
+                "snippet": "Bransjeinformasjon om Svømmehallen Scene.",
+            },
+            {
+                "url": "https://svommehallenscene.no",
+                "title": "Svømmehallen Scene",
+                "snippet": "Offisiell nettside for Svømmehallen Scene i Bodø.",
+            },
+            {
+                "url": "https://www.facebook.com/svommehallenscene",
+                "title": "Svømmehallen Scene | Facebook",
+                "snippet": "Følg Svømmehallen Scene på Facebook.",
+            },
+        ]
+
+        with patch.object(search_enrichment_module, "_search", return_value=fake_results):
+            signals = search_enrichment_module.search_organization_signals(
+                normalize_import_row(
+                    self.base_row
+                    | {
+                        "organization_name": "Svømmehallen Scene",
+                        "organization_email": "",
+                        "organization_website_url": "",
+                        "organization_facebook_url": "",
+                    }
+                )
+            )
+
+        self.assertEqual(signals.website_url, "https://svommehallenscene.no")
+        self.assertEqual(signals.socials["organization_facebook_url"], "https://www.facebook.com/svommehallenscene")
 
     def test_openai_schema_requires_all_suggested_fields_and_allows_null_values(self):
         schema = import_ai_suggestions_module._openai_schema()["schema"]

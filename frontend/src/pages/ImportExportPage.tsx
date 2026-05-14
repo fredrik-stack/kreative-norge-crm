@@ -807,6 +807,7 @@ function InlineReviewEditor(props: {
   const brregCandidates = getBrregCandidates(row);
   const duplicateCandidates = asCandidateList(row.ai_suggestions_json.organization_match_candidates);
   const diagnosticMeta = getDiagnosticMeta(row);
+  const organizationLockedToExisting = actorOnly && draft.organizationDecision === "USE_EXISTING_ORGANIZATION" && Boolean(draft.organizationId);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [brregLookupState, setBrregLookupState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [brregLookupMessage, setBrregLookupMessage] = useState("");
@@ -868,6 +869,7 @@ function InlineReviewEditor(props: {
   }
 
   function applyCategorySuggestion(name: string) {
+    if (organizationLockedToExisting) return;
     const categoryId = findCategoryIdByName(categories, name);
     const nextDraft = {
       ...draft,
@@ -878,6 +880,7 @@ function InlineReviewEditor(props: {
   }
 
   function applySubcategorySuggestion(name: string) {
+    if (organizationLockedToExisting) return;
     const subcategoryId = findSubcategoryIdByName(subcategories, name);
     const relatedCategoryId = findCategoryIdForSubcategory(subcategories, subcategoryId);
     const nextDraft = {
@@ -893,6 +896,7 @@ function InlineReviewEditor(props: {
   }
 
   function removeTag(tag: string) {
+    if (organizationLockedToExisting) return;
     const nextDraft = {
       ...draft,
       tagsText: splitCsvText(draft.tagsText).filter((item) => item.toLowerCase() !== tag.toLowerCase()).join(", "),
@@ -1088,10 +1092,11 @@ function InlineReviewEditor(props: {
 
             {actorOnly ? (
               <Field label="Publisering">
-                <label className="checkbox-row">
+                <label className="checkbox-row review-publish-toggle">
                   <input
                     type="checkbox"
                     checked={draft.organizationIsPublished}
+                    disabled={organizationLockedToExisting}
                     onChange={(e) => {
                       const nextDraft = {
                         ...draft,
@@ -1105,11 +1110,18 @@ function InlineReviewEditor(props: {
               </Field>
             ) : null}
 
+            {organizationLockedToExisting ? (
+              <p className="meta review-lock-message">
+                Eksisterende aktør er valgt. Aktørdata beholdes ved commit, og feltene under brukes ikke til å overskrive den.
+              </p>
+            ) : null}
+
             {actorOnly ? (
               <Field label="Aktørnavn">
                 <div className="review-inline-field compact">
                   <input
                     value={draft.fieldValues.organization_name ?? ""}
+                    disabled={organizationLockedToExisting}
                     onChange={(e) =>
                       setDraft((current) => ({
                         ...current,
@@ -1135,6 +1147,7 @@ function InlineReviewEditor(props: {
                 <div className="review-inline-field compact">
                   <input
                     value={draft.fieldValues.organization_org_number ?? ""}
+                    disabled={organizationLockedToExisting}
                     onChange={(e) =>
                       setDraft((current) => ({
                         ...current,
@@ -1155,6 +1168,7 @@ function InlineReviewEditor(props: {
                     <button
                       type="button"
                       className="ghost-button compact-button"
+                      disabled={organizationLockedToExisting}
                       onClick={() => void syncOrganizationNumberFromBrreg(draft.fieldValues.organization_org_number || "")}
                     >
                       Synk fra BRREG
@@ -1170,6 +1184,7 @@ function InlineReviewEditor(props: {
             <Field label="Hovedkategori">
               <select
                 value={draft.categoryId}
+                disabled={organizationLockedToExisting}
                 onChange={(e) => {
                   const nextDraft = {
                     ...draft,
@@ -1203,6 +1218,7 @@ function InlineReviewEditor(props: {
             <Field label="Underkategori">
               <select
                 value={subcategorySelectValue}
+                disabled={organizationLockedToExisting}
                 onChange={(e) => {
                   const nextDraft = {
                     ...draft,
@@ -1247,6 +1263,7 @@ function InlineReviewEditor(props: {
               <div className="tag-editor-field">
                 <input
                   value={draft.tagsText}
+                  disabled={organizationLockedToExisting}
                   onChange={(e) => setDraft((current) => ({ ...current, tagsText: e.target.value, suggestionStates: { ...current.suggestionStates, suggested_tags: "accepted" } }))}
                   placeholder="jazz, management"
                 />
@@ -1269,6 +1286,7 @@ function InlineReviewEditor(props: {
                   value={draft.organizationInternalTagsText}
                   placeholder="prioritet, partner, evalueres"
                   tone="internal"
+                  disabled={organizationLockedToExisting}
                   onChange={(value) => setDraft((current) => ({ ...current, organizationInternalTagsText: value }))}
                 />
               </Field>
@@ -1292,6 +1310,7 @@ function InlineReviewEditor(props: {
                   <div className="review-inline-field compact">
                     <input
                       value={draft.fieldValues[fieldKey] ?? ""}
+                      disabled={organizationLockedToExisting}
                       onChange={(e) =>
                         setDraft((current) => ({
                           ...current,
@@ -1316,6 +1335,7 @@ function InlineReviewEditor(props: {
                         <button
                           type="button"
                           className="ghost-button compact-button"
+                          disabled={organizationLockedToExisting}
                           onClick={() => {
                             const nextDraft = {
                               ...draft,
@@ -1330,6 +1350,7 @@ function InlineReviewEditor(props: {
                         <button
                           type="button"
                           className="ghost-button compact-button"
+                          disabled={organizationLockedToExisting}
                           onClick={() => {
                             const nextDraft = {
                               ...draft,
@@ -1635,6 +1656,11 @@ function buildDecisions(
   draft: ReviewDraft,
 ): Array<{ decision_type: ImportDecision["decision_type"]; payload_json?: Record<string, unknown> }> {
   const decisions: Array<{ decision_type: ImportDecision["decision_type"]; payload_json?: Record<string, unknown> }> = [];
+  const manualPayload = (suggestion_key: string, value: unknown) => ({
+    suggestion_key,
+    value,
+    manual_override: true,
+  });
 
   if (draft.organizationDecision === "USE_EXISTING_ORGANIZATION" && draft.organizationId) {
     decisions.push({ decision_type: "USE_EXISTING_ORGANIZATION", payload_json: { organization_id: draft.organizationId } });
@@ -1649,7 +1675,7 @@ function buildDecisions(
   if (draft.tagsText.trim()) {
     decisions.push({
       decision_type: "ACCEPT_AI_SUGGESTION",
-      payload_json: { suggestion_key: "suggested_tags", value: splitCsvText(draft.tagsText) },
+      payload_json: manualPayload("suggested_tags", splitCsvText(draft.tagsText)),
     });
   } else if (draft.suggestionStates.suggested_tags === "ignored") {
     decisions.push({ decision_type: "IGNORE_AI_SUGGESTION", payload_json: { suggestion_key: "suggested_tags" } });
@@ -1659,28 +1685,28 @@ function buildDecisions(
     if (draft.fieldValues.organization_name?.trim()) {
       decisions.push({
         decision_type: "ACCEPT_AI_SUGGESTION",
-        payload_json: { suggestion_key: "organization_name", value: draft.fieldValues.organization_name.trim() },
+        payload_json: manualPayload("organization_name", draft.fieldValues.organization_name.trim()),
       });
     }
     if (draft.fieldValues.organization_org_number?.trim()) {
       decisions.push({
         decision_type: "ACCEPT_AI_SUGGESTION",
-        payload_json: { suggestion_key: "organization_org_number", value: draft.fieldValues.organization_org_number.trim() },
+        payload_json: manualPayload("organization_org_number", draft.fieldValues.organization_org_number.trim()),
       });
     }
     decisions.push({
       decision_type: "ACCEPT_AI_SUGGESTION",
-      payload_json: { suggestion_key: "organization_internal_tags", value: splitCsvText(draft.organizationInternalTagsText) },
+      payload_json: manualPayload("organization_internal_tags", splitCsvText(draft.organizationInternalTagsText)),
     });
     decisions.push({
       decision_type: "ACCEPT_AI_SUGGESTION",
-      payload_json: { suggestion_key: "organization_is_published", value: draft.organizationIsPublished },
+      payload_json: manualPayload("organization_is_published", draft.organizationIsPublished),
     });
   }
   if (importMode === "PEOPLE_ONLY") {
     decisions.push({
       decision_type: "ACCEPT_AI_SUGGESTION",
-      payload_json: { suggestion_key: "person_internal_tags", value: splitCsvText(draft.personInternalTagsText) },
+      payload_json: manualPayload("person_internal_tags", splitCsvText(draft.personInternalTagsText)),
     });
   }
 
@@ -1692,7 +1718,7 @@ function buildDecisions(
     if (fieldValue) {
       decisions.push({
         decision_type: "ACCEPT_AI_SUGGESTION",
-        payload_json: { suggestion_key: fieldKey, value: fieldValue },
+        payload_json: manualPayload(fieldKey, fieldValue),
       });
     } else if (state === "ignored") {
       decisions.push({ decision_type: "IGNORE_AI_SUGGESTION", payload_json: { suggestion_key: fieldKey } });
@@ -1961,11 +1987,12 @@ function TagTextEditor(props: {
   value: string;
   placeholder: string;
   tone?: "default" | "internal";
+  disabled?: boolean;
   onChange: (value: string) => void;
 }) {
   return (
     <div className="tag-editor-field">
-      <input value={props.value} onChange={(e) => props.onChange(e.target.value)} placeholder={props.placeholder} />
+      <input value={props.value} onChange={(e) => props.onChange(e.target.value)} placeholder={props.placeholder} disabled={props.disabled} />
       {splitCsvText(props.value).length > 0 ? (
         <div className="tag-chip-editor">
           {splitCsvText(props.value).map((tag) => (
@@ -1973,6 +2000,7 @@ function TagTextEditor(props: {
               key={`${props.tone ?? "default"}-${tag}`}
               type="button"
               className={`tag-chip-edit ${props.tone === "internal" ? "internal-tag-chip-edit" : ""}`}
+              disabled={props.disabled}
               onClick={() =>
                 props.onChange(
                   splitCsvText(props.value)
