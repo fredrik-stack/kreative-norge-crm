@@ -1112,6 +1112,48 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         refresh_mock.assert_called_once()
 
     @patch("crm.services.import.commit.refresh_organization_open_graph")
+    def test_manual_review_can_clear_imported_subcategories(self, refresh_mock):
+        self.job.import_mode = ImportJob.ImportMode.ORGANIZATIONS_ONLY
+        self.job.save(update_fields=["import_mode", "updated_at"])
+        row = {key: value for key, value in self.base_row.items() if key.startswith("organization_")}
+        row["organization_subcategories"] = "Artister & Band"
+        self._upload_csv([row])
+
+        preview_response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(preview_response.status_code, 200, preview_response.content)
+        preview_row = self.job.rows.get()
+
+        decisions_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/decisions/",
+            {
+                "rows": [
+                    {
+                        "row_id": preview_row.id,
+                        "decisions": [
+                            {
+                                "decision_type": "ACCEPT_AI_SUGGESTION",
+                                "payload_json": {
+                                    "suggestion_key": "suggested_subcategories",
+                                    "value": [],
+                                    "manual_override": True,
+                                },
+                            },
+                        ],
+                    }
+                ]
+            },
+            format="json",
+        )
+        self.assertEqual(decisions_response.status_code, 200, decisions_response.content)
+
+        commit_response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/commit/", {"skip_unresolved": False}, format="json")
+        self.assertEqual(commit_response.status_code, 200, commit_response.content)
+
+        organization = Organization.objects.get(tenant=self.tenant, org_number="123456789")
+        self.assertEqual(organization.subcategories.count(), 0)
+        refresh_mock.assert_called_once()
+
+    @patch("crm.services.import.commit.refresh_organization_open_graph")
     def test_organizations_only_commit_preserves_exact_subcategories(self, refresh_mock):
         job = ImportJob.objects.create(
             tenant=self.tenant,

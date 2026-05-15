@@ -134,6 +134,7 @@ type ReviewDraft = {
   organizationDecision: "NONE" | "USE_EXISTING_ORGANIZATION";
   personDecision: "NONE" | "USE_EXISTING_PERSON" | "CREATE_NEW_PERSON";
   organizationId: number | "";
+  organizationSearchText: string;
   personId: number | "";
   categoryId: number | "";
   subcategoryId: number | "";
@@ -749,6 +750,7 @@ function InlineReviewEditor(props: {
       organizationDecision: getExistingDecisionType(row, ["USE_EXISTING_ORGANIZATION"]) ?? "NONE",
       personDecision: getExistingDecisionType(row, ["USE_EXISTING_PERSON", "CREATE_NEW_PERSON"]) ?? "NONE",
       organizationId: getExistingDecisionId(row, "USE_EXISTING_ORGANIZATION", "organization_id"),
+      organizationSearchText: getCurrentOrganizationLabel(row, organizations),
       personId: getExistingDecisionId(row, "USE_EXISTING_PERSON", "person_id"),
       categoryId:
         getExistingDecisionId(row, "MAP_CATEGORY", "category_id") ||
@@ -796,6 +798,12 @@ function InlineReviewEditor(props: {
     if (!selected) return options;
     return options.some((subcategory) => subcategory.id === selected.id) ? options : [selected, ...options];
   }, [draft.categoryId, draft.subcategoryId, subcategories]);
+  const organizationSearchMatches = useMemo(() => {
+    if (!personOnly || draft.organizationDecision !== "USE_EXISTING_ORGANIZATION") return [];
+    const query = draft.organizationSearchText.trim().toLowerCase();
+    if (!query) return organizations.slice(0, 12);
+    return organizations.filter((organization) => organization.name.toLowerCase().includes(query)).slice(0, 12);
+  }, [draft.organizationDecision, draft.organizationSearchText, organizations, personOnly]);
   const currentSubcategoryCategoryId = findCategoryIdForSubcategory(subcategories, currentSubcategoryId);
   const canDisplayCurrentSubcategory =
     !currentSubcategoryId
@@ -1025,6 +1033,8 @@ function InlineReviewEditor(props: {
                         ...current,
                         organizationDecision: e.target.value as ReviewDraft["organizationDecision"],
                         organizationId: e.target.value === "USE_EXISTING_ORGANIZATION" ? current.organizationId : "",
+                        organizationSearchText:
+                          e.target.value === "USE_EXISTING_ORGANIZATION" ? current.organizationSearchText : "",
                       }))
                     }
                   >
@@ -1047,6 +1057,9 @@ function InlineReviewEditor(props: {
                       ...draft,
                       organizationDecision: "USE_EXISTING_ORGANIZATION" as const,
                       organizationId,
+                      organizationSearchText:
+                        organizations.find((organization) => organization.id === organizationId)?.name
+                        ?? draft.organizationSearchText,
                     };
                     void persistDraft(nextDraft);
                   }}
@@ -1054,12 +1067,45 @@ function InlineReviewEditor(props: {
                 />
                 {draft.organizationDecision === "USE_EXISTING_ORGANIZATION" ? (
                   <Field label="Velg aktør">
-                    <select value={draft.organizationId} onChange={(e) => setDraft((current) => ({ ...current, organizationId: Number(e.target.value) }))}>
-                      <option value="">Velg aktør</option>
-                      {organizations.map((organization) => (
-                        <option key={organization.id} value={organization.id}>{organization.name}</option>
-                      ))}
-                    </select>
+                    <div className="search-select-field">
+                      <input
+                        value={draft.organizationSearchText}
+                        onChange={(e) =>
+                          setDraft((current) => ({
+                            ...current,
+                            organizationSearchText: e.target.value,
+                            organizationId:
+                              current.organizationId &&
+                              organizations.find((organization) => organization.id === current.organizationId)?.name === e.target.value
+                                ? current.organizationId
+                                : "",
+                          }))
+                        }
+                        placeholder="Søk etter aktørnavn"
+                      />
+                      <div className="search-select-results" role="listbox" aria-label="Aktørsøk">
+                        {organizationSearchMatches.length > 0 ? organizationSearchMatches.map((organization) => (
+                          <button
+                            key={organization.id}
+                            type="button"
+                            className={`search-select-option ${draft.organizationId === organization.id ? "active" : ""}`}
+                            onClick={() => {
+                              const nextDraft = {
+                                ...draft,
+                                organizationId: organization.id,
+                                organizationSearchText: organization.name,
+                              };
+                              void persistDraft(nextDraft);
+                            }}
+                          >
+                            <span>{organization.name}</span>
+                            <span className="meta">#{organization.id}</span>
+                          </button>
+                        )) : (
+                          <div className="search-select-empty">Ingen treff</div>
+                        )}
+                      </div>
+                    </div>
                   </Field>
                 ) : null}
               </>
@@ -1094,24 +1140,22 @@ function InlineReviewEditor(props: {
               </Field>
             ) : null}
 
-            {actorOnly ? (
-              <Field label="Commit">
-                <label className="checkbox-row review-skip-toggle">
-                  <input
-                    type="checkbox"
-                    checked={draft.skipRow}
-                    onChange={(e) => {
-                      const nextDraft = {
-                        ...draft,
-                        skipRow: e.target.checked,
-                      };
-                      void persistDraft(nextDraft);
-                    }}
-                  />
-                  <span>Ikke ta med denne raden i commit.</span>
-                </label>
-              </Field>
-            ) : null}
+            <Field label="Commit">
+              <label className="checkbox-row review-skip-toggle">
+                <input
+                  type="checkbox"
+                  checked={draft.skipRow}
+                  onChange={(e) => {
+                    const nextDraft = {
+                      ...draft,
+                      skipRow: e.target.checked,
+                    };
+                    void persistDraft(nextDraft);
+                  }}
+                />
+                <span>Ikke ta med denne raden i commit.</span>
+              </label>
+            </Field>
 
             {actorOnly ? (
               <Field label="Publisering">
@@ -1700,9 +1744,19 @@ function buildDecisions(
   }
   if (draft.categoryId) {
     decisions.push({ decision_type: "MAP_CATEGORY", payload_json: { category_id: draft.categoryId } });
+  } else if (getCurrentCategoryValues(row, importMode, []).length > 0 || hasAcceptedSuggestionDecision(row, "suggested_categories")) {
+    decisions.push({
+      decision_type: "ACCEPT_AI_SUGGESTION",
+      payload_json: manualPayload("suggested_categories", []),
+    });
   }
   if (draft.subcategoryId) {
     decisions.push({ decision_type: "MAP_SUBCATEGORY", payload_json: { subcategory_id: draft.subcategoryId } });
+  } else if (getCurrentSubcategoryValues(row, importMode, []).length > 0 || hasAcceptedSuggestionDecision(row, "suggested_subcategories")) {
+    decisions.push({
+      decision_type: "ACCEPT_AI_SUGGESTION",
+      payload_json: manualPayload("suggested_subcategories", []),
+    });
   }
 
   if (draft.tagsText.trim()) {
@@ -2427,6 +2481,8 @@ function getCurrentCategoryValues(
   importMode: "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY",
   categories: Category[],
 ): string[] {
+  const acceptedState = getAcceptedArrayState(row, "suggested_categories");
+  if (acceptedState.exists) return acceptedState.value;
   const mappedCategoryId = getExistingDecisionId(row, "MAP_CATEGORY", "category_id");
   if (mappedCategoryId) {
     const match = categories.find((category) => category.id === mappedCategoryId);
@@ -2440,6 +2496,8 @@ function getCurrentSubcategoryValues(
   importMode: "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY",
   subcategories: Subcategory[],
 ): string[] {
+  const acceptedState = getAcceptedArrayState(row, "suggested_subcategories");
+  if (acceptedState.exists) return acceptedState.value;
   const mappedSubcategoryId = getExistingDecisionId(row, "MAP_SUBCATEGORY", "subcategory_id");
   if (mappedSubcategoryId) {
     const match = subcategories.find((subcategory) => subcategory.id === mappedSubcategoryId);
