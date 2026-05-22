@@ -1949,6 +1949,19 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(web_search_payload["rules"]["skip_platforms"], ["linkedin", "youtube"])
         self.assertNotIn("person_linkedin_url", web_search_payload["rules"]["allowed_fields"])
         self.assertNotIn("person_youtube_url", web_search_payload["rules"]["allowed_fields"])
+        self.assertTrue(web_search_payload["rules"]["person_profile_verification_method"]["build_likely_username_variants"])
+        self.assertIn(
+            "For Instagram, Facebook, and TikTok, build likely username variants from the person's name before judging candidates.",
+            web_search_payload["instructions"],
+        )
+        self.assertIn(
+            "Also consider Norwegian character simplification such as æ to ae, ø to o, and å to aa.",
+            web_search_payload["instructions"],
+        )
+        self.assertIn(
+            "If the handle looks plausible but the visible identity clues are weak, omit it.",
+            web_search_payload["instructions"],
+        )
 
     @override_settings(
         OPENAI_IMPORT_ENABLED=True,
