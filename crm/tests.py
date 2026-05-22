@@ -2431,6 +2431,52 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertIn("tiktok", joined_queries)
         self.assertNotIn("linkedin", joined_queries)
         self.assertNotIn("youtube", joined_queries)
+        self.assertIn("adastorm", joined_queries)
+        self.assertIn("ada.storm", joined_queries)
+
+    def test_search_person_signals_prefers_person_social_profile_over_organization_page(self):
+        search_enrichment_module = importlib.import_module("crm.services.import.search_enrichment")
+
+        def fake_merge_ranked_results(queries, *, target_name, context_terms=None, limit=4):
+            joined = " ".join(queries).casefold()
+            if "instagram" in joined or "facebook" in joined or "tiktok" in joined:
+                return [
+                    {
+                        "url": "https://www.facebook.com/kunnskapsparkenhelgeland",
+                        "title": "Kunnskapsparken Helgeland AS | Facebook",
+                        "snippet": "Company in Mosjøen.",
+                        "query": queries[0],
+                        "score": "1.1",
+                    },
+                    {
+                        "url": "https://www.instagram.com/torbjorn.aag",
+                        "title": "Torbjørn Aag (@torbjorn.aag) • Instagram photos and videos",
+                        "snippet": "Daglig leder i Kunnskapsparken Helgeland, Mosjøen.",
+                        "query": queries[0],
+                        "score": "1.4",
+                    },
+                ]
+            return []
+
+        with patch.object(search_enrichment_module, "_merge_ranked_results", side_effect=fake_merge_ranked_results):
+            signals = search_enrichment_module.search_person_signals(
+                normalize_import_row(
+                    self.base_row
+                    | {
+                        "organization_name": "Kunnskapsparken Helgeland AS",
+                        "person_full_name": "Torbjørn Aag",
+                        "person_title": "Daglig leder",
+                        "person_municipality": "Mosjøen",
+                    }
+                ),
+                tenant=self.tenant,
+            )
+
+        self.assertEqual(
+            signals.socials.get("person_instagram_url"),
+            "https://instagram.com/torbjorn.aag",
+        )
+        self.assertNotIn("person_facebook_url", signals.socials)
 
     def test_search_organization_signals_extracts_primary_site_and_socials_from_search_results(self):
         search_enrichment_module = importlib.import_module("crm.services.import.search_enrichment")

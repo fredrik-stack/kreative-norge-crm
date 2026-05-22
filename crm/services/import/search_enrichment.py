@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from dataclasses import dataclass
 from urllib.parse import quote, urlparse
 from urllib.request import Request, urlopen
@@ -26,6 +27,20 @@ PERSON_ALLOWED_SOCIAL_KEYS = {
     "person_instagram_url",
     "person_tiktok_url",
     "person_facebook_url",
+}
+
+PERSON_REJECT_ORGANIZATION_MARKERS = {
+    "as",
+    "asa",
+    "festival",
+    "scene",
+    "kulturhus",
+    "klubb",
+    "forening",
+    "kommune",
+    "company",
+    "organization",
+    "venue",
 }
 
 
@@ -68,6 +83,21 @@ GENERIC_CONTEXT_TOKENS = {
 
 def _compact_text(value: str) -> str:
     return re.sub(r"[^0-9a-zæøå]+", "", normalize_name(value))
+
+
+def _ascii_handle_text(value: str) -> str:
+    folded = (
+        normalize_space(value)
+        .replace("æ", "ae")
+        .replace("ø", "o")
+        .replace("å", "aa")
+        .replace("Æ", "Ae")
+        .replace("Ø", "O")
+        .replace("Å", "Aa")
+    )
+    normalized = unicodedata.normalize("NFKD", folded)
+    ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"[^0-9a-z]+", "", ascii_only.casefold())
 
 
 def _unique_casefold(values: list[str]) -> list[str]:
@@ -242,18 +272,76 @@ def _merge_emails(*email_lists: list[str]) -> list[str]:
     return merged
 
 
-def _score_social_result(result: dict[str, str], *, target_name: str, organization_name: str = "") -> float:
+def _person_handle_variants(person_name: str) -> list[str]:
+    cleaned = normalize_space(person_name)
+    if not cleaned:
+        return []
+    parts = [part for part in re.split(r"[\s\-]+", cleaned) if part]
+    if len(parts) < 2:
+        compact = _ascii_handle_text(cleaned)
+        return [compact] if compact else []
+    first = _ascii_handle_text(parts[0])
+    last = _ascii_handle_text(parts[-1])
+    first_initial = first[:1]
+    variants = [
+        f"{first}{last}",
+        f"{first}.{last}",
+        f"{first}_{last}",
+        f"{last}{first}",
+        f"{first_initial}{last}" if first_initial else "",
+    ]
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for variant in variants:
+        normalized = normalize_space(variant)
+        key = normalized.casefold()
+        if not normalized or key in seen:
+            continue
+        seen.add(key)
+        deduped.append(normalized)
+    return deduped[:6]
+
+
+def _score_social_result(
+    result: dict[str, str],
+    *,
+    target_name: str,
+    organization_name: str = "",
+    municipality: str = "",
+    context_terms: list[str] | None = None,
+    person_specific: bool = False,
+) -> float:
     haystack = normalize_name(" ".join([result.get("title", ""), result.get("snippet", ""), result.get("url", "")]))
     score = 0.0
     normalized_target = normalize_name(target_name)
     normalized_org = normalize_name(organization_name)
+    normalized_municipality = normalize_name(municipality)
+    handle_variants = _person_handle_variants(target_name) if person_specific else []
+    parsed = urlparse(result.get("url", ""))
+    path = parsed.path.strip("/").casefold()
+    path_compact = re.sub(r"[^0-9a-z]+", "", path)
     if normalized_target and normalized_target in haystack:
         score += 0.8
     target_tokens = [token for token in normalized_target.split() if len(token) > 2]
     if target_tokens:
         score += min(0.4, sum(1 for token in target_tokens if token in haystack) * 0.1)
+    if person_specific and handle_variants and any(re.sub(r"[^0-9a-z]+", "", variant.casefold()) in path_compact for variant in handle_variants):
+        score += 0.9
     if normalized_org and normalized_org in haystack:
         score += 0.2
+    if normalized_municipality and normalized_municipality in haystack:
+        score += 0.15
+    for context_term in context_terms or []:
+        normalized_context = normalize_name(context_term)
+        if normalized_context and normalized_context in haystack:
+            score += 0.1
+    if person_specific:
+        haystack_tokens = set(haystack.split())
+        person_token_hits = sum(1 for token in target_tokens if token in haystack_tokens)
+        if person_token_hits < 2 and normalized_target not in haystack:
+            score -= 0.45
+        if any(marker in haystack_tokens for marker in PERSON_REJECT_ORGANIZATION_MARKERS):
+            score -= 0.65
     return score
 
 
@@ -576,12 +664,31 @@ def _social_queries(target_name: str, municipality: str, context_terms: list[str
     return _dedupe_queries(queries)
 
 
+def _person_social_queries(
+    person_name: str,
+    municipality: str,
+    context_terms: list[str],
+    platform: str,
+) -> list[str]:
+    queries = list(_social_queries(person_name, municipality, context_terms, platform))
+    platform_domain = "facebook.com" if platform == "facebook" else f"{platform}.com"
+    for handle in _person_handle_variants(person_name):
+        queries.append(f'site:{platform_domain} "{handle}"')
+        if municipality:
+            queries.append(f'site:{platform_domain} "{handle}" "{municipality}"')
+        for context_term in context_terms[:1]:
+            queries.append(f'site:{platform_domain} "{handle}" "{context_term}"')
+    return _dedupe_queries(queries)
+
+
 def _collect_social_candidates(
     results: list[dict[str, str]],
     *,
     target_name: str,
     organization_name: str = "",
     person_specific: bool = False,
+    municipality: str = "",
+    context_terms: list[str] | None = None,
     confirmed_socials: dict[str, str] | None = None,
 ) -> dict[str, list[dict[str, object]]]:
     confirmed_socials = confirmed_socials or {}
@@ -601,7 +708,14 @@ def _collect_social_candidates(
             continue
         if person_specific and payload_key not in PERSON_ALLOWED_SOCIAL_KEYS:
             continue
-        score = _score_social_result(result, target_name=target_name, organization_name=organization_name)
+        score = _score_social_result(
+            result,
+            target_name=target_name,
+            organization_name=organization_name,
+            municipality=municipality,
+            context_terms=context_terms,
+            person_specific=person_specific,
+        )
         if canonicalize_public_website_url(url) == confirmed_socials.get(payload_key):
             score += 1.4
         if person_specific and score < 0.75:
@@ -858,7 +972,7 @@ def search_person_signals(normalized_payload: dict, tenant: Tenant | None = None
     for platform in ("instagram", "facebook", "tiktok"):
         social_results.extend(
             _merge_ranked_results(
-                _social_queries(person_name, municipality, context_terms, platform),
+                _person_social_queries(person_name, municipality, context_terms, platform),
                 target_name=person_name,
                 context_terms=context_terms,
                 limit=3,
@@ -874,6 +988,8 @@ def search_person_signals(normalized_payload: dict, tenant: Tenant | None = None
         target_name=person_name,
         organization_name=organization_name,
         person_specific=True,
+        municipality=municipality,
+        context_terms=context_terms,
         confirmed_socials=dict(confirmed_signals.get("socials", {})),
     )
     socials = {
