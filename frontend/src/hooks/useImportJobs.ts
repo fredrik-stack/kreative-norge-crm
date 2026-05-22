@@ -26,6 +26,22 @@ function summarizeAiProgress(job: ImportJob | null) {
   };
 }
 
+function buildRerunPendingJob(job: ImportJob): ImportJob {
+  const summary = job.summary_json ?? {};
+  const totalRows = Number(summary.rows_total ?? job.rows_count ?? 0);
+  const nextSummary = {
+    ...summary,
+    ai_generation_status: "pending",
+    rows_ai_completed: 0,
+    rows_ai_failed: 0,
+    rows_ai_pending: totalRows,
+  };
+  return {
+    ...job,
+    summary_json: nextSummary,
+  };
+}
+
 export function useImportJobs(tenantId: number | null) {
   const [jobs, setJobs] = useState<ImportJob[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
@@ -205,6 +221,11 @@ export function useImportJobs(tenantId: number | null) {
     setError(null);
     setAutoContinueAi(true);
     try {
+      if (forceRerun && selectedJob) {
+        const pendingJob = buildRerunPendingJob(selectedJob);
+        setSelectedJob(pendingJob);
+        setJobs((current) => current.map((job) => (job.id === pendingJob.id ? pendingJob : job)));
+      }
       const rerunRowsQuery = forceRerun ? { ...rowsQuery, page: 1 } : rowsQuery;
       if (forceRerun && (rowsQuery.page ?? 1) !== 1) {
         setRowsQuery(rerunRowsQuery);
