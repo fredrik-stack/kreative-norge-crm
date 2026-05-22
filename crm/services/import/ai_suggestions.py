@@ -59,9 +59,7 @@ ALLOWED_SUGGESTION_FIELD_KEYS = (
     "person_website_url",
     "person_instagram_url",
     "person_tiktok_url",
-    "person_linkedin_url",
     "person_facebook_url",
-    "person_youtube_url",
     "suggested_categories",
     "suggested_subcategories",
 )
@@ -81,9 +79,7 @@ OPENAI_SCHEMA_FIELD_KEYS = (
     "person_website_url",
     "person_instagram_url",
     "person_tiktok_url",
-    "person_linkedin_url",
     "person_facebook_url",
-    "person_youtube_url",
     "suggested_categories",
     "suggested_subcategories",
 )
@@ -93,9 +89,7 @@ PERSON_WEB_SEARCH_FIELD_KEYS = (
     "person_website_url",
     "person_instagram_url",
     "person_tiktok_url",
-    "person_linkedin_url",
     "person_facebook_url",
-    "person_youtube_url",
 )
 
 SOCIAL_DOMAINS = {
@@ -234,9 +228,7 @@ def _existing_suggestion_keys(normalized_payload: dict) -> set[str]:
         ("website_url", "person_website_url"),
         ("instagram_url", "person_instagram_url"),
         ("tiktok_url", "person_tiktok_url"),
-        ("linkedin_url", "person_linkedin_url"),
         ("facebook_url", "person_facebook_url"),
-        ("youtube_url", "person_youtube_url"),
     ):
         if _has_values(person.get(field_name)):
             existing.add(suggestion_key)
@@ -911,9 +903,7 @@ def _heuristic_suggestions(
         ("website_url", "person_website_url"),
         ("instagram_url", "person_instagram_url"),
         ("tiktok_url", "person_tiktok_url"),
-        ("linkedin_url", "person_linkedin_url"),
         ("facebook_url", "person_facebook_url"),
-        ("youtube_url", "person_youtube_url"),
     ):
         if not person.get(field_name):
             exact_match_value = _suggest_field_from_exact_match(tenant, match_result, "person", field_name)
@@ -1218,8 +1208,6 @@ def _should_run_person_web_search(
         for field_key in (
             "person_instagram_url",
             "person_facebook_url",
-            "person_linkedin_url",
-            "person_youtube_url",
             "person_tiktok_url",
         )
         if social_candidates.get(field_key) and _candidate_score(social_candidates[field_key][0]) >= 1.45
@@ -1269,10 +1257,14 @@ def _build_openai_web_search_input(
             "requires_review": True,
             "prefer_official_or_self_identified_profiles": True,
             "do_not_guess": True,
+            "social_platform_scope": ["instagram", "facebook", "tiktok"],
+            "skip_platforms": ["linkedin", "youtube"],
         },
         "instructions": [
             "Use the web_search tool to verify missing person profile fields.",
             "Prefer official websites and profiles that clearly belong to the named person.",
+            "Only look for Instagram, Facebook, and TikTok when searching for person social profiles.",
+            "Do not search for or suggest LinkedIn or YouTube person profiles.",
             "Use organization context only to disambiguate the person, not to reuse the organization's own social profiles.",
             "Do not return fan pages, event listings, directory pages, or organization profiles as person profiles.",
             "Only return municipality when the evidence is reasonably clear from reliable search results.",
@@ -1334,9 +1326,7 @@ def _build_openai_input(
                     ("website_url", "person_website_url"),
                     ("instagram_url", "person_instagram_url"),
                     ("tiktok_url", "person_tiktok_url"),
-                    ("linkedin_url", "person_linkedin_url"),
                     ("facebook_url", "person_facebook_url"),
-                    ("youtube_url", "person_youtube_url"),
                 )
                 if suggestion_key not in populated_keys
             ]
@@ -1416,6 +1406,8 @@ def _build_openai_input(
             "Do not infer social usernames or profile URLs from a person or organization name alone.",
             "Only suggest a social profile URL when it is explicitly supported by website_signals or matched existing records.",
             "For person imports, prioritize person-specific fields and do not reuse organization social profiles as person profiles.",
+            "For person social profiles, only suggest Instagram, Facebook, and TikTok.",
+            "Do not suggest LinkedIn or YouTube for person imports.",
             "Social URLs must match the actual service domain for that field.",
             "Do not return keys outside the allowed_fields list.",
             "If you have no confident suggestion for a field, omit it instead of guessing.",
@@ -1474,9 +1466,7 @@ def _openai_schema() -> dict[str, Any]:
         "person_website_url": nullable_string_field_value,
         "person_instagram_url": nullable_string_field_value,
         "person_tiktok_url": nullable_string_field_value,
-        "person_linkedin_url": nullable_string_field_value,
         "person_facebook_url": nullable_string_field_value,
-        "person_youtube_url": nullable_string_field_value,
         "suggested_categories": nullable_array_field_value,
         "suggested_subcategories": nullable_array_field_value,
     }

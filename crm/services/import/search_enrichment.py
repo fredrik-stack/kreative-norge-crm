@@ -22,6 +22,12 @@ SOCIAL_HOSTS = {
     "youtube.com": "youtube",
 }
 
+PERSON_ALLOWED_SOCIAL_KEYS = {
+    "person_instagram_url",
+    "person_tiktok_url",
+    "person_facebook_url",
+}
+
 
 @dataclass
 class SearchSignals:
@@ -483,9 +489,7 @@ def _confirmed_person_signals(tenant: Tenant | None, normalized_payload: dict) -
     for field_name, payload_key in (
         ("instagram_url", "person_instagram_url"),
         ("tiktok_url", "person_tiktok_url"),
-        ("linkedin_url", "person_linkedin_url"),
         ("facebook_url", "person_facebook_url"),
-        ("youtube_url", "person_youtube_url"),
     ):
         for item in queryset:
             value = canonicalize_public_website_url(getattr(item, field_name, "") or "")
@@ -595,6 +599,8 @@ def _collect_social_candidates(
                 break
         if not payload_key:
             continue
+        if person_specific and payload_key not in PERSON_ALLOWED_SOCIAL_KEYS:
+            continue
         score = _score_social_result(result, target_name=target_name, organization_name=organization_name)
         if canonicalize_public_website_url(url) == confirmed_socials.get(payload_key):
             score += 1.4
@@ -702,6 +708,8 @@ def _extract_search_signals(
             continue
         for domain, label in SOCIAL_HOSTS.items():
             if domain in host and label not in socials:
+                if person_specific and f"{prefix}{label}_url" not in PERSON_ALLOWED_SOCIAL_KEYS:
+                    continue
                 socials[label] = url
                 break
 
@@ -847,7 +855,7 @@ def search_person_signals(normalized_payload: dict, tenant: Tenant | None = None
             confirmed_websites=list(confirmed_signals.get("websites", [])),
         )
     social_results = []
-    for platform in ("instagram", "facebook", "youtube", "tiktok", "linkedin"):
+    for platform in ("instagram", "facebook", "tiktok"):
         social_results.extend(
             _merge_ranked_results(
                 _social_queries(person_name, municipality, context_terms, platform),

@@ -1,3 +1,4 @@
+import json
 import tempfile
 import zipfile
 import importlib
@@ -1761,6 +1762,11 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(suggestions["diagnostic"]["provider_status"], "openai_web_search")
         self.assertEqual(len(fake_responses.calls), 2)
         self.assertTrue(fake_responses.calls[1].get("tools"))
+        web_search_payload = json.loads(fake_responses.calls[1]["input"])
+        self.assertEqual(web_search_payload["rules"]["social_platform_scope"], ["instagram", "facebook", "tiktok"])
+        self.assertEqual(web_search_payload["rules"]["skip_platforms"], ["linkedin", "youtube"])
+        self.assertNotIn("person_linkedin_url", web_search_payload["rules"]["allowed_fields"])
+        self.assertNotIn("person_youtube_url", web_search_payload["rules"]["allowed_fields"])
 
     @override_settings(
         OPENAI_IMPORT_ENABLED=True,
@@ -2215,6 +2221,34 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(suggestions["suggested_fields"]["person_website_url"]["value"], "https://adastorm.no")
         self.assertEqual(suggestions["suggested_fields"]["person_instagram_url"]["value"], "https://instagram.com/adastorm")
         self.assertEqual(suggestions["suggested_fields"]["organization_website_url"]["value"], "https://nordlyd.no")
+
+    def test_search_person_signals_limits_social_platforms_to_instagram_facebook_and_tiktok(self):
+        search_enrichment_module = importlib.import_module("crm.services.import.search_enrichment")
+        seen_queries: list[str] = []
+
+        def fake_merge_ranked_results(queries, *, target_name, context_terms=None, limit=4):
+            seen_queries.extend(list(queries))
+            return []
+
+        with patch.object(search_enrichment_module, "_merge_ranked_results", side_effect=fake_merge_ranked_results):
+            search_enrichment_module.search_person_signals(
+                normalize_import_row(
+                    self.base_row
+                    | {
+                        "organization_name": "Nordlyd AS",
+                        "person_full_name": "Ada Storm",
+                        "person_municipality": "Oslo",
+                    }
+                ),
+                tenant=self.tenant,
+            )
+
+        joined_queries = " ".join(seen_queries).casefold()
+        self.assertIn("instagram", joined_queries)
+        self.assertIn("facebook", joined_queries)
+        self.assertIn("tiktok", joined_queries)
+        self.assertNotIn("linkedin", joined_queries)
+        self.assertNotIn("youtube", joined_queries)
 
     def test_search_organization_signals_extracts_primary_site_and_socials_from_search_results(self):
         search_enrichment_module = importlib.import_module("crm.services.import.search_enrichment")
