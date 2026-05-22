@@ -37,6 +37,7 @@ export function useImportJobs(tenantId: number | null) {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [forbidden, setForbidden] = useState(false);
+  const [autoContinueAi, setAutoContinueAi] = useState(false);
 
   async function refreshJobs(nextSelectedJobId?: number | null) {
     if (!tenantId) return;
@@ -202,6 +203,7 @@ export function useImportJobs(tenantId: number | null) {
     if (!tenantId || !selectedJobId) return null;
     setBusyAction("generate-ai");
     setError(null);
+    setAutoContinueAi(true);
     try {
       const rerunRowsQuery = forceRerun ? { ...rowsQuery, page: 1 } : rowsQuery;
       if (forceRerun && (rowsQuery.page ?? 1) !== 1) {
@@ -211,6 +213,7 @@ export function useImportJobs(tenantId: number | null) {
       let nextRetryFailed = retryFailed;
       let nextForceRerun = forceRerun;
       let previousSignature = "";
+      let stalled = false;
 
       for (let attempt = 0; attempt < 40; attempt += 1) {
         const updated = await generateImportJobAi(tenantId, selectedJobId, {
@@ -228,7 +231,10 @@ export function useImportJobs(tenantId: number | null) {
         const hasRetryableFailures = progress.failed > 0;
 
         if (progress.status === "completed") break;
-        if (signature === previousSignature) break;
+        if (signature === previousSignature) {
+          stalled = true;
+          break;
+        }
         previousSignature = signature;
 
         if (hasMorePending) {
@@ -246,9 +252,17 @@ export function useImportJobs(tenantId: number | null) {
         await refreshJobs(latestJob.id);
         await refreshSelectedJob(latestJob.id);
         await refreshRows(rerunRowsQuery, latestJob.id);
+        const latestProgress = summarizeAiProgress(latestJob);
+        const terminalStatuses = ["completed", "failed", "partially_failed"];
+        if (stalled || terminalStatuses.includes(latestProgress.status)) {
+          setAutoContinueAi(false);
+        }
+      } else {
+        setAutoContinueAi(false);
       }
       return latestJob;
     } catch (err) {
+      setAutoContinueAi(false);
       setError(err instanceof Error ? err.message : "Kunne ikke generere AI-forslag.");
       return null;
     } finally {
@@ -258,6 +272,7 @@ export function useImportJobs(tenantId: number | null) {
 
   useEffect(() => {
     if (!tenantId || !selectedJobId || !selectedJob) return;
+    if (!autoContinueAi) return;
     const aiStatus = String((selectedJob.summary_json ?? {}).ai_generation_status ?? "");
     if (!["pending", "running"].includes(aiStatus)) return;
     if (busyAction) return;
@@ -266,7 +281,7 @@ export function useImportJobs(tenantId: number | null) {
     }, 2500);
     return () => window.clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId, selectedJobId, selectedJob, busyAction]);
+  }, [tenantId, selectedJobId, selectedJob, busyAction, autoContinueAi]);
 
   async function saveDecisions(rows: ImportDecisionPayload[]) {
     if (!tenantId || !selectedJobId) return null;
