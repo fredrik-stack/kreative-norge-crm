@@ -2421,7 +2421,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         search_enrichment_module = importlib.import_module("crm.services.import.search_enrichment")
         seen_queries: list[str] = []
 
-        def fake_merge_ranked_results(queries, *, target_name, context_terms=None, limit=4):
+        def fake_merge_ranked_results(queries, *, target_name, context_terms=None, limit=4, max_queries=None, search_timeout=None):
             seen_queries.extend(list(queries))
             return []
 
@@ -2450,7 +2450,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
     def test_search_person_signals_prefers_person_social_profile_over_organization_page(self):
         search_enrichment_module = importlib.import_module("crm.services.import.search_enrichment")
 
-        def fake_merge_ranked_results(queries, *, target_name, context_terms=None, limit=4):
+        def fake_merge_ranked_results(queries, *, target_name, context_terms=None, limit=4, max_queries=None, search_timeout=None):
             joined = " ".join(queries).casefold()
             if "instagram" in joined or "facebook" in joined or "tiktok" in joined:
                 return [
@@ -2490,6 +2490,30 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
             "https://instagram.com/torbjorn.aag",
         )
         self.assertNotIn("person_facebook_url", signals.socials)
+
+    @override_settings(SEARCH_ENRICHMENT_ENABLED=True, BRAVE_SEARCH_API_KEY="test-key", SEARCH_ENRICHMENT_TIMEOUT=5)
+    def test_search_person_signals_uses_bounded_query_budget(self):
+        search_enrichment_module = importlib.import_module("crm.services.import.search_enrichment")
+        seen_queries: list[str] = []
+
+        def fake_search(query, *, limit=6, timeout=None):
+            seen_queries.append(query)
+            return []
+
+        with patch.object(search_enrichment_module, "_search", side_effect=fake_search):
+            search_enrichment_module.search_person_signals(
+                normalize_import_row(
+                    self.base_row
+                    | {
+                        "organization_name": "Nordlyd AS",
+                        "person_full_name": "Ada Storm",
+                        "person_municipality": "Oslo",
+                    }
+                ),
+                tenant=self.tenant,
+            )
+
+        self.assertLessEqual(len(seen_queries), 9)
 
     def test_search_organization_signals_extracts_primary_site_and_socials_from_search_results(self):
         search_enrichment_module = importlib.import_module("crm.services.import.search_enrichment")

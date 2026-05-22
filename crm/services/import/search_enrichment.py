@@ -141,7 +141,7 @@ def _is_directory_url(url: str) -> bool:
     return any(pattern in host for pattern in DIRECTORY_HOST_PATTERNS)
 
 
-def _search(query: str, *, limit: int = 6) -> list[dict[str, str]]:
+def _search(query: str, *, limit: int = 6, timeout: float | None = None) -> list[dict[str, str]]:
     if not settings.SEARCH_ENRICHMENT_ENABLED or not settings.BRAVE_SEARCH_API_KEY or not query.strip():
         return []
     params = (
@@ -159,7 +159,7 @@ def _search(query: str, *, limit: int = 6) -> list[dict[str, str]]:
         },
     )
     try:
-        with urlopen(request, timeout=settings.SEARCH_ENRICHMENT_TIMEOUT) as response:  # noqa: S310 - fixed trusted host
+        with urlopen(request, timeout=timeout or settings.SEARCH_ENRICHMENT_TIMEOUT) as response:  # noqa: S310 - fixed trusted host
             payload = json.loads(response.read().decode("utf-8"))
     except Exception:
         return []
@@ -211,6 +211,8 @@ def _merge_ranked_results(
     target_name: str,
     context_terms: list[str] | None = None,
     limit: int = 4,
+    max_queries: int | None = None,
+    search_timeout: float | None = None,
 ) -> list[dict[str, str]]:
     merged: list[dict[str, str]] = []
     seen_urls: set[str] = set()
@@ -218,8 +220,10 @@ def _merge_ranked_results(
     query_tokens = {token for token in normalized_target.split() if len(token) > 2}
     context_terms = [normalize_space(term) for term in (context_terms or []) if normalize_space(term)]
 
-    for query in queries:
-        for result in _search(query, limit=max(limit, 6)):
+    queries_to_run = queries[: max_queries or len(queries)]
+
+    for query in queries_to_run:
+        for result in _search(query, limit=max(limit, 6), timeout=search_timeout):
             url = result.get("url", "")
             if not url or url in seen_urls:
                 continue
@@ -670,14 +674,17 @@ def _person_social_queries(
     context_terms: list[str],
     platform: str,
 ) -> list[str]:
-    queries = list(_social_queries(person_name, municipality, context_terms, platform))
     platform_domain = "facebook.com" if platform == "facebook" else f"{platform}.com"
-    for handle in _person_handle_variants(person_name):
+    queries: list[str] = []
+    for handle in _person_handle_variants(person_name)[:2]:
         queries.append(f'site:{platform_domain} "{handle}"')
         if municipality:
             queries.append(f'site:{platform_domain} "{handle}" "{municipality}"')
-        for context_term in context_terms[:1]:
-            queries.append(f'site:{platform_domain} "{handle}" "{context_term}"')
+    queries.append(f'"{person_name}" site:{platform_domain}')
+    if municipality:
+        queries.append(f'"{person_name}" "{municipality}" {platform}')
+    for context_term in context_terms[:1]:
+        queries.append(f'"{person_name}" "{context_term}" {platform}')
     return _dedupe_queries(queries)
 
 
@@ -941,12 +948,16 @@ def search_person_signals(normalized_payload: dict, tenant: Tenant | None = None
     context_terms = _search_context_terms(normalized_payload, person_specific=True)
     if not person_name:
         return SearchSignals(emails=[], socials={}, text_snippets=[], website_candidates=[], social_candidates={}, municipality_candidates=[], confirmed_signals={})
+    person_search_timeout = min(float(settings.SEARCH_ENRICHMENT_TIMEOUT or 5), 2.0)
+    person_social_timeout = min(float(settings.SEARCH_ENRICHMENT_TIMEOUT or 5), 1.5)
     confirmed_signals = _confirmed_person_signals(tenant, normalized_payload)
     results = _merge_ranked_results(
         _person_queries(person_name, organization_name, municipality, context_terms),
         target_name=person_name,
         context_terms=context_terms,
         limit=6,
+        max_queries=2,
+        search_timeout=person_search_timeout,
     )
     website_candidates = _rank_website_candidates(
         results,
@@ -954,12 +965,14 @@ def search_person_signals(normalized_payload: dict, tenant: Tenant | None = None
         context_terms=context_terms,
         confirmed_websites=list(confirmed_signals.get("websites", [])),
     )
-    if not website_candidates or float(website_candidates[0].get("score") or 0) < 1.9:
+    if (not website_candidates or float(website_candidates[0].get("score") or 0) < 1.9) and len(results) < 3:
         stage2_results = _merge_ranked_results(
             _person_stage2_queries(person_name, organization_name, municipality, context_terms),
             target_name=person_name,
             context_terms=context_terms,
             limit=6,
+            max_queries=1,
+            search_timeout=person_search_timeout,
         )
         results = [*results, *[item for item in stage2_results if item.get("url") and item.get("url") not in {result.get("url") for result in results}]]
         website_candidates = _rank_website_candidates(
@@ -975,7 +988,9 @@ def search_person_signals(normalized_payload: dict, tenant: Tenant | None = None
                 _person_social_queries(person_name, municipality, context_terms, platform),
                 target_name=person_name,
                 context_terms=context_terms,
-                limit=3,
+                limit=2,
+                max_queries=2,
+                search_timeout=person_social_timeout,
             )
         )
     merged_social_results = [
