@@ -566,7 +566,7 @@ function ImportReviewWorkspace(props: {
                     <td>
                       <ReviewSuggestionCell
                         variant="category"
-                        currentValues={getCurrentCategoryValues(row, mode, editor.categories)}
+                        currentValues={getCurrentCategoryValues(row, mode, editor.categories, editor.organizations)}
                         suggestedValues={[]}
                       />
                     </td>
@@ -576,7 +576,7 @@ function ImportReviewWorkspace(props: {
                     <td>
                       <ReviewSuggestionCell
                         variant="subcategory"
-                        currentValues={getCurrentSubcategoryValues(row, mode, editor.subcategories)}
+                        currentValues={getCurrentSubcategoryValues(row, mode, editor.subcategories, editor.organizations)}
                         suggestedValues={[]}
                       />
                     </td>
@@ -733,8 +733,8 @@ function InlineReviewEditor(props: {
   const suggestionStates = getExistingSuggestionStates(row);
   const actorOnly = importMode === "ORGANIZATIONS_ONLY";
   const personOnly = importMode === "PEOPLE_ONLY";
-  const currentCategoryNames = getCurrentCategoryValues(row, importMode, categories);
-  const currentSubcategoryNames = getCurrentSubcategoryValues(row, importMode, subcategories);
+  const currentCategoryNames = getCurrentCategoryValues(row, importMode, categories, organizations);
+  const currentSubcategoryNames = getCurrentSubcategoryValues(row, importMode, subcategories, organizations);
   const acceptedSuggestedTags = getAcceptedArrayState(row, "suggested_tags");
   const acceptedOrganizationInternalTags = getAcceptedArrayState(row, "organization_internal_tags");
   const acceptedPersonInternalTags = getAcceptedArrayState(row, "person_internal_tags");
@@ -812,12 +812,31 @@ function InlineReviewEditor(props: {
     if (!query) return organizations.slice(0, 12);
     return organizations.filter((organization) => organization.name.toLowerCase().includes(query)).slice(0, 12);
   }, [draft.organizationDecision, draft.organizationSearchText, organizations, personOnly]);
-  const currentSubcategoryCategoryId = findCategoryIdForSubcategory(subcategories, currentSubcategoryId);
+  const selectedExistingOrganization =
+    personOnly && draft.organizationDecision === "USE_EXISTING_ORGANIZATION" && draft.organizationId
+      ? organizations.find((organization) => organization.id === draft.organizationId) ?? null
+      : null;
+  const existingOrganizationCategoryNames =
+    selectedExistingOrganization && !draft.categoryTouched && !draft.subcategoryTouched && !draft.categoryId && !draft.subcategoryId
+      ? selectedExistingOrganization.categories.map((category) => category.name)
+      : [];
+  const existingOrganizationSubcategoryNames =
+    selectedExistingOrganization && !draft.categoryTouched && !draft.subcategoryTouched && !draft.categoryId && !draft.subcategoryId
+      ? selectedExistingOrganization.subcategories.map((subcategory) => subcategory.name)
+      : [];
+  const visibleCurrentCategoryNames =
+    existingOrganizationCategoryNames.length > 0 ? existingOrganizationCategoryNames : currentCategoryNames;
+  const visibleCurrentSubcategoryBaseNames =
+    existingOrganizationSubcategoryNames.length > 0 ? existingOrganizationSubcategoryNames : currentSubcategoryNames;
+  const currentCategoryLabel = visibleCurrentCategoryNames[0] || "";
+  const categorySelectValue = draft.categoryId ? String(draft.categoryId) : currentCategoryLabel;
+  const visibleCurrentSubcategoryId = findSubcategoryIdByName(subcategories, visibleCurrentSubcategoryBaseNames[0] || "");
+  const currentSubcategoryCategoryId = findCategoryIdForSubcategory(subcategories, visibleCurrentSubcategoryId || currentSubcategoryId);
   const canDisplayCurrentSubcategory =
-    !currentSubcategoryId
+    !(visibleCurrentSubcategoryId || currentSubcategoryId)
     || !draft.categoryId
     || currentSubcategoryCategoryId === draft.categoryId;
-  const visibleCurrentSubcategoryNames = canDisplayCurrentSubcategory ? currentSubcategoryNames : [];
+  const visibleCurrentSubcategoryNames = canDisplayCurrentSubcategory ? visibleCurrentSubcategoryBaseNames : [];
   const currentSubcategoryLabel = visibleCurrentSubcategoryNames[0] || "";
   const subcategorySelectValue = draft.subcategoryId ? String(draft.subcategoryId) : currentSubcategoryLabel;
   const visibleCategorySuggestions = (draft.suggestionStates.suggested_categories ?? "pending") === "ignored" ? [] : categorySuggestions;
@@ -1267,7 +1286,7 @@ function InlineReviewEditor(props: {
 
             <Field label="Hovedkategori">
               <select
-                value={draft.categoryId}
+                value={categorySelectValue}
                 disabled={organizationDataLocked}
                 onChange={(e) => {
                   const nextDraft = {
@@ -1281,6 +1300,9 @@ function InlineReviewEditor(props: {
                 }}
               >
                 <option value="">Ingen</option>
+                {!draft.categoryId && currentCategoryLabel ? (
+                  <option value={currentCategoryLabel}>{currentCategoryLabel}</option>
+                ) : null}
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>{category.name}</option>
                 ))}
@@ -2497,6 +2519,7 @@ function getCurrentCategoryValues(
   row: ImportRow,
   importMode: "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY",
   categories: Category[],
+  organizations: Organization[] = [],
 ): string[] {
   const acceptedState = getAcceptedArrayState(row, "suggested_categories");
   if (acceptedState.exists) return acceptedState.value;
@@ -2505,6 +2528,15 @@ function getCurrentCategoryValues(
     const match = categories.find((category) => category.id === mappedCategoryId);
     if (match) return [match.name];
   }
+  if (importMode === "PEOPLE_ONLY") {
+    const selectedOrganizationId = getExistingDecisionId(row, "USE_EXISTING_ORGANIZATION", "organization_id");
+    if (selectedOrganizationId) {
+      const selectedOrganization = organizations.find((organization) => organization.id === selectedOrganizationId);
+      if (selectedOrganization?.categories?.length) {
+        return selectedOrganization.categories.map((category) => category.name);
+      }
+    }
+  }
   return getCurrentArray(row, importMode === "ORGANIZATIONS_ONLY" ? ["organization_categories"] : ["person_categories"]);
 }
 
@@ -2512,6 +2544,7 @@ function getCurrentSubcategoryValues(
   row: ImportRow,
   importMode: "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY",
   subcategories: Subcategory[],
+  organizations: Organization[] = [],
 ): string[] {
   const acceptedState = getAcceptedArrayState(row, "suggested_subcategories");
   if (acceptedState.exists) return acceptedState.value;
@@ -2519,6 +2552,15 @@ function getCurrentSubcategoryValues(
   if (mappedSubcategoryId) {
     const match = subcategories.find((subcategory) => subcategory.id === mappedSubcategoryId);
     if (match) return [match.name];
+  }
+  if (importMode === "PEOPLE_ONLY") {
+    const selectedOrganizationId = getExistingDecisionId(row, "USE_EXISTING_ORGANIZATION", "organization_id");
+    if (selectedOrganizationId) {
+      const selectedOrganization = organizations.find((organization) => organization.id === selectedOrganizationId);
+      if (selectedOrganization?.subcategories?.length) {
+        return selectedOrganization.subcategories.map((subcategory) => subcategory.name);
+      }
+    }
   }
   return getCurrentArray(row, importMode === "ORGANIZATIONS_ONLY" ? ["organization_subcategories"] : ["person_subcategories"]);
 }

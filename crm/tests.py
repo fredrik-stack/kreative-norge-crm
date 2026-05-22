@@ -1406,6 +1406,77 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         refresh_mock.assert_not_called()
 
     @patch("crm.services.import.commit.refresh_organization_open_graph")
+    def test_people_import_use_existing_organization_preserves_existing_taxonomy(self, refresh_mock):
+        self.job.import_mode = ImportJob.ImportMode.PEOPLE_ONLY
+        self.job.save(update_fields=["import_mode", "updated_at"])
+        existing = Organization.objects.create(
+            tenant=self.tenant,
+            name="Kunnskapsparken Helgeland AS",
+            org_number="999888111",
+            website_url="https://kph.no",
+        )
+        existing.categories.set([self.music])
+        existing.subcategories.set([self.band])
+
+        row = {
+            "organization_name": "Kunnskapsparken Helgeland AS",
+            "person_full_name": "Torbjørn Aag",
+            "person_title": "Daglig leder",
+            "person_email": "torbjorn@example.no",
+            "person_phone": "",
+            "person_municipality": "",
+            "person_categories": "",
+            "person_subcategories": "",
+            "person_tags": "",
+            "person_internal_tags": "",
+            "link_status": "ACTIVE",
+            "link_publish_person": "",
+        }
+        self._upload_csv([row])
+
+        preview_response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(preview_response.status_code, 200, preview_response.content)
+
+        preview_row = self.job.rows.get()
+        decisions_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/decisions/",
+            {
+                "rows": [
+                    {
+                        "row_id": preview_row.id,
+                        "decisions": [
+                            {
+                                "decision_type": "USE_EXISTING_ORGANIZATION",
+                                "payload_json": {"organization_id": existing.id},
+                            }
+                        ],
+                    }
+                ]
+            },
+            format="json",
+        )
+        self.assertEqual(decisions_response.status_code, 200, decisions_response.content)
+
+        commit_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/commit/",
+            {"skip_unresolved": False},
+            format="json",
+        )
+        self.assertEqual(commit_response.status_code, 200, commit_response.content)
+
+        existing.refresh_from_db()
+        self.assertEqual(set(existing.categories.values_list("name", flat=True)), {"Musikk"})
+        self.assertEqual(set(existing.subcategories.values_list("name", flat=True)), {"Artister & Band"})
+        self.assertTrue(
+            OrganizationPerson.objects.filter(
+                tenant=self.tenant,
+                organization=existing,
+                person__full_name="Torbjørn Aag",
+            ).exists()
+        )
+        refresh_mock.assert_not_called()
+
+    @patch("crm.services.import.commit.refresh_organization_open_graph")
     def test_commit_normalizes_website_urls_without_scheme(self, refresh_mock):
         row = self.base_row | {
             "organization_org_number": "987654321",
