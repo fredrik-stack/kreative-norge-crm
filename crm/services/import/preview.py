@@ -53,6 +53,31 @@ def _ai_summary(rows: list[ImportRow]) -> dict:
     }
 
 
+def _eligible_ai_rows(import_job: ImportJob) -> list[ImportRow]:
+    return list(
+        import_job.rows.exclude(
+            row_status__in=[
+                ImportRow.RowStatus.INVALID,
+                ImportRow.RowStatus.SKIPPED,
+                ImportRow.RowStatus.COMMITTED,
+            ]
+        ).order_by("row_number")
+    )
+
+
+def _reset_rows_for_ai(import_job: ImportJob) -> None:
+    for row in _eligible_ai_rows(import_job):
+        try:
+            row.ai_suggestions_json = build_pending_ai_suggestions(
+                import_job.tenant,
+                row.normalized_payload_json,
+                row.match_result_json,
+            )
+        except Exception as exc:
+            row.ai_suggestions_json = _runtime_error_suggestions(stage="preview", exc=exc)
+        row.save(update_fields=["ai_suggestions_json", "updated_at"])
+
+
 def summarize_job_rows(import_job: ImportJob) -> dict:
     rows = list(import_job.rows.all())
     organization_matches = [row.match_result_json.get("organization", {}) for row in rows]
@@ -185,9 +210,23 @@ def run_import_preview(import_job: ImportJob) -> ImportJob:
     return import_job
 
 
-def generate_import_job_ai(import_job: ImportJob, *, retry_failed: bool = False, batch_size: int = AI_BATCH_SIZE) -> ImportJob:
+def generate_import_job_ai(
+    import_job: ImportJob,
+    *,
+    retry_failed: bool = False,
+    force_rerun: bool = False,
+    batch_size: int = AI_BATCH_SIZE,
+) -> ImportJob:
     if batch_size < 1:
         batch_size = AI_BATCH_SIZE
+
+    provider_ready = openai_is_ready()
+    if force_rerun:
+        if not provider_ready:
+            update_job_preview_status(import_job)
+            return import_job
+        with transaction.atomic():
+            _reset_rows_for_ai(import_job)
 
     pending_rows = []
     for row in import_job.rows.all().order_by("row_number"):
@@ -197,7 +236,7 @@ def generate_import_job_ai(import_job: ImportJob, *, retry_failed: bool = False,
         if len(pending_rows) >= batch_size:
             break
 
-    if not pending_rows or not openai_is_ready():
+    if not pending_rows or not provider_ready:
         update_job_preview_status(import_job)
         return import_job
 

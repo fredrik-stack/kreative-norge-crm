@@ -440,7 +440,7 @@ export async function previewImportJob(tenantId: number, importJobId: number): P
 export async function generateImportJobAi(
   tenantId: number,
   importJobId: number,
-  payload: { retry_failed?: boolean; batch_size?: number } = {},
+  payload: { retry_failed?: boolean; force_rerun?: boolean; batch_size?: number } = {},
 ): Promise<ImportJob> {
   return request<ImportJob>(`/api/tenants/${tenantId}/import-jobs/${importJobId}/generate-ai/`, {
     method: "POST",

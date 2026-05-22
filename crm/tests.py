@@ -738,6 +738,105 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(self.job.summary_json["ai_generation_status"], "running")
 
     @override_settings(OPENAI_IMPORT_ENABLED=True, OPENAI_API_KEY="test-key")
+    def test_generate_ai_endpoint_can_force_rerun_completed_rows(self):
+        self._upload_csv()
+        pending_payload = {
+            "organization_match_candidates": [],
+            "person_match_candidates": [],
+            "suggested_fields": {},
+            "provider": "pending_openai",
+            "diagnostic": {
+                "primary_provider": "pending_openai",
+                "provider_status": "pending_openai",
+                "fallback_reason": "awaiting_openai",
+                "openai_attempted": False,
+                "openai_error": None,
+                "useful_suggestion_count": 0,
+            },
+        }
+        with patch.object(import_preview_module, "build_pending_ai_suggestions", return_value=pending_payload):
+            self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+
+        first_suggestion = {
+            "organization_match_candidates": [],
+            "person_match_candidates": [],
+            "suggested_fields": {
+                "organization_website_url": {
+                    "value": "https://nordlyd.no",
+                    "confidence": 0.81,
+                    "source": "ai_enrichment",
+                    "requires_review": True,
+                }
+            },
+            "provider": "openai",
+            "diagnostic": {
+                "primary_provider": "openai",
+                "provider_status": "openai",
+                "fallback_reason": None,
+                "openai_attempted": True,
+                "openai_error": None,
+                "useful_suggestion_count": 1,
+            },
+        }
+        second_suggestion = {
+            "organization_match_candidates": [],
+            "person_match_candidates": [],
+            "suggested_fields": {
+                "organization_website_url": {
+                    "value": "https://www.nordlyd.no",
+                    "confidence": 0.91,
+                    "source": "ai_enrichment",
+                    "requires_review": True,
+                }
+            },
+            "provider": "openai",
+            "diagnostic": {
+                "primary_provider": "openai",
+                "provider_status": "openai",
+                "fallback_reason": None,
+                "openai_attempted": True,
+                "openai_error": None,
+                "useful_suggestion_count": 1,
+            },
+        }
+
+        with patch.object(import_preview_module, "generate_ai_suggestions", return_value=first_suggestion), patch.object(
+            import_preview_module,
+            "openai_is_ready",
+            return_value=True,
+        ):
+            first_response = self.client.post(
+                f"{self.import_jobs_url()}{self.job.id}/generate-ai/",
+                {"batch_size": 1},
+                format="json",
+            )
+        self.assertEqual(first_response.status_code, 200, first_response.content)
+
+        with patch.object(import_preview_module, "build_pending_ai_suggestions", return_value=pending_payload) as pending_mock, patch.object(
+            import_preview_module,
+            "generate_ai_suggestions",
+            return_value=second_suggestion,
+        ) as suggestion_mock, patch.object(
+            import_preview_module,
+            "openai_is_ready",
+            return_value=True,
+        ):
+            second_response = self.client.post(
+                f"{self.import_jobs_url()}{self.job.id}/generate-ai/",
+                {"batch_size": 1, "force_rerun": True},
+                format="json",
+            )
+        self.assertEqual(second_response.status_code, 200, second_response.content)
+
+        self.job.refresh_from_db()
+        row = self.job.rows.get()
+        self.assertEqual(row.ai_suggestions_json["suggested_fields"]["organization_website_url"]["value"], "https://www.nordlyd.no")
+        self.assertEqual(self.job.summary_json["rows_ai_completed"], 1)
+        self.assertEqual(self.job.summary_json["ai_generation_status"], "completed")
+        self.assertEqual(pending_mock.call_count, 1)
+        self.assertEqual(suggestion_mock.call_count, 1)
+
+    @override_settings(OPENAI_IMPORT_ENABLED=True, OPENAI_API_KEY="test-key")
     def test_generate_ai_endpoint_falls_back_when_row_generation_errors(self):
         self._upload_csv()
         pending_payload = {

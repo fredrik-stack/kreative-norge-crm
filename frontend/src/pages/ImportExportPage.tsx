@@ -420,16 +420,22 @@ function ImportReviewWorkspace(props: {
             className="ghost-button compact-button"
             disabled={
               !commitReadyStatuses.includes(selectedJob?.status ?? "") ||
-              importJobs.busyAction === "generate-ai" ||
-              aiStatus === "completed"
+              importJobs.busyAction === "generate-ai"
             }
-            onClick={() => void importJobs.generateAi(aiStatus === "failed" || aiStatus === "partially_failed")}
+            onClick={() =>
+              void importJobs.generateAi(
+                aiStatus === "failed" || aiStatus === "partially_failed",
+                aiStatus === "completed",
+              )
+            }
           >
             {importJobs.busyAction === "generate-ai"
               ? "Genererer AI..."
               : aiStatus === "failed" || aiStatus === "partially_failed"
                 ? "Prøv AI på nytt"
-                : "Hent AI-forslag"}
+                : aiStatus === "completed"
+                  ? "Kjør AI på nytt"
+                  : "Hent AI-forslag"}
           </button>
         </div>
       ) : null}

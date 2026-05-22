@@ -451,6 +451,7 @@ class ImportJobViewSet(
         generate_import_job_ai(
             job,
             retry_failed=serializer.validated_data["retry_failed"],
+            force_rerun=serializer.validated_data["force_rerun"],
             batch_size=serializer.validated_data["batch_size"],
         )
         response_serializer = ImportJobSerializer(job, context=self.get_serializer_context())

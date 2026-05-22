@@ -182,22 +182,25 @@ export function useImportJobs(tenantId: number | null) {
     }
   }
 
-  async function generateAi(retryFailed = false) {
+  async function generateAi(retryFailed = false, forceRerun = false) {
     if (!tenantId || !selectedJobId) return null;
     setBusyAction("generate-ai");
     setError(null);
     try {
       let latestJob: ImportJob | null = null;
       let nextRetryFailed = retryFailed;
+      let nextForceRerun = forceRerun;
       let previousSignature = "";
 
       for (let attempt = 0; attempt < 40; attempt += 1) {
         const updated = await generateImportJobAi(tenantId, selectedJobId, {
           retry_failed: nextRetryFailed,
+          force_rerun: nextForceRerun,
           batch_size: 1,
         });
         latestJob = updated;
         setSelectedJob(updated);
+        nextForceRerun = false;
 
         const progress = summarizeAiProgress(updated);
         const signature = `${progress.status}:${progress.pending}:${progress.completed}:${progress.failed}`;
