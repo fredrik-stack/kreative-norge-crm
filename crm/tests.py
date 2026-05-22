@@ -1666,6 +1666,107 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         OPENAI_API_KEY="test-key",
         OPENAI_IMPORT_MODEL="gpt-5.4",
         OPENAI_IMPORT_TIMEOUT=5,
+        OPENAI_IMPORT_WEB_SEARCH_ENABLED=True,
+        OPENAI_IMPORT_WEB_SEARCH_MODEL="gpt-5.4",
+        OPENAI_IMPORT_WEB_SEARCH_TIMEOUT=5,
+    )
+    def test_generate_ai_suggestions_can_use_openai_web_search_for_weak_person_signals(self):
+        SearchSignals = importlib.import_module("crm.services.import.search_enrichment").SearchSignals
+
+        class FakeResponses:
+            def __init__(self):
+                self.calls = []
+
+            def create(self, **kwargs):
+                self.calls.append(kwargs)
+                if kwargs.get("tools"):
+                    return type(
+                        "FakeWebSearchResponse",
+                        (),
+                        {
+                            "output_text": (
+                                '{"suggested_fields":{"person_instagram_url":{"value":"https://instagram.com/adastorm","confidence":0.84,"source":"openai_web_search","requires_review":true}},'
+                                '"provider":"openai_web_search"}'
+                            )
+                        },
+                    )()
+                return type(
+                    "FakeOpenAIResponse",
+                    (),
+                    {"output_text": '{"suggested_fields":{},"provider":"openai"}'},
+                )()
+
+        fake_responses = FakeResponses()
+
+        class FakeOpenAI:
+            def __init__(self, api_key, timeout):
+                self.responses = fake_responses
+
+        with patch.object(import_ai_suggestions_module, "OpenAI", FakeOpenAI), patch.object(
+            import_ai_suggestions_module,
+            "search_organization_signals",
+            return_value=SearchSignals(
+                website_url="https://nordlyd.no",
+                emails=[],
+                socials={},
+                text_snippets=[],
+                org_numbers=[],
+                website_candidates=[],
+                social_candidates={},
+                municipality_candidates=[],
+                confirmed_signals={},
+            ),
+        ), patch.object(
+            import_ai_suggestions_module,
+            "search_person_signals",
+            return_value=SearchSignals(
+                website_url=None,
+                emails=[],
+                socials={},
+                text_snippets=[],
+                website_candidates=[],
+                social_candidates={},
+                municipality_candidates=[],
+                confirmed_signals={},
+            ),
+        ), patch.object(
+            import_ai_suggestions_module,
+            "_extract_contact_signals_from_website",
+            return_value={"emails": [], "phones": [], "socials": {}, "text_snippet": "", "final_url": ""},
+        ):
+            suggestions = generate_ai_suggestions(
+                self.tenant,
+                normalize_import_row(
+                    self.base_row
+                    | {
+                        "organization_name": "Nordlyd AS",
+                        "organization_org_number": "",
+                        "organization_email": "",
+                        "organization_website_url": "",
+                        "person_full_name": "Ada Storm",
+                        "person_email": "",
+                        "person_website_url": "",
+                        "person_instagram_url": "",
+                        "person_facebook_url": "",
+                        "person_linkedin_url": "",
+                        "person_youtube_url": "",
+                        "person_tiktok_url": "",
+                        "person_municipality": "",
+                    }
+                ),
+                {"organization": {}, "person": {}},
+            )
+
+        self.assertEqual(suggestions["suggested_fields"]["person_instagram_url"]["value"], "https://instagram.com/adastorm")
+        self.assertEqual(suggestions["diagnostic"]["provider_status"], "openai_web_search")
+        self.assertEqual(len(fake_responses.calls), 2)
+        self.assertTrue(fake_responses.calls[1].get("tools"))
+
+    @override_settings(
+        OPENAI_IMPORT_ENABLED=True,
+        OPENAI_API_KEY="test-key",
+        OPENAI_IMPORT_MODEL="gpt-5.4",
+        OPENAI_IMPORT_TIMEOUT=5,
     )
     def test_generate_ai_suggestions_discards_invalid_taxonomy_and_non_norwegian_description(self):
         class FakeResponse:

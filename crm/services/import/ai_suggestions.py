@@ -88,6 +88,16 @@ OPENAI_SCHEMA_FIELD_KEYS = (
     "suggested_subcategories",
 )
 
+PERSON_WEB_SEARCH_FIELD_KEYS = (
+    "person_municipality",
+    "person_website_url",
+    "person_instagram_url",
+    "person_tiktok_url",
+    "person_linkedin_url",
+    "person_facebook_url",
+    "person_youtube_url",
+)
+
 SOCIAL_DOMAINS = {
     "organization_instagram_url": "instagram.com",
     "person_instagram_url": "instagram.com",
@@ -1170,6 +1180,108 @@ def _sanitize_suggestions(payload: dict[str, Any], fallback_provider: str) -> di
     return sanitized
 
 
+def _candidate_score(candidate: dict[str, Any]) -> float:
+    try:
+        return float(candidate.get("score") or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _should_run_person_web_search(
+    normalized_payload: dict,
+    enrichment_context: dict[str, Any],
+    current_fields: dict[str, Any],
+) -> bool:
+    if not settings.OPENAI_IMPORT_WEB_SEARCH_ENABLED:
+        return False
+    person = normalized_payload.get("person") or {}
+    if not normalize_space(person.get("full_name")):
+        return False
+
+    unresolved_fields = [
+        field_key
+        for field_key in PERSON_WEB_SEARCH_FIELD_KEYS
+        if field_key not in current_fields and not normalize_space(person.get(field_key.removeprefix("person_"), ""))
+    ]
+    if not unresolved_fields:
+        return False
+
+    person_search = enrichment_context.get("person_search")
+    if not person_search:
+        return True
+
+    social_candidates = person_search.social_candidates or {}
+    municipality_candidates = person_search.municipality_candidates or []
+    website_candidates = person_search.website_candidates or []
+    strong_social_fields = sum(
+        1
+        for field_key in (
+            "person_instagram_url",
+            "person_facebook_url",
+            "person_linkedin_url",
+            "person_youtube_url",
+            "person_tiktok_url",
+        )
+        if social_candidates.get(field_key) and _candidate_score(social_candidates[field_key][0]) >= 1.45
+    )
+    strong_website = bool(website_candidates and _candidate_score(website_candidates[0]) >= 1.75)
+    strong_municipality = bool(municipality_candidates and _candidate_score(municipality_candidates[0]) >= 1.4)
+    return strong_social_fields < 2 or not strong_website or not strong_municipality
+
+
+def _build_openai_web_search_input(
+    tenant: Tenant,
+    normalized_payload: dict,
+    *,
+    enrichment_context: dict[str, Any],
+    current_fields: dict[str, Any],
+) -> str:
+    person = normalized_payload.get("person") or {}
+    organization = normalized_payload.get("organization") or {}
+    person_search = enrichment_context.get("person_search")
+    unresolved_fields = [
+        field_key
+        for field_key in PERSON_WEB_SEARCH_FIELD_KEYS
+        if field_key not in current_fields and not normalize_space(person.get(field_key.removeprefix("person_"), ""))
+    ]
+    envelope = {
+        "task": (
+            "Use web search to find only missing, high-confidence person profile information for a Norwegian CRM import review. "
+            "Prefer official or clearly self-identified profiles, and omit anything uncertain."
+        ),
+        "tenant_id": tenant.id,
+        "person_name": person.get("full_name"),
+        "organization_name": organization.get("name"),
+        "existing_person_data": person,
+        "existing_organization_data": organization,
+        "prior_candidates": {
+            "website_candidates": (person_search.website_candidates if person_search else []) or [],
+            "social_candidates": (person_search.social_candidates if person_search else {}) or {},
+            "municipality_candidates": (person_search.municipality_candidates if person_search else []) or [],
+            "confirmed_signals": (person_search.confirmed_signals if person_search else {}) or {},
+        },
+        "current_suggested_fields": sorted(current_fields.keys()),
+        "unresolved_fields": unresolved_fields,
+        "rules": {
+            "allowed_fields": list(PERSON_WEB_SEARCH_FIELD_KEYS),
+            "return_only_unresolved_fields": True,
+            "assistive_only": True,
+            "requires_review": True,
+            "prefer_official_or_self_identified_profiles": True,
+            "do_not_guess": True,
+        },
+        "instructions": [
+            "Use the web_search tool to verify missing person profile fields.",
+            "Prefer official websites and profiles that clearly belong to the named person.",
+            "Use organization context only to disambiguate the person, not to reuse the organization's own social profiles.",
+            "Do not return fan pages, event listings, directory pages, or organization profiles as person profiles.",
+            "Only return municipality when the evidence is reasonably clear from reliable search results.",
+            "If a field remains uncertain after search, omit it.",
+        ],
+    }
+    return json.dumps(envelope, ensure_ascii=False)
+
+
 def _build_openai_input(
     tenant: Tenant,
     normalized_payload: dict,
@@ -1435,6 +1547,59 @@ def _generate_openai_suggestions(
     return _sanitize_suggestions(_enforce_suggestion_quality(tenant, normalized_payload, parsed), "openai")
 
 
+def _generate_openai_web_search_suggestions(
+    tenant: Tenant,
+    normalized_payload: dict,
+    *,
+    enrichment_context: dict[str, Any],
+    current_fields: dict[str, Any],
+) -> dict | None:
+    if not settings.OPENAI_IMPORT_ENABLED or not settings.OPENAI_API_KEY or OpenAI is None:
+        return None
+    schema = _openai_schema()
+    client = OpenAI(api_key=settings.OPENAI_API_KEY, timeout=settings.OPENAI_IMPORT_WEB_SEARCH_TIMEOUT)
+    response = client.responses.create(
+        model=settings.OPENAI_IMPORT_WEB_SEARCH_MODEL,
+        input=_build_openai_web_search_input(
+            tenant,
+            normalized_payload,
+            enrichment_context=enrichment_context,
+            current_fields=current_fields,
+        ),
+        tools=[
+            {
+                "type": "web_search",
+                "search_context_size": "medium",
+                "user_location": {
+                    "type": "approximate",
+                    "country": "NO",
+                },
+            }
+        ],
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": schema["name"],
+                "schema": schema["schema"],
+                "strict": schema["strict"],
+            }
+        },
+    )
+    output_text = getattr(response, "output_text", "") or "{}"
+    parsed = json.loads(output_text)
+    parsed.setdefault("organization_match_candidates", [])
+    parsed.setdefault("person_match_candidates", [])
+    parsed["diagnostic"] = {
+        "primary_provider": "openai_web_search",
+        "provider_status": "openai_web_search",
+        "fallback_reason": None,
+        "openai_attempted": True,
+        "openai_error": None,
+        "useful_suggestion_count": _count_useful_suggestions(parsed),
+    }
+    return _sanitize_suggestions(_enforce_suggestion_quality(tenant, normalized_payload, parsed), "openai_web_search")
+
+
 def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_result: dict) -> dict:
     enrichment_context = _build_ai_enrichment_context(tenant, normalized_payload)
     heuristic = _sanitize_suggestions(
@@ -1521,4 +1686,58 @@ def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_resu
             "heuristic_suggestion_count": heuristic_count,
         },
     }
-    return _sanitize_suggestions(_enforce_suggestion_quality(tenant, normalized_payload, merged), "openai")
+    merged = _sanitize_suggestions(_enforce_suggestion_quality(tenant, normalized_payload, merged), "openai")
+
+    if _should_run_person_web_search(normalized_payload, enrichment_context, merged.get("suggested_fields", {})):
+        try:
+            web_search_suggestions = _generate_openai_web_search_suggestions(
+                tenant,
+                normalized_payload,
+                enrichment_context=enrichment_context,
+                current_fields=merged.get("suggested_fields", {}),
+            )
+        except Exception as exc:
+            merged["diagnostic"].update(
+                {
+                    "web_search_attempted": True,
+                    "web_search_error": str(exc).strip() or exc.__class__.__name__,
+                }
+            )
+            return merged
+        if web_search_suggestions:
+            web_fields = {
+                key: value
+                for key, value in (web_search_suggestions.get("suggested_fields") or {}).items()
+                if key not in merged["suggested_fields"] and value
+            }
+            if web_fields:
+                merged["suggested_fields"] = {
+                    **merged["suggested_fields"],
+                    **web_fields,
+                }
+                merged["provider"] = "openai_web_search"
+                merged["diagnostic"].update(
+                    {
+                        "primary_provider": "openai_web_search",
+                        "provider_status": "openai_web_search",
+                        "fallback_reason": None,
+                        "web_search_attempted": True,
+                        "web_search_error": None,
+                        "useful_suggestion_count": _count_useful_suggestions(merged),
+                    }
+                )
+            else:
+                merged["diagnostic"].update(
+                    {
+                        "web_search_attempted": True,
+                        "web_search_error": None,
+                    }
+                )
+        else:
+            merged["diagnostic"].update(
+                {
+                    "web_search_attempted": True,
+                    "web_search_error": "empty_web_search_result",
+                }
+            )
+    return merged

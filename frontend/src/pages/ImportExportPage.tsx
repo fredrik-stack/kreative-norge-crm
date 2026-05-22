@@ -138,6 +138,8 @@ type ReviewDraft = {
   personId: number | "";
   categoryId: number | "";
   subcategoryId: number | "";
+  categoryTouched: boolean;
+  subcategoryTouched: boolean;
   tagsText: string;
   organizationInternalTagsText: string;
   personInternalTagsText: string;
@@ -765,6 +767,12 @@ function InlineReviewEditor(props: {
           subcategories,
           currentSubcategoryNames[0] || "",
         ),
+      categoryTouched:
+        hasAcceptedSuggestionDecision(row, "suggested_categories")
+        && getAcceptedDecisionArray(row, "suggested_categories").length === 0,
+      subcategoryTouched:
+        hasAcceptedSuggestionDecision(row, "suggested_subcategories")
+        && getAcceptedDecisionArray(row, "suggested_subcategories").length === 0,
       tagsText:
         acceptedSuggestedTags.exists
           ? acceptedSuggestedTags.value.join(", ")
@@ -886,6 +894,7 @@ function InlineReviewEditor(props: {
     const nextDraft = {
       ...draft,
       categoryId,
+      categoryTouched: true,
       suggestionStates: { ...draft.suggestionStates, suggested_categories: categoryId ? "accepted" : draft.suggestionStates.suggested_categories },
     };
     void persistDraft(nextDraft);
@@ -899,6 +908,8 @@ function InlineReviewEditor(props: {
       ...draft,
       categoryId: relatedCategoryId || draft.categoryId,
       subcategoryId,
+      categoryTouched: true,
+      subcategoryTouched: true,
       suggestionStates: {
         ...draft.suggestionStates,
         suggested_subcategories: subcategoryId ? "accepted" : draft.suggestionStates.suggested_subcategories,
@@ -1263,6 +1274,8 @@ function InlineReviewEditor(props: {
                     ...draft,
                     categoryId: (Number(e.target.value) || "") as number | "",
                     subcategoryId: "" as number | "",
+                    categoryTouched: true,
+                    subcategoryTouched: true,
                   };
                   void persistDraft(nextDraft);
                 }}
@@ -1296,6 +1309,7 @@ function InlineReviewEditor(props: {
                   const nextDraft = {
                     ...draft,
                     subcategoryId: (Number(e.target.value) || "") as number | "",
+                    subcategoryTouched: true,
                   };
                   void persistDraft(nextDraft);
                 }}
@@ -1744,7 +1758,7 @@ function buildDecisions(
   }
   if (draft.categoryId) {
     decisions.push({ decision_type: "MAP_CATEGORY", payload_json: { category_id: draft.categoryId } });
-  } else if (getCurrentCategoryValues(row, importMode, []).length > 0 || hasAcceptedSuggestionDecision(row, "suggested_categories")) {
+  } else if (draft.categoryTouched) {
     decisions.push({
       decision_type: "ACCEPT_AI_SUGGESTION",
       payload_json: manualPayload("suggested_categories", []),
@@ -1752,7 +1766,7 @@ function buildDecisions(
   }
   if (draft.subcategoryId) {
     decisions.push({ decision_type: "MAP_SUBCATEGORY", payload_json: { subcategory_id: draft.subcategoryId } });
-  } else if (getCurrentSubcategoryValues(row, importMode, []).length > 0 || hasAcceptedSuggestionDecision(row, "suggested_subcategories")) {
+  } else if (draft.subcategoryTouched) {
     decisions.push({
       decision_type: "ACCEPT_AI_SUGGESTION",
       payload_json: manualPayload("suggested_subcategories", []),
@@ -2196,6 +2210,9 @@ function getProviderLabel(row: ImportRow): { label: string; variant: "category" 
   }
   if (providerStatus === "openai") {
     return { label: "OpenAI", variant: "category" };
+  }
+  if (providerStatus === "openai_web_search") {
+    return { label: "OpenAI + web", variant: "category" };
   }
   if (providerStatus === "openai_empty") {
     return { label: "OpenAI tom", variant: "tag" };
