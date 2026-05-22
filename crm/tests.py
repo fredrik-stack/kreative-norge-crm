@@ -1647,6 +1647,18 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(suggestions["diagnostic"]["provider_status"], "fallback_openai_disabled")
         self.assertEqual(suggestions["diagnostic"]["fallback_reason"], "openai_disabled")
 
+    @override_settings(OPENAI_IMPORT_ENABLED=False)
+    def test_generate_ai_suggestions_includes_timing_diagnostics(self):
+        suggestions = generate_ai_suggestions(self.tenant, normalize_import_row(self.base_row), {"organization": {}, "person": {}})
+        timings = suggestions["diagnostic"].get("timings_ms")
+        self.assertIsInstance(timings, dict)
+        self.assertIn("website_signals_ms", timings)
+        self.assertIn("organization_search_ms", timings)
+        self.assertIn("brreg_candidates_ms", timings)
+        self.assertIn("enrichment_context_ms", timings)
+        self.assertIn("heuristic_ms", timings)
+        self.assertIn("total_ms", timings)
+
     @override_settings(
         OPENAI_IMPORT_ENABLED=True,
         OPENAI_API_KEY="test-key",

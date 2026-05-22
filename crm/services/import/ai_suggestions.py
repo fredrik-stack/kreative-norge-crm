@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 from html import unescape
+from time import perf_counter
 from urllib.parse import urljoin, urlparse
 from typing import Any
 from django.conf import settings
@@ -160,6 +161,21 @@ URL_RE = re.compile(r"https?://[^\s\"'<>]+", re.IGNORECASE)
 
 def openai_is_ready() -> bool:
     return bool(settings.OPENAI_IMPORT_ENABLED and settings.OPENAI_API_KEY and OpenAI is not None)
+
+
+def _elapsed_ms(start_time: float) -> int:
+    return max(0, int(round((perf_counter() - start_time) * 1000)))
+
+
+def _merge_timing_maps(*timing_maps: dict[str, Any] | None) -> dict[str, int]:
+    merged: dict[str, int] = {}
+    for timing_map in timing_maps:
+        for key, value in (timing_map or {}).items():
+            try:
+                merged[key] = int(value)
+            except (TypeError, ValueError):
+                continue
+    return merged
 
 
 def _count_useful_suggestions(payload: dict[str, Any]) -> int:
@@ -712,15 +728,35 @@ def _suggest_municipality_from_known_values(text: str) -> str | None:
 
 
 def _build_ai_enrichment_context(tenant: Tenant, normalized_payload: dict) -> dict[str, Any]:
+    total_started = perf_counter()
     organization = normalized_payload.get("organization") or {}
     person = normalized_payload.get("person") or {}
     website_url = _infer_website_url(normalized_payload) or organization.get("website_url") or person.get("website_url")
+    website_started = perf_counter()
+    website_signals = _extract_contact_signals_from_website(website_url)
+    organization_started = perf_counter()
+    organization_search = search_organization_signals(normalized_payload, tenant=tenant)
+    person_search = None
+    person_search_ms = 0
+    if person.get("full_name"):
+        person_started = perf_counter()
+        person_search = search_person_signals(normalized_payload, tenant=tenant)
+        person_search_ms = _elapsed_ms(person_started)
+    brreg_started = perf_counter()
+    raw_brreg_candidates = brreg_candidates_for_payload(normalized_payload, limit=5)
     return {
         "website_url": website_url,
-        "website_signals": _extract_contact_signals_from_website(website_url),
-        "organization_search": search_organization_signals(normalized_payload, tenant=tenant),
-        "person_search": search_person_signals(normalized_payload, tenant=tenant) if person.get("full_name") else None,
-        "raw_brreg_candidates": brreg_candidates_for_payload(normalized_payload, limit=5),
+        "website_signals": website_signals,
+        "organization_search": organization_search,
+        "person_search": person_search,
+        "raw_brreg_candidates": raw_brreg_candidates,
+        "timings_ms": {
+            "website_signals_ms": _elapsed_ms(website_started),
+            "organization_search_ms": _elapsed_ms(organization_started),
+            "person_search_ms": person_search_ms,
+            "brreg_candidates_ms": _elapsed_ms(brreg_started),
+            "enrichment_context_ms": _elapsed_ms(total_started),
+        },
     }
 
 
@@ -731,6 +767,7 @@ def _heuristic_suggestions(
     *,
     enrichment_context: dict[str, Any] | None = None,
 ) -> dict:
+    started = perf_counter()
     organization = normalized_payload["organization"]
     person = normalized_payload["person"]
     enrichment_context = enrichment_context or _build_ai_enrichment_context(tenant, normalized_payload)
@@ -1026,6 +1063,10 @@ def _heuristic_suggestions(
         "brreg_attempted": bool(organization.get("name")),
         "search_attempted": True,
         "useful_suggestion_count": _count_useful_suggestions(payload),
+        "timings_ms": _merge_timing_maps(
+            enrichment_context.get("timings_ms"),
+            {"heuristic_ms": _elapsed_ms(started)},
+        ),
     }
     return _enforce_suggestion_quality(tenant, normalized_payload, payload)
 
@@ -1166,6 +1207,19 @@ def _sanitize_suggestions(payload: dict[str, Any], fallback_provider: str) -> di
         "openai_attempted": bool(diagnostic.get("openai_attempted", False)),
         "openai_error": diagnostic.get("openai_error"),
         "useful_suggestion_count": diagnostic.get("useful_suggestion_count", _count_useful_suggestions(sanitized)),
+        **{
+            key: value
+            for key, value in diagnostic.items()
+            if key
+            not in {
+                "primary_provider",
+                "provider_status",
+                "fallback_reason",
+                "openai_attempted",
+                "openai_error",
+                "useful_suggestion_count",
+            }
+        },
     }
     return sanitized
 
@@ -1500,6 +1554,7 @@ def _generate_openai_suggestions(
     *,
     enrichment_context: dict[str, Any] | None = None,
 ) -> dict | None:
+    started = perf_counter()
     if not settings.OPENAI_IMPORT_ENABLED or not settings.OPENAI_API_KEY or OpenAI is None:
         return None
 
@@ -1533,6 +1588,10 @@ def _generate_openai_suggestions(
         "openai_attempted": True,
         "openai_error": None,
         "useful_suggestion_count": _count_useful_suggestions(parsed),
+        "timings_ms": _merge_timing_maps(
+            (enrichment_context or {}).get("timings_ms"),
+            {"openai_ms": _elapsed_ms(started)},
+        ),
     }
     return _sanitize_suggestions(_enforce_suggestion_quality(tenant, normalized_payload, parsed), "openai")
 
@@ -1544,6 +1603,7 @@ def _generate_openai_web_search_suggestions(
     enrichment_context: dict[str, Any],
     current_fields: dict[str, Any],
 ) -> dict | None:
+    started = perf_counter()
     if not settings.OPENAI_IMPORT_ENABLED or not settings.OPENAI_API_KEY or OpenAI is None:
         return None
     schema = _openai_schema()
@@ -1586,11 +1646,16 @@ def _generate_openai_web_search_suggestions(
         "openai_attempted": True,
         "openai_error": None,
         "useful_suggestion_count": _count_useful_suggestions(parsed),
+        "timings_ms": _merge_timing_maps(
+            enrichment_context.get("timings_ms"),
+            {"web_search_ms": _elapsed_ms(started)},
+        ),
     }
     return _sanitize_suggestions(_enforce_suggestion_quality(tenant, normalized_payload, parsed), "openai_web_search")
 
 
 def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_result: dict) -> dict:
+    started = perf_counter()
     enrichment_context = _build_ai_enrichment_context(tenant, normalized_payload)
     heuristic = _sanitize_suggestions(
         _heuristic_suggestions(
@@ -1607,6 +1672,10 @@ def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_resu
                 "provider_status": "fallback_openai_disabled",
                 "fallback_reason": "openai_disabled",
                 "openai_attempted": False,
+                "timings_ms": _merge_timing_maps(
+                    heuristic["diagnostic"].get("timings_ms"),
+                    {"total_ms": _elapsed_ms(started)},
+                ),
             }
         )
         return heuristic
@@ -1616,6 +1685,10 @@ def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_resu
                 "provider_status": "fallback_openai_unavailable",
                 "fallback_reason": "missing_api_key",
                 "openai_attempted": False,
+                "timings_ms": _merge_timing_maps(
+                    heuristic["diagnostic"].get("timings_ms"),
+                    {"total_ms": _elapsed_ms(started)},
+                ),
             }
         )
         return heuristic
@@ -1625,6 +1698,10 @@ def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_resu
                 "provider_status": "fallback_openai_unavailable",
                 "fallback_reason": "openai_sdk_unavailable",
                 "openai_attempted": False,
+                "timings_ms": _merge_timing_maps(
+                    heuristic["diagnostic"].get("timings_ms"),
+                    {"total_ms": _elapsed_ms(started)},
+                ),
             }
         )
         return heuristic
@@ -1648,6 +1725,10 @@ def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_resu
                 "fallback_reason": "openai_error" if openai_error else heuristic["diagnostic"].get("fallback_reason"),
                 "openai_attempted": True,
                 "openai_error": openai_error,
+                "timings_ms": _merge_timing_maps(
+                    heuristic["diagnostic"].get("timings_ms"),
+                    {"total_ms": _elapsed_ms(started)},
+                ),
             }
         )
         return heuristic
@@ -1674,6 +1755,10 @@ def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_resu
             "useful_suggestion_count": max(openai_count, _count_useful_suggestions({"suggested_fields": merged_fields})),
             "openai_suggestion_count": openai_count,
             "heuristic_suggestion_count": heuristic_count,
+            "timings_ms": _merge_timing_maps(
+                heuristic.get("diagnostic", {}).get("timings_ms"),
+                openai_suggestions.get("diagnostic", {}).get("timings_ms"),
+            ),
         },
     }
     merged = _sanitize_suggestions(_enforce_suggestion_quality(tenant, normalized_payload, merged), "openai")
@@ -1691,6 +1776,10 @@ def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_resu
                 {
                     "web_search_attempted": True,
                     "web_search_error": str(exc).strip() or exc.__class__.__name__,
+                    "timings_ms": _merge_timing_maps(
+                        merged["diagnostic"].get("timings_ms"),
+                        {"total_ms": _elapsed_ms(started)},
+                    ),
                 }
             )
             return merged
@@ -1714,6 +1803,11 @@ def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_resu
                         "web_search_attempted": True,
                         "web_search_error": None,
                         "useful_suggestion_count": _count_useful_suggestions(merged),
+                        "timings_ms": _merge_timing_maps(
+                            merged["diagnostic"].get("timings_ms"),
+                            web_search_suggestions.get("diagnostic", {}).get("timings_ms"),
+                            {"total_ms": _elapsed_ms(started)},
+                        ),
                     }
                 )
             else:
@@ -1721,6 +1815,11 @@ def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_resu
                     {
                         "web_search_attempted": True,
                         "web_search_error": None,
+                        "timings_ms": _merge_timing_maps(
+                            merged["diagnostic"].get("timings_ms"),
+                            web_search_suggestions.get("diagnostic", {}).get("timings_ms"),
+                            {"total_ms": _elapsed_ms(started)},
+                        ),
                     }
                 )
         else:
@@ -1728,6 +1827,14 @@ def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_resu
                 {
                     "web_search_attempted": True,
                     "web_search_error": "empty_web_search_result",
+                    "timings_ms": _merge_timing_maps(
+                        merged["diagnostic"].get("timings_ms"),
+                        {"total_ms": _elapsed_ms(started)},
+                    ),
                 }
             )
+    merged["diagnostic"]["timings_ms"] = _merge_timing_maps(
+        merged["diagnostic"].get("timings_ms"),
+        {"total_ms": _elapsed_ms(started)},
+    )
     return merged
