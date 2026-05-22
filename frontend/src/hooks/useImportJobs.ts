@@ -87,6 +87,22 @@ export function useImportJobs(tenantId: number | null) {
       const data = await getImportRows(tenantId, targetId, query);
       setRowsPage(data);
     } catch (err) {
+      if (err instanceof ApiError) {
+        const query = nextQuery ?? rowsQuery;
+        const requestedPage = Math.max(1, Number(query.page ?? 1) || 1);
+        if (err.status === 404 && requestedPage > 1) {
+          const fallbackQuery = { ...query, page: 1 };
+          setRowsQuery(fallbackQuery);
+          try {
+            const data = await getImportRows(tenantId, targetId, fallbackQuery);
+            setRowsPage(data);
+            return;
+          } catch (fallbackErr) {
+            setError(fallbackErr instanceof Error ? fallbackErr.message : "Kunne ikke laste importrader.");
+            return;
+          }
+        }
+      }
       setError(err instanceof Error ? err.message : "Kunne ikke laste importrader.");
     } finally {
       setRowsLoading(false);
@@ -187,6 +203,10 @@ export function useImportJobs(tenantId: number | null) {
     setBusyAction("generate-ai");
     setError(null);
     try {
+      const rerunRowsQuery = forceRerun ? { ...rowsQuery, page: 1 } : rowsQuery;
+      if (forceRerun && (rowsQuery.page ?? 1) !== 1) {
+        setRowsQuery(rerunRowsQuery);
+      }
       let latestJob: ImportJob | null = null;
       let nextRetryFailed = retryFailed;
       let nextForceRerun = forceRerun;
@@ -225,7 +245,7 @@ export function useImportJobs(tenantId: number | null) {
       if (latestJob) {
         await refreshJobs(latestJob.id);
         await refreshSelectedJob(latestJob.id);
-        await refreshRows(undefined, latestJob.id);
+        await refreshRows(rerunRowsQuery, latestJob.id);
       }
       return latestJob;
     } catch (err) {
