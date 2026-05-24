@@ -325,7 +325,16 @@ function ImportReviewWorkspace(props: {
   const aiStatus = String(summary.ai_generation_status ?? "");
   const aiCompletedCount = Number(summary.rows_ai_completed ?? 0);
   const aiFailedCount = Number(summary.rows_ai_failed ?? 0);
+  const aiOpenaiRows = Number(summary.rows_using_openai ?? 0);
+  const aiFallbackRows = Number(summary.rows_using_fallback ?? 0);
   const aiHasProgress = aiCompletedCount > 0 || aiFailedCount > 0;
+  const aiHasAttemptHistory =
+    aiHasProgress ||
+    aiOpenaiRows > 0 ||
+    aiFallbackRows > 0 ||
+    aiStatus === "completed" ||
+    aiStatus === "failed" ||
+    aiStatus === "partially_failed";
   const commitReadyStatuses = ["PREVIEW_READY", "AWAITING_REVIEW", "FAILED"];
   const commitBlockedReason = !selectedJob
     ? "Ingen preview er kjørt ennå."
@@ -428,13 +437,13 @@ function ImportReviewWorkspace(props: {
             onClick={() =>
               void importJobs.generateAi(
                 aiStatus === "failed" || aiStatus === "partially_failed",
-                aiStatus === "completed" || aiHasProgress,
+                aiHasAttemptHistory,
               )
             }
           >
             {importJobs.busyAction === "generate-ai"
               ? "Genererer AI..."
-              : aiStatus === "failed" || aiStatus === "partially_failed" || aiHasProgress
+              : aiHasAttemptHistory
                   ? "Kjør AI på nytt"
                   : "Hent AI-forslag"}
           </button>
