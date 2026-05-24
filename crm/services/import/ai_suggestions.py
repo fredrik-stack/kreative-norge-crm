@@ -17,7 +17,7 @@ from .brreg import (
     is_valid_org_number,
     normalize_org_number_candidate,
 )
-from .search_enrichment import search_organization_signals, search_person_signals
+from .search_enrichment import SearchSignals, search_organization_signals, search_person_signals
 from .normalizers import canonicalize_public_website_url, normalize_domain, normalize_name, normalize_space
 
 try:
@@ -728,14 +728,111 @@ def _suggest_municipality_from_known_values(text: str) -> str | None:
 
 
 def _build_ai_enrichment_context(tenant: Tenant, normalized_payload: dict) -> dict[str, Any]:
+    return _build_ai_enrichment_context_with_matches(tenant, normalized_payload, {})
+
+
+def _lightweight_organization_signals_for_person_row(
+    tenant: Tenant,
+    normalized_payload: dict,
+    match_result: dict,
+) -> SearchSignals:
+    organization = normalized_payload.get("organization") or {}
+    organization_match = match_result.get("organization") or {}
+    exact_id = organization_match.get("exact_id")
+    exact_match = None
+    if exact_id:
+        exact_match = Organization.objects.filter(id=exact_id, tenant=tenant).first()
+
+    website_url = canonicalize_public_website_url(
+        (exact_match.website_url if exact_match else "")
+        or organization.get("website_url", "")
+    )
+    municipality_values: list[str] = []
+    raw_municipality = normalize_space(
+        (exact_match.municipalities if exact_match else "")
+        or organization.get("municipalities", "")
+    )
+    if raw_municipality:
+        municipality_values.append(raw_municipality)
+
+    socials: dict[str, str] = {}
+    if exact_match:
+        for field_name, payload_key in (
+            ("instagram_url", "organization_instagram_url"),
+            ("tiktok_url", "organization_tiktok_url"),
+            ("linkedin_url", "organization_linkedin_url"),
+            ("facebook_url", "organization_facebook_url"),
+            ("youtube_url", "organization_youtube_url"),
+        ):
+            value = canonicalize_public_website_url(getattr(exact_match, field_name, "") or "")
+            if value:
+                socials[payload_key] = value
+
+    emails = []
+    if exact_match and normalize_space(exact_match.email):
+        emails.append(normalize_space(exact_match.email).lower())
+
+    confirmed_signals = {
+        "websites": [website_url] if website_url else [],
+        "municipalities": municipality_values,
+        "socials": socials,
+    }
+    website_candidates = (
+        [
+            {
+                "url": website_url,
+                "title": exact_match.name if exact_match else organization.get("name", ""),
+                "snippet": "",
+                "score": 2.8 if exact_match else 1.2,
+                "source": "matched_record" if exact_match else "import_payload",
+                "host": normalize_domain(website_url or "") or "",
+                "query": "",
+            }
+        ]
+        if website_url
+        else []
+    )
+    municipality_candidates = [
+        {
+            "value": value,
+            "score": 0.95 if exact_match else 0.72,
+            "source": "matched_record" if exact_match else "import_payload",
+        }
+        for value in municipality_values
+    ]
+    return SearchSignals(
+        website_url=website_url or None,
+        emails=emails,
+        socials=socials,
+        text_snippets=[],
+        org_numbers=[],
+        website_candidates=website_candidates,
+        social_candidates={},
+        municipality_candidates=municipality_candidates,
+        confirmed_signals=confirmed_signals,
+    )
+
+
+def _build_ai_enrichment_context_with_matches(tenant: Tenant, normalized_payload: dict, match_result: dict) -> dict[str, Any]:
     total_started = perf_counter()
     organization = normalized_payload.get("organization") or {}
     person = normalized_payload.get("person") or {}
-    website_url = _infer_website_url(normalized_payload) or organization.get("website_url") or person.get("website_url")
+    explicit_website_url = organization.get("website_url") or person.get("website_url")
+    inferred_website_url = _infer_website_url(normalized_payload)
+    person_focused = bool(person.get("full_name"))
+    website_url = explicit_website_url or inferred_website_url
     website_started = perf_counter()
-    website_signals = _extract_contact_signals_from_website(website_url)
+    if explicit_website_url or (website_url and not person_focused):
+        website_signals = _extract_contact_signals_from_website(website_url)
+    else:
+        website_signals = {}
+    website_signals_ms = _elapsed_ms(website_started)
     organization_started = perf_counter()
-    organization_search = search_organization_signals(normalized_payload, tenant=tenant)
+    if person_focused:
+        organization_search = _lightweight_organization_signals_for_person_row(tenant, normalized_payload, match_result)
+    else:
+        organization_search = search_organization_signals(normalized_payload, tenant=tenant)
+    organization_search_ms = _elapsed_ms(organization_started)
     person_search = None
     person_search_ms = 0
     if person.get("full_name"):
@@ -744,6 +841,7 @@ def _build_ai_enrichment_context(tenant: Tenant, normalized_payload: dict) -> di
         person_search_ms = _elapsed_ms(person_started)
     brreg_started = perf_counter()
     raw_brreg_candidates = brreg_candidates_for_payload(normalized_payload, limit=5)
+    brreg_candidates_ms = _elapsed_ms(brreg_started)
     return {
         "website_url": website_url,
         "website_signals": website_signals,
@@ -751,10 +849,10 @@ def _build_ai_enrichment_context(tenant: Tenant, normalized_payload: dict) -> di
         "person_search": person_search,
         "raw_brreg_candidates": raw_brreg_candidates,
         "timings_ms": {
-            "website_signals_ms": _elapsed_ms(website_started),
-            "organization_search_ms": _elapsed_ms(organization_started),
+            "website_signals_ms": website_signals_ms,
+            "organization_search_ms": organization_search_ms,
             "person_search_ms": person_search_ms,
-            "brreg_candidates_ms": _elapsed_ms(brreg_started),
+            "brreg_candidates_ms": brreg_candidates_ms,
             "enrichment_context_ms": _elapsed_ms(total_started),
         },
     }
@@ -1350,7 +1448,7 @@ def _build_openai_input(
 ) -> str:
     organization = normalized_payload.get("organization") or {}
     person = normalized_payload.get("person") or {}
-    enrichment_context = enrichment_context or _build_ai_enrichment_context(tenant, normalized_payload)
+    enrichment_context = enrichment_context or _build_ai_enrichment_context_with_matches(tenant, normalized_payload, match_result)
     website_signals = enrichment_context["website_signals"]
     organization_search = enrichment_context["organization_search"]
     person_search = enrichment_context["person_search"]
@@ -1675,7 +1773,7 @@ def _generate_openai_web_search_suggestions(
 
 def generate_ai_suggestions(tenant: Tenant, normalized_payload: dict, match_result: dict) -> dict:
     started = perf_counter()
-    enrichment_context = _build_ai_enrichment_context(tenant, normalized_payload)
+    enrichment_context = _build_ai_enrichment_context_with_matches(tenant, normalized_payload, match_result)
     heuristic = _sanitize_suggestions(
         _heuristic_suggestions(
             tenant,

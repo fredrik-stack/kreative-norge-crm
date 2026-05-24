@@ -2515,6 +2515,83 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
 
         self.assertLessEqual(len(seen_queries), 9)
 
+    def test_generate_ai_suggestions_uses_lightweight_organization_context_for_person_rows(self):
+        ai_module = importlib.import_module("crm.services.import.ai_suggestions")
+        search_enrichment_module = importlib.import_module("crm.services.import.search_enrichment")
+        organization = Organization.objects.create(
+            tenant=self.tenant,
+            name="Kunnskapsparken Helgeland AS",
+            municipalities="Mosjøen",
+            website_url="https://kph.no",
+        )
+        normalized = normalize_import_row(
+            self.base_row
+            | {
+                "organization_name": "Kunnskapsparken Helgeland AS",
+                "person_full_name": "Torbjørn Aag",
+                "person_municipality": "Mosjøen",
+            }
+        )
+        match_result = {
+            "organization": {"status": "EXACT", "exact_id": organization.id},
+            "person": {"status": "NEW", "exact_id": None},
+        }
+
+        with patch.object(ai_module, "search_organization_signals") as org_search_mock, patch.object(
+            ai_module,
+            "search_person_signals",
+            return_value=search_enrichment_module.SearchSignals(
+                emails=[],
+                socials={},
+                text_snippets=[],
+                website_candidates=[],
+                social_candidates={},
+                municipality_candidates=[],
+                confirmed_signals={},
+            ),
+        ):
+            context = ai_module._build_ai_enrichment_context_with_matches(self.tenant, normalized, match_result)
+
+        self.assertFalse(org_search_mock.called)
+        self.assertEqual(context["organization_search"].website_url, organization.website_url)
+        self.assertEqual(
+            context["organization_search"].confirmed_signals.get("municipalities"),
+            [organization.municipalities],
+        )
+
+    def test_generate_ai_suggestions_skips_inferred_website_fetch_for_person_rows(self):
+        ai_module = importlib.import_module("crm.services.import.ai_suggestions")
+        search_enrichment_module = importlib.import_module("crm.services.import.search_enrichment")
+        normalized = normalize_import_row(
+            self.base_row
+            | {
+                "organization_name": "Nordlyd AS",
+                "organization_email": "",
+                "organization_website_url": "",
+                "person_full_name": "Ada Storm",
+                "person_email": "ada@adastorm.no",
+                "person_municipality": "Oslo",
+            }
+        )
+
+        with patch.object(ai_module, "_extract_contact_signals_from_website") as fetch_mock, patch.object(
+            ai_module,
+            "search_person_signals",
+            return_value=search_enrichment_module.SearchSignals(
+                emails=[],
+                socials={},
+                text_snippets=[],
+                website_candidates=[],
+                social_candidates={},
+                municipality_candidates=[],
+                confirmed_signals={},
+            ),
+        ):
+            context = ai_module._build_ai_enrichment_context_with_matches(self.tenant, normalized, {})
+
+        self.assertFalse(fetch_mock.called)
+        self.assertEqual(context["website_signals"], {})
+
     def test_search_organization_signals_extracts_primary_site_and_socials_from_search_results(self):
         search_enrichment_module = importlib.import_module("crm.services.import.search_enrichment")
         fake_results = [
