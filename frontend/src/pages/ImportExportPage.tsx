@@ -479,7 +479,7 @@ function ImportReviewWorkspace(props: {
               <th>AI profiler</th>
               <th>Nå beskrivelse</th>
               <th>Provider</th>
-              <th>Status</th>
+              <th>Review-status</th>
               <th>Advarsler</th>
               <th>Feil</th>
               <th />
@@ -2268,9 +2268,9 @@ function getRowStatusLabel(row: ImportRow): string {
   }
   switch (row.row_status) {
     case "VALID":
-      return "Klar til commit";
+      return "Ingen review nødvendig";
     case "REVIEW_REQUIRED":
-      return "Trenger review";
+      return "Review nødvendig";
     case "INVALID":
       return "Feil";
     case "SKIPPED":

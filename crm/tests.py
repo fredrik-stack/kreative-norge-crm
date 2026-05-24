@@ -738,6 +738,64 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(self.job.summary_json["ai_generation_status"], "running")
 
     @override_settings(OPENAI_IMPORT_ENABLED=True, OPENAI_API_KEY="test-key")
+    def test_generate_ai_endpoint_counts_openai_web_search_rows_as_completed(self):
+        self._upload_csv([self.base_row, self.base_row | {"organization_name": "Nordlyd 2", "organization_org_number": "987654321"}])
+        pending_payload = {
+            "organization_match_candidates": [],
+            "person_match_candidates": [],
+            "suggested_fields": {},
+            "provider": "pending_openai",
+            "diagnostic": {
+                "primary_provider": "pending_openai",
+                "provider_status": "pending_openai",
+                "fallback_reason": "awaiting_openai",
+                "openai_attempted": False,
+                "openai_error": None,
+                "useful_suggestion_count": 0,
+            },
+        }
+        with patch.object(import_preview_module, "build_pending_ai_suggestions", return_value=pending_payload):
+            self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+
+        fake_suggestion = {
+            "organization_match_candidates": [],
+            "person_match_candidates": [],
+            "suggested_fields": {
+                "person_instagram_url": {
+                    "value": "https://instagram.com/adastorm",
+                    "confidence": 0.84,
+                    "source": "openai_web_search",
+                    "requires_review": True,
+                }
+            },
+            "provider": "openai_web_search",
+            "diagnostic": {
+                "primary_provider": "openai_web_search",
+                "provider_status": "openai_web_search",
+                "fallback_reason": None,
+                "openai_attempted": True,
+                "openai_error": None,
+                "useful_suggestion_count": 1,
+            },
+        }
+
+        with patch.object(import_preview_module, "generate_ai_suggestions", return_value=fake_suggestion), patch.object(
+            import_preview_module,
+            "openai_is_ready",
+            return_value=True,
+        ):
+            response = self.client.post(
+                f"{self.import_jobs_url()}{self.job.id}/generate-ai/",
+                {"batch_size": 1},
+                format="json",
+            )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.summary_json["rows_ai_completed"], 1)
+        self.assertEqual(self.job.summary_json["rows_ai_pending"], 1)
+        self.assertEqual(self.job.summary_json["ai_generation_status"], "running")
+
+    @override_settings(OPENAI_IMPORT_ENABLED=True, OPENAI_API_KEY="test-key")
     def test_generate_ai_endpoint_can_force_rerun_completed_rows(self):
         self._upload_csv()
         pending_payload = {

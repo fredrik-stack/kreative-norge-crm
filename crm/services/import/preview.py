@@ -35,7 +35,7 @@ def _ai_summary(rows: list[ImportRow]) -> dict:
     diagnostics = [row.ai_suggestions_json.get("diagnostic", {}) for row in rows]
     provider_statuses = [str(diagnostic.get("provider_status") or "") for diagnostic in diagnostics]
     pending_count = sum(1 for status in provider_statuses if status == "pending_openai")
-    completed_count = sum(1 for status in provider_statuses if status in {"openai", "openai_empty"})
+    completed_count = sum(1 for status in provider_statuses if status in {"openai", "openai_empty", "openai_web_search"})
     failed_count = sum(1 for status in provider_statuses if status.startswith("fallback_") and status.endswith("_error"))
     if pending_count:
         generation_status = "running" if completed_count or failed_count else "pending"
