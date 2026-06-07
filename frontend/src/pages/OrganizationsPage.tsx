@@ -137,10 +137,12 @@ function OrganizationOverviewPanel(props: {
             <div className="editor-card-body">
               <div className="editor-card-head">
                 <div className="editor-card-title-block">
-                  <h3>{organization.name}</h3>
+                  <h3 className={getActorCardTitleClass(organization.name)}>{organization.name}</h3>
                 </div>
                 <div className="editor-card-location">
-                  <span className="meta">{organization.municipalities || "Ingen kommune"}</span>
+                  <span className={`meta ${getActorCardLocationClass(organization.municipalities || "Ingen kommune")}`}>
+                    {organization.municipalities || "Ingen kommune"}
+                  </span>
                 </div>
               </div>
               <div className="meta-row">
@@ -187,6 +189,27 @@ function OrganizationOverviewPanel(props: {
       ) : null}
     </section>
   );
+}
+
+function getActorCardTitleClass(name: string): string {
+  const normalized = (name || "").trim();
+  const letters = normalized.replace(/[^A-Za-zÆØÅæøå]/g, "");
+  const uppercaseRatio =
+    letters.length > 0
+      ? letters.split("").filter((char) => char === char.toUpperCase()).length / letters.length
+      : 0;
+
+  if (uppercaseRatio >= 0.72 && letters.length >= 8) return "caps";
+  if (normalized.length >= 30) return "dense";
+  if (normalized.length >= 22) return "compact";
+  return "";
+}
+
+function getActorCardLocationClass(location: string): string {
+  const normalized = (location || "").trim();
+  if (normalized.length >= 16) return "dense";
+  if (normalized.length >= 11) return "compact";
+  return "";
 }
 
 function OrganizationOverviewModal(props: {
