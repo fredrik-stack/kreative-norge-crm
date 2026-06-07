@@ -945,7 +945,7 @@ select,
 }
 
 .editor-card-title-block {
-  padding-right: 0.1rem;
+  padding-right: 0.4rem;
 }
 
 .editor-card-head h3 {
@@ -977,7 +977,7 @@ select,
 .editor-card-head .meta {
   min-width: 0;
   max-width: 7.4rem;
-  padding-left: 0.35rem;
+  padding-left: 0.55rem;
   text-align: right;
   justify-self: end;
   font-size: 0.76rem;
