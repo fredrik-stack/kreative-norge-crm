@@ -934,7 +934,7 @@ select,
 
 .editor-card-head {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.8fr);
   align-items: start;
   gap: 0.6rem;
 }
@@ -944,14 +944,18 @@ select,
   font-size: 1rem;
   line-height: 1.2;
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 
 .editor-card-head .meta {
-  flex-shrink: 0;
+  min-width: 0;
   text-align: right;
-  max-width: 9rem;
-  overflow-wrap: anywhere;
+  font-size: 0.92rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .meta-row {
