@@ -136,8 +136,12 @@ function OrganizationOverviewPanel(props: {
             )}
             <div className="editor-card-body">
               <div className="editor-card-head">
-                <h3>{organization.name}</h3>
-                <span className="meta">{organization.municipalities || "Ingen kommune"}</span>
+                <div className="editor-card-title-block">
+                  <h3>{organization.name}</h3>
+                </div>
+                <div className="editor-card-location">
+                  <span className="meta">{organization.municipalities || "Ingen kommune"}</span>
+                </div>
               </div>
               <div className="meta-row">
                 {overviewPills.map((pill) => (
