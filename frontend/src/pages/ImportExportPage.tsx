@@ -134,6 +134,7 @@ type ReviewDraft = {
   organizationDecision: "NONE" | "USE_EXISTING_ORGANIZATION";
   personDecision: "NONE" | "USE_EXISTING_PERSON" | "CREATE_NEW_PERSON";
   organizationId: number | "";
+  organizationIds: number[];
   organizationSearchText: string;
   personId: number | "";
   categoryId: number | "";
@@ -768,7 +769,8 @@ function InlineReviewEditor(props: {
       organizationDecision: getExistingDecisionType(row, ["USE_EXISTING_ORGANIZATION"]) ?? "NONE",
       personDecision: getExistingDecisionType(row, ["USE_EXISTING_PERSON", "CREATE_NEW_PERSON"]) ?? "NONE",
       organizationId: getExistingDecisionId(row, "USE_EXISTING_ORGANIZATION", "organization_id"),
-      organizationSearchText: getCurrentOrganizationLabel(row, organizations),
+      organizationIds: getExistingDecisionIds(row, "USE_EXISTING_ORGANIZATION", "organization_id"),
+      organizationSearchText: "",
       personId: getExistingDecisionId(row, "USE_EXISTING_PERSON", "person_id"),
       categoryId:
         getExistingDecisionId(row, "MAP_CATEGORY", "category_id") ||
@@ -826,12 +828,19 @@ function InlineReviewEditor(props: {
     if (!personOnly || draft.organizationDecision !== "USE_EXISTING_ORGANIZATION") return [];
     const query = draft.organizationSearchText.trim().toLowerCase();
     if (!query) return organizations.slice(0, 12);
-    return organizations.filter((organization) => organization.name.toLowerCase().includes(query)).slice(0, 12);
-  }, [draft.organizationDecision, draft.organizationSearchText, organizations, personOnly]);
+    return organizations
+      .filter((organization) => !draft.organizationIds.includes(organization.id))
+      .filter((organization) => organization.name.toLowerCase().includes(query))
+      .slice(0, 12);
+  }, [draft.organizationDecision, draft.organizationIds, draft.organizationSearchText, organizations, personOnly]);
   const selectedExistingOrganization =
     personOnly && draft.organizationDecision === "USE_EXISTING_ORGANIZATION" && draft.organizationId
       ? organizations.find((organization) => organization.id === draft.organizationId) ?? null
       : null;
+  const selectedExistingOrganizations = useMemo(
+    () => organizations.filter((organization) => draft.organizationIds.includes(organization.id)),
+    [draft.organizationIds, organizations],
+  );
   const existingOrganizationCategoryNames =
     selectedExistingOrganization && !draft.categoryTouched && !draft.subcategoryTouched && !draft.categoryId && !draft.subcategoryId
       ? selectedExistingOrganization.categories.map((category) => category.name)
@@ -914,6 +923,8 @@ function InlineReviewEditor(props: {
         ...draft,
         organizationDecision: "USE_EXISTING_ORGANIZATION" as const,
         organizationId: createdOrganization.id,
+        organizationIds: [createdOrganization.id],
+        organizationSearchText: "",
       };
       await persistDraft(nextDraft);
       setOrganizationCreateState("idle");
@@ -922,6 +933,39 @@ function InlineReviewEditor(props: {
       setOrganizationCreateError(error instanceof Error ? error.message : "Kunne ikke opprette aktøren.");
     }
   }
+
+  function selectExistingOrganization(organizationId: number, append = false) {
+    const organization = organizations.find((item) => item.id === organizationId);
+    if (!organization) return;
+    const nextOrganizationIds = append
+      ? Array.from(new Set([...draft.organizationIds, organizationId]))
+      : [organizationId];
+    const nextDraft = {
+      ...draft,
+      organizationDecision: "USE_EXISTING_ORGANIZATION" as const,
+      organizationId: nextOrganizationIds[0] ?? "",
+      organizationIds: nextOrganizationIds,
+      organizationSearchText: "",
+    };
+    void persistDraft(nextDraft);
+  }
+
+  function removeSelectedOrganization(organizationId: number) {
+    const nextOrganizationIds = draft.organizationIds.filter((id) => id !== organizationId);
+    const nextDraft = {
+      ...draft,
+      organizationId: nextOrganizationIds[0] ?? "",
+      organizationIds: nextOrganizationIds,
+      organizationDecision: nextOrganizationIds.length > 0 ? draft.organizationDecision : "NONE" as const,
+      organizationSearchText: "",
+    };
+    void persistDraft(nextDraft);
+  }
+
+  const modalPrimaryTitle = actorOnly
+    ? getCurrentOrganizationLabel(row, organizations)
+    : getCurrentPersonLabel(row);
+  const modalSecondaryTitle = personOnly ? getCurrentOrganizationLabel(row, organizations) : "";
 
   function applyCategorySuggestion(name: string) {
     if (organizationDataLocked) return;
@@ -1061,7 +1105,13 @@ function InlineReviewEditor(props: {
       <div className="inline-review-grid single-column">
         <section className="editor-detail-section modal-section-card">
           <div className="modal-section-header">
-            <h4>Rediger raskt</h4>
+            <div>
+              <h4>Rediger raskt</h4>
+              <div className="person-modal-meta">
+                <span className="person-modal-role">{modalPrimaryTitle || "Uten navn"}</span>
+                {modalSecondaryTitle ? <span className="meta">Aktør: {modalSecondaryTitle}</span> : null}
+              </div>
+            </div>
             <div className="review-header-meta">
               <span className={`mini-pill ${saveState === "saved" ? "category" : saveState === "error" ? "subcategory" : "tag"}`}>
                 {saveState === "saving" ? "Lagrer…" : saveState === "saved" ? "Lagret" : saveState === "error" ? "Feil ved lagring" : diagnosticMeta.title}
@@ -1079,6 +1129,7 @@ function InlineReviewEditor(props: {
                         ...current,
                         organizationDecision: e.target.value as ReviewDraft["organizationDecision"],
                         organizationId: e.target.value === "USE_EXISTING_ORGANIZATION" ? current.organizationId : "",
+                        organizationIds: e.target.value === "USE_EXISTING_ORGANIZATION" ? current.organizationIds : [],
                         organizationSearchText:
                           e.target.value === "USE_EXISTING_ORGANIZATION" ? current.organizationSearchText : "",
                       }))
@@ -1099,60 +1150,69 @@ function InlineReviewEditor(props: {
                   onUse={(id) => {
                     const organizationId = typeof id === "number" ? id : Number(id);
                     if (!organizationId) return;
-                    const nextDraft = {
-                      ...draft,
-                      organizationDecision: "USE_EXISTING_ORGANIZATION" as const,
-                      organizationId,
-                      organizationSearchText:
-                        organizations.find((organization) => organization.id === organizationId)?.name
-                        ?? draft.organizationSearchText,
-                    };
-                    void persistDraft(nextDraft);
+                    selectExistingOrganization(organizationId);
                   }}
                   emptyLabel="Ingen aktørkandidater"
                 />
                 {draft.organizationDecision === "USE_EXISTING_ORGANIZATION" ? (
-                  <Field label="Velg aktør">
-                    <div className="search-select-field">
-                      <input
-                        value={draft.organizationSearchText}
-                        onChange={(e) =>
-                          setDraft((current) => ({
-                            ...current,
-                            organizationSearchText: e.target.value,
-                            organizationId:
-                              current.organizationId &&
-                              organizations.find((organization) => organization.id === current.organizationId)?.name === e.target.value
-                                ? current.organizationId
-                                : "",
-                          }))
-                        }
-                        placeholder="Søk etter aktørnavn"
-                      />
-                      <div className="search-select-results" role="listbox" aria-label="Aktørsøk">
-                        {organizationSearchMatches.length > 0 ? organizationSearchMatches.map((organization) => (
-                          <button
-                            key={organization.id}
-                            type="button"
-                            className={`search-select-option ${draft.organizationId === organization.id ? "active" : ""}`}
-                            onClick={() => {
-                              const nextDraft = {
-                                ...draft,
-                                organizationId: organization.id,
-                                organizationSearchText: organization.name,
-                              };
-                              void persistDraft(nextDraft);
-                            }}
-                          >
-                            <span>{organization.name}</span>
-                            <span className="meta">#{organization.id}</span>
-                          </button>
+                  <>
+                    <Field label="Valgte aktører">
+                      <div className="review-selected-links">
+                        {selectedExistingOrganizations.length > 0 ? selectedExistingOrganizations.map((organization, index) => (
+                          <div key={organization.id} className="review-selected-link-card">
+                            <div>
+                              <strong>{organization.name}</strong>
+                              <div className="meta">
+                                {index === 0 ? "Primær kobling" : "Ekstra kobling"}
+                                {organization.municipalities ? ` · ${organization.municipalities}` : ""}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              className="ghost-button compact-button"
+                              onClick={() => removeSelectedOrganization(organization.id)}
+                            >
+                              Fjern
+                            </button>
+                          </div>
                         )) : (
-                          <div className="search-select-empty">Ingen treff</div>
+                          <div className="search-select-empty">Ingen aktør valgt ennå</div>
                         )}
                       </div>
-                    </div>
-                  </Field>
+                    </Field>
+                    <Field label={selectedExistingOrganizations.length > 0 ? "Knytt til flere eksisterende aktører" : "Velg aktør"}>
+                      <div className="search-select-field">
+                        <div className="review-inline-cta">
+                          <span className="meta">＋ Knytt til flere eksisterende aktører</span>
+                        </div>
+                        <input
+                          value={draft.organizationSearchText}
+                          onChange={(e) =>
+                            setDraft((current) => ({
+                              ...current,
+                              organizationSearchText: e.target.value,
+                            }))
+                          }
+                          placeholder="Søk etter aktørnavn"
+                        />
+                        <div className="search-select-results" role="listbox" aria-label="Aktørsøk">
+                          {organizationSearchMatches.length > 0 ? organizationSearchMatches.map((organization) => (
+                            <button
+                              key={organization.id}
+                              type="button"
+                              className={`search-select-option ${draft.organizationIds.includes(organization.id) ? "active" : ""}`}
+                              onClick={() => selectExistingOrganization(organization.id, selectedExistingOrganizations.length > 0)}
+                            >
+                              <span>{organization.name}</span>
+                              <span className="meta">#{organization.id}</span>
+                            </button>
+                          )) : (
+                            <div className="search-select-empty">Ingen treff</div>
+                          )}
+                        </div>
+                      </div>
+                    </Field>
+                  </>
                 ) : null}
               </>
             ) : null}
@@ -1791,8 +1851,10 @@ function buildDecisions(
     return [{ decision_type: "SKIP_ROW" }];
   }
 
-  if (draft.organizationDecision === "USE_EXISTING_ORGANIZATION" && draft.organizationId) {
-    decisions.push({ decision_type: "USE_EXISTING_ORGANIZATION", payload_json: { organization_id: draft.organizationId } });
+  if (draft.organizationDecision === "USE_EXISTING_ORGANIZATION" && draft.organizationIds.length > 0) {
+    draft.organizationIds.forEach((organizationId) => {
+      decisions.push({ decision_type: "USE_EXISTING_ORGANIZATION", payload_json: { organization_id: organizationId } });
+    });
   }
   if (draft.categoryId) {
     decisions.push({ decision_type: "MAP_CATEGORY", payload_json: { category_id: draft.categoryId } });
@@ -2440,6 +2502,13 @@ function getExistingDecisionId(row: ImportRow, decisionType: ImportDecision["dec
   return typeof value === "number" ? value : "";
 }
 
+function getExistingDecisionIds(row: ImportRow, decisionType: ImportDecision["decision_type"], field: string): number[] {
+  return row.decisions
+    .filter((decision) => decision.decision_type === decisionType)
+    .map((decision) => decision.payload_json?.[field])
+    .filter((value): value is number => typeof value === "number");
+}
+
 function getAcceptedDecisionValue(row: ImportRow, suggestionKey: string): string {
   const match = row.decisions.find(
     (decision) => decision.decision_type === "ACCEPT_AI_SUGGESTION" && decision.payload_json.suggestion_key === suggestionKey,
@@ -2523,12 +2592,19 @@ function getCurrentBoolean(row: ImportRow, keys: string[]): boolean {
 }
 
 function getCurrentOrganizationLabel(row: ImportRow, organizations: Organization[]): string {
-  const selectedOrganizationId = getExistingDecisionId(row, "USE_EXISTING_ORGANIZATION", "organization_id");
-  if (selectedOrganizationId) {
-    const match = organizations.find((organization) => organization.id === selectedOrganizationId);
-    if (match) return match.name;
+  const selectedOrganizationIds = getExistingDecisionIds(row, "USE_EXISTING_ORGANIZATION", "organization_id");
+  if (selectedOrganizationIds.length > 0) {
+    const selectedOrganizations = organizations.filter((organization) => selectedOrganizationIds.includes(organization.id));
+    if (selectedOrganizations.length > 0) {
+      const [first, ...rest] = selectedOrganizations;
+      return rest.length > 0 ? `${first.name} + ${rest.length} til` : first.name;
+    }
   }
   return getFirstText(row.raw_payload_json.organization_name);
+}
+
+function getCurrentPersonLabel(row: ImportRow): string {
+  return getFirstText(row.raw_payload_json.person_full_name);
 }
 
 function getCurrentCategoryValues(

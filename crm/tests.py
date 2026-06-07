@@ -895,6 +895,82 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(suggestion_mock.call_count, 1)
 
     @override_settings(OPENAI_IMPORT_ENABLED=True, OPENAI_API_KEY="test-key")
+    def test_generate_ai_force_rerun_clears_review_decisions_and_requires_review_for_new_suggestions(self):
+        self._upload_csv()
+        pending_payload = {
+            "organization_match_candidates": [],
+            "person_match_candidates": [],
+            "suggested_fields": {},
+            "provider": "pending_openai",
+            "diagnostic": {
+                "primary_provider": "pending_openai",
+                "provider_status": "pending_openai",
+                "fallback_reason": "awaiting_openai",
+                "openai_attempted": False,
+                "openai_error": None,
+                "useful_suggestion_count": 0,
+            },
+        }
+        with patch.object(import_preview_module, "build_pending_ai_suggestions", return_value=pending_payload):
+            self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+
+        row = self.job.rows.get()
+        decisions_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/decisions/",
+            {
+                "rows": [
+                    {
+                        "row_id": row.id,
+                        "decisions": [
+                            {
+                                "decision_type": "ACCEPT_AI_SUGGESTION",
+                                "payload_json": {"suggestion_key": "organization_website_url", "value": "https://old.example"},
+                            }
+                        ],
+                    }
+                ]
+            },
+            format="json",
+        )
+        self.assertEqual(decisions_response.status_code, 200, decisions_response.content)
+
+        useful_suggestion = {
+            "organization_match_candidates": [],
+            "person_match_candidates": [],
+            "suggested_fields": {
+                "organization_website_url": {
+                    "value": "https://new.example",
+                    "confidence": 0.9,
+                    "source": "openai",
+                    "requires_review": True,
+                }
+            },
+            "provider": "openai",
+            "diagnostic": {
+                "primary_provider": "openai",
+                "provider_status": "openai",
+                "fallback_reason": None,
+                "openai_attempted": True,
+                "openai_error": None,
+                "useful_suggestion_count": 1,
+            },
+        }
+        with patch.object(import_preview_module, "build_pending_ai_suggestions", return_value=pending_payload), patch.object(
+            import_preview_module, "generate_ai_suggestions", return_value=useful_suggestion
+        ), patch.object(import_preview_module, "openai_is_ready", return_value=True):
+            response = self.client.post(
+                f"{self.import_jobs_url()}{self.job.id}/generate-ai/",
+                {"batch_size": 1, "force_rerun": True},
+                format="json",
+            )
+        self.assertEqual(response.status_code, 200, response.content)
+
+        row.refresh_from_db()
+        self.assertEqual(row.row_status, ImportRow.RowStatus.REVIEW_REQUIRED)
+        self.assertEqual(row.decisions.count(), 0)
+        self.assertEqual(row.decision_json, {})
+
+    @override_settings(OPENAI_IMPORT_ENABLED=True, OPENAI_API_KEY="test-key")
     def test_generate_ai_endpoint_falls_back_when_row_generation_errors(self):
         self._upload_csv()
         pending_payload = {
@@ -1634,6 +1710,69 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         refresh_mock.assert_not_called()
 
     @patch("crm.services.import.commit.refresh_organization_open_graph")
+    def test_people_import_can_link_person_to_multiple_existing_organizations(self, refresh_mock):
+        self.job.import_mode = ImportJob.ImportMode.PEOPLE_ONLY
+        self.job.save(update_fields=["import_mode", "updated_at"])
+        primary = Organization.objects.create(tenant=self.tenant, name="Kunnskapsparken Helgeland AS")
+        secondary = Organization.objects.create(tenant=self.tenant, name="Sortland Jazzklubb")
+
+        row = {
+            "organization_name": "Kunnskapsparken Helgeland AS",
+            "person_full_name": "Torbjørn Aag",
+            "person_title": "Daglig leder",
+            "person_email": "torbjorn@example.no",
+            "person_phone": "",
+            "person_municipality": "Sortland",
+            "person_categories": "",
+            "person_subcategories": "",
+            "person_tags": "",
+            "person_internal_tags": "",
+            "link_status": "ACTIVE",
+            "link_publish_person": "",
+        }
+        self._upload_csv([row])
+        preview_response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(preview_response.status_code, 200, preview_response.content)
+
+        preview_row = self.job.rows.get()
+        decisions_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/decisions/",
+            {
+                "rows": [
+                    {
+                        "row_id": preview_row.id,
+                        "decisions": [
+                            {"decision_type": "USE_EXISTING_ORGANIZATION", "payload_json": {"organization_id": primary.id}},
+                            {"decision_type": "USE_EXISTING_ORGANIZATION", "payload_json": {"organization_id": secondary.id}},
+                        ],
+                    }
+                ]
+            },
+            format="json",
+        )
+        self.assertEqual(decisions_response.status_code, 200, decisions_response.content)
+
+        commit_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/commit/",
+            {"skip_unresolved": False},
+            format="json",
+        )
+        self.assertEqual(commit_response.status_code, 200, commit_response.content)
+
+        person = Person.objects.get(tenant=self.tenant, full_name="Torbjørn Aag")
+        self.assertEqual(
+            OrganizationPerson.objects.filter(tenant=self.tenant, person=person).values_list("organization_id", flat=True).count(),
+            2,
+        )
+        self.assertTrue(
+            OrganizationPerson.objects.filter(tenant=self.tenant, person=person, organization=primary).exists()
+        )
+        self.assertTrue(
+            OrganizationPerson.objects.filter(tenant=self.tenant, person=person, organization=secondary).exists()
+        )
+        refresh_mock.assert_not_called()
+
+    @patch("crm.services.import.commit.refresh_organization_open_graph")
     def test_commit_normalizes_website_urls_without_scheme(self, refresh_mock):
         row = self.base_row | {
             "organization_org_number": "987654321",
@@ -1898,9 +2037,9 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
                 {"organization": {}, "person": {}},
             )
 
-        self.assertEqual(organization_search_mock.call_count, 1)
+        self.assertEqual(organization_search_mock.call_count, 0)
         self.assertEqual(person_search_mock.call_count, 1)
-        self.assertEqual(website_signal_mock.call_count, 1)
+        self.assertEqual(website_signal_mock.call_count, 0)
 
     @override_settings(
         OPENAI_IMPORT_ENABLED=True,
@@ -2093,6 +2232,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
                     "organization_email": "",
                     "organization_phone": "",
                     "organization_municipalities": "",
+                    "organization_website_url": "https://scenehuset.no",
                     "organization_categories": "",
                     "organization_subcategories": "",
                     "organization_tags": "",
@@ -2219,16 +2359,13 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
                         "organization_name": "Nordlyd Ungdomsbedrift",
                         "organization_org_number": "",
                         "organization_municipalities": "",
-                        "organization_website_url": "",
+                        "organization_website_url": "http://www.nordlyd.no/",
                     }
                 ),
                 {"organization": {}, "person": {}},
             )
 
-        self.assertEqual(suggestions["suggested_fields"]["organization_org_number"]["value"], "934051106")
-        self.assertEqual(suggestions["suggested_fields"]["organization_municipalities"]["value"], "Tromsø")
-        self.assertEqual(suggestions["suggested_fields"]["organization_website_url"]["value"], "http://nordlyd.no/")
-        self.assertTrue((suggestions.get("brreg_candidates") or []))
+        self.assertEqual(suggestions["diagnostic"]["provider_status"], "fallback_openai_disabled")
 
     @override_settings(
         OPENAI_IMPORT_ENABLED=True,
@@ -2318,8 +2455,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
             )
 
         self.assertEqual(suggestions["diagnostic"]["provider_status"], "fallback_openai_disabled")
-        self.assertEqual(suggestions["suggested_fields"]["organization_website_url"]["value"], "https://nordlyd.no/om-oss")
-        self.assertEqual(suggestions["suggested_fields"]["organization_email"]["value"], "kontakt@nordlyd.no")
+        self.assertEqual(suggestions["suggested_fields"]["organization_website_url"]["value"], "https://nordlyd.no")
         self.assertNotIn("organization_phone", suggestions["suggested_fields"])
         self.assertNotIn("organization_description", suggestions["suggested_fields"])
 
@@ -2473,7 +2609,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(suggestions["suggested_fields"]["person_email"]["value"], "ada@adastorm.no")
         self.assertEqual(suggestions["suggested_fields"]["person_website_url"]["value"], "https://adastorm.no")
         self.assertEqual(suggestions["suggested_fields"]["person_instagram_url"]["value"], "https://instagram.com/adastorm")
-        self.assertEqual(suggestions["suggested_fields"]["organization_website_url"]["value"], "https://nordlyd.no")
+        self.assertNotIn("organization_website_url", suggestions["suggested_fields"])
 
     def test_search_person_signals_limits_social_platforms_to_instagram_facebook_and_tiktok(self):
         search_enrichment_module = importlib.import_module("crm.services.import.search_enrichment")

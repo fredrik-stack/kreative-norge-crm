@@ -415,7 +415,7 @@ function OrganizationEditorPanel(props: {
             <div className={`save-pill ${editor.saveState}`}>{saveLabel(editor.saveState)}</div>
           </div>
 
-          <form onSubmit={editor.onSubmit} className="editor-form">
+          <form id="organization-editor-form" onSubmit={editor.onSubmit} className="editor-form">
             <div className="grid two">
               <Field label="Navn" required>
                 <input
@@ -697,6 +697,16 @@ function OrganizationEditorPanel(props: {
           </form>
 
           <OrganizationLinksPanel navigate={navigate} />
+          <div className="actions editor-bottom-save-actions">
+            <button
+              type="submit"
+              form="organization-editor-form"
+              className="primary-button"
+              disabled={!editor.tenantId || editor.saveState === "saving"}
+            >
+              {editor.selectedOrgId === "new" ? "Opprett aktør" : "Lagre endringer"}
+            </button>
+          </div>
         </>
       )}
     </section>
@@ -829,7 +839,7 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
                 </Field>
               </div>
 
-              <div className="actions">
+              <div className="actions linked-person-create-actions">
                 <button
                   type="submit"
                   className="primary-button"

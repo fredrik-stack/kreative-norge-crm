@@ -32,6 +32,7 @@ class ImportCommitBlocked(Exception):
 @dataclass
 class ResolvedRowDecision:
     organization_id: int | None = None
+    organization_ids: list[int] | None = None
     person_id: int | None = None
     skip: bool = False
     category_ids: list[int] | None = None
@@ -56,6 +57,7 @@ def _resolve_decisions(row: ImportRow) -> ResolvedRowDecision:
     result = ResolvedRowDecision(
         category_ids=[],
         subcategory_ids=[],
+        organization_ids=[],
         accepted_ai_suggestions={},
         ignored_ai_suggestions=set(),
         manual_review_overrides={},
@@ -63,7 +65,10 @@ def _resolve_decisions(row: ImportRow) -> ResolvedRowDecision:
     for decision in row.decisions.all():
         payload = decision.payload_json or {}
         if decision.decision_type == ImportDecision.DecisionType.USE_EXISTING_ORGANIZATION:
-            result.organization_id = payload.get("organization_id")
+            organization_id = payload.get("organization_id")
+            if organization_id and organization_id not in result.organization_ids:
+                result.organization_ids.append(organization_id)
+            result.organization_id = result.organization_ids[0] if result.organization_ids else None
         elif decision.decision_type == ImportDecision.DecisionType.USE_EXISTING_PERSON:
             result.person_id = payload.get("person_id")
         elif decision.decision_type == ImportDecision.DecisionType.SKIP_ROW:
@@ -366,7 +371,8 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
 
                 organization = None
                 organization_action = None
-                explicit_existing_organization = resolved.organization_id is not None
+                explicit_existing_organization_ids = [organization_id for organization_id in (resolved.organization_ids or []) if organization_id]
+                explicit_existing_organization = bool(explicit_existing_organization_ids)
                 organization, organization_action = _resolve_existing_organization(import_job, organization_data, matches, resolved)
                 if not organization and organization_data["name"]:
                     organization = Organization.objects.create(
@@ -457,25 +463,37 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
                     if not explicit_existing_person:
                         _upsert_person_contacts(person, person_data, row, import_job)
 
-                if organization and person:
-                    link, created = OrganizationPerson.objects.get_or_create(
-                        tenant=import_job.tenant,
-                        organization=organization,
-                        person=person,
-                        defaults={"status": link_data["status"], "publish_person": link_data["publish_person"]},
+                linked_organizations: list[Organization] = []
+                if explicit_existing_organization_ids:
+                    linked_organizations = list(
+                        Organization.objects.filter(
+                            tenant=import_job.tenant,
+                            id__in=explicit_existing_organization_ids,
+                        )
                     )
-                    if not created:
-                        link.status = link_data["status"]
-                        link.publish_person = link_data["publish_person"]
-                        link.save(update_fields=["status", "publish_person"])
-                    _log(
-                        import_job,
-                        row,
-                        ImportCommitLog.EntityType.ORGANIZATION_PERSON,
-                        link.id,
-                        ImportCommitLog.Action.CREATED if created else ImportCommitLog.Action.LINKED,
-                        {},
-                    )
+                elif organization:
+                    linked_organizations = [organization]
+
+                if person:
+                    for linked_organization in linked_organizations:
+                        link, created = OrganizationPerson.objects.get_or_create(
+                            tenant=import_job.tenant,
+                            organization=linked_organization,
+                            person=person,
+                            defaults={"status": link_data["status"], "publish_person": link_data["publish_person"]},
+                        )
+                        if not created:
+                            link.status = link_data["status"]
+                            link.publish_person = link_data["publish_person"]
+                            link.save(update_fields=["status", "publish_person"])
+                        _log(
+                            import_job,
+                            row,
+                            ImportCommitLog.EntityType.ORGANIZATION_PERSON,
+                            link.id,
+                            ImportCommitLog.Action.CREATED if created else ImportCommitLog.Action.LINKED,
+                            {"organization_id": linked_organization.id},
+                        )
 
                 if organization:
                     if not explicit_existing_organization:

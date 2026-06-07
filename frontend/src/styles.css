@@ -933,9 +933,9 @@ select,
 }
 
 .editor-card-head {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
-  justify-content: space-between;
   gap: 0.6rem;
 }
 
@@ -943,10 +943,8 @@ select,
   margin: 0;
   font-size: 1rem;
   line-height: 1.2;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .editor-card-head .meta {
@@ -1409,6 +1407,7 @@ select,
 
 .import-review-wrap {
   margin-top: 0.45rem;
+  max-height: min(68vh, 980px);
 }
 
 .import-review-table {
@@ -1500,6 +1499,22 @@ select,
 .search-select-field {
   display: grid;
   gap: 0.45rem;
+}
+
+.review-selected-links {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.review-selected-link-card {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
 }
 
 .search-select-field input {
@@ -1715,6 +1730,20 @@ select,
 .inline-review-actions {
   align-items: center;
   justify-content: flex-end;
+}
+
+.editor-bottom-save-actions {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(217, 215, 205, 0.85);
+}
+
+.linked-person-create-actions {
+  margin: 0.55rem 0 1rem;
+}
+
+.searchable-link-create {
+  margin-top: 0.75rem;
 }
 
 .modal-inline-actions {

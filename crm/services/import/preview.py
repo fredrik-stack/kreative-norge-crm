@@ -65,8 +65,27 @@ def _eligible_ai_rows(import_job: ImportJob) -> list[ImportRow]:
     )
 
 
+def _has_useful_ai_review_content(ai_suggestions: dict) -> bool:
+    diagnostic = (ai_suggestions or {}).get("diagnostic") or {}
+    if int(diagnostic.get("useful_suggestion_count", 0) or 0) > 0:
+        return True
+    if (ai_suggestions or {}).get("organization_match_candidates"):
+        return True
+    if (ai_suggestions or {}).get("person_match_candidates"):
+        return True
+    return bool((ai_suggestions or {}).get("suggested_fields"))
+
+
 def _reset_rows_for_ai(import_job: ImportJob) -> None:
     for row in _eligible_ai_rows(import_job):
+        row.decisions.all().delete()
+        row_status, proposed_action = _row_outcome(
+            import_job.import_mode,
+            row.normalized_payload_json,
+            row.validation_errors_json,
+            row.warnings_json,
+            row.match_result_json,
+        )
         try:
             row.ai_suggestions_json = build_pending_ai_suggestions(
                 import_job.tenant,
@@ -75,7 +94,10 @@ def _reset_rows_for_ai(import_job: ImportJob) -> None:
             )
         except Exception as exc:
             row.ai_suggestions_json = _runtime_error_suggestions(stage="preview", exc=exc)
-        row.save(update_fields=["ai_suggestions_json", "updated_at"])
+        row.decision_json = {}
+        row.row_status = row_status
+        row.proposed_action = proposed_action
+        row.save(update_fields=["ai_suggestions_json", "decision_json", "row_status", "proposed_action", "updated_at"])
 
 
 def summarize_job_rows(import_job: ImportJob) -> dict:
@@ -121,7 +143,11 @@ def summarize_job_rows(import_job: ImportJob) -> dict:
                 if tag.strip()
             }
         ),
-        "rows_using_openai": sum(1 for diagnostic in diagnostics if diagnostic.get("provider_status") in {"openai", "openai_empty"}),
+        "rows_using_openai": sum(
+            1
+            for diagnostic in diagnostics
+            if diagnostic.get("provider_status") in {"openai", "openai_empty", "openai_web_search"}
+        ),
         "rows_using_fallback": sum(1 for diagnostic in diagnostics if str(diagnostic.get("provider_status", "")).startswith("fallback")),
         "rows_with_no_useful_ai_suggestions": sum(1 for diagnostic in diagnostics if int(diagnostic.get("useful_suggestion_count", 0) or 0) == 0),
         "rows_with_ai_errors": sum(1 for diagnostic in diagnostics if diagnostic.get("openai_error")),
@@ -250,7 +276,13 @@ def generate_import_job_ai(
                 )
             except Exception as exc:
                 row.ai_suggestions_json = _runtime_error_suggestions(stage="openai", exc=exc)
-            row.save(update_fields=["ai_suggestions_json", "updated_at"])
+            if row.row_status not in {
+                ImportRow.RowStatus.INVALID,
+                ImportRow.RowStatus.SKIPPED,
+                ImportRow.RowStatus.COMMITTED,
+            } and _has_useful_ai_review_content(row.ai_suggestions_json):
+                row.row_status = ImportRow.RowStatus.REVIEW_REQUIRED
+            row.save(update_fields=["ai_suggestions_json", "row_status", "updated_at"])
 
     update_job_preview_status(import_job)
     return import_job
