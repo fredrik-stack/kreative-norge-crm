@@ -174,8 +174,12 @@ def _row_outcome(import_mode: str, normalized_payload: dict, errors: list[str], 
         warning.startswith("Unknown category:") or warning.startswith("Unknown subcategory:")
         for warning in warnings
     )
+    duplicate_import_warning = any(
+        warning.startswith("Duplicate person in import:")
+        for warning in warnings
+    )
     fuzzy_match = any(match["status"] == "FUZZY" for match in matches.values())
-    if unknown_taxonomy_warning or fuzzy_match:
+    if unknown_taxonomy_warning or duplicate_import_warning or fuzzy_match:
         return ImportRow.RowStatus.REVIEW_REQUIRED, ImportRow.ProposedAction.SKIP
 
     org_match = matches["organization"]
@@ -203,9 +207,26 @@ def run_import_preview(import_job: ImportJob) -> ImportJob:
         import_job.save(update_fields=["status", "updated_at"])
 
         row_instances = []
+        seen_person_keys: set[tuple[str, str]] = set()
         for index, raw_payload in enumerate(parsed_rows, start=1):
             normalized_payload = normalize_import_row(raw_payload, import_job.import_mode)
             errors, warnings = validate_normalized_row(import_job.tenant, normalized_payload)
+            person_name = (normalized_payload.get("person") or {}).get("normalized_full_name") or ""
+            organization_name = (normalized_payload.get("organization") or {}).get("normalized_name") or ""
+            duplicate_person_key = (person_name, organization_name)
+            if person_name:
+                if duplicate_person_key in seen_person_keys:
+                    warnings = [
+                        *warnings,
+                        f"Duplicate person in import: {(normalized_payload.get('person') or {}).get('full_name') or 'Ukjent person'}"
+                        + (
+                            f" · {(normalized_payload.get('organization') or {}).get('name')}"
+                            if (normalized_payload.get("organization") or {}).get("name")
+                            else ""
+                        ),
+                    ]
+                else:
+                    seen_person_keys.add(duplicate_person_key)
             matches = match_row_entities(import_job.tenant, normalized_payload)
             try:
                 ai_suggestions = build_pending_ai_suggestions(import_job.tenant, normalized_payload, matches)

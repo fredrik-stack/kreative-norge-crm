@@ -110,6 +110,19 @@ def _apply_accepted_ai_suggestions(row: ImportRow, normalized_payload: dict, res
             payload["person"]["title"] = value or ""
         elif suggestion_key == "person_email":
             payload["person"]["email"] = value or ""
+        elif suggestion_key == "person_secondary_emails":
+            values = [item.strip() for item in str(value or "").split(",") if item.strip()]
+            non_email_contacts = [
+                contact
+                for contact in payload["person"]["secondary_contacts"]
+                if contact.get("type") != "EMAIL"
+            ]
+            payload["person"]["secondary_contacts"] = non_email_contacts + [
+                {"type": "EMAIL", "value": item, "is_public": False}
+                for item in values
+            ]
+        elif suggestion_key == "person_email_conflict_strategy":
+            payload["person"]["email_conflict_strategy"] = str(value or "").strip() or "ADD_AS_SECONDARY"
         elif suggestion_key == "person_municipality":
             payload["person"]["municipality"] = value or ""
         elif suggestion_key == "organization_website_url":
@@ -266,42 +279,121 @@ def _get_primary_contact(person: Person, contact_type: str):
     return PersonContact.objects.filter(person=person, tenant=person.tenant, type=contact_type, is_primary=True).first()
 
 
-def _upsert_person_contacts(person: Person, data: dict, row: ImportRow, job: ImportJob):
-    if data["email"]:
-        primary = _get_primary_contact(person, "EMAIL")
-        if primary:
-            primary.value = data["email"]
-            primary.is_public = False
-            primary.save(update_fields=["value", "is_public"])
-            _log(job, row, ImportCommitLog.EntityType.PERSON_CONTACT, primary.id, ImportCommitLog.Action.UPDATED, {"type": "EMAIL", "primary": True})
-        else:
-            primary = PersonContact.objects.create(
-                tenant=person.tenant,
-                person=person,
-                type="EMAIL",
-                value=data["email"],
-                is_primary=True,
-                is_public=False,
-            )
-            _log(job, row, ImportCommitLog.EntityType.PERSON_CONTACT, primary.id, ImportCommitLog.Action.CREATED, {"type": "EMAIL", "primary": True})
+def _upsert_primary_person_contact(
+    person: Person,
+    *,
+    contact_type: str,
+    value: str,
+    row: ImportRow,
+    job: ImportJob,
+    overwrite_existing_primary: bool = True,
+):
+    if not value:
+        return
 
-    if data["phone"]:
-        primary = _get_primary_contact(person, "PHONE")
-        if primary:
-            primary.value = data["phone"]
+    primary = _get_primary_contact(person, contact_type)
+    scalar_field = "email" if contact_type == "EMAIL" else "phone"
+    scalar_value = getattr(person, scalar_field, None)
+    if primary:
+        if primary.value.casefold() == value.casefold():
+            if primary.is_public:
+                primary.is_public = False
+                primary.save(update_fields=["is_public"])
+                _log(
+                    job,
+                    row,
+                    ImportCommitLog.EntityType.PERSON_CONTACT,
+                    primary.id,
+                    ImportCommitLog.Action.UPDATED,
+                    {"type": contact_type, "primary": True},
+                )
+            return
+        if overwrite_existing_primary:
+            primary.value = value
             primary.is_public = False
             primary.save(update_fields=["value", "is_public"])
-            _log(job, row, ImportCommitLog.EntityType.PERSON_CONTACT, primary.id, ImportCommitLog.Action.UPDATED, {"type": "PHONE", "primary": True})
-        else:
-            primary = PersonContact.objects.create(
-                tenant=person.tenant,
-                person=person,
-                type="PHONE",
-                value=data["phone"],
-                is_primary=True,
-                is_public=False,
+            _log(
+                job,
+                row,
+                ImportCommitLog.EntityType.PERSON_CONTACT,
+                primary.id,
+                ImportCommitLog.Action.UPDATED,
+                {"type": contact_type, "primary": True},
             )
-            _log(job, row, ImportCommitLog.EntityType.PERSON_CONTACT, primary.id, ImportCommitLog.Action.CREATED, {"type": "PHONE", "primary": True})
+            return
+        secondary, created = PersonContact.objects.get_or_create(
+            tenant=person.tenant,
+            person=person,
+            type=contact_type,
+            value=value,
+            defaults={"is_primary": False, "is_public": False},
+        )
+        if not created and secondary.is_public:
+            secondary.is_public = False
+            secondary.save(update_fields=["is_public"])
+        _log(
+            job,
+            row,
+            ImportCommitLog.EntityType.PERSON_CONTACT,
+            secondary.id,
+            ImportCommitLog.Action.CREATED if created else ImportCommitLog.Action.UPDATED,
+            {"type": contact_type, "primary": False},
+        )
+        return
+
+    if scalar_value and scalar_value.casefold() != value.casefold() and not overwrite_existing_primary:
+        secondary, created = PersonContact.objects.get_or_create(
+            tenant=person.tenant,
+            person=person,
+            type=contact_type,
+            value=value,
+            defaults={"is_primary": False, "is_public": False},
+        )
+        if not created and secondary.is_public:
+            secondary.is_public = False
+            secondary.save(update_fields=["is_public"])
+        _log(
+            job,
+            row,
+            ImportCommitLog.EntityType.PERSON_CONTACT,
+            secondary.id,
+            ImportCommitLog.Action.CREATED if created else ImportCommitLog.Action.UPDATED,
+            {"type": contact_type, "primary": False},
+        )
+        return
+
+    primary = PersonContact.objects.create(
+        tenant=person.tenant,
+        person=person,
+        type=contact_type,
+        value=value,
+        is_primary=True,
+        is_public=False,
+    )
+    _log(job, row, ImportCommitLog.EntityType.PERSON_CONTACT, primary.id, ImportCommitLog.Action.CREATED, {"type": contact_type, "primary": True})
+
+
+def _upsert_person_contacts(person: Person, data: dict, row: ImportRow, job: ImportJob, *, explicit_existing_person: bool = False):
+    email_conflict_strategy = str(data.get("email_conflict_strategy") or "ADD_AS_SECONDARY").strip().upper()
+    overwrite_email_primary = email_conflict_strategy == "REPLACE_PRIMARY" and data["email"]
+    overwrite_phone_primary = not explicit_existing_person
+
+    _upsert_primary_person_contact(
+        person,
+        contact_type="EMAIL",
+        value=data["email"],
+        row=row,
+        job=job,
+        overwrite_existing_primary=overwrite_email_primary,
+    )
+    _upsert_primary_person_contact(
+        person,
+        contact_type="PHONE",
+        value=data["phone"],
+        row=row,
+        job=job,
+        overwrite_existing_primary=overwrite_phone_primary,
+    )
 
     for contact in data["secondary_contacts"]:
         secondary, created = PersonContact.objects.get_or_create(
@@ -322,6 +414,20 @@ def _upsert_person_contacts(person: Person, data: dict, row: ImportRow, job: Imp
             ImportCommitLog.Action.CREATED if created else ImportCommitLog.Action.UPDATED,
             {"type": contact["type"], "primary": False},
         )
+
+    updated_fields: list[str] = []
+    primary_email = _get_primary_contact(person, "EMAIL")
+    primary_phone = _get_primary_contact(person, "PHONE")
+    next_email = primary_email.value if primary_email else (person.email or None)
+    next_phone = primary_phone.value if primary_phone else (person.phone or None)
+    if person.email != next_email:
+        person.email = next_email
+        updated_fields.append("email")
+    if person.phone != next_phone:
+        person.phone = next_phone
+        updated_fields.append("phone")
+    if updated_fields:
+        person.save(update_fields=updated_fields)
 
 
 def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -> ImportJob:
@@ -445,8 +551,8 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
                     for field, value in {
                         "full_name": person_data["full_name"],
                         "title": person_data["title"] or None,
-                        "email": person_data["email"] or None,
-                        "phone": person_data["phone"] or None,
+                        "email": person.email or person_data["email"] or None,
+                        "phone": person.phone or person_data["phone"] or None,
                         "municipality": person_data["municipality"],
                         "website_url": person_data["website_url"] or None,
                         "instagram_url": person_data["instagram_url"] or None,
@@ -460,8 +566,13 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
                     person.save()
                 if person:
                     _log(import_job, row, ImportCommitLog.EntityType.PERSON, person.id, person_action, {})
-                    if not explicit_existing_person:
-                        _upsert_person_contacts(person, person_data, row, import_job)
+                    _upsert_person_contacts(
+                        person,
+                        person_data,
+                        row,
+                        import_job,
+                        explicit_existing_person=explicit_existing_person,
+                    )
 
                 linked_organizations: list[Organization] = []
                 if explicit_existing_organization_ids:

@@ -1257,6 +1257,122 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(list(organization.internal_tags.values_list("name", flat=True)), [])
         refresh_mock.assert_called_once()
 
+    def test_preview_marks_duplicate_person_in_same_import_for_review(self):
+        self.job.import_mode = ImportJob.ImportMode.PEOPLE_ONLY
+        self.job.save(update_fields=["import_mode", "updated_at"])
+        first_row = {
+            key: value
+            for key, value in self.base_row.items()
+            if key.startswith("person_") or key in {"organization_org_number", "organization_name", "link_status", "link_publish_person"}
+        }
+        second_row = first_row | {"person_title": "Produsent"}
+        self._upload_csv([first_row, second_row])
+
+        preview_response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(preview_response.status_code, 200, preview_response.content)
+
+        rows = list(self.job.rows.order_by("row_number"))
+        self.assertEqual(rows[0].row_status, ImportRow.RowStatus.VALID)
+        self.assertEqual(rows[1].row_status, ImportRow.RowStatus.REVIEW_REQUIRED)
+        self.assertTrue(any("Duplicate person in import:" in item for item in rows[1].warnings_json))
+
+    def test_commit_using_existing_person_preserves_primary_email_and_adds_secondary_email(self):
+        self.job.import_mode = ImportJob.ImportMode.PEOPLE_ONLY
+        self.job.save(update_fields=["import_mode", "updated_at"])
+        existing_person = Person.objects.create(
+            tenant=self.tenant,
+            full_name="Ada Artist",
+            title="Eksisterende",
+            email="ada@existing.no",
+            municipality="Oslo",
+        )
+        PersonContact.objects.create(
+            tenant=self.tenant,
+            person=existing_person,
+            type="EMAIL",
+            value="ada@existing.no",
+            is_primary=True,
+            is_public=False,
+        )
+        self._upload_csv([{
+            key: value
+            for key, value in self.base_row.items()
+            if key.startswith("person_") or key in {"organization_org_number", "organization_name", "link_status", "link_publish_person"}
+        }])
+
+        preview_response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        self.assertEqual(preview_response.status_code, 200, preview_response.content)
+        preview_row = self.job.rows.get()
+
+        decisions_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/decisions/",
+            {
+                "rows": [
+                    {
+                        "row_id": preview_row.id,
+                        "decisions": [
+                            {"decision_type": "USE_EXISTING_PERSON", "payload_json": {"person_id": existing_person.id}},
+                            {
+                                "decision_type": "ACCEPT_AI_SUGGESTION",
+                                "payload_json": {
+                                    "suggestion_key": "person_email_conflict_strategy",
+                                    "value": "ADD_AS_SECONDARY",
+                                    "manual_override": True,
+                                },
+                            },
+                            {
+                                "decision_type": "ACCEPT_AI_SUGGESTION",
+                                "payload_json": {
+                                    "suggestion_key": "person_secondary_emails",
+                                    "value": "ada.booking@example.com",
+                                    "manual_override": True,
+                                },
+                            },
+                        ],
+                    }
+                ]
+            },
+            format="json",
+        )
+        self.assertEqual(decisions_response.status_code, 200, decisions_response.content)
+
+        commit_response = self.client.post(
+            f"{self.import_jobs_url()}{self.job.id}/commit/",
+            {"skip_unresolved": False},
+            format="json",
+        )
+        self.assertEqual(commit_response.status_code, 200, commit_response.content)
+
+        existing_person.refresh_from_db()
+        self.assertEqual(existing_person.email, "ada@existing.no")
+        self.assertTrue(
+            PersonContact.objects.filter(
+                tenant=self.tenant,
+                person=existing_person,
+                type="EMAIL",
+                value="ada@existing.no",
+                is_primary=True,
+            ).exists()
+        )
+        self.assertTrue(
+            PersonContact.objects.filter(
+                tenant=self.tenant,
+                person=existing_person,
+                type="EMAIL",
+                value="ada@example.com",
+                is_primary=False,
+            ).exists()
+        )
+        self.assertTrue(
+            PersonContact.objects.filter(
+                tenant=self.tenant,
+                person=existing_person,
+                type="EMAIL",
+                value="ada.booking@example.com",
+                is_primary=False,
+            ).exists()
+        )
+
     @patch("crm.services.import.commit.refresh_organization_open_graph")
     def test_manual_review_changes_persist_through_commit(self, refresh_mock):
         self.job.import_mode = ImportJob.ImportMode.ORGANIZATIONS_ONLY

@@ -58,6 +58,10 @@ class SearchSignals:
 
 
 DIRECTORY_HOST_PATTERNS = (
+    "gulesider.no",
+    "1881.no",
+    "180.no",
+    "telefonkatalogen.biz",
     "proff.no",
     "sceneweb.no",
     "wikipedia.org",

@@ -55,6 +55,11 @@ const SIMPLE_EDITABLE_SUGGESTION_FIELDS = [
   "person_youtube_url",
 ] as const;
 
+const MANUAL_EDITABLE_REVIEW_FIELDS = [
+  ...SIMPLE_EDITABLE_SUGGESTION_FIELDS,
+  "person_secondary_emails",
+] as const;
+
 const FIELD_LABELS: Record<string, string> = {
   organization_name: "Aktørnavn",
   organization_org_number: "Org.nr",
@@ -69,6 +74,7 @@ const FIELD_LABELS: Record<string, string> = {
   organization_description: "Beskrivelse",
   person_title: "Tittel",
   person_email: "Person e-post",
+  person_secondary_emails: "Ekstra e-post(er)",
   person_municipality: "Personkommune",
   person_website_url: "Personnettside",
   person_instagram_url: "Person Instagram",
@@ -145,6 +151,7 @@ type ReviewDraft = {
   organizationInternalTagsText: string;
   personInternalTagsText: string;
   organizationIsPublished: boolean;
+  personEmailConflictStrategy: "ADD_AS_SECONDARY" | "REPLACE_PRIMARY";
   fieldValues: Record<string, string>;
   suggestionStates: Record<string, SuggestionState>;
 };
@@ -663,6 +670,9 @@ function ImportReviewWorkspace(props: {
             row={expandedRow}
             importMode={mode}
             organizations={editor.organizations}
+            persons={editor.persons}
+            tags={editor.tags}
+            internalTags={editor.internalTags}
             categories={importCategories}
             subcategories={importSubcategories}
             onCreateOrganization={editor.quickCreateOrganization}
@@ -735,6 +745,9 @@ function InlineReviewEditor(props: {
   row: ImportRow;
   importMode: "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY";
   organizations: Organization[];
+  persons: ReturnType<typeof useEditor>["persons"];
+  tags: ReturnType<typeof useEditor>["tags"];
+  internalTags: ReturnType<typeof useEditor>["internalTags"];
   categories: Category[];
   subcategories: Subcategory[];
   onCreateOrganization: (draft: OrganizationPatch) => Promise<Organization>;
@@ -743,7 +756,21 @@ function InlineReviewEditor(props: {
   onSave: (payload: Array<{ decision_type: ImportDecision["decision_type"]; payload_json?: Record<string, unknown> }>) => Promise<unknown> | null;
   onClose: () => void;
 }) {
-  const { row, importMode, organizations, categories, subcategories, onCreateOrganization, tenantId, importJobId, onSave, onClose } = props;
+  const {
+    row,
+    importMode,
+    organizations,
+    persons,
+    tags,
+    internalTags,
+    categories,
+    subcategories,
+    onCreateOrganization,
+    tenantId,
+    importJobId,
+    onSave,
+    onClose,
+  } = props;
   const suggestedFields = useMemo(() => getSuggestionFields(row), [row]);
   const categorySuggestions = getSuggestionValues(row, "suggested_categories");
   const subcategorySuggestions = getSuggestionValues(row, "suggested_subcategories");
@@ -759,7 +786,7 @@ function InlineReviewEditor(props: {
   const inferredCategoryId = findCategoryIdForSubcategory(subcategories, currentSubcategoryId);
   const [draft, setDraft] = useState<ReviewDraft>(() => {
     const initialFieldValues: Record<string, string> = {};
-    SIMPLE_EDITABLE_SUGGESTION_FIELDS.forEach((key) => {
+    MANUAL_EDITABLE_REVIEW_FIELDS.forEach((key) => {
       initialFieldValues[key] =
         getAcceptedDecisionValue(row, key) ||
         getResolvedText(row, [key]);
@@ -806,6 +833,10 @@ function InlineReviewEditor(props: {
       organizationIsPublished:
         getAcceptedDecisionBoolean(row, "organization_is_published")
         ?? getCurrentBoolean(row, ["organization_is_published"]),
+      personEmailConflictStrategy:
+        getAcceptedDecisionValue(row, "person_email_conflict_strategy") === "REPLACE_PRIMARY"
+          ? "REPLACE_PRIMARY"
+          : "ADD_AS_SECONDARY",
       fieldValues: initialFieldValues,
       suggestionStates,
     };
@@ -827,7 +858,7 @@ function InlineReviewEditor(props: {
   const organizationSearchMatches = useMemo(() => {
     if (!personOnly || draft.organizationDecision !== "USE_EXISTING_ORGANIZATION") return [];
     const query = draft.organizationSearchText.trim().toLowerCase();
-    if (!query) return organizations.slice(0, 12);
+    if (!query) return [];
     return organizations
       .filter((organization) => !draft.organizationIds.includes(organization.id))
       .filter((organization) => organization.name.toLowerCase().includes(query))
@@ -841,6 +872,24 @@ function InlineReviewEditor(props: {
     () => organizations.filter((organization) => draft.organizationIds.includes(organization.id)),
     [draft.organizationIds, organizations],
   );
+  const selectedExistingPerson =
+    personOnly && draft.personDecision === "USE_EXISTING_PERSON" && draft.personId
+      ? persons.find((person) => person.id === draft.personId) ?? null
+      : null;
+  const importedPrimaryPersonEmail = getCurrentText(row, ["person_email"]).trim();
+  const existingPrimaryPersonEmail = getExistingPersonPrimaryEmail(selectedExistingPerson);
+  const hasExistingPersonEmailConflict =
+    Boolean(selectedExistingPerson)
+    && Boolean(importedPrimaryPersonEmail)
+    && Boolean(existingPrimaryPersonEmail)
+    && importedPrimaryPersonEmail.toLowerCase() !== existingPrimaryPersonEmail.toLowerCase();
+  const resolvedOrganizationSearchMatch = useMemo(() => {
+    const query = normalizeNameForSearch(draft.organizationSearchText);
+    if (!query) return null;
+    const exact = organizationSearchMatches.find((organization) => normalizeNameForSearch(organization.name) === query);
+    if (exact) return exact;
+    return organizationSearchMatches.length === 1 ? organizationSearchMatches[0] : null;
+  }, [draft.organizationSearchText, organizationSearchMatches]);
   const existingOrganizationCategoryNames =
     selectedExistingOrganization && !draft.categoryTouched && !draft.subcategoryTouched && !draft.categoryId && !draft.subcategoryId
       ? selectedExistingOrganization.categories.map((category) => category.name)
@@ -1106,7 +1155,6 @@ function InlineReviewEditor(props: {
         <section className="editor-detail-section modal-section-card">
           <div className="modal-section-header">
             <div>
-              <h4>Rediger raskt</h4>
               <div className="person-modal-meta">
                 <span className="person-modal-role">{modalPrimaryTitle || "Uten navn"}</span>
                 {modalSecondaryTitle ? <span className="meta">Aktør: {modalSecondaryTitle}</span> : null}
@@ -1119,6 +1167,16 @@ function InlineReviewEditor(props: {
             </div>
           </div>
           <div className="modal-form-grid review-form-grid">
+            {row.warnings_json.length > 0 ? (
+              <Field label="Varsler">
+                <div className="review-warning-list">
+                  {row.warnings_json.map((warning) => (
+                    <div key={warning} className="meta error-text">{warning}</div>
+                  ))}
+                </div>
+              </Field>
+            ) : null}
+
             {personOnly ? (
               <>
                 <Field label="Aktørvalg">
@@ -1145,15 +1203,6 @@ function InlineReviewEditor(props: {
                   </button>
                   <span className="meta">Aktørkobling er valgfri for personimport.</span>
                 </div>
-                <SuggestionCandidates
-                  candidates={asCandidateList(row.ai_suggestions_json.organization_match_candidates)}
-                  onUse={(id) => {
-                    const organizationId = typeof id === "number" ? id : Number(id);
-                    if (!organizationId) return;
-                    selectExistingOrganization(organizationId);
-                  }}
-                  emptyLabel="Ingen aktørkandidater"
-                />
                 {draft.organizationDecision === "USE_EXISTING_ORGANIZATION" ? (
                   <>
                     <Field label="Valgte aktører">
@@ -1195,24 +1244,79 @@ function InlineReviewEditor(props: {
                           }
                           placeholder="Søk etter aktørnavn"
                         />
-                        <div className="search-select-results" role="listbox" aria-label="Aktørsøk">
-                          {organizationSearchMatches.length > 0 ? organizationSearchMatches.map((organization) => (
-                            <button
-                              key={organization.id}
-                              type="button"
-                              className={`search-select-option ${draft.organizationIds.includes(organization.id) ? "active" : ""}`}
-                              onClick={() => selectExistingOrganization(organization.id, selectedExistingOrganizations.length > 0)}
-                            >
-                              <span>{organization.name}</span>
-                              <span className="meta">#{organization.id}</span>
-                            </button>
-                          )) : (
-                            <div className="search-select-empty">Ingen treff</div>
-                          )}
+                        <div className="review-inline-actions">
+                          <button
+                            type="button"
+                            className="ghost-button compact-button"
+                            disabled={!resolvedOrganizationSearchMatch}
+                            onClick={() => {
+                              if (!resolvedOrganizationSearchMatch) return;
+                              selectExistingOrganization(
+                                resolvedOrganizationSearchMatch.id,
+                                selectedExistingOrganizations.length > 0,
+                              );
+                            }}
+                          >
+                            Legg til aktør
+                          </button>
+                          <span className="meta">
+                            {!draft.organizationSearchText.trim()
+                              ? "Søk på navn for å finne aktør."
+                              : resolvedOrganizationSearchMatch
+                                ? `Treff: ${resolvedOrganizationSearchMatch.name}`
+                                : organizationSearchMatches.length > 1
+                                  ? "Flere treff. Skriv mer av navnet."
+                                  : "Ingen entydig treff."}
+                          </span>
                         </div>
                       </div>
                     </Field>
                   </>
+                ) : null}
+
+                <Field label="Potensiell persondublett">
+                  <SuggestionCandidates
+                    candidates={asCandidateList(row.ai_suggestions_json.person_match_candidates)}
+                    onUse={(id) => {
+                      const personId = typeof id === "number" ? id : Number(id);
+                      if (!personId) return;
+                      const nextDraft = {
+                        ...draft,
+                        personDecision: "USE_EXISTING_PERSON" as const,
+                        personId,
+                      };
+                      void persistDraft(nextDraft);
+                    }}
+                    emptyLabel="Ingen personkandidater"
+                  />
+                </Field>
+
+                {selectedExistingPerson ? (
+                  <Field label="Valgt eksisterende person">
+                    <div className="review-selected-link-card">
+                      <div>
+                        <strong>{selectedExistingPerson.full_name}</strong>
+                        <div className="meta">
+                          {selectedExistingPerson.municipality || "Ingen kommune"}
+                          {existingPrimaryPersonEmail ? ` · ${existingPrimaryPersonEmail}` : ""}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="ghost-button compact-button"
+                        onClick={() => {
+                          const nextDraft = {
+                            ...draft,
+                            personDecision: "NONE" as const,
+                            personId: "" as number | "",
+                          };
+                          void persistDraft(nextDraft);
+                        }}
+                      >
+                        Fjern
+                      </button>
+                    </div>
+                  </Field>
                 ) : null}
               </>
             ) : null}
@@ -1487,6 +1591,49 @@ function InlineReviewEditor(props: {
               </Field>
             ) : null}
 
+            {personOnly ? (
+              <Field label="Ekstra e-post(er)">
+                <div className="review-inline-field compact">
+                  <input
+                    value={draft.fieldValues.person_secondary_emails ?? ""}
+                    onChange={(e) =>
+                      setDraft((current) => ({
+                        ...current,
+                        fieldValues: { ...current.fieldValues, person_secondary_emails: e.target.value },
+                      }))
+                    }
+                    placeholder="epost2@eksempel.no, epost3@eksempel.no"
+                  />
+                </div>
+              </Field>
+            ) : null}
+
+            {personOnly && hasExistingPersonEmailConflict ? (
+              <Field label="Ny e-post på eksisterende person">
+                <div className="review-inline-field compact">
+                  <select
+                    value={draft.personEmailConflictStrategy}
+                    onChange={(e) =>
+                      setDraft((current) => ({
+                        ...current,
+                        personEmailConflictStrategy: e.target.value as ReviewDraft["personEmailConflictStrategy"],
+                      }))
+                    }
+                  >
+                    <option value="ADD_AS_SECONDARY">
+                      Behold eksisterende primær og legg ny e-post til som ekstra
+                    </option>
+                    <option value="REPLACE_PRIMARY">
+                      Erstatt eksisterende primær e-post med ny e-post
+                    </option>
+                  </select>
+                  <div className="meta">
+                    Eksisterende: {existingPrimaryPersonEmail} · Ny fra import: {importedPrimaryPersonEmail}
+                  </div>
+                </div>
+              </Field>
+            ) : null}
+
             {visibleSuggestionFields.map((fieldKey) => {
               const suggestion = suggestedFields[fieldKey];
               const state = draft.suggestionStates[fieldKey] ?? "pending";
@@ -1587,7 +1734,7 @@ function InlineReviewEditor(props: {
 
       {createOrganizationOpen ? (
         <CreateOrganizationModal
-          initialDraft={buildQuickOrganizationDraft(row, draft)}
+          initialDraft={buildQuickOrganizationDraft(row, draft, tags, internalTags, categories, subcategories)}
           saveState={organizationCreateState}
           error={organizationCreateError}
           fieldErrors={organizationFieldErrors}
@@ -1665,6 +1812,16 @@ function CreateOrganizationModal(props: {
                   placeholder="Oslo, Bergen"
                 />
               </Field>
+              <Field label="Publisering">
+                <label className="checkbox-row review-publish-toggle">
+                  <input
+                    type="checkbox"
+                    checked={draft.is_published}
+                    onChange={(event) => setDraft((current) => ({ ...current, is_published: event.target.checked }))}
+                  />
+                  <span>Publiser aktør i Public samtidig som den opprettes.</span>
+                </label>
+              </Field>
               <Field label="Nettside" error={fieldErrors.website_url}>
                 <input
                   value={draft.website_url ?? ""}
@@ -1715,6 +1872,9 @@ function CreateOrganizationModal(props: {
                   placeholder="Kort virksomhetsbeskrivelse"
                 />
               </Field>
+              <div className="meta">
+                Valgte kategorier, underkategorier og tags fra review-raden følger med når aktøren opprettes.
+              </div>
             </div>
           </section>
         </div>
@@ -1749,7 +1909,6 @@ function ReviewRowModal(props: { children: ReactNode; onClose: () => void }) {
       <div className="detail-modal import-review-modal" onClick={(event) => event.stopPropagation()}>
         <div className="modal-header compact">
           <p className="eyebrow small">Importreview</p>
-          <h3>Rediger raskt</h3>
         </div>
         {props.children}
       </div>
@@ -1758,7 +1917,16 @@ function ReviewRowModal(props: { children: ReactNode; onClose: () => void }) {
   );
 }
 
-function buildQuickOrganizationDraft(row: ImportRow, draft: ReviewDraft): OrganizationPatch {
+function buildQuickOrganizationDraft(
+  row: ImportRow,
+  draft: ReviewDraft,
+  tags: Array<{ id: number; name: string }>,
+  internalTags: Array<{ id: number; name: string }>,
+  categories: Category[],
+  subcategories: Subcategory[],
+): OrganizationPatch {
+  const selectedCategoryIds = draft.categoryId ? [draft.categoryId] : [];
+  const selectedSubcategoryIds = draft.subcategoryId ? [draft.subcategoryId] : [];
   return {
     name: getFirstText(row.raw_payload_json.organization_name) || "Ny aktør",
     org_number: getFirstText(row.raw_payload_json.organization_org_number) || "",
@@ -1768,7 +1936,7 @@ function buildQuickOrganizationDraft(row: ImportRow, draft: ReviewDraft): Organi
       draft.fieldValues.organization_municipalities ?? getFirstText(row.raw_payload_json.organization_municipalities),
     note: "",
     description: draft.fieldValues.organization_description ?? "",
-    is_published: false,
+    is_published: draft.organizationIsPublished,
     publish_phone: false,
     website_url: draft.fieldValues.organization_website_url ?? "",
     facebook_url: draft.fieldValues.organization_facebook_url ?? "",
@@ -1777,10 +1945,10 @@ function buildQuickOrganizationDraft(row: ImportRow, draft: ReviewDraft): Organi
     linkedin_url: draft.fieldValues.organization_linkedin_url ?? "",
     youtube_url: draft.fieldValues.organization_youtube_url ?? "",
     thumbnail_image_url: "",
-    tag_ids: [],
-    internal_tag_ids: [],
-    category_ids: [],
-    subcategory_ids: [],
+    tag_ids: resolveNamedIds(splitCsvText(draft.tagsText), tags),
+    internal_tag_ids: resolveNamedIds(splitCsvText(draft.organizationInternalTagsText), internalTags),
+    category_ids: selectedCategoryIds.filter((id) => categories.some((category) => category.id === id)),
+    subcategory_ids: selectedSubcategoryIds.filter((id) => subcategories.some((subcategory) => subcategory.id === id)),
   };
 }
 
@@ -1856,6 +2024,9 @@ function buildDecisions(
       decisions.push({ decision_type: "USE_EXISTING_ORGANIZATION", payload_json: { organization_id: organizationId } });
     });
   }
+  if (draft.personDecision === "USE_EXISTING_PERSON" && draft.personId) {
+    decisions.push({ decision_type: "USE_EXISTING_PERSON", payload_json: { person_id: draft.personId } });
+  }
   if (draft.categoryId) {
     decisions.push({ decision_type: "MAP_CATEGORY", payload_json: { category_id: draft.categoryId } });
   } else if (draft.categoryTouched) {
@@ -1909,9 +2080,27 @@ function buildDecisions(
       decision_type: "ACCEPT_AI_SUGGESTION",
       payload_json: manualPayload("person_internal_tags", splitCsvText(draft.personInternalTagsText)),
     });
+    decisions.push({
+      decision_type: "ACCEPT_AI_SUGGESTION",
+      payload_json: manualPayload("person_email_conflict_strategy", draft.personEmailConflictStrategy),
+    });
+    if (
+      draft.fieldValues.person_secondary_emails !== undefined
+      && (
+        draft.fieldValues.person_secondary_emails.trim()
+        || getCurrentText(row, ["person_secondary_emails"]).trim()
+        || getAcceptedDecisionValue(row, "person_secondary_emails")
+      )
+    ) {
+      decisions.push({
+        decision_type: "ACCEPT_AI_SUGGESTION",
+        payload_json: manualPayload("person_secondary_emails", draft.fieldValues.person_secondary_emails.trim()),
+      });
+    }
   }
 
-  SIMPLE_EDITABLE_SUGGESTION_FIELDS.forEach((fieldKey) => {
+  MANUAL_EDITABLE_REVIEW_FIELDS.forEach((fieldKey) => {
+    if (fieldKey === "person_secondary_emails") return;
     if (importMode === "ORGANIZATIONS_ONLY" && !fieldKey.startsWith("organization_")) return;
     if (importMode === "PEOPLE_ONLY" && !fieldKey.startsWith("person_")) return;
     const fieldValue = draft.fieldValues[fieldKey]?.trim();
@@ -2447,6 +2636,17 @@ function splitCsvText(value: string): string[] {
     .filter(Boolean);
 }
 
+function normalizeNameForSearch(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function resolveNamedIds<T extends { id: number; name: string }>(names: string[], items: T[]): number[] {
+  const wanted = new Set(names.map((name) => name.trim().toLowerCase()).filter(Boolean));
+  return items
+    .filter((item) => wanted.has(item.name.trim().toLowerCase()))
+    .map((item) => item.id);
+}
+
 function summarizeLinkValues(values: string[]): string[] {
   const unique = new Set<string>();
   values.forEach((value) => {
@@ -2605,6 +2805,17 @@ function getCurrentOrganizationLabel(row: ImportRow, organizations: Organization
 
 function getCurrentPersonLabel(row: ImportRow): string {
   return getFirstText(row.raw_payload_json.person_full_name);
+}
+
+function getExistingPersonPrimaryEmail(
+  person: {
+    email?: string | null;
+    contacts?: Array<{ type: string; value: string; is_primary?: boolean }>;
+  } | null,
+): string {
+  if (!person) return "";
+  const primaryContact = (person.contacts ?? []).find((contact) => contact.type === "EMAIL" && contact.is_primary);
+  return primaryContact?.value ?? person.email ?? "";
 }
 
 function getCurrentCategoryValues(
