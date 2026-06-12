@@ -313,7 +313,7 @@ def normalize_import_row(raw_payload: dict, import_mode: str = "COMBINED") -> di
         },
         "link": {
             "status": normalize_space(raw_payload.get("link_status")).upper() or "ACTIVE",
-            "publish_person": parse_bool(raw_payload.get("link_publish_person"), default=False),
+            "publish_person": parse_bool(raw_payload.get("link_publish_person"), default=True),
         },
     }
 
@@ -365,7 +365,7 @@ def normalize_import_row(raw_payload: dict, import_mode: str = "COMBINED") -> di
         }
         normalized["link"] = {
             "status": normalize_space(raw_payload.get("link_status")).upper() or "ACTIVE",
-            "publish_person": parse_bool(raw_payload.get("link_publish_person"), default=False),
+            "publish_person": parse_bool(raw_payload.get("link_publish_person"), default=True),
         }
 
     return normalized

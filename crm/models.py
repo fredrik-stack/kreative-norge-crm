@@ -350,7 +350,7 @@ class OrganizationPerson(models.Model):
     person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="person_orgs")
 
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default="ACTIVE")
-    publish_person = models.BooleanField(default=False)
+    publish_person = models.BooleanField(default=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -1069,9 +1069,14 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         normalized = normalize_import_row(self.base_row)
         self.assertFalse(normalized["organization"]["is_published"])
         self.assertFalse(normalized["organization"]["publish_phone"])
-        self.assertFalse(normalized["link"]["publish_person"])
+        self.assertTrue(normalized["link"]["publish_person"])
         self.assertEqual(normalized["organization"]["org_number"], "123456789")
         self.assertEqual(normalized["person"]["secondary_contacts"][0]["is_public"], False)
+
+    def test_normalization_respects_explicit_hidden_person_link(self):
+        normalized = normalize_import_row(self.base_row | {"link_publish_person": "false"})
+
+        self.assertFalse(normalized["link"]["publish_person"])
 
     def test_validation_marks_unknown_taxonomy_for_review(self):
         invalid_row = self.base_row | {"organization_categories": "Ukjent kategori"}
@@ -1202,7 +1207,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         person = Person.objects.get(tenant=self.tenant, email="ada@example.com")
         link = OrganizationPerson.objects.get(tenant=self.tenant, organization=organization, person=person)
         self.assertEqual(link.status, "ACTIVE")
-        self.assertFalse(link.publish_person)
+        self.assertTrue(link.publish_person)
         self.assertFalse(organization.is_published)
         self.assertFalse(organization.publish_phone)
         self.assertEqual(set(organization.categories.values_list("name", flat=True)), {"Musikk"})
@@ -3237,7 +3242,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertFalse(organization.is_published)
         self.assertFalse(organization.publish_phone)
         link = OrganizationPerson.objects.get(tenant=self.tenant, organization=organization)
-        self.assertFalse(link.publish_person)
+        self.assertTrue(link.publish_person)
         self.assertFalse(PersonContact.objects.filter(person=link.person, is_public=True).exists())
         refresh_mock.assert_called_once()
 
