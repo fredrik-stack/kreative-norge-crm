@@ -90,6 +90,10 @@ class PublicActorListView(ListView):
         context["available_tags"] = tags
         context["available_categories"] = CATEGORY_OPTIONS
         context["available_subcategories"] = SUBCATEGORY_OPTIONS
+        context["search_suggestions"] = build_search_suggestions(
+            Organization.objects.filter(is_published=True).order_by("name"),
+            tags,
+        )
         context["active_filter_summary"] = build_filter_summary(
             query=context["query"],
             category_slug=context["selected_category"],
@@ -143,6 +147,31 @@ def dedupe_tags(tags):
         seen_names.add(key)
         unique_tags.append(tag)
     return unique_tags
+
+
+def build_search_suggestions(actors, tags) -> list[str]:
+    suggestions: list[str] = []
+    seen: set[str] = set()
+
+    def add(value: str | None):
+        text = (value or "").strip()
+        key = text.casefold()
+        if not text or key in seen:
+            return
+        seen.add(key)
+        suggestions.append(text)
+
+    for actor in actors[:300]:
+        add(actor.name)
+        for municipality in (actor.municipalities or "").split(","):
+            add(municipality)
+    for category in CATEGORY_OPTIONS:
+        add(category["name"])
+    for subcategory in SUBCATEGORY_OPTIONS:
+        add(subcategory["name"])
+    for tag in tags:
+        add(tag.name)
+    return suggestions[:500]
 
 
 def build_filter_summary(*, query: str, category_slug: str, subcategory_slug: str, tag_slug: str) -> str | None:

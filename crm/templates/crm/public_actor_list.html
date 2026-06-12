@@ -87,6 +87,7 @@
     }
 
     .search-shell {
+      position: relative;
       display: flex;
       gap: 10px;
       align-items: center;
@@ -233,7 +234,7 @@
     .results {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(302px, 302px));
-      justify-content: space-between;
+      justify-content: start;
       gap: 12px;
       margin-top: 18px;
     }
@@ -299,27 +300,35 @@
     }
 
     .card-head {
-      display: flex;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(4.4rem, max-content);
       align-items: start;
-      justify-content: space-between;
-      gap: 10px;
+      column-gap: 10px;
     }
 
     .card h2 {
       margin: 0;
       min-width: 0;
-      font-size: 14px;
-      line-height: 1.25;
+      font-size: clamp(12px, 3.7vw, 14px);
+      line-height: 1.16;
       font-weight: 700;
       color: var(--ink);
+      overflow-wrap: normal;
+      word-break: normal;
+      hyphens: none;
     }
 
     .municipality {
-      flex: 0 0 auto;
+      min-width: 0;
+      max-width: 7.5rem;
       color: var(--muted);
-      font-size: 12px;
+      font-size: 11px;
       line-height: 1.1;
-      white-space: nowrap;
+      text-align: right;
+      white-space: normal;
+      overflow-wrap: normal;
+      word-break: normal;
+      hyphens: none;
     }
 
     .meta-row {
@@ -411,7 +420,12 @@
 
       <form method="get" action="/public/actors/">
         <div class="search-shell">
-          <input id="actor-search" type="search" name="q" value="{{ query }}" placeholder="Søk etter navn, kommune, kategori eller tag..." />
+          <input id="actor-search" type="search" name="q" value="{{ query }}" placeholder="Søk etter navn, kommune, kategori eller tag..." list="public-search-suggestions" autocomplete="off" />
+          <datalist id="public-search-suggestions">
+            {% for suggestion in search_suggestions %}
+              <option value="{{ suggestion }}"></option>
+            {% endfor %}
+          </datalist>
           {% if selected_tag %}<input type="hidden" name="tag" value="{{ selected_tag }}" />{% endif %}
           {% if selected_category %}<input type="hidden" name="category" value="{{ selected_category }}" />{% endif %}
           {% if selected_subcategory %}<input type="hidden" name="subcategory" value="{{ selected_subcategory }}" />{% endif %}

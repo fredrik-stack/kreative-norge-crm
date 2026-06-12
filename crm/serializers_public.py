@@ -141,8 +141,15 @@ def _public_person_contacts_payload(person):
         .values("type", "value")
     )
     if any(contact["type"] == "EMAIL" for contact in public_contacts):
-        return public_contacts
-    fallback_email = getattr(person, "email", None)
-    if fallback_email:
-        return [{"type": "EMAIL", "value": fallback_email}, *public_contacts]
-    return public_contacts
+        email_contacts = public_contacts
+    else:
+        fallback_email = getattr(person, "email", None)
+        email_contacts = ([{"type": "EMAIL", "value": fallback_email}] if fallback_email else []) + public_contacts
+
+    if any(contact["type"] == "PHONE" for contact in email_contacts):
+        return email_contacts
+
+    fallback_phone = getattr(person, "phone", None)
+    if fallback_phone:
+        return [*email_contacts, {"type": "PHONE", "value": fallback_phone}]
+    return email_contacts

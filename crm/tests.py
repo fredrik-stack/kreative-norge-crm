@@ -3852,13 +3852,13 @@ class PublicActorSiteTests(TestCase):
         self.assertContains(response, "PUBLIK KATEGORI")
         self.assertContains(response, "Publik underkategori")
 
-    def test_public_actor_detail_falls_back_to_person_email_but_not_phone(self):
+    def test_public_actor_detail_falls_back_to_person_email_and_phone(self):
         response = self.client.get(f"/public/actors/{self.organization.org_number}/")
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Ada Artist")
         self.assertContains(response, "ada@example.com")
-        self.assertNotContains(response, "+4712345678")
+        self.assertContains(response, "+4712345678")
 
     def test_public_actor_without_org_number_uses_stable_id_detail_url(self):
         no_org_number = Organization.objects.create(
@@ -3898,12 +3898,27 @@ class PublicActorSiteTests(TestCase):
         people = response.json()["people"]
         self.assertEqual(people[0]["full_name"], "Ada Artist")
         self.assertIn({"type": "EMAIL", "value": "ada@example.com"}, people[0]["public_contacts"])
+        self.assertIn({"type": "PHONE", "value": "+4712345678"}, people[0]["public_contacts"])
 
     def test_public_actor_detail_uses_green_public_tags(self):
         response = self.client.get(f"/public/actors/{self.organization.org_number}/")
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "--tag: #4a8755;")
+
+    def test_public_actor_list_search_input_offers_suggestions(self):
+        response = self.client.get("/public/actors/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'list="public-search-suggestions"')
+        self.assertContains(response, '<option value="Nordlyd"></option>')
+        self.assertContains(response, '<option value="Oslo"></option>')
+
+    def test_public_actor_list_keeps_sparse_results_aligned_left(self):
+        response = self.client.get("/public/actors/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "justify-content: start;")
 
     def test_public_actor_templates_ignore_favicon_fallback_urls(self):
         self.organization.og_image_url = fallback_preview_image(self.organization.website_url)

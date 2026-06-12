@@ -311,7 +311,9 @@ class Person(models.Model):
             .order_by("-is_primary", "id")
             .values_list("value", flat=True)
         )
-        return public_phones
+        if public_phones:
+            return public_phones
+        return [self.phone] if self.phone else []
 
 class PersonContact(models.Model):
     CONTACT_TYPES = [
