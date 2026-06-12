@@ -3949,11 +3949,12 @@ class PublicActorSiteTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'data-search="Nordlyd Oslo')
 
-    def test_public_actor_list_keeps_sparse_results_aligned_left(self):
+    def test_public_actor_list_stretches_cards_to_available_width(self):
         response = self.client.get("/public/actors/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "justify-content: start;")
+        self.assertContains(response, "grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));")
+        self.assertContains(response, "justify-content: stretch;")
 
     def test_public_actor_templates_ignore_favicon_fallback_urls(self):
         self.organization.og_image_url = fallback_preview_image(self.organization.website_url)

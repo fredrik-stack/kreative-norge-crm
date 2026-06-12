@@ -273,8 +273,8 @@
 
     .results {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(302px, 302px));
-      justify-content: start;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      justify-content: stretch;
       gap: 12px;
       margin-top: 18px;
     }
@@ -340,10 +340,9 @@
     }
 
     .card-head {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) clamp(5.6rem, 28%, 7.2rem);
-      align-items: start;
-      gap: 0.82rem;
+      position: relative;
+      min-height: 2.35rem;
+      padding-right: 5.9rem;
     }
 
     .card-title-block,
@@ -352,7 +351,7 @@
     }
 
     .card-title-block {
-      padding-right: 0.25rem;
+      max-width: 100%;
     }
 
     .card h2 {
@@ -377,14 +376,16 @@
     }
 
     .card-location {
-      display: flex;
-      justify-content: flex-end;
-      padding-top: 0.05rem;
+      position: absolute;
+      top: 0.05rem;
+      right: 0;
+      width: 5.45rem;
     }
 
     .municipality {
+      display: block;
       min-width: 0;
-      max-width: 7.2rem;
+      max-width: 100%;
       color: var(--muted);
       font-size: 11px;
       line-height: 1.1;
@@ -498,7 +499,18 @@
 
       <form method="get" action="/public/actors/">
         <div class="search-shell">
-          <input id="actor-search" type="search" name="q" value="{{ query }}" placeholder="Søk etter navn, kommune, kategori eller tag..." autocomplete="off" />
+          <input
+            id="actor-search"
+            type="text"
+            name="q"
+            value="{{ query }}"
+            placeholder="Søk etter navn, kommune, kategori eller tag..."
+            autocomplete="off"
+            autocapitalize="none"
+            autocorrect="off"
+            spellcheck="false"
+            role="searchbox"
+          />
           <div id="public-search-suggestions" class="search-suggestions" role="listbox" aria-label="Søkeforslag">
             {% for suggestion in search_suggestions %}
               <button type="button" class="search-suggestion" data-suggestion="{{ suggestion }}" role="option">{{ suggestion }}</button>
@@ -616,7 +628,7 @@
 
         suggestionButtons.forEach((button) => {
           const text = normalize(button.getAttribute("data-suggestion"));
-          const isMatch = Boolean(normalizedQuery) && text.includes(normalizedQuery) && visibleCount < 8;
+          const isMatch = normalizedQuery.length >= 2 && text.includes(normalizedQuery) && visibleCount < 8;
           button.hidden = !isMatch;
           if (isMatch) visibleCount += 1;
         });
