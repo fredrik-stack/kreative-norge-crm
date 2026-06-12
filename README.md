@@ -1,5 +1,9 @@
 # Kreative Norge CRM
 
+## Codex Handover
+
+If a new Codex agent/session is picking up this repo, start by reading [AGENTS.md](AGENTS.md).
+
 ## Compose Modes (Dev vs Prod-like)
 
 Use explicit compose files so `DJANGO_DEBUG=True` is only used in local development.
