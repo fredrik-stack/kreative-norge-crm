@@ -451,7 +451,7 @@
     {% if actors %}
       <section class="results">
         {% for actor in actors %}
-          <a class="card" href="/public/actors/{{ actor.org_number }}/">
+          <a class="card" href="/public/actors/{% if actor.org_number %}{{ actor.org_number }}{% else %}id-{{ actor.id }}{% endif %}/">
             {% if actor.get_public_image_url %}
               <img class="thumb" src="{{ actor.get_public_image_url }}" alt="{{ actor.name }}" loading="lazy" />
             {% else %}

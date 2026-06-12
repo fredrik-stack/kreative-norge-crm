@@ -57,6 +57,7 @@ class PublicActorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization
         fields = (
+            "id",
             "name",
             "org_number",
             "municipality",
@@ -122,21 +123,26 @@ class PublicActorSerializer(serializers.ModelSerializer):
         for op in qs:
             person = op.person
 
-            contacts_qs = (
-                PersonContact.objects.filter(person=person, is_public=True)
-                .order_by("type", "value")
-            )
-
-            # Hvis du ikke vil vise personer uten public contacts, uncomment:
-            # if not contacts_qs.exists():
-            #     continue
-
             people_payload.append(
                 {
                     "full_name": getattr(person, "full_name", str(person)),
                     "municipality": getattr(person, "municipality", None),
-                    "public_contacts": contacts_qs,
+                    "public_contacts": _public_person_contacts_payload(person),
                 }
             )
 
         return PublicPersonSerializer(people_payload, many=True).data
+
+
+def _public_person_contacts_payload(person):
+    public_contacts = list(
+        PersonContact.objects.filter(person=person, is_public=True)
+        .order_by("-is_primary", "type", "value")
+        .values("type", "value")
+    )
+    if any(contact["type"] == "EMAIL" for contact in public_contacts):
+        return public_contacts
+    fallback_email = getattr(person, "email", None)
+    if fallback_email:
+        return [{"type": "EMAIL", "value": fallback_email}, *public_contacts]
+    return public_contacts

@@ -1,10 +1,11 @@
 import random
 
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from django.utils.text import slugify
 from django.views.generic import DetailView, ListView
 
-from .models import Organization, Tag
+from .models import Organization, OrganizationPerson, Tag
 
 
 CATEGORY_ORDER = [
@@ -101,8 +102,7 @@ class PublicActorListView(ListView):
 class PublicActorDetailView(DetailView):
     template_name = "crm/public_actor_detail.html"
     context_object_name = "actor"
-    slug_field = "org_number"
-    slug_url_kwarg = "org_number"
+    slug_url_kwarg = "identifier"
 
     def get_queryset(self):
         return (
@@ -110,6 +110,27 @@ class PublicActorDetailView(DetailView):
             .prefetch_related("tags", "categories", "subcategories__category", "org_people__person__contacts")
             .order_by("name")
         )
+
+    def get_object(self, queryset=None):
+        queryset = queryset or self.get_queryset()
+        identifier = self.kwargs.get(self.slug_url_kwarg, "")
+        if identifier.startswith("id-") and identifier[3:].isdigit():
+            return get_object_or_404(queryset, pk=int(identifier[3:]))
+        return get_object_or_404(queryset, org_number=identifier)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["public_people"] = (
+            OrganizationPerson.objects.filter(
+                organization=self.object,
+                status="ACTIVE",
+                publish_person=True,
+            )
+            .select_related("person")
+            .prefetch_related("person__contacts")
+            .order_by("person__full_name", "person_id")
+        )
+        return context
 
 
 def dedupe_tags(tags):

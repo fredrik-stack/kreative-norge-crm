@@ -15,7 +15,8 @@
       --line: rgba(103, 63, 50, 0.12);
       --category: #6b493d;
       --subcategory: #38a8ec;
-      --tag: #4f332c;
+      --tag: #4a8755;
+      --tag-active: #35653e;
       --tag-ink: #ffffff;
       --shadow: 0 14px 30px rgba(132, 95, 82, 0.09);
     }
@@ -146,7 +147,6 @@
     .pill.tag {
       background: var(--tag);
       color: var(--tag-ink);
-      opacity: 0.92;
     }
 
     .layout {
@@ -421,28 +421,26 @@
 
         <h3 class="subsection-title">Kontaktpersoner</h3>
         <div class="people-list">
-          {% for link in actor.org_people.all %}
-            {% if link.status == "ACTIVE" and link.publish_person %}
-              <article class="person-card">
-                <p class="person-name">{{ link.person.full_name }}</p>
-                <div class="person-municipality">{{ link.person.municipality|default:"Ingen kommune registrert" }}</div>
+          {% for link in public_people %}
+            <article class="person-card">
+              <p class="person-name">{{ link.person.full_name }}</p>
+              <div class="person-municipality">{{ link.person.municipality|default:"Ingen kommune registrert" }}</div>
 
-                {% with public_emails=link.person.get_public_emails public_phones=link.person.get_public_phones %}
-                  {% if public_emails or public_phones %}
-                    <div class="contacts">
-                      {% for value in public_emails %}
-                        <a class="contact-link email" href="mailto:{{ value }}">{{ value }}</a>
-                      {% endfor %}
-                      {% for value in public_phones %}
-                        <a class="contact-link" href="tel:{{ value }}">{{ value }}</a>
-                      {% endfor %}
-                    </div>
-                  {% else %}
-                    <p class="empty">Ingen offentlige kontaktmåter er publisert ennå.</p>
-                  {% endif %}
-                {% endwith %}
-              </article>
-            {% endif %}
+              {% with public_emails=link.person.get_public_emails public_phones=link.person.get_public_phones %}
+                {% if public_emails or public_phones %}
+                  <div class="contacts">
+                    {% for value in public_emails %}
+                      <a class="contact-link email" href="mailto:{{ value }}">{{ value }}</a>
+                    {% endfor %}
+                    {% for value in public_phones %}
+                      <a class="contact-link" href="tel:{{ value }}">{{ value }}</a>
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <p class="empty">Ingen offentlige kontaktmåter er publisert ennå.</p>
+                {% endif %}
+              {% endwith %}
+            </article>
           {% empty %}
             <p class="empty">Ingen publiserte kontaktpersoner ennå.</p>
           {% endfor %}

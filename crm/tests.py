@@ -3855,6 +3855,51 @@ class PublicActorSiteTests(TestCase):
         self.assertContains(response, "ada@example.com")
         self.assertNotContains(response, "+4712345678")
 
+    def test_public_actor_without_org_number_uses_stable_id_detail_url(self):
+        no_org_number = Organization.objects.create(
+            tenant=self.tag.tenant,
+            name="Ensemble Blå",
+            org_number="",
+            municipalities="Bodø",
+            is_published=True,
+        )
+
+        list_response = self.client.get("/public/actors/")
+        self.assertEqual(list_response.status_code, 200)
+        self.assertContains(list_response, f"/public/actors/id-{no_org_number.id}/")
+
+        detail_response = self.client.get(f"/public/actors/id-{no_org_number.id}/")
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertContains(detail_response, "Ensemble Blå")
+
+    def test_public_actor_api_can_retrieve_actor_without_org_number_by_id(self):
+        no_org_number = Organization.objects.create(
+            tenant=self.tag.tenant,
+            name="Arbeideren",
+            org_number="",
+            municipalities="Narvik",
+            is_published=True,
+        )
+
+        response = self.client.get(f"/api/public/actors/id-{no_org_number.id}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["name"], "Arbeideren")
+
+    def test_public_actor_api_includes_published_people_with_email_fallback(self):
+        response = self.client.get(f"/api/public/actors/{self.organization.org_number}/")
+
+        self.assertEqual(response.status_code, 200)
+        people = response.json()["people"]
+        self.assertEqual(people[0]["full_name"], "Ada Artist")
+        self.assertIn({"type": "EMAIL", "value": "ada@example.com"}, people[0]["public_contacts"])
+
+    def test_public_actor_detail_uses_green_public_tags(self):
+        response = self.client.get(f"/public/actors/{self.organization.org_number}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "--tag: #4a8755;")
+
     def test_public_actor_templates_ignore_favicon_fallback_urls(self):
         self.organization.og_image_url = fallback_preview_image(self.organization.website_url)
         self.organization.save(update_fields=["og_image_url"])
