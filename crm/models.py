@@ -303,7 +303,15 @@ class Person(models.Model):
         )
         if public_emails:
             return public_emails
-        return [self.email] if self.email else []
+        fallback_emails = []
+        if self.email:
+            fallback_emails.append(self.email)
+        fallback_emails.extend(
+            self.contacts.filter(type="EMAIL")
+            .order_by("-is_primary", "id")
+            .values_list("value", flat=True)
+        )
+        return _unique_contact_values(fallback_emails)
 
     def get_public_phones(self) -> list[str]:
         public_phones = list(
@@ -313,7 +321,28 @@ class Person(models.Model):
         )
         if public_phones:
             return public_phones
-        return [self.phone] if self.phone else []
+        fallback_phones = []
+        if self.phone:
+            fallback_phones.append(self.phone)
+        fallback_phones.extend(
+            self.contacts.filter(type="PHONE")
+            .order_by("-is_primary", "id")
+            .values_list("value", flat=True)
+        )
+        return _unique_contact_values(fallback_phones)
+
+
+def _unique_contact_values(values) -> list[str]:
+    unique_values = []
+    seen = set()
+    for value in values:
+        text = str(value or "").strip()
+        key = text.casefold()
+        if not text or key in seen:
+            continue
+        seen.add(key)
+        unique_values.append(text)
+    return unique_values
 
 class PersonContact(models.Model):
     CONTACT_TYPES = [

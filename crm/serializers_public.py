@@ -135,21 +135,7 @@ class PublicActorSerializer(serializers.ModelSerializer):
 
 
 def _public_person_contacts_payload(person):
-    public_contacts = list(
-        PersonContact.objects.filter(person=person, is_public=True)
-        .order_by("-is_primary", "type", "value")
-        .values("type", "value")
-    )
-    if any(contact["type"] == "EMAIL" for contact in public_contacts):
-        email_contacts = public_contacts
-    else:
-        fallback_email = getattr(person, "email", None)
-        email_contacts = ([{"type": "EMAIL", "value": fallback_email}] if fallback_email else []) + public_contacts
-
-    if any(contact["type"] == "PHONE" for contact in email_contacts):
-        return email_contacts
-
-    fallback_phone = getattr(person, "phone", None)
-    if fallback_phone:
-        return [*email_contacts, {"type": "PHONE", "value": fallback_phone}]
-    return email_contacts
+    return [
+        *({"type": "EMAIL", "value": value} for value in person.get_public_emails()),
+        *({"type": "PHONE", "value": value} for value in person.get_public_phones()),
+    ]

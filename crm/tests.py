@@ -3860,6 +3860,33 @@ class PublicActorSiteTests(TestCase):
         self.assertContains(response, "ada@example.com")
         self.assertContains(response, "+4712345678")
 
+    def test_public_actor_detail_falls_back_to_existing_person_contacts(self):
+        self.person.email = ""
+        self.person.phone = ""
+        self.person.save(update_fields=["email", "phone", "updated_at"])
+        PersonContact.objects.create(
+            tenant=self.tag.tenant,
+            person=self.person,
+            type="EMAIL",
+            value="ada.booking@example.com",
+            is_primary=True,
+            is_public=False,
+        )
+        PersonContact.objects.create(
+            tenant=self.tag.tenant,
+            person=self.person,
+            type="PHONE",
+            value="+4799999999",
+            is_primary=True,
+            is_public=False,
+        )
+
+        response = self.client.get(f"/public/actors/{self.organization.org_number}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "ada.booking@example.com")
+        self.assertContains(response, "+4799999999")
+
     def test_public_actor_without_org_number_uses_stable_id_detail_url(self):
         no_org_number = Organization.objects.create(
             tenant=self.tag.tenant,
@@ -4001,6 +4028,43 @@ class OrganizationPersonViewSetValidationTests(AuthenticatedAPITestCase):
 
     def tenant_links_url(self, tenant_id: int | None = None) -> str:
         return f"/api/tenants/{tenant_id or self.tenant.id}/organization-people/"
+
+    def test_active_links_are_published_when_created(self):
+        response = self.client.post(
+            self.tenant_links_url(),
+            {
+                "organization": self.organization.id,
+                "person": self.person.id,
+                "status": "ACTIVE",
+                "publish_person": False,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        link = OrganizationPerson.objects.get(id=response.json()["id"])
+        self.assertTrue(link.publish_person)
+        self.assertTrue(response.json()["publish_person"])
+
+    def test_active_links_cannot_be_unpublished(self):
+        link = OrganizationPerson.objects.create(
+            tenant=self.tenant,
+            organization=self.organization,
+            person=self.person,
+            status="ACTIVE",
+            publish_person=True,
+        )
+
+        response = self.client.patch(
+            f"{self.tenant_links_url()}{link.id}/",
+            {"publish_person": False},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        link.refresh_from_db()
+        self.assertTrue(link.publish_person)
+        self.assertTrue(response.json()["publish_person"])
 
     def test_rejects_create_when_person_belongs_to_other_tenant(self):
         response = self.client.post(

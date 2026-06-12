@@ -788,9 +788,10 @@ export function useEditorData() {
         organization: selectedOrgId,
         person: linkPersonId,
         status: linkStatus,
-        publish_person: linkPublishPerson,
+        publish_person: true,
       });
       await reloadPeopleAndLinks();
+      setLinkPublishPerson(true);
     } catch (err) {
       setError(apiErrorMessage(err, "Kunne ikke opprette kobling"));
     }
@@ -848,7 +849,7 @@ export function useEditorData() {
         organization: selectedOrgId,
         person: createdPerson.id,
         status: linkedPersonDraft.status,
-        publish_person: linkedPersonDraft.publish_person,
+        publish_person: true,
       });
 
       await reloadPeopleAndLinks();
