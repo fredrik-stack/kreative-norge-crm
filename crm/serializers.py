@@ -512,9 +512,6 @@ class OrganizationPersonSerializer(serializers.ModelSerializer):
 
         if errors:
             raise serializers.ValidationError(errors)
-        status = attrs.get("status") or getattr(self.instance, "status", "ACTIVE")
-        if status == "ACTIVE":
-            attrs["publish_person"] = True
         return attrs
 
     def _get_effective_tenant_id(self, attrs):

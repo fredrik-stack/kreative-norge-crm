@@ -845,12 +845,12 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
                 <label className="toggle-card">
                   <input
                     type="checkbox"
-                    checked
-                    readOnly
+                    checked={editor.linkedPersonDraft.publish_person}
+                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, publish_person: e.target.checked }))}
                   />
                   <div>
                     <strong>Vis personen offentlig</strong>
-                    <p>Nye kontaktpersoner publiseres automatisk på aktørsiden.</p>
+                    <p>Skal denne personen vises som kontaktperson på aktørsiden?</p>
                   </div>
                 </label>
                 <Field label="Status på kobling">
@@ -929,7 +929,7 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
               <input
                 type="checkbox"
                 checked={editor.linkPublishPerson}
-                readOnly
+                onChange={(e) => editor.setLinkPublishPerson(e.target.checked)}
               />
               <span>Publiser person</span>
             </label>
@@ -959,7 +959,7 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
                       onChange={(e) =>
                         editor.updateLink(link.id, {
                           status: e.target.value as "ACTIVE" | "INACTIVE",
-                          publish_person: e.target.value === "ACTIVE" ? true : link.publish_person,
+                          publish_person: e.target.value === "ACTIVE" && !link.publish_person ? true : link.publish_person,
                         })
                       }
                     >
@@ -970,8 +970,8 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
                     <label className="inline-check compact">
                       <input
                         type="checkbox"
-                        checked={link.status === "ACTIVE" || link.publish_person}
-                        readOnly
+                        checked={link.publish_person}
+                        onChange={(e) => editor.updateLink(link.id, { publish_person: e.target.checked })}
                       />
                       <span>Publiser</span>
                     </label>

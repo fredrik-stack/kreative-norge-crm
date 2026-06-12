@@ -788,7 +788,7 @@ export function useEditorData() {
         organization: selectedOrgId,
         person: linkPersonId,
         status: linkStatus,
-        publish_person: true,
+        publish_person: linkPublishPerson,
       });
       await reloadPeopleAndLinks();
       setLinkPublishPerson(true);
@@ -849,7 +849,7 @@ export function useEditorData() {
         organization: selectedOrgId,
         person: createdPerson.id,
         status: linkedPersonDraft.status,
-        publish_person: true,
+        publish_person: linkedPersonDraft.publish_person,
       });
 
       await reloadPeopleAndLinks();

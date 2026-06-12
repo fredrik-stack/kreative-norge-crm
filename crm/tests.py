@@ -3937,9 +3937,17 @@ class PublicActorSiteTests(TestCase):
         response = self.client.get("/public/actors/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'list="public-search-suggestions"')
-        self.assertContains(response, '<option value="Nordlyd"></option>')
-        self.assertContains(response, '<option value="Oslo"></option>')
+        self.assertNotContains(response, 'list="public-search-suggestions"')
+        self.assertContains(response, 'id="public-search-suggestions"')
+        self.assertContains(response, 'class="search-suggestions"')
+        self.assertContains(response, 'data-suggestion="Nordlyd"')
+        self.assertContains(response, 'data-suggestion="Oslo"')
+
+    def test_public_actor_cards_include_search_data_for_live_filtering(self):
+        response = self.client.get("/public/actors/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-search="Nordlyd Oslo')
 
     def test_public_actor_list_keeps_sparse_results_aligned_left(self):
         response = self.client.get("/public/actors/")
@@ -4029,24 +4037,7 @@ class OrganizationPersonViewSetValidationTests(AuthenticatedAPITestCase):
     def tenant_links_url(self, tenant_id: int | None = None) -> str:
         return f"/api/tenants/{tenant_id or self.tenant.id}/organization-people/"
 
-    def test_active_links_are_published_when_created(self):
-        response = self.client.post(
-            self.tenant_links_url(),
-            {
-                "organization": self.organization.id,
-                "person": self.person.id,
-                "status": "ACTIVE",
-                "publish_person": False,
-            },
-            format="json",
-        )
-
-        self.assertEqual(response.status_code, 201)
-        link = OrganizationPerson.objects.get(id=response.json()["id"])
-        self.assertTrue(link.publish_person)
-        self.assertTrue(response.json()["publish_person"])
-
-    def test_active_links_cannot_be_unpublished(self):
+    def test_active_links_can_be_explicitly_unpublished(self):
         link = OrganizationPerson.objects.create(
             tenant=self.tenant,
             organization=self.organization,
@@ -4063,8 +4054,8 @@ class OrganizationPersonViewSetValidationTests(AuthenticatedAPITestCase):
 
         self.assertEqual(response.status_code, 200)
         link.refresh_from_db()
-        self.assertTrue(link.publish_person)
-        self.assertTrue(response.json()["publish_person"])
+        self.assertFalse(link.publish_person)
+        self.assertFalse(response.json()["publish_person"])
 
     def test_rejects_create_when_person_belongs_to_other_tenant(self):
         response = self.client.post(
