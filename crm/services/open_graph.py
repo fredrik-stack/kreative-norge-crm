@@ -36,7 +36,6 @@ SOCIAL_STATIC_HOST_PARTS = (
     "static.tiktokcdn.com",
 )
 UTILITY_IMAGE_TERMS = (
-    "favicon",
     "sprite",
     "emoji",
     "placeholder",
@@ -589,6 +588,35 @@ def choose_best_thumbnail(
     return None
 
 
+def _site_icon_fallback_candidates(link: str | None) -> list[ImageCandidate]:
+    if not link or _is_social_profile_url(link):
+        return []
+    parsed = urlparse(link)
+    if not parsed.scheme or not parsed.netloc:
+        return []
+    root = f"{parsed.scheme}://{parsed.netloc}"
+    return [
+        ImageCandidate(url=urljoin(root, path), source="generated:icon")
+        for path in [
+            "/apple-touch-icon.png",
+            "/favicon-192x192.png",
+            "/favicon-96x96.png",
+            "/favicon-32x32.png",
+            "/favicon.ico",
+        ]
+    ]
+
+
+def choose_site_icon_fallback(link: str | None) -> str | None:
+    for candidate in _site_icon_fallback_candidates(link):
+        normalized = _normalize_image_candidate(link or "", candidate)
+        if not normalized:
+            continue
+        if _image_candidate_looks_usable(normalized.url):
+            return normalized.url
+    return None
+
+
 def _organization_candidate_links(organization: Organization) -> list[str]:
     links = [
         organization.website_url,
@@ -699,6 +727,9 @@ def refresh_organization_open_graph(
                 auto_thumbnail = choose_best_thumbnail(link, og.image_candidates, target_name=organization.name)
             if auto_thumbnail and link == primary:
                 break
+
+        if not auto_thumbnail:
+            auto_thumbnail = choose_site_icon_fallback(primary)
 
         if not title and not auto_thumbnail and first_error:
             raise first_error

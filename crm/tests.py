@@ -32,6 +32,7 @@ from .services.open_graph import (
     ImageCandidate,
     OpenGraphData,
     choose_best_thumbnail,
+    choose_site_icon_fallback,
     fallback_preview_image,
     fetch_open_graph,
     refresh_organization_open_graph,
@@ -4183,6 +4184,14 @@ class ThumbnailSelectionTests(TestCase):
     def test_fallback_preview_image_ignores_social_profile_hosts(self):
         self.assertIsNone(fallback_preview_image("https://www.facebook.com/fauskebluesklubb"))
         self.assertIsNone(fallback_preview_image("https://www.instagram.com/fauskerockeklubb/"))
+
+    @patch("crm.services.open_graph._image_candidate_looks_usable")
+    def test_choose_site_icon_fallback_uses_direct_site_icon(self, usable_mock):
+        usable_mock.side_effect = [False, False, True]
+
+        chosen = choose_site_icon_fallback("https://example.com/underside")
+
+        self.assertEqual(chosen, "https://example.com/favicon-96x96.png")
 
 
 class OrganizationPersonViewSetValidationTests(AuthenticatedAPITestCase):
