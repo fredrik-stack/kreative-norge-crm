@@ -4009,12 +4009,87 @@ class ThumbnailSelectionTests(TestCase):
 
         self.assertEqual(chosen, "https://example.com/media/working-hero.jpg")
 
+    @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
+    def test_choose_best_thumbnail_rejects_social_platform_logo(self, usable_mock):
+        chosen = choose_best_thumbnail(
+            "https://facebook.com/fauskebluesklubb",
+            [
+                ImageCandidate(
+                    url="https://static.xx.fbcdn.net/rsrc.php/v4/yx/r/facebook-logo.png",
+                    source="og:image",
+                    width=512,
+                    height=512,
+                    alt="Facebook",
+                ),
+                ImageCandidate(
+                    url="https://example.com/uploads/fauske-bluesklubb-scene.jpg",
+                    source="img",
+                    width=1200,
+                    height=800,
+                    alt="Fauske Bluesklubb",
+                ),
+            ],
+            target_name="Fauske Bluesklubb",
+        )
+
+        self.assertEqual(chosen, "https://example.com/uploads/fauske-bluesklubb-scene.jpg")
+        self.assertEqual(usable_mock.call_count, 1)
+
+    @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
+    def test_choose_best_thumbnail_rejects_partner_logo(self, usable_mock):
+        chosen = choose_best_thumbnail(
+            "https://example.com/festival",
+            [
+                ImageCandidate(
+                    url="/img/sponsor-sparebank-logo.png",
+                    source="img",
+                    width=640,
+                    height=260,
+                    alt="Sponsor SpareBank",
+                ),
+                ImageCandidate(
+                    url="/media/havnafestivalen-konsert.jpg",
+                    source="img",
+                    width=1400,
+                    height=900,
+                    alt="Havnafestivalen scene",
+                ),
+            ],
+            target_name="Havnafestivalen",
+        )
+
+        self.assertEqual(chosen, "https://example.com/media/havnafestivalen-konsert.jpg")
+        self.assertEqual(usable_mock.call_count, 1)
+
+    @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
+    def test_choose_best_thumbnail_allows_matching_actor_logo(self, usable_mock):
+        chosen = choose_best_thumbnail(
+            "https://example.com/arbeideren",
+            [
+                ImageCandidate(
+                    url="/assets/logo.png",
+                    source="img",
+                    width=520,
+                    height=220,
+                    alt="Arbeideren logo",
+                ),
+            ],
+            target_name="Arbeideren",
+        )
+
+        self.assertEqual(chosen, "https://example.com/assets/logo.png")
+        usable_mock.assert_called_once()
+
     def test_fetch_open_graph_blocks_private_host(self):
         with self.assertRaises(ValueError):
             fetch_open_graph("http://127.0.0.1/private")
 
     def test_fallback_preview_image_ignores_private_host(self):
         self.assertIsNone(fallback_preview_image("http://localhost:8000"))
+
+    def test_fallback_preview_image_ignores_social_profile_hosts(self):
+        self.assertIsNone(fallback_preview_image("https://www.facebook.com/fauskebluesklubb"))
+        self.assertIsNone(fallback_preview_image("https://www.instagram.com/fauskerockeklubb/"))
 
 
 class OrganizationPersonViewSetValidationTests(AuthenticatedAPITestCase):

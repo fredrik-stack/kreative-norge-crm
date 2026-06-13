@@ -260,10 +260,10 @@ class Organization(models.Model):
         return self.get_public_image_url() or fallback_preview_image(self.get_primary_link())
 
     def get_public_image_url(self) -> str | None:
-        from .services.open_graph import is_fallback_preview_image
+        from .services.open_graph import is_disallowed_thumbnail_image
 
         for candidate in [self.thumbnail_image_url, self.auto_thumbnail_url, self.og_image_url]:
-            if not candidate or is_fallback_preview_image(candidate):
+            if not candidate or is_disallowed_thumbnail_image(candidate):
                 continue
             return candidate
         return None
