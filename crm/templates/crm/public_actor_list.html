@@ -145,46 +145,6 @@
       white-space: nowrap;
     }
 
-    .search-suggestions {
-      position: absolute;
-      top: calc(100% + 8px);
-      left: 12px;
-      right: 152px;
-      z-index: 10;
-      display: none;
-      max-height: 280px;
-      overflow: auto;
-      padding: 8px;
-      border-radius: 16px;
-      background: rgba(255, 250, 247, 0.98);
-      border: 1px solid rgba(79, 51, 44, 0.12);
-      box-shadow: 0 18px 34px rgba(132, 95, 82, 0.16);
-    }
-
-    .search-suggestions.visible {
-      display: grid;
-      gap: 4px;
-    }
-
-    .search-suggestion {
-      border: 0;
-      width: 100%;
-      padding: 9px 11px;
-      border-radius: 10px;
-      background: transparent;
-      color: var(--ink);
-      font: inherit;
-      font-size: 13px;
-      text-align: left;
-      cursor: pointer;
-    }
-
-    .search-suggestion:hover,
-    .search-suggestion:focus {
-      background: rgba(79, 51, 44, 0.08);
-      outline: none;
-    }
-
     .carousel {
       display: flex;
       gap: 10px;
@@ -473,11 +433,6 @@
         padding: 11px 16px;
       }
 
-      .search-suggestions {
-        left: 8px;
-        right: 8px;
-      }
-
       .results {
         grid-template-columns: 1fr;
         justify-content: stretch;
@@ -511,11 +466,6 @@
             spellcheck="false"
             role="searchbox"
           />
-          <div id="public-search-suggestions" class="search-suggestions" role="listbox" aria-label="Søkeforslag">
-            {% for suggestion in search_suggestions %}
-              <button type="button" class="search-suggestion" data-suggestion="{{ suggestion }}" role="option">{{ suggestion }}</button>
-            {% endfor %}
-          </div>
           {% if selected_tag %}<input type="hidden" name="tag" value="{{ selected_tag }}" />{% endif %}
           {% if selected_category %}<input type="hidden" name="category" value="{{ selected_category }}" />{% endif %}
           {% if selected_subcategory %}<input type="hidden" name="subcategory" value="{{ selected_subcategory }}" />{% endif %}
@@ -602,8 +552,6 @@
   <script>
     (function () {
       const input = document.getElementById("actor-search");
-      const suggestionPanel = document.getElementById("public-search-suggestions");
-      const suggestionButtons = suggestionPanel ? Array.from(suggestionPanel.querySelectorAll(".search-suggestion")) : [];
       const cards = Array.from(document.querySelectorAll(".card"));
       if (!input) return;
 
@@ -621,24 +569,8 @@
         });
       }
 
-      function updateSuggestions(query) {
-        if (!suggestionPanel) return;
-        const normalizedQuery = normalize(query);
-        let visibleCount = 0;
-
-        suggestionButtons.forEach((button) => {
-          const text = normalize(button.getAttribute("data-suggestion"));
-          const isMatch = normalizedQuery.length >= 2 && text.includes(normalizedQuery) && visibleCount < 8;
-          button.hidden = !isMatch;
-          if (isMatch) visibleCount += 1;
-        });
-
-        suggestionPanel.classList.toggle("visible", visibleCount > 0);
-      }
-
       function handleInput() {
         filterCards(input.value);
-        updateSuggestions(input.value);
         resetIfCleared();
       }
 
@@ -648,22 +580,6 @@
         }
         lastValue = input.value;
       }
-
-      suggestionButtons.forEach((button) => {
-        button.addEventListener("click", () => {
-          input.value = button.getAttribute("data-suggestion") || "";
-          input.focus();
-          filterCards(input.value);
-          updateSuggestions(input.value);
-          lastValue = input.value;
-        });
-      });
-
-      document.addEventListener("click", (event) => {
-        if (!suggestionPanel) return;
-        if (event.target === input || suggestionPanel.contains(event.target)) return;
-        suggestionPanel.classList.remove("visible");
-      });
 
       input.addEventListener("search", resetIfCleared);
       input.addEventListener("input", handleInput);

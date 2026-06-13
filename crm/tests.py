@@ -3933,15 +3933,14 @@ class PublicActorSiteTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "--tag: #4a8755;")
 
-    def test_public_actor_list_search_input_offers_suggestions(self):
+    def test_public_actor_list_search_uses_live_cards_without_suggestion_dropdown(self):
         response = self.client.get("/public/actors/")
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'list="public-search-suggestions"')
-        self.assertContains(response, 'id="public-search-suggestions"')
-        self.assertContains(response, 'class="search-suggestions"')
-        self.assertContains(response, 'data-suggestion="Nordlyd"')
-        self.assertContains(response, 'data-suggestion="Oslo"')
+        self.assertNotContains(response, 'id="public-search-suggestions"')
+        self.assertNotContains(response, 'class="search-suggestions"')
+        self.assertNotContains(response, 'class="search-suggestion"')
 
     def test_public_actor_cards_include_search_data_for_live_filtering(self):
         response = self.client.get("/public/actors/")
