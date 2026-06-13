@@ -260,6 +260,10 @@
       box-shadow: 0 18px 34px rgba(132, 95, 82, 0.12);
     }
 
+    .card.is-filtered-out {
+      display: none !important;
+    }
+
     .thumb,
     .thumb-fallback {
       width: 90px;
@@ -565,7 +569,7 @@
         const normalizedQuery = normalize(query);
         cards.forEach((card) => {
           const haystack = normalize(card.getAttribute("data-search"));
-          card.hidden = Boolean(normalizedQuery) && !haystack.includes(normalizedQuery);
+          card.classList.toggle("is-filtered-out", Boolean(normalizedQuery) && !haystack.includes(normalizedQuery));
         });
       }
 

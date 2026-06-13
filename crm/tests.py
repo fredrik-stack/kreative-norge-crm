@@ -3947,6 +3947,8 @@ class PublicActorSiteTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'data-search="Nordlyd Oslo')
+        self.assertContains(response, ".card.is-filtered-out")
+        self.assertContains(response, 'card.classList.toggle("is-filtered-out"')
 
     def test_public_actor_list_stretches_cards_to_available_width(self):
         response = self.client.get("/public/actors/")
