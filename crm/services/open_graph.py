@@ -705,8 +705,8 @@ def refresh_organization_open_graph(
 
         organization.og_title = _fit(title, 255)
         organization.og_description = description
-        organization.og_image_url = _fit(safe_og_image, 200)
-        organization.auto_thumbnail_url = _fit(auto_thumbnail, 200)
+        organization.og_image_url = _fit(safe_og_image, 500)
+        organization.auto_thumbnail_url = _fit(auto_thumbnail, 500)
     except Exception:
         organization.og_image_url = None
         organization.auto_thumbnail_url = None

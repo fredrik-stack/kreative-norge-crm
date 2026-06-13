@@ -202,9 +202,9 @@ class Organization(models.Model):
 
     og_title = models.CharField(max_length=255, null=True, blank=True)
     og_description = models.TextField(null=True, blank=True)
-    og_image_url = models.URLField(null=True, blank=True)
-    thumbnail_image_url = models.URLField(null=True, blank=True)
-    auto_thumbnail_url = models.URLField(null=True, blank=True)
+    og_image_url = models.URLField(max_length=500, null=True, blank=True)
+    thumbnail_image_url = models.URLField(max_length=500, null=True, blank=True)
+    auto_thumbnail_url = models.URLField(max_length=500, null=True, blank=True)
     og_last_fetched_at = models.DateTimeField(null=True, blank=True)
     tags = models.ManyToManyField(Tag, blank=True, related_name="organizations")
     internal_tags = models.ManyToManyField(InternalTag, blank=True, related_name="organizations")
