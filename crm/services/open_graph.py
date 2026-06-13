@@ -18,7 +18,7 @@ from crm.models import Organization
 USER_AGENT = (
     "Mozilla/5.0 (compatible; KreativeNorgeCRM/1.0; +https://github.com/fredrik-stack/kreative-norge-crm)"
 )
-MAX_HTML_BYTES = 1_000_000
+MAX_HTML_BYTES = 3_000_000
 MAX_REDIRECTS = 3
 PRIVATE_HOSTNAMES = {"localhost", "metadata.google.internal"}
 SOCIAL_PROFILE_HOSTS = {
@@ -81,6 +81,7 @@ PROMISING_IMAGE_TERMS = (
     "media",
     "image",
 )
+LOW_PRIORITY_ICON_REL_TERMS = ("icon", "apple-touch-icon", "mask-icon")
 
 
 @dataclass
@@ -174,6 +175,8 @@ class MetaParser(HTMLParser):
             href = attrs_dict.get("href")
             if href and "image_src" in rel:
                 self.image_candidates.append(ImageCandidate(url=href.strip(), source="link:image_src"))
+            elif href and any(term in rel for term in LOW_PRIORITY_ICON_REL_TERMS):
+                self.image_candidates.append(ImageCandidate(url=href.strip(), source="link:icon"))
         elif tag.lower() == "title":
             self._title_collect = True
 
@@ -271,7 +274,7 @@ def _pick_largest_srcset_url(value: str) -> str | None:
 def _normalize_image_candidate(base_url: str, candidate: ImageCandidate) -> ImageCandidate | None:
     if not candidate.url or candidate.url.startswith("data:"):
         return None
-    normalized_url = urljoin(base_url, candidate.url)
+    normalized_url = _upgrade_cdn_image_url(urljoin(base_url, candidate.url))
     if not _is_public_http_url(normalized_url):
         return None
     return ImageCandidate(
@@ -294,8 +297,12 @@ def _normalize_text(value: str | None) -> str:
     )
 
 
+def _loose_norwegian_text(value: str | None) -> str:
+    return _normalize_text(value).replace("aa", "a")
+
+
 def _name_tokens(value: str | None) -> list[str]:
-    normalized = _normalize_text(value)
+    normalized = _loose_norwegian_text(value)
     tokens = re.findall(r"[a-z0-9]+", normalized)
     stopwords = {"as", "sa", "ba", "og", "for", "the", "and", "of", "i", "in", "no", "org"}
     return [token for token in tokens if len(token) >= 3 and token not in stopwords]
@@ -303,7 +310,9 @@ def _name_tokens(value: str | None) -> list[str]:
 
 def _candidate_text(candidate: ImageCandidate) -> str:
     parsed = urlparse(candidate.url)
-    return _normalize_text(" ".join(filter(None, [candidate.url, parsed.path, candidate.alt, candidate.css_hint])))
+    return _loose_norwegian_text(
+        " ".join(filter(None, [candidate.url, parsed.path, candidate.alt, candidate.css_hint]))
+    )
 
 
 def _text_contains_any(text: str, terms: tuple[str, ...]) -> bool:
@@ -318,9 +327,21 @@ def _candidate_mentions_actor(candidate: ImageCandidate, target_name: str | None
     text = _candidate_text(candidate)
     if "-".join(tokens[: min(len(tokens), 4)]) in text.replace("_", "-"):
         return True
+    if any(len(token) >= 6 and token in text for token in tokens):
+        return True
     matches = sum(1 for token in tokens if token in text)
     required = 1 if len(tokens) == 1 else 2
     return matches >= required
+
+
+def _upgrade_cdn_image_url(url: str) -> str:
+    parsed = urlparse(url)
+    if "static.wixstatic.com" in (parsed.netloc or "").lower():
+        upgraded = re.sub(r"/v1/fill/w_\d+,h_\d+,", "/v1/fill/w_1200,h_675,", url)
+        upgraded = re.sub(r",blur_\d+", "", upgraded)
+        upgraded = re.sub(r",q_\d+", ",q_90", upgraded)
+        return upgraded
+    return url
 
 
 def _is_social_platform_asset(url: str) -> bool:
@@ -331,7 +352,9 @@ def _is_social_platform_asset(url: str) -> bool:
         return True
     social_logo_terms = (
         "facebook-logo",
+        "facebook-f-icon",
         "fb_icon",
+        "fb-icon",
         "instagram_logo",
         "instagram-icon",
         "tiktok-logo",
@@ -354,12 +377,26 @@ def _candidate_is_disallowed(candidate: ImageCandidate, target_name: str | None)
     text = _candidate_text(candidate)
     if is_disallowed_thumbnail_image(candidate.url):
         return True
+    if _is_social_icon_candidate(candidate):
+        return True
     if _text_contains_any(text, PARTNER_IMAGE_TERMS) and not _candidate_mentions_actor(candidate, target_name):
         return True
     lower_text = _normalize_text(text)
     if "logo" in lower_text and any(term in lower_text for term in ["partner", "sponsor", "footer"]):
         return True
     return False
+
+
+def _is_social_icon_candidate(candidate: ImageCandidate) -> bool:
+    text = _candidate_text(candidate)
+    has_platform = any(platform in text for platform in ["facebook", "instagram", "tiktok", "linkedin", "youtube"])
+    has_icon_or_logo = any(term in text for term in ["icon", "logo", "glyph", "symbol"])
+    return has_platform and has_icon_or_logo and not _candidate_mentions_actor(candidate, None)
+
+
+def _candidate_is_logo_like(candidate: ImageCandidate) -> bool:
+    text = _candidate_text(candidate)
+    return any(term in text for term in ["logo", "icon", "favicon", "apple-touch-icon", "brandmark"])
 
 
 def _candidate_score(candidate: ImageCandidate, target_name: str | None = None) -> int:
@@ -374,6 +411,8 @@ def _candidate_score(candidate: ImageCandidate, target_name: str | None = None) 
         score += 180
     elif candidate.source == "link:image_src":
         score += 130
+    elif candidate.source == "link:icon":
+        score += 30
     elif candidate.source == "source":
         score += 95
     else:
@@ -383,10 +422,10 @@ def _candidate_score(candidate: ImageCandidate, target_name: str | None = None) 
         score -= 260
     if _text_contains_any(hint_text, UTILITY_IMAGE_TERMS):
         score -= 220
-    if "logo" in candidate_text:
+    if _candidate_is_logo_like(candidate):
         score -= 120
         if _candidate_mentions_actor(candidate, target_name):
-            score += 150
+            score += 190
 
     if re.search(r"\.(jpg|jpeg|png|webp)(?:$|\?)", lower_url):
         score += 24
@@ -485,7 +524,7 @@ def _fetch_url(
                 else:
                     body = response.read(max_bytes + 1)
                     if len(body) > max_bytes:
-                        raise ValueError("Response too large.")
+                        body = body[:max_bytes]
                 return FetchResult(final_url=response.geturl(), headers=response.headers, body=body)
         except HTTPError as exc:
             if exc.code in {301, 302, 303, 307, 308}:
@@ -537,12 +576,36 @@ def choose_best_thumbnail(
         return None
 
     ranked = sorted(normalized, key=lambda candidate: _candidate_score(candidate, target_name), reverse=True)
-    for candidate in ranked:
-        if _candidate_score(candidate, target_name) < 40:
-            break
-        if _image_candidate_looks_usable(candidate.url):
-            return candidate.url
+    non_logo_ranked = [
+        candidate for candidate in ranked if not _candidate_is_logo_like(candidate) and _candidate_score(candidate, target_name) >= 40
+    ]
+    logo_ranked = [
+        candidate for candidate in ranked if _candidate_is_logo_like(candidate) and _candidate_score(candidate, target_name) >= 40
+    ]
+    for group in [non_logo_ranked, logo_ranked]:
+        for candidate in group:
+            if _image_candidate_looks_usable(candidate.url):
+                return candidate.url
     return None
+
+
+def _organization_candidate_links(organization: Organization) -> list[str]:
+    links = [
+        organization.website_url,
+        organization.instagram_url,
+        organization.facebook_url,
+        organization.tiktok_url,
+        organization.youtube_url,
+        organization.linkedin_url,
+    ]
+    unique_links = []
+    seen = set()
+    for link in links:
+        if not link or link in seen:
+            continue
+        seen.add(link)
+        unique_links.append(link)
+    return unique_links
 
 
 def fetch_open_graph(url: str, timeout_seconds: int = 4) -> OpenGraphData:
@@ -610,15 +673,38 @@ def refresh_organization_open_graph(
         return
 
     try:
-        og = fetch_open_graph(primary)
-        safe_og_image = choose_best_thumbnail(
-            primary,
-            [ImageCandidate(url=og.image_url, source="og:image")] if og.image_url else [],
-            target_name=organization.name,
-        )
-        auto_thumbnail = choose_best_thumbnail(primary, og.image_candidates, target_name=organization.name)
-        organization.og_title = _fit(og.title, 255)
-        organization.og_description = og.description
+        title = None
+        description = None
+        safe_og_image = None
+        auto_thumbnail = None
+        first_error = None
+
+        for link in _organization_candidate_links(organization):
+            try:
+                og = fetch_open_graph(link)
+            except Exception as exc:
+                first_error = first_error or exc
+                continue
+
+            if link == primary:
+                title = og.title
+                description = og.description
+                safe_og_image = choose_best_thumbnail(
+                    link,
+                    [ImageCandidate(url=og.image_url, source="og:image")] if og.image_url else [],
+                    target_name=organization.name,
+                )
+
+            if not auto_thumbnail:
+                auto_thumbnail = choose_best_thumbnail(link, og.image_candidates, target_name=organization.name)
+            if auto_thumbnail and link == primary:
+                break
+
+        if not title and not auto_thumbnail and first_error:
+            raise first_error
+
+        organization.og_title = _fit(title, 255)
+        organization.og_description = description
         organization.og_image_url = _fit(safe_og_image, 200)
         organization.auto_thumbnail_url = _fit(auto_thumbnail, 200)
     except Exception:

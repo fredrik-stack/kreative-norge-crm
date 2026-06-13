@@ -28,7 +28,14 @@ from .models import (
     ImportCommitLog,
     ExportJob,
 )
-from .services.open_graph import ImageCandidate, choose_best_thumbnail, fallback_preview_image, fetch_open_graph
+from .services.open_graph import (
+    ImageCandidate,
+    OpenGraphData,
+    choose_best_thumbnail,
+    fallback_preview_image,
+    fetch_open_graph,
+    refresh_organization_open_graph,
+)
 from .serializers import PersonSerializer
 import_commit_module = importlib.import_module("crm.services.import.commit")
 import_matchers_module = importlib.import_module("crm.services.import.matchers")
@@ -3640,6 +3647,35 @@ class OrganizationPreviewRefreshTests(AuthenticatedAPITestCase):
             update_fields=["og_title", "og_description", "og_image_url", "auto_thumbnail_url", "og_last_fetched_at"]
         )
 
+    @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
+    @patch("crm.services.open_graph.fetch_open_graph")
+    def test_refresh_preview_tries_social_link_when_website_has_no_image(self, fetch_mock, usable_mock):
+        self.organization.instagram_url = "https://www.instagram.com/previeworg/"
+        self.organization.save(update_fields=["instagram_url"])
+        fetch_mock.side_effect = [
+            OpenGraphData(title="Preview Org", description="Primærside", image_candidates=[]),
+            OpenGraphData(
+                title="Preview Org Instagram",
+                image_candidates=[
+                    ImageCandidate(
+                        url="https://example.com/preview-org-profile.jpg",
+                        source="og:image",
+                        width=1080,
+                        height=1080,
+                        alt="Preview Org",
+                    )
+                ],
+            ),
+        ]
+
+        refresh_organization_open_graph(self.organization, force=True)
+
+        self.organization.refresh_from_db()
+        self.assertEqual(self.organization.og_title, "Preview Org")
+        self.assertEqual(self.organization.auto_thumbnail_url, "https://example.com/preview-org-profile.jpg")
+        self.assertEqual(fetch_mock.call_count, 2)
+        usable_mock.assert_called_once()
+
 
 class TenantScopedCreateTests(AuthenticatedAPITestCase):
     def setUp(self):
@@ -4036,6 +4072,40 @@ class ThumbnailSelectionTests(TestCase):
         self.assertEqual(usable_mock.call_count, 1)
 
     @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
+    def test_choose_best_thumbnail_rejects_social_icon_from_regular_site(self, usable_mock):
+        chosen = choose_best_thumbnail(
+            "https://example.com",
+            [
+                ImageCandidate(url="/assets/facebook-f-icon-svg.png", source="img", width=512, height=512),
+                ImageCandidate(url="/assets/bakgaarden-main-logo.png", source="img", width=900, height=320),
+            ],
+            target_name="Bakgården kultur",
+        )
+
+        self.assertEqual(chosen, "https://example.com/assets/bakgaarden-main-logo.png")
+        usable_mock.assert_called_once()
+
+    @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
+    def test_choose_best_thumbnail_prefers_clear_image_over_matching_og_logo(self, usable_mock):
+        chosen = choose_best_thumbnail(
+            "https://example.com",
+            [
+                ImageCandidate(url="/assets/gatafestivalen-logo.png", source="og:image", width=1200, height=550),
+                ImageCandidate(
+                    url="/media/gatafestivalen-konsert.jpg",
+                    source="img",
+                    width=4300,
+                    height=3400,
+                    alt="Gatafestivalen konsert",
+                ),
+            ],
+            target_name="Gatafestivalen",
+        )
+
+        self.assertEqual(chosen, "https://example.com/media/gatafestivalen-konsert.jpg")
+        usable_mock.assert_called_once()
+
+    @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
     def test_choose_best_thumbnail_rejects_partner_logo(self, usable_mock):
         chosen = choose_best_thumbnail(
             "https://example.com/festival",
@@ -4078,6 +4148,29 @@ class ThumbnailSelectionTests(TestCase):
         )
 
         self.assertEqual(chosen, "https://example.com/assets/logo.png")
+        usable_mock.assert_called_once()
+
+    @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
+    def test_choose_best_thumbnail_upgrades_wix_blurred_variant(self, usable_mock):
+        chosen = choose_best_thumbnail(
+            "https://example.com",
+            [
+                ImageCandidate(
+                    url=(
+                        "https://static.wixstatic.com/media/example.jpg/v1/fill/"
+                        "w_147,h_83,al_c,q_80,usm_0.66_1.00_0.01,blur_2,quality_auto/example.jpg"
+                    ),
+                    source="img",
+                    width=980,
+                    height=763,
+                )
+            ],
+            target_name="Lofoten Internasjonale Kammermusikkfestival",
+        )
+
+        self.assertIn("w_1200,h_675", chosen)
+        self.assertIn("q_90", chosen)
+        self.assertNotIn("blur_2", chosen)
         usable_mock.assert_called_once()
 
     def test_fetch_open_graph_blocks_private_host(self):
