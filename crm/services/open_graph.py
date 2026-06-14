@@ -23,6 +23,7 @@ USER_AGENT = (
 )
 MAX_HTML_BYTES = 3_000_000
 MAX_REDIRECTS = 3
+FOLLOWUP_LINK_LIMIT = 4
 PRIVATE_HOSTNAMES = {"localhost", "metadata.google.internal"}
 SOCIAL_PROFILE_HOSTS = {
     "facebook.com",
@@ -68,6 +69,10 @@ MISLEADING_IMAGE_TERMS = (
     "staff",
     "ledig-stilling",
     "ny-produsent",
+    "stillingsannonse",
+    "stilling",
+    "job-ad",
+    "vacancy",
 )
 PARTNER_IMAGE_TERMS = (
     "sponsor",
@@ -87,6 +92,8 @@ PARTNER_IMAGE_TERMS = (
     "nordland-fylkeskommune",
     "fylkeskommune",
     "hkraft",
+    "coop",
+    "coop-nordland",
 )
 PROMISING_IMAGE_TERMS = (
     "hero",
@@ -105,6 +112,23 @@ PROMISING_IMAGE_TERMS = (
     "media",
     "image",
 )
+FOLLOWUP_LINK_TERMS = (
+    "forside",
+    "hjem",
+    "home",
+    "om",
+    "about",
+    "program",
+    "arrangement",
+    "event",
+    "aktuelt",
+    "nyheter",
+    "news",
+    "gallery",
+    "galleri",
+    "bilder",
+    "media",
+)
 LOW_PRIORITY_ICON_REL_TERMS = ("icon", "apple-touch-icon", "mask-icon")
 IMAGE_FILE_RE = re.compile(
     r"https?:\\?/\\?/[^\"'\s<>\\]+?\.(?:jpe?g|png|webp|gif|svg)(?:\?[^\"'\s<>\\]*)?",
@@ -119,6 +143,7 @@ class OpenGraphData:
     description: str | None = None
     image_url: str | None = None
     image_candidates: list["ImageCandidate"] = field(default_factory=list)
+    page_links: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -150,6 +175,7 @@ class MetaParser(HTMLParser):
         super().__init__()
         self.meta: dict[str, str] = {}
         self.image_candidates: list[ImageCandidate] = []
+        self.page_links: list[str] = []
         self._title_collect = False
         self._title_value = ""
 
@@ -167,7 +193,11 @@ class MetaParser(HTMLParser):
                             url=content.strip(),
                             source=lowered_prop,
                         )
-                )
+                    )
+        if tag.lower() == "a":
+            href = attrs_dict.get("href")
+            if href:
+                self.page_links.append(href.strip())
         if tag.lower() == "img":
             image_urls = _candidate_urls_from_attrs(
                 attrs_dict,
@@ -524,7 +554,7 @@ def _candidate_is_low_value_icon(candidate: ImageCandidate, target_name: str | N
     text = _candidate_text(candidate)
     if candidate.source not in {"link:icon", "generated:icon"}:
         return False
-    if _candidate_mentions_actor(candidate, target_name) and "logo" in text:
+    if _candidate_mentions_actor(candidate, target_name):
         return False
     return any(term in text for term in ["favicon", "favikon", ".ico", "apple-touch-icon"])
 
@@ -549,6 +579,8 @@ def _candidate_score(candidate: ImageCandidate, target_name: str | None = None) 
         score += 90
     elif candidate.source == "style":
         score += 85
+    elif candidate.source == "social:facebook-profile-image":
+        score += 155
     elif candidate.source == "source":
         score += 95
     else:
@@ -864,6 +896,74 @@ def choose_site_icon_fallback(link: str | None) -> str | None:
     return None
 
 
+def _same_site_url(base_url: str, maybe_url: str | None) -> str | None:
+    if not maybe_url:
+        return None
+    resolved = urljoin(base_url, maybe_url)
+    parsed_base = urlparse(base_url)
+    parsed_resolved = urlparse(resolved)
+    if parsed_resolved.scheme not in {"http", "https"}:
+        return None
+    if (parsed_base.hostname or "").lower() != (parsed_resolved.hostname or "").lower():
+        return None
+    if parsed_resolved.path.lower().endswith((".pdf", ".zip", ".doc", ".docx", ".xls", ".xlsx")):
+        return None
+    return resolved
+
+
+def _candidate_followup_links(base_url: str, page_links: list[str]) -> list[str]:
+    if _is_social_profile_url(base_url):
+        return []
+    parsed = urlparse(base_url)
+    root = f"{parsed.scheme}://{parsed.netloc}/" if parsed.scheme and parsed.netloc else None
+    normalized: list[str] = []
+    seen = {base_url.rstrip("/")}
+
+    for link in [root, *page_links]:
+        resolved = _same_site_url(base_url, link)
+        if not resolved:
+            continue
+        key = resolved.rstrip("/")
+        if key in seen:
+            continue
+        link_text = _loose_norwegian_text(resolved)
+        if link != root and not any(term in link_text for term in FOLLOWUP_LINK_TERMS):
+            continue
+        seen.add(key)
+        normalized.append(resolved)
+        if len(normalized) >= FOLLOWUP_LINK_LIMIT:
+            break
+    return normalized
+
+
+def _facebook_handle_from_url(link: str | None) -> str | None:
+    if not link:
+        return None
+    parsed = urlparse(link)
+    host = (parsed.netloc or "").lower()
+    if host not in {"facebook.com", "www.facebook.com", "m.facebook.com"}:
+        return None
+    parts = [part for part in parsed.path.split("/") if part]
+    if not parts:
+        return None
+    handle = parts[0]
+    if handle in {"profile.php", "pages", "groups", "events", "login"}:
+        return None
+    return handle
+
+
+def _social_profile_image_candidates(link: str | None) -> list[ImageCandidate]:
+    facebook_handle = _facebook_handle_from_url(link)
+    if facebook_handle:
+        return [
+            ImageCandidate(
+                url=f"https://graph.facebook.com/{facebook_handle}/picture?type=large",
+                source="social:facebook-profile-image",
+            )
+        ]
+    return []
+
+
 def _organization_candidate_links(organization: Organization) -> list[str]:
     links = [
         organization.website_url,
@@ -907,6 +1007,7 @@ def fetch_open_graph(url: str, timeout_seconds: int = 4) -> OpenGraphData:
         description=parser.meta.get("og:description"),
         image_url=image_url,
         image_candidates=image_candidates,
+        page_links=parser.page_links,
     )
 
 
@@ -954,13 +1055,16 @@ def refresh_organization_open_graph(
         safe_og_image = None
         auto_thumbnail = None
         first_error = None
+        candidate_links = _organization_candidate_links(organization)
+        fetched_links: set[str] = set()
 
-        for link in _organization_candidate_links(organization):
+        for link in candidate_links:
             try:
                 og = fetch_open_graph(link)
             except Exception as exc:
                 first_error = first_error or exc
                 continue
+            fetched_links.add(link.rstrip("/"))
 
             if link == primary:
                 title = og.title
@@ -973,8 +1077,37 @@ def refresh_organization_open_graph(
 
             if not auto_thumbnail:
                 auto_thumbnail = choose_best_thumbnail(link, og.image_candidates, target_name=organization.name)
+            if not auto_thumbnail:
+                for followup_link in _candidate_followup_links(link, og.page_links):
+                    key = followup_link.rstrip("/")
+                    if key in fetched_links:
+                        continue
+                    fetched_links.add(key)
+                    try:
+                        followup_og = fetch_open_graph(followup_link)
+                    except Exception as exc:
+                        first_error = first_error or exc
+                        continue
+                    auto_thumbnail = choose_best_thumbnail(
+                        followup_link,
+                        followup_og.image_candidates,
+                        target_name=organization.name,
+                    )
+                    if auto_thumbnail:
+                        break
             if auto_thumbnail and link == primary:
                 break
+
+        if not auto_thumbnail:
+            for link in candidate_links:
+                social_thumbnail = choose_best_thumbnail(
+                    link,
+                    _social_profile_image_candidates(link),
+                    target_name=organization.name,
+                )
+                if social_thumbnail:
+                    auto_thumbnail = social_thumbnail
+                    break
 
         if not auto_thumbnail:
             auto_thumbnail = choose_site_icon_fallback(primary)

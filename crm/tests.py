@@ -3678,6 +3678,49 @@ class OrganizationPreviewRefreshTests(AuthenticatedAPITestCase):
         self.assertEqual(fetch_mock.call_count, 2)
         usable_mock.assert_called_once()
 
+    @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
+    @patch("crm.services.open_graph.fetch_open_graph")
+    def test_refresh_preview_uses_followup_page_when_primary_has_no_image(self, fetch_mock, usable_mock):
+        fetch_mock.side_effect = [
+            OpenGraphData(title="Preview Org", page_links=["/program", "/privacy"]),
+            OpenGraphData(
+                title="Program",
+                image_candidates=[
+                    ImageCandidate(
+                        url="/media/preview-org-konsert.jpg",
+                        source="img",
+                        width=1200,
+                        height=800,
+                        alt="Preview Org konsert",
+                    )
+                ],
+            ),
+        ]
+
+        refresh_organization_open_graph(self.organization, force=True)
+
+        self.organization.refresh_from_db()
+        self.assertEqual(self.organization.auto_thumbnail_url, "https://example.com/media/preview-org-konsert.jpg")
+        self.assertEqual(fetch_mock.call_count, 2)
+        usable_mock.assert_called_once()
+
+    @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
+    @patch("crm.services.open_graph.fetch_open_graph")
+    def test_refresh_preview_uses_facebook_profile_image_as_social_fallback(self, fetch_mock, usable_mock):
+        self.organization.website_url = ""
+        self.organization.facebook_url = "https://www.facebook.com/previeworg/"
+        self.organization.save(update_fields=["website_url", "facebook_url"])
+        fetch_mock.return_value = OpenGraphData(title="Facebook", image_candidates=[])
+
+        refresh_organization_open_graph(self.organization, force=True)
+
+        self.organization.refresh_from_db()
+        self.assertEqual(
+            self.organization.auto_thumbnail_url,
+            "https://graph.facebook.com/previeworg/picture?type=large",
+        )
+        usable_mock.assert_called_once()
+
 
 class TenantScopedCreateTests(AuthenticatedAPITestCase):
     def setUp(self):
@@ -4160,6 +4203,39 @@ class ThumbnailSelectionTests(TestCase):
         usable_mock.assert_called_once()
 
     @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
+    def test_choose_best_thumbnail_rejects_job_ad_and_partner_logo(self, usable_mock):
+        chosen = choose_best_thumbnail(
+            "https://example.com/festival",
+            [
+                ImageCandidate(
+                    url="/wp-content/uploads/Stillingsannonse-6.png",
+                    source="og:image",
+                    width=1200,
+                    height=630,
+                    alt="Stillingsannonse",
+                ),
+                ImageCandidate(
+                    url="/media/Coop-web-white.png",
+                    source="img",
+                    width=1200,
+                    height=800,
+                    alt="Coop Nordland",
+                ),
+                ImageCandidate(
+                    url="/media/parken-konsert.jpg",
+                    source="img",
+                    width=1200,
+                    height=800,
+                    alt="Parkenfestivalen konsert",
+                ),
+            ],
+            target_name="Parkenfestivalen Bodø",
+        )
+
+        self.assertEqual(chosen, "https://example.com/media/parken-konsert.jpg")
+        usable_mock.assert_called_once()
+
+    @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
     def test_choose_best_thumbnail_rejects_facebook_login_pizza_image(self, usable_mock):
         chosen = choose_best_thumbnail(
             "https://www.facebook.com/example",
@@ -4267,6 +4343,7 @@ class ThumbnailSelectionTests(TestCase):
         fetch_mock.return_value.body = b"""
             <html>
               <body>
+                <a href="/program">Program</a>
                 <section style="background-image:url('/media/hero-scene.jpg')"></section>
                 <script type="application/ld+json">
                   {"@type":"Organization","image":"https://cdn.example.com/logo.png"}
@@ -4284,7 +4361,7 @@ class ThumbnailSelectionTests(TestCase):
         self.assertIn("/media/hero-scene.jpg", urls)
         self.assertIn("https://cdn.example.com/logo.png", urls)
         self.assertIn("https://cdn.example.com/concert.webp", urls)
-
+        self.assertIn("/program", data.page_links)
 
 class OrganizationPersonViewSetValidationTests(AuthenticatedAPITestCase):
     def setUp(self):
