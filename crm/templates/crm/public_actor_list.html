@@ -514,8 +514,8 @@
             href="/public/actors/{% if actor.org_number %}{{ actor.org_number }}{% else %}id-{{ actor.id }}{% endif %}/"
             data-search="{{ actor.name }} {{ actor.municipalities }} {% for category in actor.categories.all %}{{ category.name }} {% endfor %}{% for subcategory in actor.subcategories.all %}{{ subcategory.name }} {% endfor %}{% for tag in actor.tags.all %}{{ tag.name }} {% endfor %}"
           >
-            {% if actor.get_public_image_url %}
-              <img class="thumb" src="{{ actor.get_public_image_url }}" alt="{{ actor.name }}" loading="lazy" />
+            {% if actor.get_preview_image_url %}
+              <img class="thumb" src="{{ actor.get_preview_image_url }}" alt="{{ actor.name }}" loading="lazy" />
             {% else %}
               <div class="thumb-fallback">
                 <span>{{ actor.name|truncatechars:18 }}</span>

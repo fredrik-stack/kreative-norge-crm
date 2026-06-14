@@ -4038,7 +4038,7 @@ class PublicActorSiteTests(TestCase):
         self.assertContains(response, "grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));")
         self.assertContains(response, "justify-content: stretch;")
 
-    def test_public_actor_templates_ignore_favicon_fallback_urls(self):
+    def test_public_actor_templates_use_preview_fallback_like_editor(self):
         self.organization.og_image_url = fallback_preview_image(self.organization.website_url)
         self.organization.save(update_fields=["og_image_url"])
 
@@ -4047,8 +4047,18 @@ class PublicActorSiteTests(TestCase):
 
         self.assertEqual(list_response.status_code, 200)
         self.assertEqual(detail_response.status_code, 200)
-        self.assertNotContains(list_response, "google.com/s2/favicons")
-        self.assertNotContains(detail_response, "google.com/s2/favicons")
+        self.assertContains(list_response, "google.com/s2/favicons")
+        self.assertContains(detail_response, "google.com/s2/favicons")
+
+    def test_public_actor_api_thumbnail_matches_editor_preview_image(self):
+        self.organization.og_image_url = fallback_preview_image(self.organization.website_url)
+        self.organization.save(update_fields=["og_image_url"])
+
+        response = self.client.get(f"/api/public/actors/{self.organization.org_number}/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["thumbnail_image_url"], self.organization.get_preview_image_url())
+        self.assertEqual(response.json()["preview_image_url"], self.organization.get_preview_image_url())
 
     def test_manual_thumbnail_override_wins_for_public_image(self):
         self.organization.thumbnail_image_url = "https://cdn.example.com/manual-thumb.jpg"

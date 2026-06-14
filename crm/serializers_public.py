@@ -106,7 +106,7 @@ class PublicActorSerializer(serializers.ModelSerializer):
         return obj.get_preview_image_url()
 
     def get_thumbnail_image_url(self, obj):
-        return obj.get_public_image_url()
+        return obj.get_preview_image_url()
 
     def get_people(self, obj):
         qs = (

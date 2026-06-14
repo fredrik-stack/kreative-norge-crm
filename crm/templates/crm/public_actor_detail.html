@@ -344,8 +344,8 @@
     <a class="back-link" href="/public/actors/">← Tilbake til aktører</a>
 
     <section class="hero-card">
-      {% if actor.get_public_image_url %}
-        <img class="thumb" src="{{ actor.get_public_image_url }}" alt="{{ actor.name }}" />
+      {% if actor.get_preview_image_url %}
+        <img class="thumb" src="{{ actor.get_preview_image_url }}" alt="{{ actor.name }}" />
       {% else %}
         <div class="thumb-fallback">
           <span>{{ actor.name|truncatechars:18 }}</span>
