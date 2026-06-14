@@ -291,8 +291,16 @@ def fallback_preview_image(link: str | None) -> str | None:
     if _is_social_profile_url(link):
         return None
     parsed = urlparse(link)
-    if not parsed.netloc or not _is_public_http_url(link):
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         return None
+    hostname = (parsed.hostname or "").strip().lower().rstrip(".")
+    if not hostname or hostname in PRIVATE_HOSTNAMES or hostname.endswith(".local"):
+        return None
+    try:
+        if not ipaddress.ip_address(hostname).is_global:
+            return None
+    except ValueError:
+        pass
     return f"https://www.google.com/s2/favicons?domain={parsed.netloc}&sz=256"
 
 

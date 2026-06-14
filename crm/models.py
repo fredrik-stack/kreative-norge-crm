@@ -255,9 +255,7 @@ class Organization(models.Model):
         return None
 
     def get_preview_image_url(self) -> str | None:
-        from .services.open_graph import fallback_preview_image
-
-        return self.get_public_image_url() or fallback_preview_image(self.get_primary_link())
+        return self.get_public_image_url()
 
     def get_public_image_url(self) -> str | None:
         from .services.open_graph import is_disallowed_thumbnail_image
