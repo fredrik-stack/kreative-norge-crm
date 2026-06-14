@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import timedelta
+import html
 from html.parser import HTMLParser
 import ipaddress
+import json
 import socket
 import re
+import struct
 from urllib.parse import urljoin, urlparse
 from urllib.error import HTTPError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -45,6 +48,27 @@ UTILITY_IMAGE_TERMS = (
     "pixel",
     "avatar-default",
 )
+MISLEADING_IMAGE_TERMS = (
+    "miljofyrtarn",
+    "miljøfyrtårn",
+    "gronn-festival",
+    "grønn-festival",
+    "green-festival",
+    "sertifisering",
+    "certification",
+    "certificate",
+    "qrcode",
+    "qr-code",
+    "qrcodelogin",
+    "login",
+    "pizza",
+    "pressefoto",
+    "ansatt",
+    "employee",
+    "staff",
+    "ledig-stilling",
+    "ny-produsent",
+)
 PARTNER_IMAGE_TERMS = (
     "sponsor",
     "sponsorer",
@@ -62,6 +86,7 @@ PARTNER_IMAGE_TERMS = (
     "kulturrådet",
     "nordland-fylkeskommune",
     "fylkeskommune",
+    "hkraft",
 )
 PROMISING_IMAGE_TERMS = (
     "hero",
@@ -81,6 +106,11 @@ PROMISING_IMAGE_TERMS = (
     "image",
 )
 LOW_PRIORITY_ICON_REL_TERMS = ("icon", "apple-touch-icon", "mask-icon")
+IMAGE_FILE_RE = re.compile(
+    r"https?:\\?/\\?/[^\"'\s<>\\]+?\.(?:jpe?g|png|webp|gif|svg)(?:\?[^\"'\s<>\\]*)?",
+    re.IGNORECASE,
+)
+STYLE_URL_RE = re.compile(r"url\((?P<quote>['\"]?)(?P<url>.*?)(?P=quote)\)", re.IGNORECASE)
 
 
 @dataclass
@@ -102,6 +132,13 @@ class ImageCandidate:
 
 
 @dataclass
+class ImageProbe:
+    content_type: str
+    width: int | None = None
+    height: int | None = None
+
+
+@dataclass
 class FetchResult:
     final_url: str
     headers: object
@@ -119,19 +156,19 @@ class MetaParser(HTMLParser):
     def handle_starttag(self, tag: str, attrs) -> None:  # type: ignore[override]
         attrs_dict = {k.lower(): v for k, v in attrs if k and v}
         if tag.lower() == "meta":
-            prop = attrs_dict.get("property") or attrs_dict.get("name")
+            prop = attrs_dict.get("property") or attrs_dict.get("name") or attrs_dict.get("itemprop")
             content = attrs_dict.get("content")
             if prop and content:
                 self.meta[prop.lower()] = content.strip()
                 lowered_prop = prop.lower()
-                if lowered_prop in {"og:image", "twitter:image"}:
+                if lowered_prop in {"og:image", "twitter:image", "image"}:
                     self.image_candidates.append(
                         ImageCandidate(
                             url=content.strip(),
                             source=lowered_prop,
                         )
-                    )
-        elif tag.lower() == "img":
+                )
+        if tag.lower() == "img":
             image_urls = _candidate_urls_from_attrs(
                 attrs_dict,
                 [
@@ -140,7 +177,11 @@ class MetaParser(HTMLParser):
                     "data-original",
                     "data-lazy-src",
                     "data-image",
+                    "data-image-url",
                     "data-bg",
+                    "data-bg-image",
+                    "data-background-image",
+                    "data-background",
                     "srcset",
                     "data-srcset",
                 ],
@@ -159,7 +200,7 @@ class MetaParser(HTMLParser):
                         or None,
                     )
                 )
-        elif tag.lower() == "source":
+        if tag.lower() == "source":
             for src in _candidate_urls_from_attrs(attrs_dict, ["srcset", "data-srcset", "src"]):
                 self.image_candidates.append(
                     ImageCandidate(
@@ -169,14 +210,24 @@ class MetaParser(HTMLParser):
                         height=_parse_int(attrs_dict.get("height")),
                     )
                 )
-        elif tag.lower() == "link":
+        if tag.lower() == "link":
             rel = (attrs_dict.get("rel") or "").lower()
             href = attrs_dict.get("href")
             if href and "image_src" in rel:
                 self.image_candidates.append(ImageCandidate(url=href.strip(), source="link:image_src"))
             elif href and any(term in rel for term in LOW_PRIORITY_ICON_REL_TERMS):
                 self.image_candidates.append(ImageCandidate(url=href.strip(), source="link:icon"))
-        elif tag.lower() == "title":
+        style_urls = _extract_style_urls(attrs_dict.get("style") or "")
+        for src in style_urls:
+            self.image_candidates.append(
+                ImageCandidate(
+                    url=src,
+                    source="style",
+                    css_hint=" ".join(part for part in [tag.lower(), attrs_dict.get("class"), attrs_dict.get("id")] if part)
+                    or None,
+                )
+            )
+        if tag.lower() == "title":
             self._title_collect = True
 
     def handle_data(self, data: str) -> None:  # type: ignore[override]
@@ -220,7 +271,11 @@ def is_disallowed_thumbnail_image(url: str | None) -> bool:
     if not url or is_fallback_preview_image(url):
         return True
     lowered = url.lower()
-    return _is_social_platform_asset(lowered) or _text_contains_any(lowered, UTILITY_IMAGE_TERMS)
+    return (
+        _is_social_platform_asset(lowered)
+        or _text_contains_any(lowered, UTILITY_IMAGE_TERMS)
+        or _text_contains_any(lowered, MISLEADING_IMAGE_TERMS)
+    )
 
 
 def _parse_int(value: str | None) -> int | None:
@@ -243,6 +298,17 @@ def _candidate_urls_from_attrs(attrs: dict[str, str], keys: list[str]) -> list[s
             if picked:
                 urls.append(picked)
         else:
+            urls.append(value)
+    return urls
+
+
+def _extract_style_urls(style: str) -> list[str]:
+    if not style:
+        return []
+    urls = []
+    for match in STYLE_URL_RE.finditer(style):
+        value = match.group("url").strip()
+        if value:
             urls.append(value)
     return urls
 
@@ -284,6 +350,60 @@ def _normalize_image_candidate(base_url: str, candidate: ImageCandidate) -> Imag
         alt=candidate.alt,
         css_hint=candidate.css_hint,
     )
+
+
+def _embedded_image_candidates(html_text: str) -> list[ImageCandidate]:
+    candidates: list[ImageCandidate] = []
+    seen: set[str] = set()
+    normalized_html = html.unescape(html_text).replace("\\/", "/")
+
+    for match in IMAGE_FILE_RE.finditer(normalized_html):
+        url = match.group(0).strip().rstrip("),.;")
+        if url not in seen:
+            seen.add(url)
+            candidates.append(ImageCandidate(url=url, source="embedded"))
+
+    for script_json in _json_ld_blocks(normalized_html):
+        for url in _extract_json_image_urls(script_json):
+            if url not in seen:
+                seen.add(url)
+                candidates.append(ImageCandidate(url=url, source="json-ld"))
+
+    return candidates
+
+
+def _json_ld_blocks(html_text: str) -> list[object]:
+    blocks = re.findall(
+        r"<script[^>]+type=[\"']application/ld\+json[\"'][^>]*>(.*?)</script>",
+        html_text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    parsed_blocks: list[object] = []
+    for block in blocks:
+        try:
+            parsed_blocks.append(json.loads(html.unescape(block.strip())))
+        except (TypeError, ValueError):
+            continue
+    return parsed_blocks
+
+
+def _extract_json_image_urls(value: object) -> list[str]:
+    urls: list[str] = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            lowered = str(key).casefold()
+            if lowered in {"image", "logo", "thumbnailurl", "contenturl", "url"}:
+                urls.extend(_extract_json_image_urls(item))
+            elif isinstance(item, (dict, list)):
+                urls.extend(_extract_json_image_urls(item))
+            elif isinstance(item, str) and lowered in {"image", "logo", "thumbnailurl", "contenturl"}:
+                urls.append(item)
+    elif isinstance(value, list):
+        for item in value:
+            urls.extend(_extract_json_image_urls(item))
+    elif isinstance(value, str) and re.search(r"\.(?:jpe?g|png|webp|gif|svg)(?:\?|$)", value, re.I):
+        urls.append(value)
+    return urls
 
 
 def _normalize_text(value: str | None) -> str:
@@ -378,6 +498,8 @@ def _candidate_is_disallowed(candidate: ImageCandidate, target_name: str | None)
         return True
     if _is_social_icon_candidate(candidate):
         return True
+    if _text_contains_any(text, MISLEADING_IMAGE_TERMS):
+        return True
     if _text_contains_any(text, PARTNER_IMAGE_TERMS) and not _candidate_mentions_actor(candidate, target_name):
         return True
     lower_text = _normalize_text(text)
@@ -398,6 +520,15 @@ def _candidate_is_logo_like(candidate: ImageCandidate) -> bool:
     return any(term in text for term in ["logo", "icon", "favicon", "apple-touch-icon", "brandmark"])
 
 
+def _candidate_is_low_value_icon(candidate: ImageCandidate, target_name: str | None) -> bool:
+    text = _candidate_text(candidate)
+    if candidate.source not in {"link:icon", "generated:icon"}:
+        return False
+    if _candidate_mentions_actor(candidate, target_name) and "logo" in text:
+        return False
+    return any(term in text for term in ["favicon", "favikon", ".ico", "apple-touch-icon"])
+
+
 def _candidate_score(candidate: ImageCandidate, target_name: str | None = None) -> int:
     score = 0
     lower_url = candidate.url.lower()
@@ -411,7 +542,13 @@ def _candidate_score(candidate: ImageCandidate, target_name: str | None = None) 
     elif candidate.source == "link:image_src":
         score += 130
     elif candidate.source == "link:icon":
-        score += 30
+        score += 12
+    elif candidate.source == "json-ld":
+        score += 125
+    elif candidate.source == "embedded":
+        score += 90
+    elif candidate.source == "style":
+        score += 85
     elif candidate.source == "source":
         score += 95
     else:
@@ -425,6 +562,8 @@ def _candidate_score(candidate: ImageCandidate, target_name: str | None = None) 
         score -= 120
         if _candidate_mentions_actor(candidate, target_name):
             score += 190
+    if _candidate_is_low_value_icon(candidate, target_name):
+        score -= 220
 
     if re.search(r"\.(jpg|jpeg|png|webp)(?:$|\?)", lower_url):
         score += 24
@@ -538,17 +677,125 @@ def _fetch_url(
     raise ValueError("Too many redirects.")
 
 
-def _image_candidate_looks_usable(url: str, timeout_seconds: int = 4) -> bool:
+def _parse_image_probe(content_type: str, body: bytes) -> ImageProbe:
+    content_type = (content_type or "").lower()
+    if body.startswith(b"\x89PNG\r\n\x1a\n") and len(body) >= 24:
+        width, height = struct.unpack(">II", body[16:24])
+        return ImageProbe(content_type=content_type, width=width, height=height)
+    if body.startswith(b"GIF87a") or body.startswith(b"GIF89a"):
+        if len(body) >= 10:
+            width, height = struct.unpack("<HH", body[6:10])
+            return ImageProbe(content_type=content_type, width=width, height=height)
+    if body.startswith(b"\x00\x00\x01\x00") and len(body) >= 8:
+        width = body[6] or 256
+        height = body[7] or 256
+        return ImageProbe(content_type=content_type, width=width, height=height)
+    if body.startswith(b"RIFF") and body[8:12] == b"WEBP":
+        dimensions = _parse_webp_dimensions(body)
+        if dimensions:
+            return ImageProbe(content_type=content_type, width=dimensions[0], height=dimensions[1])
+    if body.startswith(b"\xff\xd8"):
+        dimensions = _parse_jpeg_dimensions(body)
+        if dimensions:
+            return ImageProbe(content_type=content_type, width=dimensions[0], height=dimensions[1])
+    if "svg" in content_type or body.lstrip().startswith(b"<svg"):
+        dimensions = _parse_svg_dimensions(body)
+        return ImageProbe(content_type=content_type or "image/svg+xml", width=dimensions[0], height=dimensions[1])
+    return ImageProbe(content_type=content_type)
+
+
+def _parse_jpeg_dimensions(body: bytes) -> tuple[int, int] | None:
+    index = 2
+    while index + 9 < len(body):
+        if body[index] != 0xFF:
+            index += 1
+            continue
+        marker = body[index + 1]
+        index += 2
+        if marker in {0xD8, 0xD9}:
+            continue
+        if index + 2 > len(body):
+            return None
+        segment_length = int.from_bytes(body[index : index + 2], "big")
+        if segment_length < 2:
+            return None
+        if marker in {0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF}:
+            if index + 7 <= len(body):
+                height = int.from_bytes(body[index + 3 : index + 5], "big")
+                width = int.from_bytes(body[index + 5 : index + 7], "big")
+                return width, height
+            return None
+        index += segment_length
+    return None
+
+
+def _parse_webp_dimensions(body: bytes) -> tuple[int, int] | None:
+    if len(body) < 30:
+        return None
+    chunk = body[12:16]
+    if chunk == b"VP8X" and len(body) >= 30:
+        width = 1 + int.from_bytes(body[24:27], "little")
+        height = 1 + int.from_bytes(body[27:30], "little")
+        return width, height
+    if chunk == b"VP8 " and len(body) >= 30:
+        width = int.from_bytes(body[26:28], "little") & 0x3FFF
+        height = int.from_bytes(body[28:30], "little") & 0x3FFF
+        return width, height
+    if chunk == b"VP8L" and len(body) >= 25:
+        bits = int.from_bytes(body[21:25], "little")
+        width = (bits & 0x3FFF) + 1
+        height = ((bits >> 14) & 0x3FFF) + 1
+        return width, height
+    return None
+
+
+def _parse_svg_dimensions(body: bytes) -> tuple[int | None, int | None]:
+    text = body[:4096].decode("utf-8", errors="ignore")
+    width = _parse_svg_number(re.search(r"\bwidth=[\"']([^\"']+)[\"']", text))
+    height = _parse_svg_number(re.search(r"\bheight=[\"']([^\"']+)[\"']", text))
+    if width and height:
+        return width, height
+    viewbox = re.search(r"\bviewBox=[\"']\s*[-\d.]+\s+[-\d.]+\s+([\d.]+)\s+([\d.]+)", text)
+    if viewbox:
+        try:
+            return int(float(viewbox.group(1))), int(float(viewbox.group(2)))
+        except ValueError:
+            return None, None
+    return None, None
+
+
+def _parse_svg_number(match: re.Match[str] | None) -> int | None:
+    if not match:
+        return None
+    number = re.match(r"[\d.]+", match.group(1).strip())
+    if not number:
+        return None
     try:
-        _fetch_url(
+        return int(float(number.group(0)))
+    except ValueError:
+        return None
+
+
+def _probe_image_url(url: str, timeout_seconds: int = 4) -> ImageProbe | None:
+    try:
+        result = _fetch_url(
             url,
             timeout_seconds=timeout_seconds,
-            max_bytes=None,
+            max_bytes=262_144,
             allowed_content_prefixes=("image/",),
         )
-        return True
     except Exception:
+        return None
+    return _parse_image_probe(result.headers.get("Content-Type") or "", result.body)
+
+
+def _image_candidate_looks_usable(url: str, timeout_seconds: int = 4) -> bool:
+    probe = _probe_image_url(url, timeout_seconds=timeout_seconds)
+    if not probe:
         return False
+    if probe.width and probe.height and (probe.width < 96 or probe.height < 96):
+        return False
+    return True
 
 
 def choose_best_thumbnail(
@@ -565,6 +812,8 @@ def choose_best_thumbnail(
         if not normalized_candidate:
             continue
         if _candidate_is_disallowed(normalized_candidate, target_name):
+            continue
+        if _candidate_is_low_value_icon(normalized_candidate, target_name):
             continue
         if normalized_candidate.url in seen:
             continue
@@ -600,9 +849,6 @@ def _site_icon_fallback_candidates(link: str | None) -> list[ImageCandidate]:
         for path in [
             "/apple-touch-icon.png",
             "/favicon-192x192.png",
-            "/favicon-96x96.png",
-            "/favicon-32x32.png",
-            "/favicon.ico",
         ]
     ]
 
@@ -612,7 +858,8 @@ def choose_site_icon_fallback(link: str | None) -> str | None:
         normalized = _normalize_image_candidate(link or "", candidate)
         if not normalized:
             continue
-        if _image_candidate_looks_usable(normalized.url):
+        probe = _probe_image_url(normalized.url)
+        if probe and probe.width and probe.height and probe.width >= 180 and probe.height >= 180:
             return normalized.url
     return None
 
@@ -648,6 +895,7 @@ def fetch_open_graph(url: str, timeout_seconds: int = 4) -> OpenGraphData:
 
     parser = MetaParser()
     parser.feed(html)
+    image_candidates = parser.image_candidates + _embedded_image_candidates(html)
 
     raw_image = parser.meta.get("og:image") or parser.meta.get("twitter:image")
     image_url = urljoin(result.final_url, raw_image) if raw_image else None
@@ -658,7 +906,7 @@ def fetch_open_graph(url: str, timeout_seconds: int = 4) -> OpenGraphData:
         title=parser.meta.get("og:title") or parser.title,
         description=parser.meta.get("og:description"),
         image_url=image_url,
-        image_candidates=parser.image_candidates,
+        image_candidates=image_candidates,
     )
 
 

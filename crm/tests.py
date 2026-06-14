@@ -30,6 +30,7 @@ from .models import (
 )
 from .services.open_graph import (
     ImageCandidate,
+    ImageProbe,
     OpenGraphData,
     choose_best_thumbnail,
     choose_site_icon_fallback,
@@ -4133,6 +4134,58 @@ class ThumbnailSelectionTests(TestCase):
         self.assertEqual(usable_mock.call_count, 1)
 
     @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
+    def test_choose_best_thumbnail_rejects_environmental_certification(self, usable_mock):
+        chosen = choose_best_thumbnail(
+            "https://example.com/festival",
+            [
+                ImageCandidate(
+                    url="/wp-content/uploads/gronn-festival.png",
+                    source="img",
+                    width=2000,
+                    height=2000,
+                    alt="Grønn festival",
+                ),
+                ImageCandidate(
+                    url="/wp-content/uploads/havnafestivalen-logo.png",
+                    source="img",
+                    width=1200,
+                    height=900,
+                    alt="Havnafestivalen",
+                ),
+            ],
+            target_name="Havnafestivalen",
+        )
+
+        self.assertEqual(chosen, "https://example.com/wp-content/uploads/havnafestivalen-logo.png")
+        usable_mock.assert_called_once()
+
+    @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
+    def test_choose_best_thumbnail_rejects_facebook_login_pizza_image(self, usable_mock):
+        chosen = choose_best_thumbnail(
+            "https://www.facebook.com/example",
+            [
+                ImageCandidate(
+                    url="https://www.facebook.com/images/login/QrCodeLoginPizza.jpg",
+                    source="img",
+                    width=1080,
+                    height=1080,
+                    alt="Login",
+                ),
+                ImageCandidate(
+                    url="https://example.com/uploads/fauske-rockeklubb-logo.png",
+                    source="img",
+                    width=800,
+                    height=800,
+                    alt="Fauske Rockeklubb",
+                ),
+            ],
+            target_name="Fauske Rockeklubb",
+        )
+
+        self.assertEqual(chosen, "https://example.com/uploads/fauske-rockeklubb-logo.png")
+        usable_mock.assert_called_once()
+
+    @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
     def test_choose_best_thumbnail_allows_matching_actor_logo(self, usable_mock):
         chosen = choose_best_thumbnail(
             "https://example.com/arbeideren",
@@ -4185,13 +4238,52 @@ class ThumbnailSelectionTests(TestCase):
         self.assertIsNone(fallback_preview_image("https://www.facebook.com/fauskebluesklubb"))
         self.assertIsNone(fallback_preview_image("https://www.instagram.com/fauskerockeklubb/"))
 
-    @patch("crm.services.open_graph._image_candidate_looks_usable")
-    def test_choose_site_icon_fallback_uses_direct_site_icon(self, usable_mock):
-        usable_mock.side_effect = [False, False, True]
+    @patch("crm.services.open_graph._probe_image_url")
+    def test_choose_site_icon_fallback_uses_large_direct_site_icon(self, probe_mock):
+        probe_mock.side_effect = [
+            None,
+            ImageProbe(content_type="image/png", width=192, height=192),
+        ]
 
         chosen = choose_site_icon_fallback("https://example.com/underside")
 
-        self.assertEqual(chosen, "https://example.com/favicon-96x96.png")
+        self.assertEqual(chosen, "https://example.com/favicon-192x192.png")
+
+    @patch("crm.services.open_graph._probe_image_url")
+    def test_choose_site_icon_fallback_rejects_small_direct_site_icon(self, probe_mock):
+        probe_mock.side_effect = [
+            ImageProbe(content_type="image/png", width=64, height=64),
+            ImageProbe(content_type="image/png", width=96, height=96),
+        ]
+
+        chosen = choose_site_icon_fallback("https://example.com/underside")
+
+        self.assertIsNone(chosen)
+
+    @patch("crm.services.open_graph._fetch_url")
+    def test_fetch_open_graph_extracts_embedded_and_style_images(self, fetch_mock):
+        fetch_mock.return_value.headers.get_content_charset.return_value = "utf-8"
+        fetch_mock.return_value.final_url = "https://example.com/"
+        fetch_mock.return_value.body = b"""
+            <html>
+              <body>
+                <section style="background-image:url('/media/hero-scene.jpg')"></section>
+                <script type="application/ld+json">
+                  {"@type":"Organization","image":"https://cdn.example.com/logo.png"}
+                </script>
+                <script>
+                  window.__DATA__ = {"image":"https:\\/\\/cdn.example.com\\/concert.webp"};
+                </script>
+              </body>
+            </html>
+        """
+
+        data = fetch_open_graph("https://example.com/")
+
+        urls = [candidate.url for candidate in data.image_candidates]
+        self.assertIn("/media/hero-scene.jpg", urls)
+        self.assertIn("https://cdn.example.com/logo.png", urls)
+        self.assertIn("https://cdn.example.com/concert.webp", urls)
 
 
 class OrganizationPersonViewSetValidationTests(AuthenticatedAPITestCase):
