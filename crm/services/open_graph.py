@@ -9,7 +9,7 @@ import json
 import socket
 import re
 import struct
-from urllib.parse import urljoin, urlparse
+from urllib.parse import quote, urljoin, urlparse
 from urllib.error import HTTPError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
@@ -581,6 +581,10 @@ def _candidate_score(candidate: ImageCandidate, target_name: str | None = None) 
         score += 85
     elif candidate.source == "social:facebook-profile-image":
         score += 155
+    elif candidate.source in {"social:instagram-profile-image", "social:tiktok-profile-image"}:
+        score += 150
+    elif candidate.source == "external:page-screenshot":
+        score += 135
     elif candidate.source == "source":
         score += 95
     else:
@@ -856,17 +860,59 @@ def choose_best_thumbnail(
         return None
 
     ranked = sorted(normalized, key=lambda candidate: _candidate_score(candidate, target_name), reverse=True)
-    non_logo_ranked = [
-        candidate for candidate in ranked if not _candidate_is_logo_like(candidate) and _candidate_score(candidate, target_name) >= 40
+    strong_non_logo_ranked = [
+        candidate
+        for candidate in ranked
+        if (
+            not _candidate_is_logo_like(candidate)
+            and _candidate_score(candidate, target_name) >= 40
+            and not _candidate_is_weak_generic_image(candidate, target_name)
+        )
     ]
-    logo_ranked = [
-        candidate for candidate in ranked if _candidate_is_logo_like(candidate) and _candidate_score(candidate, target_name) >= 40
+    actor_logo_ranked = [
+        candidate
+        for candidate in ranked
+        if (
+            _candidate_is_logo_like(candidate)
+            and _candidate_score(candidate, target_name) >= 40
+            and _candidate_mentions_actor(candidate, target_name)
+        )
     ]
-    for group in [non_logo_ranked, logo_ranked]:
+    weak_non_logo_ranked = [
+        candidate
+        for candidate in ranked
+        if (
+            not _candidate_is_logo_like(candidate)
+            and _candidate_score(candidate, target_name) >= 40
+            and _candidate_is_weak_generic_image(candidate, target_name)
+        )
+    ]
+    other_logo_ranked = [
+        candidate
+        for candidate in ranked
+        if (
+            _candidate_is_logo_like(candidate)
+            and _candidate_score(candidate, target_name) >= 40
+            and not _candidate_mentions_actor(candidate, target_name)
+        )
+    ]
+    for group in [strong_non_logo_ranked, actor_logo_ranked, weak_non_logo_ranked, other_logo_ranked]:
         for candidate in group:
             if _image_candidate_looks_usable(candidate.url):
                 return candidate.url
     return None
+
+
+def _candidate_is_weak_generic_image(candidate: ImageCandidate, target_name: str | None) -> bool:
+    if _candidate_mentions_actor(candidate, target_name):
+        return False
+    if candidate.source.startswith("social:") or candidate.source == "external:page-screenshot":
+        return False
+    if candidate.alt or candidate.css_hint:
+        return False
+    text = _candidate_text(candidate)
+    generic_terms = ("uploads", "media", "image", "content", "static", "cdn", "squarespace")
+    return candidate.source in {"img", "embedded", "source", "style"} and any(term in text for term in generic_terms)
 
 
 def _site_icon_fallback_candidates(link: str | None) -> list[ImageCandidate]:
@@ -952,6 +998,38 @@ def _facebook_handle_from_url(link: str | None) -> str | None:
     return handle
 
 
+def _instagram_handle_from_url(link: str | None) -> str | None:
+    if not link:
+        return None
+    parsed = urlparse(link)
+    host = (parsed.netloc or "").lower()
+    if host not in {"instagram.com", "www.instagram.com"}:
+        return None
+    parts = [part for part in parsed.path.split("/") if part]
+    if not parts:
+        return None
+    handle = parts[0].lstrip("@")
+    if handle in {"accounts", "explore", "p", "reel", "reels", "stories", "about", "developer"}:
+        return None
+    return handle
+
+
+def _tiktok_handle_from_url(link: str | None) -> str | None:
+    if not link:
+        return None
+    parsed = urlparse(link)
+    host = (parsed.netloc or "").lower()
+    if host not in {"tiktok.com", "www.tiktok.com"}:
+        return None
+    parts = [part for part in parsed.path.split("/") if part]
+    if not parts:
+        return None
+    handle = parts[0].lstrip("@")
+    if not handle or handle in {"discover", "tag", "music", "embed", "login"}:
+        return None
+    return handle
+
+
 def _social_profile_image_candidates(link: str | None) -> list[ImageCandidate]:
     facebook_handle = _facebook_handle_from_url(link)
     if facebook_handle:
@@ -961,7 +1039,39 @@ def _social_profile_image_candidates(link: str | None) -> list[ImageCandidate]:
                 source="social:facebook-profile-image",
             )
         ]
+    instagram_handle = _instagram_handle_from_url(link)
+    if instagram_handle:
+        return [
+            ImageCandidate(
+                url=f"https://unavatar.io/instagram/{instagram_handle}",
+                source="social:instagram-profile-image",
+                alt=instagram_handle,
+            )
+        ]
+    tiktok_handle = _tiktok_handle_from_url(link)
+    if tiktok_handle:
+        return [
+            ImageCandidate(
+                url=f"https://unavatar.io/tiktok/{tiktok_handle}",
+                source="social:tiktok-profile-image",
+                alt=tiktok_handle,
+            )
+        ]
     return []
+
+
+def _page_screenshot_candidates(link: str | None) -> list[ImageCandidate]:
+    if not link or _is_social_profile_url(link):
+        return []
+    parsed = urlparse(link)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return []
+    return [
+        ImageCandidate(
+            url=f"https://s0.wp.com/mshots/v1/{quote(link, safe='')}?w=900",
+            source="external:page-screenshot",
+        )
+    ]
 
 
 def _organization_candidate_links(organization: Organization) -> list[str]:
@@ -1107,6 +1217,17 @@ def refresh_organization_open_graph(
                 )
                 if social_thumbnail:
                     auto_thumbnail = social_thumbnail
+                    break
+
+        if not auto_thumbnail:
+            for link in candidate_links:
+                screenshot_thumbnail = choose_best_thumbnail(
+                    link,
+                    _page_screenshot_candidates(link),
+                    target_name=organization.name,
+                )
+                if screenshot_thumbnail:
+                    auto_thumbnail = screenshot_thumbnail
                     break
 
         if not auto_thumbnail:

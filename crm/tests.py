@@ -3721,6 +3721,37 @@ class OrganizationPreviewRefreshTests(AuthenticatedAPITestCase):
         )
         usable_mock.assert_called_once()
 
+    @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
+    @patch("crm.services.open_graph.fetch_open_graph")
+    def test_refresh_preview_uses_instagram_profile_image_as_social_fallback(self, fetch_mock, usable_mock):
+        self.organization.website_url = ""
+        self.organization.instagram_url = "https://www.instagram.com/previeworg/"
+        self.organization.save(update_fields=["website_url", "instagram_url"])
+        fetch_mock.return_value = OpenGraphData(title="Instagram", image_candidates=[])
+
+        refresh_organization_open_graph(self.organization, force=True)
+
+        self.organization.refresh_from_db()
+        self.assertEqual(
+            self.organization.auto_thumbnail_url,
+            "https://unavatar.io/instagram/previeworg",
+        )
+        usable_mock.assert_called_once()
+
+    @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
+    @patch("crm.services.open_graph.fetch_open_graph")
+    def test_refresh_preview_uses_page_screenshot_before_site_icon(self, fetch_mock, usable_mock):
+        fetch_mock.return_value = OpenGraphData(title="Preview Org", image_candidates=[])
+
+        refresh_organization_open_graph(self.organization, force=True)
+
+        self.organization.refresh_from_db()
+        self.assertEqual(
+            self.organization.auto_thumbnail_url,
+            "https://s0.wp.com/mshots/v1/https%3A%2F%2Fexample.com?w=900",
+        )
+        usable_mock.assert_called_once()
+
 
 class TenantScopedCreateTests(AuthenticatedAPITestCase):
     def setUp(self):
@@ -4311,6 +4342,33 @@ class ThumbnailSelectionTests(TestCase):
         self.assertIn("w_1200,h_675", chosen)
         self.assertIn("q_90", chosen)
         self.assertNotIn("blur_2", chosen)
+        usable_mock.assert_called_once()
+
+    @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
+    def test_choose_best_thumbnail_prefers_matching_logo_over_weak_generic_image(self, usable_mock):
+        chosen = choose_best_thumbnail(
+            "https://www.lydteamet.no",
+            [
+                ImageCandidate(
+                    url="https://images.squarespace-cdn.com/content/v1/site/random-cert-image.jpg",
+                    source="img",
+                    width=1200,
+                    height=1200,
+                ),
+                ImageCandidate(
+                    url="https://images.squarespace-cdn.com/content/v1/site/Lydteamet-logo-web.png",
+                    source="og:image",
+                    width=952,
+                    height=377,
+                ),
+            ],
+            target_name="Lydteamet",
+        )
+
+        self.assertEqual(
+            chosen,
+            "https://images.squarespace-cdn.com/content/v1/site/Lydteamet-logo-web.png",
+        )
         usable_mock.assert_called_once()
 
     def test_fetch_open_graph_blocks_private_host(self):
