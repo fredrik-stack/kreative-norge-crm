@@ -3738,19 +3738,32 @@ class OrganizationPreviewRefreshTests(AuthenticatedAPITestCase):
         )
         usable_mock.assert_not_called()
 
+    @patch("crm.services.open_graph.fetch_open_graph")
+    def test_refresh_preview_does_not_use_page_screenshot_fallback(self, fetch_mock):
+        fetch_mock.return_value = OpenGraphData(title="Preview Org", image_candidates=[])
+
+        refresh_organization_open_graph(self.organization, force=True)
+
+        self.organization.refresh_from_db()
+        self.assertNotIn("s0.wp.com/mshots", self.organization.auto_thumbnail_url or "")
+
     @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
     @patch("crm.services.open_graph.fetch_open_graph")
-    def test_refresh_preview_uses_page_screenshot_before_site_icon(self, fetch_mock, usable_mock):
-        fetch_mock.return_value = OpenGraphData(title="Preview Org", image_candidates=[])
+    def test_refresh_preview_prefers_facebook_profile_before_instagram_proxy(self, fetch_mock, usable_mock):
+        self.organization.website_url = ""
+        self.organization.facebook_url = "https://www.facebook.com/previeworg/"
+        self.organization.instagram_url = "https://www.instagram.com/previeworg/"
+        self.organization.save(update_fields=["website_url", "facebook_url", "instagram_url"])
+        fetch_mock.return_value = OpenGraphData(title="Social", image_candidates=[])
 
         refresh_organization_open_graph(self.organization, force=True)
 
         self.organization.refresh_from_db()
         self.assertEqual(
             self.organization.auto_thumbnail_url,
-            "https://s0.wp.com/mshots/v1/https%3A%2F%2Fexample.com?w=900",
+            "https://graph.facebook.com/previeworg/picture?type=large",
         )
-        usable_mock.assert_not_called()
+        usable_mock.assert_called_once()
 
 
 class TenantScopedCreateTests(AuthenticatedAPITestCase):

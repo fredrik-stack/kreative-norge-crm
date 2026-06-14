@@ -9,7 +9,7 @@ import json
 import socket
 import re
 import struct
-from urllib.parse import quote, urljoin, urlparse
+from urllib.parse import urljoin, urlparse
 from urllib.error import HTTPError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
@@ -133,7 +133,6 @@ LOW_PRIORITY_ICON_REL_TERMS = ("icon", "apple-touch-icon", "mask-icon")
 TRUSTED_PROXY_IMAGE_SOURCES = {
     "social:instagram-profile-image",
     "social:tiktok-profile-image",
-    "external:page-screenshot",
 }
 IMAGE_FILE_RE = re.compile(
     r"https?:\\?/\\?/[^\"'\s<>\\]+?\.(?:jpe?g|png|webp|gif|svg)(?:\?[^\"'\s<>\\]*)?",
@@ -588,8 +587,6 @@ def _candidate_score(candidate: ImageCandidate, target_name: str | None = None) 
         score += 155
     elif candidate.source in {"social:instagram-profile-image", "social:tiktok-profile-image"}:
         score += 150
-    elif candidate.source == "external:page-screenshot":
-        score += 135
     elif candidate.source == "source":
         score += 95
     else:
@@ -913,7 +910,7 @@ def choose_best_thumbnail(
 def _candidate_is_weak_generic_image(candidate: ImageCandidate, target_name: str | None) -> bool:
     if _candidate_mentions_actor(candidate, target_name):
         return False
-    if candidate.source.startswith("social:") or candidate.source == "external:page-screenshot":
+    if candidate.source.startswith("social:"):
         return False
     if candidate.alt or candidate.css_hint:
         return False
@@ -1067,20 +1064,6 @@ def _social_profile_image_candidates(link: str | None) -> list[ImageCandidate]:
     return []
 
 
-def _page_screenshot_candidates(link: str | None) -> list[ImageCandidate]:
-    if not link or _is_social_profile_url(link):
-        return []
-    parsed = urlparse(link)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        return []
-    return [
-        ImageCandidate(
-            url=f"https://s0.wp.com/mshots/v1/{quote(link, safe='')}?w=900",
-            source="external:page-screenshot",
-        )
-    ]
-
-
 def _organization_candidate_links(organization: Organization) -> list[str]:
     links = [
         organization.website_url,
@@ -1089,6 +1072,22 @@ def _organization_candidate_links(organization: Organization) -> list[str]:
         organization.tiktok_url,
         organization.youtube_url,
         organization.linkedin_url,
+    ]
+    unique_links = []
+    seen = set()
+    for link in links:
+        if not link or link in seen:
+            continue
+        seen.add(link)
+        unique_links.append(link)
+    return unique_links
+
+
+def _social_fallback_links(organization: Organization) -> list[str]:
+    links = [
+        organization.facebook_url,
+        organization.instagram_url,
+        organization.tiktok_url,
     ]
     unique_links = []
     seen = set()
@@ -1216,7 +1215,7 @@ def refresh_organization_open_graph(
                 break
 
         if not auto_thumbnail:
-            for link in candidate_links:
+            for link in _social_fallback_links(organization):
                 social_thumbnail = choose_best_thumbnail(
                     link,
                     _social_profile_image_candidates(link),
@@ -1224,17 +1223,6 @@ def refresh_organization_open_graph(
                 )
                 if social_thumbnail:
                     auto_thumbnail = social_thumbnail
-                    break
-
-        if not auto_thumbnail:
-            for link in candidate_links:
-                screenshot_thumbnail = choose_best_thumbnail(
-                    link,
-                    _page_screenshot_candidates(link),
-                    target_name=organization.name,
-                )
-                if screenshot_thumbnail:
-                    auto_thumbnail = screenshot_thumbnail
                     break
 
         if not auto_thumbnail:
