@@ -4144,6 +4144,25 @@ class ThumbnailSelectionTests(TestCase):
 
         self.assertEqual(chosen, "https://example.com/media/working-hero.jpg")
 
+    @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=False)
+    def test_choose_best_thumbnail_caps_candidate_probes(self, usable_mock):
+        chosen = choose_best_thumbnail(
+            "https://example.com",
+            [
+                ImageCandidate(
+                    url=f"/media/generic-{index}.jpg",
+                    source="img",
+                    width=1200,
+                    height=800,
+                )
+                for index in range(20)
+            ],
+            target_name="Preview Org",
+        )
+
+        self.assertIsNone(chosen)
+        self.assertEqual(usable_mock.call_count, 6)
+
     @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
     def test_choose_best_thumbnail_rejects_social_platform_logo(self, usable_mock):
         chosen = choose_best_thumbnail(

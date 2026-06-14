@@ -23,7 +23,9 @@ USER_AGENT = (
 )
 MAX_HTML_BYTES = 3_000_000
 MAX_REDIRECTS = 3
-FOLLOWUP_LINK_LIMIT = 4
+FOLLOWUP_LINK_LIMIT = 2
+MAX_THUMBNAIL_CANDIDATE_PROBES = 6
+REFRESH_FETCH_TIMEOUT_SECONDS = 3
 PRIVATE_HOSTNAMES = {"localhost", "metadata.google.internal"}
 SOCIAL_PROFILE_HOSTS = {
     "facebook.com",
@@ -898,10 +900,14 @@ def choose_best_thumbnail(
             and not _candidate_mentions_actor(candidate, target_name)
         )
     ]
+    probes = 0
     for group in [strong_non_logo_ranked, actor_logo_ranked, weak_non_logo_ranked, other_logo_ranked]:
         for candidate in group:
             if candidate.source in TRUSTED_PROXY_IMAGE_SOURCES:
                 return candidate.url
+            if probes >= MAX_THUMBNAIL_CANDIDATE_PROBES:
+                return None
+            probes += 1
             if _image_candidate_looks_usable(candidate.url):
                 return candidate.url
     return None
@@ -1176,7 +1182,7 @@ def refresh_organization_open_graph(
 
         for link in candidate_links:
             try:
-                og = fetch_open_graph(link)
+                og = fetch_open_graph(link, timeout_seconds=REFRESH_FETCH_TIMEOUT_SECONDS)
             except Exception as exc:
                 first_error = first_error or exc
                 continue
@@ -1200,7 +1206,7 @@ def refresh_organization_open_graph(
                         continue
                     fetched_links.add(key)
                     try:
-                        followup_og = fetch_open_graph(followup_link)
+                        followup_og = fetch_open_graph(followup_link, timeout_seconds=REFRESH_FETCH_TIMEOUT_SECONDS)
                     except Exception as exc:
                         first_error = first_error or exc
                         continue
