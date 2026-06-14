@@ -3736,7 +3736,7 @@ class OrganizationPreviewRefreshTests(AuthenticatedAPITestCase):
             self.organization.auto_thumbnail_url,
             "https://unavatar.io/instagram/previeworg",
         )
-        usable_mock.assert_called_once()
+        usable_mock.assert_not_called()
 
     @patch("crm.services.open_graph._image_candidate_looks_usable", return_value=True)
     @patch("crm.services.open_graph.fetch_open_graph")
@@ -3750,7 +3750,7 @@ class OrganizationPreviewRefreshTests(AuthenticatedAPITestCase):
             self.organization.auto_thumbnail_url,
             "https://s0.wp.com/mshots/v1/https%3A%2F%2Fexample.com?w=900",
         )
-        usable_mock.assert_called_once()
+        usable_mock.assert_not_called()
 
 
 class TenantScopedCreateTests(AuthenticatedAPITestCase):

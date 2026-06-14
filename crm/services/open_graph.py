@@ -130,6 +130,11 @@ FOLLOWUP_LINK_TERMS = (
     "media",
 )
 LOW_PRIORITY_ICON_REL_TERMS = ("icon", "apple-touch-icon", "mask-icon")
+TRUSTED_PROXY_IMAGE_SOURCES = {
+    "social:instagram-profile-image",
+    "social:tiktok-profile-image",
+    "external:page-screenshot",
+}
 IMAGE_FILE_RE = re.compile(
     r"https?:\\?/\\?/[^\"'\s<>\\]+?\.(?:jpe?g|png|webp|gif|svg)(?:\?[^\"'\s<>\\]*)?",
     re.IGNORECASE,
@@ -898,6 +903,8 @@ def choose_best_thumbnail(
     ]
     for group in [strong_non_logo_ranked, actor_logo_ranked, weak_non_logo_ranked, other_logo_ranked]:
         for candidate in group:
+            if candidate.source in TRUSTED_PROXY_IMAGE_SOURCES:
+                return candidate.url
             if _image_candidate_looks_usable(candidate.url):
                 return candidate.url
     return None
