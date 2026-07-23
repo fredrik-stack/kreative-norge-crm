@@ -1,6 +1,6 @@
 # Public Architecture
 
-**Status:** Implementert grunnløsning, videreutvikling og feilretting planlagt
+**Status:** Implementert grunnløsning; kontaktfeil diagnostisert og målarkitektur besluttet, ikke implementert
 
 **Sist verifisert:** 2026-07-23
 
@@ -26,21 +26,25 @@ Publisering styres blant annet av:
 
 Personmodellen har også direkte `email` og `phone`. Dette gjør kontaktarkitekturen todelt og krever tydelig dokumentasjon og tester.
 
-## Kjent feilområde: kontaktpersoners e-post
+## Diagnostisert feilområde: kontaktpersoners e-post
 
-Det er rapportert at mange eller alle e-postadresser for kontaktpersoner kan mangle både i Editor CRM og PUBLIC. Ingen rotårsak er konkludert.
+Diagnosen viser at problemet skyldes en todelt kontaktarkitektur og flere kontaktresolvere:
 
-Undersøkelsen skal følge datakjeden:
+- `Person.email` og `Person.phone` finnes parallelt med `PersonContact`
+- Editor viser og lagrer i hovedsak direktefeltene
+- enkelte opprettingsflyter skriver begge steder
+- public API bruker eksplisitte offentlige `PersonContact`
+- public HTML kan falle tilbake til direkte person-e-post
+- import kan oppdatere begge kilder og publiseringsflagg
 
-1. Er e-post lagret på `Person.email`, i `PersonContact`, eller begge steder?
-2. Finnes korrekt `OrganizationPerson`-kobling og er personen aktiv?
-3. Bevares `publish_person` ved redigering?
-4. Bevares `PersonContact.is_public` ved redigering og import?
-5. Returnerer serializer riktig kontaktdata?
-6. Viser frontend dataene den mottar?
-7. Finnes eldre data som aldri har fått de nye publiseringsflaggene?
+Målarkitekturen er godkjent i `ADR-005`:
 
-Feilen skal først reproduseres med konkrete testdata. Deretter skal backend- og frontendtester legges til før eller sammen med rettingen.
+- `PersonContact` blir autoritativ kilde
+- offentlige kontaktkanaler velges per aktør–person-kobling
+- HTML, API og Editor-preview bruker én offentlig projeksjon
+- direktefeltfallback fjernes
+
+Dette er planlagt og ikke implementert. Dagens publiseringsregler og fallback gjelder fortsatt i kodebasen.
 
 ## Bilde og thumbnail
 

@@ -21,10 +21,45 @@ Gjenstår:
 
 ## Fase 1 – Stabilisering av PUBLIC og kontaktdata
 
-1. Reprodusere og rette feilen der kontaktpersoners e-post ikke vises i Editor CRM og/eller PUBLIC.
-2. Kartlegge hele publiseringskjeden: `Person.email`, `PersonContact`, `is_public`, `OrganizationPerson.publish_person`, serializers, API og frontend.
-3. Legge inn regresjonstester som sikrer at offentlig og intern kontaktinformasjon vises etter riktige regler.
-4. Avklare endelig public-kontrakt mot Musikkontoret.no.
+Diagnosen er gjennomført, og målarkitekturen er godkjent i `ADR-005`. Implementering er ikke startet.
+
+Arbeidet skal gjennomføres som små, sekvensielle leveranser:
+
+1. **Beslutningsgater og databaseline**
+   - godkjenne gjenværende produkt-, personvern-, rolle- og API-valg
+   - kartlegge kontaktdata og offentlig før-bilde i staging og produksjon
+   - godkjenne backup, migreringsmapping og rollback
+2. **Kontrakts- og personverntester**
+   - reprodusere dagens avvik mellom Editor, HTML og API
+   - etablere publiseringsmatrise og negative personverntester
+3. **Additiv kontaktmodell**
+   - utvide `PersonContact`
+   - legge til constraints og relasjonsspesifikk kontaktpublisering
+   - beholde alle legacy-felter
+4. **Backfill og migreringsreview**
+   - migrere direkte personfelt til interne kontaktposter
+   - bevare eksplisitte offentlige valg
+   - gjennomgå konflikter og tidligere HTML-fallback
+5. **Felles domenetjeneste og internt API**
+   - samle kontaktregler og atomisk lagring
+   - stoppe ny skriving til direkte personfelt
+6. **Samlet kontaktopplevelse i Editor**
+   - én kontaktseksjon
+   - primærkontakt og offentlig kontaktvalg per aktørkobling
+   - preview fra felles offentlig projeksjon
+7. **Kontaktregler i IMPORT**
+   - trygg merge, eksplisitte operasjoner og tri-state publisering
+   - ingen implisitt sletting, primærbytte eller publisering
+8. **Felles PUBLIC-projeksjon**
+   - samme resultat i HTML, API og Editor-preview
+   - fjerne direktefeltfallback
+   - avklare API-versjonering og Musikkontoret.no-kontrakt
+9. **Kontaktbevisst EKSPORT**
+   - intern arbeidsliste, offentlig katalog og full relasjonell eksport
+10. **Legacy-opprydding**
+    - fjerne gamle API-felter og databasefelter først etter stabilisering
+
+Detaljerte akseptansekriterier og rollbackkrav finnes i `docs/decisions/ADR-005-CONTACT_ARCHITECTURE.md`.
 
 ## Fase 2 – Robust bilde- og thumbnail-løsning
 

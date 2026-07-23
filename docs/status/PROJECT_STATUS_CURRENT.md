@@ -10,7 +10,7 @@
 
 ## Aktiv utviklingsfase
 
-IMPORT er en omfattende, fungerende modul som nå skal revurderes på produkt- og UX-nivå før større videreutvikling. PUBLIC fungerer som API og staging-visning, men trenger feilretting og en mer robust bilde-/thumbnail-løsning. EKSPORT har teknisk grunnlag, men ikke ferdig motor og brukerflyt.
+Kontaktproblemet er diagnostisert som et tverrgående produkt- og arkitekturproblem. Fremtidig kontaktarkitektur er godkjent i `ADR-005`, men ikke implementert. Første implementeringsarbeid er beslutningsgater, staging-/produksjonskartlegging og kontraktstester. IMPORT er en omfattende, fungerende modul som skal revurderes på produkt- og UX-nivå før større videreutvikling. PUBLIC fungerer som API og staging-visning, men trenger kontaktomlegging og en mer robust bilde-/thumbnail-løsning. EKSPORT har teknisk grunnlag, men ikke ferdig motor og brukerflyt.
 
 ## Implementert
 
@@ -44,15 +44,24 @@ Kjerne-rollene og tenant-scope håndheves i backend. Invitasjonsflyt, full admin
 
 ### 1. Kontaktpersonenes e-post og publisering
 
-Det er rapportert at mange, muligens alle, e-postadresser for kontaktpersoner ikke vises i Editor CRM eller PUBLIC. Mulige årsaker som skal undersøkes inkluderer:
+Diagnosen er gjennomført. Problemet skyldes en todelt kontaktarkitektur og forskjellige regler i Editor, import og PUBLIC:
 
-- `Person.email` kontra `PersonContact`
-- `PersonContact.is_public`
-- `OrganizationPerson.publish_person`
-- om publiseringsvalg tapes eller ikke vises korrekt i redigeringsmodus
-- serializer-, lagrings- eller frontend-regresjon
+- `Person.email` og `Person.phone` er parallelle med `PersonContact`
+- Editor viser og lagrer i hovedsak direktefeltene
+- enkelte opprettingsflyter skriver både direktefelt og `PersonContact`
+- public API bruker eksplisitte `PersonContact`
+- public HTML kan falle tilbake til direkte person-e-post
+- import kan oppdatere begge kilder og endre publiseringsflagg
 
-Dette skal behandles som feilretting med reproduksjon, datakartlegging og tester før endringer gjøres.
+Målarkitekturen er godkjent i `docs/decisions/ADR-005-CONTACT_ARCHITECTURE.md`:
+
+- `PersonContact` blir eneste autoritative kilde
+- primærkontakt og offentlig kontakt holdes adskilt
+- offentlige kontaktkanaler velges per aktør–person-kobling
+- HTML, API og Editor-preview bruker én offentlig projeksjon
+- migreringen gjennomføres additivt og reverserbart
+
+Implementering er ikke startet. Direktefelt, dagens publiseringsflagg, fallback og API-adferd er fortsatt aktive i kodebasen.
 
 ### 2. Varig thumbnail- og bildearkitektur
 
@@ -104,8 +113,14 @@ Google Sheets, Checkin og Mailmojo finnes foreløpig bare som reserverte kildety
 - valgt mekanisme for automatisk staging-deploy
 - obligatoriske tester og CI-gates før deploy
 - endelig kontrakt mellom CRM-public og Musikkontoret.no
-- endelig kilde for personkontaktdata: direkte personfelt, `PersonContact`, eller kontrollert kombinasjon
 - endelig lagringsarkitektur for bilder
+- behandling av direkte e-poster som tidligere har vært offentlige bare gjennom HTML-fallback
+- om en offentlig person kan vises uten offentlig e-post eller telefon
+- eksplisitt publiseringsfelt for organisasjonens e-post
+- roller for kontaktpublisering, bulkpublisering og full kontakt-eksport
+- behandlingsgrunnlag og retensjon for kontakt-, import-, eksport- og auditdata
+- versjonering av ny public kontaktkontrakt
+- om personens offentlige tittel senere skal være koblingsspesifikk
 
 ## Dokumentasjonsstatus
 
