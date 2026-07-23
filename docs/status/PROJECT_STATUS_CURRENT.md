@@ -1,0 +1,109 @@
+# Project Status Current
+
+**Status:** Verifisert mot kodebasen
+
+**Sist verifisert:** 2026-07-23
+
+**Verifisert mot:** `crm/models.py`, `crm/views.py`, `crm/permissions.py`, `crm/urls.py`, importtjenestene, React-editoren, staging-dokumentasjonen og nyere commit-historikk.
+
+**Ansvar:** Prosjekteier + ChatGPT for prioritering og produktretning. Codex for oppdatering etter implementering.
+
+## Aktiv utviklingsfase
+
+IMPORT er en omfattende, fungerende modul som nå skal revurderes på produkt- og UX-nivå før større videreutvikling. PUBLIC fungerer som API og staging-visning, men trenger feilretting og en mer robust bilde-/thumbnail-løsning. EKSPORT har teknisk grunnlag, men ikke ferdig motor og brukerflyt.
+
+## Implementert
+
+- tenant-basert CRM for aktører og personer
+- koblinger mellom aktører og personer
+- flere kontaktkanaler per person
+- kategorier, underkategorier og tenant-spesifikke tags
+- roller via `TenantMembership`
+- intern React-editor med rollebasert tilgang
+- public API for publiserte aktører
+- public HTML-visning, foreløpig kun brukt i staging
+- importjobber med opplasting, parsing, normalisering, preview, validering, matching, AI-forslag, review, beslutninger, commit, commit-logg og feilrapport
+- grunnmodell og grunn-API for eksportjobber
+- Docker-basert lokal kjøring og stagingoppsett
+
+## Delvis implementert
+
+### EXPORT
+
+`ExportJob`, eksporttyper, CSV/XLSX-formatvalg, filtre, feltvalg og grunnleggende API finnes. Faktisk filgenerering, nedlasting og komplett brukerflyt er ikke bekreftet ferdig.
+
+### PUBLIC
+
+Public API og HTML-visning fungerer. HTML-visningen brukes foreløpig bare i staging. Endelig API-kontrakt og integrasjon mot Musikkontoret.no er ikke ferdigstilt.
+
+### Roller og tilgang
+
+Kjerne-rollene og tenant-scope håndheves i backend. Invitasjonsflyt, full administrasjon av medlemmer og den langsiktige modellen for eksterne tenant-rom må videreutvikles.
+
+## Neste tre produktområder
+
+### 1. Kontaktpersonenes e-post og publisering
+
+Det er rapportert at mange, muligens alle, e-postadresser for kontaktpersoner ikke vises i Editor CRM eller PUBLIC. Mulige årsaker som skal undersøkes inkluderer:
+
+- `Person.email` kontra `PersonContact`
+- `PersonContact.is_public`
+- `OrganizationPerson.publish_person`
+- om publiseringsvalg tapes eller ikke vises korrekt i redigeringsmodus
+- serializer-, lagrings- eller frontend-regresjon
+
+Dette skal behandles som feilretting med reproduksjon, datakartlegging og tester før endringer gjøres.
+
+### 2. Varig thumbnail- og bildearkitektur
+
+Open Graph-innhenting må erstattes eller suppleres med en robust løsning som sikrer et relevant bilde over tid. Arbeidet må planlegge:
+
+- valg og godkjenning av bilde
+- permanent lagring fremfor avhengighet av ekstern URL
+- beskjæring og skalering til standardformat
+- fallback og manuell overstyring
+- opphavsrett, kilde og senere utskifting
+- bruk i Editor, PUBLIC og Musikkontoret.no
+
+### 3. Ny IMPORT-opplevelse
+
+Før videre implementering skal IMPORT gjennom en egen produkt- og UX-planfase. Målet er en gamification-inspirert opplevelse som gjør tungt kvalitetsarbeid:
+
+- enkelt å forstå
+- raskt og effektivt
+- motiverende og oversiktlig
+- tydelig på fremdrift og kvalitet
+- trygt, uten at brukeren kompromisser på datakvalitet
+
+Eksisterende importmotor skal kartlegges som teknisk fundament, men dagens UX skal ikke låse den nye løsningen.
+
+## Planlagt senere
+
+- Google Sheets som importkilde
+- Checkin som importkilde
+- Mailmojo som importkilde
+- automatisk deploy til staging ved push
+- komplett eksportmotor
+- auditlogg og sterkere sporbarhet
+
+Google Sheets, Checkin og Mailmojo finnes foreløpig bare som reserverte kildetyper.
+
+## Teknisk workflow-status
+
+- GitHub er felles sannhetskilde mellom lokal kode, Codex og ChatGPT.
+- ChatGPT kan lese repoet når prosjekteier ber om oppdatert analyse.
+- Codex skal lese `docs/README.md`, dette dokumentet og relevant feature-/arkitekturdokument før implementering.
+- Funksjonelle endringer skal ledsages av dokumentasjonsoppdatering eller eksplisitt vurdering av at dokumentasjonen fortsatt er korrekt.
+- Automatisk staging-deploy ved push er ønsket, men ikke implementert eller verifisert.
+
+## Åpne avklaringer
+
+- valgt mekanisme for automatisk staging-deploy
+- obligatoriske tester og CI-gates før deploy
+- endelig kontrakt mellom CRM-public og Musikkontoret.no
+- endelig kilde for personkontaktdata: direkte personfelt, `PersonContact`, eller kontrollert kombinasjon
+- endelig lagringsarkitektur for bilder
+
+## Dokumentasjonsstatus
+
+Ny dokumentasjonsstruktur er etablert på `docs/project-workflow-baseline`. Den er migrert og kvalitetssikret på overordnet nivå mot dagens kodebase. Eldre dokumenter beholdes som historiske kilder inntil de eventuelt arkiveres i en senere, separat endring.
