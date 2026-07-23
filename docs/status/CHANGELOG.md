@@ -11,3 +11,4 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 - registrert at EKSPORT har datamodell og API-grunnlag, men ikke komplett motor
 - registrert at public HTML foreløpig kun brukes i staging
 - registrert ønsket om automatisk staging-deploy ved push
+- godkjent `ADR-005` som målarkitektur for helhetlig personkontakt og relasjonsspesifikk publisering; implementering er ikke startet

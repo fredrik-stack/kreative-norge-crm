@@ -77,8 +77,21 @@ Det skal utarbeides:
 
 ## Åpne arkitekturspørsmål
 
-- kildehierarki for personkontaktdata ved import
-- hvordan publiseringsflagg skal arves, foreslås eller kreve eksplisitt valg
 - hvordan importerte bilder og lenker skal samspille med fremtidig bildelagring
 - hvordan store jobber senere skal behandles asynkront
 - hvor lenge importfiler og rapporter skal lagres
+
+## Besluttet kontaktretning
+
+`ADR-005` er godkjent, men ikke implementert.
+
+Ved fremtidig kontaktomlegging skal import:
+
+- skrive personers e-post og telefon til `PersonContact`
+- tolke blank input som `KEEP`, ikke `CLEAR`
+- bevare primærstatus og publisering når endring ikke er eksplisitt
+- behandle publisering som tri-state og høyrisiko-review
+- aldri la AI foreslå eller aktivere publisering
+- støtte relasjonsspesifikk offentlig kontaktinformasjon
+
+Detaljerte leveranser og akseptansekriterier finnes i ADR-et.
