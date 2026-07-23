@@ -5,6 +5,8 @@ description: Planlegg, implementer eller gjennomgå sikre endringer i Django-mod
 
 # Trygg databaseendring
 
+Følg `AGENTS.md`, gjeldende godkjente ADR og `docs/development/WORKFLOW.md`. Hvis en større databaseendring mangler godkjent ADR, stopp før implementering.
+
 1. Kartlegg nåværende modell, constraints, serializers, admin, import/eksport og API-bruk.
 2. Skill schema-migrering fra datamigrering.
 3. Vurder null/default, bakoverkompatibilitet, indeks, unikhet og tenant-isolasjon.
@@ -15,4 +17,12 @@ description: Planlegg, implementer eller gjennomgå sikre endringer i Django-mod
 8. Unngå destruktive operasjoner uten uttrykkelig godkjenning.
 9. Oppdater data- og arkitekturdokumentasjon.
 
-Rapporter migrasjonsrekkefølge, risiko, kontrollspørringer og tilbakeføringsplan.
+Ikke kjør irreversible eller produksjonsrettede operasjoner uten uttrykkelig godkjenning.
+
+## Output
+
+En implementert eller gjennomgått databaseendring med migrasjonsrekkefølge, databehandling, tester, risiko, kontrollspørringer, backup og rollback.
+
+## Neste anbefalte skill
+
+Bruk `$gjennomga-siste-endring` etter implementering og test. Hvis oppgaven bare var planlegging, brukes `$skriv-codex-oppgave` etter godkjenning.

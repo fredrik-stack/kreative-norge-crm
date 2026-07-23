@@ -1,0 +1,4 @@
+interface:
+  display_name: "Trygg databaseendring"
+  short_description: "Endre Django-data og migrasjoner på en trygg måte"
+  default_prompt: "Bruk $trygg-databaseendring til å planlegge eller gjennomføre denne godkjente dataendringen."

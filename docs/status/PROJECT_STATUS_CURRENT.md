@@ -92,7 +92,10 @@ Google Sheets, Checkin og Mailmojo finnes foreløpig bare som reserverte kildety
 
 - GitHub er felles sannhetskilde mellom lokal kode, Codex og ChatGPT.
 - ChatGPT kan lese repoet når prosjekteier ber om oppdatert analyse.
+- Fredrik Development System er installert som prosjektets utviklingsplattform.
+- Repo-reglene ligger i `AGENTS.md`, og 12 prosjektbaserte Codex-skills ligger i `.agents/skills/`.
 - Codex skal lese `docs/README.md`, dette dokumentet og relevant feature-/arkitekturdokument før implementering.
+- Større implementeringer krever godkjent ADR.
 - Funksjonelle endringer skal ledsages av dokumentasjonsoppdatering eller eksplisitt vurdering av at dokumentasjonen fortsatt er korrekt.
 - Automatisk staging-deploy ved push er ønsket, men ikke implementert eller verifisert.
 

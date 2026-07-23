@@ -1,0 +1,4 @@
+interface:
+  display_name: "Planlegg ny funksjon"
+  short_description: "Design en helhetlig funksjon før implementering"
+  default_prompt: "Bruk $planlegg-ny-funksjon til å lage en beslutningsklar design uten å kode."

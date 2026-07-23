@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gjennomgå siste endring"
+  short_description: "Finn risiko og avvik i siste kodeleveranse"
+  default_prompt: "Bruk $gjennomga-siste-endring til å kvalitetssikre siste commit eller pull request."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ta arkitekturavgjørelse"
+  short_description: "Formaliser godkjent design som ADR og etapper"
+  default_prompt: "Bruk $ta-arkitekturavgjorelse til å gjøre godkjent design om til en formell ADR."

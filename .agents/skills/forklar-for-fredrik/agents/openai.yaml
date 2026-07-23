@@ -1,0 +1,4 @@
+interface:
+  display_name: "Forklar for Fredrik"
+  short_description: "Forklar teknikk tydelig og praktisk på norsk"
+  default_prompt: "Bruk $forklar-for-fredrik til å forklare denne tekniske situasjonen på norsk."

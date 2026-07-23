@@ -5,7 +5,7 @@ description: Planlegg en ny funksjon i Kreative Norge CRM uten å kode. Bruk nå
 
 # Planlegg ny funksjon
 
-Les minst `docs/README.md`, `docs/status/PROJECT_STATUS_CURRENT.md`, relevant arkitektur, feature-dokument, ADR-er, kode og tester.
+Følg `AGENTS.md`. Les minst `docs/README.md`, `docs/status/PROJECT_STATUS_CURRENT.md`, relevant arkitektur, feature-dokument, ADR-er, kode og tester.
 
 Lag en plan som dekker:
 
@@ -20,4 +20,12 @@ Lag en plan som dekker:
 9. migrering av eksisterende data ved behov
 10. implementeringsetapper og rollback
 
-Ikke endre kode. Skill tydelig mellom anbefaling, beslutning og uavklart punkt. Vurder alltid om enklere MVP er tilstrekkelig.
+Ikke endre kode, modeller, migrasjoner eller dokumentasjon med mindre oppgaven særskilt ber om å lagre designrapporten. Skill tydelig mellom anbefaling, beslutning og uavklart punkt. Vurder alltid om enklere MVP er tilstrekkelig.
+
+## Output
+
+En beslutningsklar designrapport med begrunnede alternativer, tydelig anbefaling, MVP-avgrensning, åpne godkjenninger og trygg implementeringsrekkefølge.
+
+## Neste anbefalte skill
+
+Bruk `$vurder-mvp-eller-overarbeid` hvis omfanget fortsatt er usikkert. Når designen er godkjent, bruk `$ta-arkitekturavgjorelse`.

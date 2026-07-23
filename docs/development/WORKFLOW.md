@@ -4,6 +4,17 @@
 
 **Sist oppdatert:** 2026-07-23
 
+## Fredrik Development System
+
+Denne arbeidsflyten inngår i `FREDRIK_DEVELOPMENT_SYSTEM.md`. Repoets fire grunnregler lastes fra `AGENTS.md`, og de gjenbrukbare Codex-arbeidsflytene ligger i `.agents/skills/`.
+
+1. Ingen større implementering uten godkjent ADR.
+2. Ingen funksjon er ferdig før dokumentasjonen er oppdatert eller kontrollert.
+3. Stabil prosjektkunnskap skal ligge i `docs/`, ikke gjentas i prompts.
+4. Diagnose → beslutning → implementering.
+
+Se `FREDRIK_SKILL_PACK.md` for valg og verifisering av skills, og `EXAMPLES.md` for praktiske CRM-eksempler.
+
 ## Roller
 
 ### Prosjekteier
@@ -50,6 +61,8 @@ Prosjekteier ber ChatGPT:
 
 ## Oppstart av en Codex-økt
 
+Start Codex fra repo-roten eller en undermappe i repoet. Da oppdager Codex `AGENTS.md` og prosjektets `.agents/skills/`.
+
 Codex skal minst lese:
 
 1. `docs/README.md`
@@ -60,18 +73,22 @@ Codex skal minst lese:
 
 Deretter skal Codex kort oppsummere forståelsen før større eller risikofylte oppgaver. For små, entydige oppgaver kan den gå direkte til implementering.
 
+Bruk `$skill-navn` når arbeidsfasen skal være entydig. Skills kan også aktiveres implisitt, men eksplisitt valg er tryggest ved diagnose-, beslutnings- og release-gater.
+
 ## Normal leveransesyklus
 
 1. Prosjekteier og ChatGPT avklarer mål, avgrensning og akseptansekriterier.
-2. Spesifikasjonen lagres eller oppdateres i repoet når oppgaven er større.
-3. Codex analyserer berørte deler av kodebasen.
-4. Codex implementerer i en passende branch eller avtalt arbeidsflyt.
-5. Relevante automatiske tester kjøres.
-6. Lokal Docker-test gjennomføres når risiko eller omfang tilsier det.
-7. Endringen committes og pushes til GitHub.
-8. Staging deployes og testes.
-9. Dokumentasjon og prosjektstatus oppdateres.
-10. Prosjekteier godkjenner eller bestiller oppfølging.
+2. Ukjente feil diagnostiseres før retting.
+3. Større retning designes og godkjennes i et ADR før implementering.
+4. Spesifikasjonen lagres eller oppdateres i repoet når oppgaven er større.
+5. Codex analyserer berørte deler av kodebasen.
+6. Codex implementerer i en passende branch eller avtalt arbeidsflyt.
+7. Relevante automatiske tester kjøres.
+8. Lokal Docker-test gjennomføres når risiko eller omfang tilsier det.
+9. Endringen committes og pushes til GitHub.
+10. Staging deployes og testes.
+11. Dokumentasjon og prosjektstatus oppdateres eller kontrolleres.
+12. Prosjekteier godkjenner eller bestiller oppfølging.
 
 ## Når lokal testing bør prioriteres
 

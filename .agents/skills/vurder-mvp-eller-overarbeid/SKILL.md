@@ -5,6 +5,8 @@ description: Vurder om en foreslått løsning for Kreative Norge CRM er riktig d
 
 # Vurder MVP eller overarbeid
 
+Følg `AGENTS.md` og vurder forslaget mot faktisk kode, dokumenterte brukerbehov og gjeldende roadmap.
+
 Vurder:
 
 1. hvilket konkret brukerproblem som løses
@@ -15,4 +17,12 @@ Vurder:
 6. om eksisterende modeller og tjenester kan gjenbrukes
 7. hva som kan utsettes uten å blokkere videre arbeid
 
-Lever tre nivåer når nyttig: minste forsvarlige løsning, anbefalt løsning og full fremtidsløsning. Anbefal tydelig ett nivå og forklar hvorfor. Ikke la teknisk eleganse alene styre valget.
+Lever tre nivåer når nyttig: minste forsvarlige løsning, anbefalt løsning og full fremtidsløsning. Anbefal tydelig ett nivå og forklar hvorfor. Ikke la teknisk eleganse alene styre valget. Ikke implementer.
+
+## Output
+
+En dimensjoneringsvurdering med minste forsvarlige, anbefalt og langsiktig løsning, tydelig anbefaling, utsettelser og konsekvenser.
+
+## Neste anbefalte skill
+
+Bruk `$ta-arkitekturavgjorelse` for en større godkjent løsning. Bruk `$skriv-codex-oppgave` for en liten, reverserbar løsning som ikke krever ADR.

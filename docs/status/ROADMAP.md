@@ -6,10 +6,16 @@
 
 ## Fase 0 – Sikre utviklingsarbeidsflyten
 
-- etablere GitHub som levende sannhetskilde
-- sikre at ChatGPT kan lese oppdatert repo ved planlegging og kvalitetssikring
-- sikre at Codex alltid leser status og relevante dokumenter før implementering
-- etablere dokumentasjonsplikt ved funksjonelle endringer
+Gjennomført:
+
+- etablert GitHub som levende sannhetskilde
+- etablert Fredrik Development System med `AGENTS.md`, dokumentert workflow og 12 repo-baserte Codex-skills
+- sikret at ChatGPT og Codex har dokumenterte oppstarts- og sannhetskilder
+- etablert ADR-gate for større implementeringer
+- etablert dokumentasjonsplikt ved funksjonelle endringer
+
+Gjenstår:
+
 - planlegge automatisk staging-deploy ved push
 - definere minimumstester før deploy
 

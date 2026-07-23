@@ -1,0 +1,4 @@
+interface:
+  display_name: "Undersøk feil før retting"
+  short_description: "Finn dokumentert rotårsak før kode endres"
+  default_prompt: "Bruk $undersok-feil-for-retting til å diagnostisere denne feilen uten å rette kode."

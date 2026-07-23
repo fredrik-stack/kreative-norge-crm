@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fullfør til staging"
+  short_description: "Bygg, test, dokumenter og verifiser på staging"
+  default_prompt: "Bruk $fullfor-til-staging til å gjennomføre denne godkjente leveransen helt til staging."

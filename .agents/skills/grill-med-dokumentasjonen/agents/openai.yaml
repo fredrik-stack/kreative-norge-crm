@@ -1,0 +1,4 @@
+interface:
+  display_name: "Grill med dokumentasjonen"
+  short_description: "Finn motsetninger, antakelser og dokumenthull"
+  default_prompt: "Bruk $grill-med-dokumentasjonen til å utfordre dette grunnlaget før implementering."

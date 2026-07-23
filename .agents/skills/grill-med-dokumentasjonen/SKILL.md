@@ -5,7 +5,7 @@ description: Kritisk gjennomgå dokumentasjon, planer og beslutninger i Kreative
 
 # Grill med dokumentasjonen
 
-Les relevant dokumentasjon og kontroller mot kode, migrasjoner, API-ruter og tester.
+Følg `AGENTS.md`. Les relevant dokumentasjon og kontroller mot kode, migrasjoner, API-ruter og tester.
 
 Finn og ranger:
 
@@ -26,4 +26,12 @@ Rapporter:
 4. hva som kan vente
 5. dokumenter som bør oppdateres
 
-Ikke kode med mindre Fredrik uttrykkelig ber om det.
+Ikke kode eller endre beslutninger. Skill mellom dokumenterte fakta, avvik, antakelser og spørsmål som trenger prosjekteierens godkjenning.
+
+## Output
+
+En prioritert granskningsrapport med belegg, kritiske og viktige funn, åpne beslutninger, anbefalt forenkling og berørte dokumenter.
+
+## Neste anbefalte skill
+
+Bruk `$planlegg-ny-funksjon` når funnene krever ny helhetsdesign. Bruk `$ta-arkitekturavgjorelse` når grunnlaget allerede er godkjent og skal formaliseres.

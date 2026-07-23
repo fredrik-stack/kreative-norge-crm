@@ -1,0 +1,4 @@
+interface:
+  display_name: "Oppdater prosjektdokumentasjonen"
+  short_description: "Hold dokumentasjonen i takt med faktisk status"
+  default_prompt: "Bruk $oppdater-prosjektdokumentasjonen til å synkronisere docs med siste endring."

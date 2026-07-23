@@ -1,0 +1,4 @@
+interface:
+  display_name: "Vurder MVP eller overarbeid"
+  short_description: "Velg riktig omfang før større tekniske valg"
+  default_prompt: "Bruk $vurder-mvp-eller-overarbeid til å dimensjonere denne løsningen."

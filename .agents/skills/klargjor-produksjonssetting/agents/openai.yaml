@@ -1,0 +1,4 @@
+interface:
+  display_name: "Klargjør produksjonssetting"
+  short_description: "Kontroller release og stopp før produksjonsdeploy"
+  default_prompt: "Bruk $klargjor-produksjonssetting til å kontrollere leveransen før produksjon uten å deploye."

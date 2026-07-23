@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skriv Codex-oppgave"
+  short_description: "Gjør godkjent retning til en presis Codex-oppgave"
+  default_prompt: "Bruk $skriv-codex-oppgave til å lage neste avgrensede implementeringsoppgave."

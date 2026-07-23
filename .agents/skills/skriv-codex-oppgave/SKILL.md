@@ -5,7 +5,7 @@ description: Gjør en godkjent beslutning, feilbeskrivelse eller plan om til en 
 
 # Skriv Codex-oppgave
 
-Prinsipp: Referer til stabil kunnskap i repoet. Gjenta bare oppgavespesifikk kunnskap.
+Følg `AGENTS.md`. Referer til stabil kunnskap i repoet og gjenta bare oppgavespesifikk kunnskap. Kontroller at en større implementering viser til en godkjent ADR.
 
 Prompten skal:
 
@@ -20,4 +20,12 @@ Prompten skal:
 9. kreve sluttrapport etter formatet i workflowen
 10. angi stoppunkt dersom godkjenning kreves før neste fase
 
-Hold prompten kort nok til daglig bruk, men komplett nok til at Codex ikke må gjette.
+Hold prompten kort nok til daglig bruk, men komplett nok til at Codex ikke må gjette. Ikke implementer oppgaven.
+
+## Output
+
+Én kopierbar Codex-oppgave med mål, kilder, scope, akseptansekriterier, tester, leveransekrav og eksplisitt stoppunkt.
+
+## Neste anbefalte skill
+
+Bruk `$trygg-databaseendring` når leveransen berører modeller, migrasjoner eller eksisterende data. Ellers brukes `$fullfor-til-staging`.
