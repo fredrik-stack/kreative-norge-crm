@@ -391,28 +391,11 @@ Et teknologivalg må vurderes mot:
 
 For et etablert system teller ikke bare hvor raskt en tom prototype kan bygges. Modeller, migrasjonshistorikk, autentisering, roller, API, import, public-visning, tester og eksisterende data må følge med.
 
-## Django er et helt økosystem
+## Typesikkerhet avgjør ikke Django mot Node
 
-Django er ikke bare Python-syntaks. Rammeverket gir blant annet ORM, migrasjoner, autentisering, sessions, sikkerhetsmekanismer, URL-routing og administrasjon.
+Django gir ORM, migrasjoner, autentisering og API-verktøy gjennom sitt økosystem. Et Node-/TypeScript-alternativ kan bruke samme hovedspråk i frontend og backend, men det fjerner ikke behovet for API-kontrakter, runtime-validering, databaseconstraints og tester.
 
-Django REST Framework gir serializers, API-visninger, permissions, validering og paginering.
-
-Å bytte backend betyr å erstatte eller gjenbygge disse delene. PostgreSQL kan beholdes, men ORM, migrasjonsverktøy og validering vil endres.
-
-## «Node.js» er ikke én løsning
-
-Node.js er et kjøremiljø for JavaScript på serveren. Et konkret forslag må også velge rammeverk, ORM, autentisering, validering, testing og deployoppsett.
-
-Et Node-/TypeScript-oppsett kan gi:
-
-- samme hovedspråk i frontend og backend
-- mulighet for delte verktøy og typer
-- god tilpasning til utviklerens kompetanse
-- et stort webøkosystem
-
-Men TypeScript i begge lag fjerner ikke behovet for API-kontrakter, runtime-validering, databaseconstraints og tester. Database-, API- og UI-modell vil fortsatt ha ulike ansvar.
-
-Ingen overgang fra Django til Node er besluttet eller planlagt som implementering. Det er et arkitekturspørsmål som krever dokumentert gevinst og godkjent beslutning.
+Ingen overgang er besluttet. Kapittel 24 behandler den overordnede sammenligningen. Her er poenget at typesikkerheten kan styrkes i dagens stack uten å bytte backend.
 
 ## CRM og CMS løser ulike problemer
 
@@ -442,34 +425,11 @@ En mellomløsning kan være å beholde Django og PostgreSQL, men styrke OpenAPI-
 
 En ny Node-tjeneste kan passe for en avgrenset integrasjon eller hendelsesflyt. Samtidig innfører den en ny driftsenhet. Mikrotjenester skal derfor løse et identifisert problem, ikke bare gjøre arkitekturdiagrammet mer moderne.
 
-## Hvordan avgjøre Django mot Node
+## Et teknologibytte krever beslutningsgrunnlag
 
-Beslutningen skal ikke bygge på at én teknologi virker moderne eller at én person foretrekker den.
+En eventuell prototype må representere CRM-et, ikke bare vise en enkel liste. Den bør dekke CRUD, tenant-isolasjon, autentisering, relasjoner, validering, migrasjon og tester. Ellers sammenligner vi en tom demo med et modent system.
 
-En seriøs prosess er:
-
-1. Dokumenter dagens funksjoner, data, API, sikkerhet, drift og tester.
-2. Beskriv den konkrete alternative stacken, ikke bare «Node».
-3. Definer målbar gevinst.
-4. Lag eventuelt en avgrenset prototype med CRUD, tenant og relasjoner.
-5. Sammenlign typesikkerhet, vedlikehold, testbarhet, drift og kostnad.
-6. Beregn omskriving, datamigrasjon, dobbelt vedlikehold og tapt fremdrift.
-7. Ta en eksplisitt arkitekturavgjørelse før større implementering.
-
-Mulige utfall er å beholde Django, styrke kontraktene i dagens stack, bruke Node til en avgrenset tjeneste eller gjennomføre en senere migrering. En prototype er et beslutningsgrunnlag, ikke automatisk ny hovedløsning.
-
-En representativ prototype må teste mer enn en enkel liste. Den bør omfatte CRUD, tenant-isolasjon, autentisering, minst én relasjon, validering, migrasjon og relevante tester. Ellers sammenligner vi en tom demo med et ferdig CRM og får et misvisende resultat.
-
-Kostnadsberegningen må ta med:
-
-- omskriving og datamigrasjon
-- dobbelt vedlikehold i overgangsperioden
-- nye feil og tap av moden funksjonalitet
-- test, dokumentasjon og deploy
-- opplæring og leverandørbinding
-- tapt tid til prioriterte produktbehov
-
-Typesikkerhet er en mulig gevinst, men den må måles mot hva som kan oppnås ved å forbedre dagens kontrakter.
+Før større implementering må gevinsten måles mot omskriving, datamigrasjon, dobbelt vedlikehold, nye feil, drift og tapt produktfremdrift. Typesikkerhet er bare én mulig gevinst og må sammenlignes med forbedringer i dagens OpenAPI-kontrakt og frontendtyper. Retningen krever en eksplisitt arkitekturavgjørelse.
 
 ## En trinnvis Type Safety-plan
 

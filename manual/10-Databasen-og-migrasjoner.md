@@ -254,13 +254,7 @@ To begreper gjør behovet konkret:
 
 Hvis backup tas én gang i døgnet, kan nesten ett døgns registrering gå tapt. Hvis CRM-et må være tilbake innen fire timer, må gjenopprettingsrutinen faktisk kunne klare det.
 
-Backupen bør ligge et annet sted enn den aktive databasen, være kryptert, tilgangsbegrenset, tidsstemplet og testet. CRM-backup inneholder personopplysninger og må følge regler for tilgang, oppbevaring og sletting.
-
-En backup som aldri er gjenopprettet i en test, er ikke et dokumentert sikkerhetsnett.
-
-Gamle backuper inneholder fortsatt personopplysninger. En backup-policy må derfor angi hvor lenge de beholdes, hvem som kan bruke dem, og hva som skjer hvis slettede data gjeninnføres ved katastrofegjenoppretting.
-
-En praktisk regel er at backup bare brukes til gjenoppretting, ikke som et skjult arkiv. Etter restore må slettinger og andre senere korreksjoner gjennomføres på nytt når det er påkrevd.
+Kapittel 23 beskriver den generelle driftsrutinen for plassering, tilgang, oppbevaring og restore-test. Før en migrasjon er kontrollspørsmålet mer avgrenset: Finnes det en fersk, separat kopi, og er det dokumentert at riktig database kan gjenopprettes innen prosjektets RTO? Kopien inneholder personopplysninger og må følge de samme tilgangs- og slettereglene som andre CRM-data.
 
 ## Sletting, historikk og audit
 
