@@ -4,9 +4,12 @@ This is a small same-origin staging setup for the CRM:
 
 - `db`: PostgreSQL
 - `api`: Django + Gunicorn
-- `web`: nginx serving the built frontend and proxying `/api/` and `/admin/`
+- host-level Caddy terminates HTTPS
+- `web`: nginx serving the built frontend and proxying `/api/`, `/admin/`, and `/public/`
 
 Because the frontend and API share the same origin, Django session auth and CSRF are simpler to operate.
+
+On the current staging server, Caddy listens publicly for `staging.northernsound.no` and reverse-proxies to `127.0.0.1:8080`. The `web` container therefore binds `127.0.0.1:8080:80`; it must not bind public port `80`, because Caddy owns that port.
 
 ## 1. Prepare the server
 
@@ -53,13 +56,15 @@ VITE_API_BASE=
 ## 4. Start staging
 
 ```bash
-docker compose -f docker-compose.staging.yml --env-file .env.staging up -d --build
+docker-compose -f docker-compose.staging.yml --env-file .env.staging up -d --build
 ```
+
+The repository compose file binds the web container to `127.0.0.1:8080:80`.
 
 ## 5. Create an admin user
 
 ```bash
-docker compose -f docker-compose.staging.yml --env-file .env.staging exec api python manage.py createsuperuser
+docker-compose -f docker-compose.staging.yml --env-file .env.staging exec api python manage.py createsuperuser
 ```
 
 ## 6. Verify the deployment
@@ -67,39 +72,36 @@ docker compose -f docker-compose.staging.yml --env-file .env.staging exec api py
 Check:
 
 ```bash
-docker compose -f docker-compose.staging.yml --env-file .env.staging ps
-docker compose -f docker-compose.staging.yml --env-file .env.staging logs api --tail=100
-docker compose -f docker-compose.staging.yml --env-file .env.staging logs web --tail=100
+docker-compose -f docker-compose.staging.yml --env-file .env.staging ps
+docker-compose -f docker-compose.staging.yml --env-file .env.staging logs --tail=100 api
+docker-compose -f docker-compose.staging.yml --env-file .env.staging logs --tail=100 web
 ```
 
 Then open:
 
-- `http://<server-ip>/`
-- `http://<server-ip>/admin/`
-
-After DNS is pointing to the server, switch to the real staging domain.
+- `https://staging.northernsound.no/`
+- `https://staging.northernsound.no/api/auth/session/`
+- `https://staging.northernsound.no/public/actors/`
+- `https://staging.northernsound.no/admin/`
 
 ## 7. HTTPS
 
-The compose setup serves HTTP on port `80`.
+The compose setup serves HTTP only on localhost port `8080`.
 
-For real staging use, add HTTPS in front of it. The easiest paths are:
-
-1. Put Caddy or host-level nginx in front and terminate TLS there.
-2. Or extend this compose setup with a certbot-based TLS layer.
-
-If you terminate TLS in front of the app, keep forwarding:
+Caddy terminates HTTPS and must forward:
 
 - `Host`
 - `X-Forwarded-Proto https`
 
-That matches Django's `SECURE_PROXY_SSL_HEADER` setting.
+Nginx inside the `web` container must pass the incoming `X-Forwarded-Proto` header onward to Django for `/api/`, `/admin/`, and `/public/`. That matches Django's `SECURE_PROXY_SSL_HEADER` setting and prevents HTTPS redirect loops.
 
 ## 8. Updating staging
 
 ```bash
 git pull
-docker compose -f docker-compose.staging.yml --env-file .env.staging up -d --build
+docker-compose -f docker-compose.staging.yml --env-file .env.staging up -d --build
+docker-compose -f docker-compose.staging.yml --env-file .env.staging ps
+docker-compose -f docker-compose.staging.yml --env-file .env.staging exec -T api python manage.py check
 ```
 
 ## Notes
@@ -107,3 +109,4 @@ docker compose -f docker-compose.staging.yml --env-file .env.staging up -d --bui
 - `api` runs `migrate` and `collectstatic` on startup.
 - Frontend is built into the nginx image at deploy time.
 - Static files are shared from Django to nginx through the `django_static` volume.
+- For contact-data repairs, run `python manage.py repair_person_contacts` as dry-run first. Use `--apply` only after backup and explicit approval.
