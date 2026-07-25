@@ -1,10 +1,10 @@
 # Public Architecture
 
-**Status:** Implementert grunnløsning; kontaktfeil diagnostisert og målarkitektur besluttet, ikke implementert
+**Status:** Implementert grunnløsning; kontaktregel for e-postflyt rettet som mellomleveranse
 
-**Sist verifisert:** 2026-07-23
+**Sist verifisert:** 2026-07-25
 
-**Verifisert mot:** public-ruter, `PublicActorViewSet`, public serializer, modeller og Editor/Public-adferd som er rapportert av prosjekteier.
+**Verifisert mot:** public-ruter, `PublicActorViewSet`, public serializer, modeller, public HTML-template, importtjenester, React-editor og regresjonstester.
 
 ## Omfang
 
@@ -26,16 +26,31 @@ Publisering styres blant annet av:
 
 Personmodellen har også direkte `email` og `phone`. Dette gjør kontaktarkitekturen todelt og krever tydelig dokumentasjon og tester.
 
-## Diagnostisert feilområde: kontaktpersoners e-post
+Implementert mellomregel fra 2026-07-25:
+
+- `OrganizationPerson.publish_person` bestemmer om personen vises som kontaktperson offentlig.
+- `PersonContact.is_public` bestemmer om den enkelte e-postadressen eller telefonen vises offentlig.
+- `Person.email` og `Person.phone` er interne kompatibilitetsfelt og brukes ikke som PUBLIC-fallback.
+- PUBLIC HTML og PUBLIC API bruker samme regel: bare aktive koblinger med `publish_person=True`, og bare kontaktkanaler med `is_public=True`.
+- En offentlig person kan vises uten offentlig e-post eller telefon.
+
+## Rettet feilområde: kontaktpersoners e-post
 
 Diagnosen viser at problemet skyldes en todelt kontaktarkitektur og flere kontaktresolvere:
 
 - `Person.email` og `Person.phone` finnes parallelt med `PersonContact`
 - Editor viser og lagrer i hovedsak direktefeltene
 - enkelte opprettingsflyter skriver begge steder
-- public API bruker eksplisitte offentlige `PersonContact`
-- public HTML kan falle tilbake til direkte person-e-post
-- import kan oppdatere begge kilder og publiseringsflagg
+- public API brukte eksplisitte offentlige `PersonContact`
+- public HTML kunne falle tilbake til direkte person-e-post
+- import kunne oppdatere begge kilder og publiseringsflagg
+
+Rettet mellomleveranse:
+
+- public HTML bruker ikke lenger fallback til `Person.email`
+- public API og HTML viser samme offentlige kontaktinformasjon
+- direkte personfelt holdes synkronisert med primær intern `PersonContact` for e-post og telefon
+- eksisterende direkte e-post blir ikke automatisk offentlig
 
 Målarkitekturen er godkjent i `ADR-005`:
 
@@ -44,7 +59,7 @@ Målarkitekturen er godkjent i `ADR-005`:
 - HTML, API og Editor-preview bruker én offentlig projeksjon
 - direktefeltfallback fjernes
 
-Dette er planlagt og ikke implementert. Dagens publiseringsregler og fallback gjelder fortsatt i kodebasen.
+Full ADR-005-målmodell med relasjonsspesifikk kontaktpublisering er fortsatt planlagt og ikke implementert.
 
 ## Bilde og thumbnail
 

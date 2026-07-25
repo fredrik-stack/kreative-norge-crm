@@ -252,22 +252,18 @@ class Person(models.Model):
         return self.full_name
 
     def get_public_emails(self) -> list[str]:
-        public_emails = list(
+        return list(
             self.contacts.filter(type="EMAIL", is_public=True)
             .order_by("-is_primary", "id")
             .values_list("value", flat=True)
         )
-        if public_emails:
-            return public_emails
-        return [self.email] if self.email else []
 
     def get_public_phones(self) -> list[str]:
-        public_phones = list(
+        return list(
             self.contacts.filter(type="PHONE", is_public=True)
             .order_by("-is_primary", "id")
             .values_list("value", flat=True)
         )
-        return public_phones
 
 class PersonContact(models.Model):
     CONTACT_TYPES = [

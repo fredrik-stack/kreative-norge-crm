@@ -238,7 +238,7 @@ class PersonViewSet(viewsets.ModelViewSet):
     serializer_class = PersonSerializer
 
     def get_queryset(self):
-        qs = Person.objects.all().order_by("full_name").prefetch_related("tags", "subcategories__category")
+        qs = Person.objects.all().order_by("full_name").prefetch_related("contacts", "tags", "subcategories__category")
         tenant_id = self.kwargs.get("tenant_id")
         if tenant_id is not None:
             qs = qs.filter(tenant_id=tenant_id)

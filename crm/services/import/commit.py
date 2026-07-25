@@ -19,6 +19,7 @@ from crm.models import (
     Subcategory,
     Tag,
 )
+from crm.services.person_contacts import ensure_primary_contact_for_person_field
 from crm.services.open_graph import refresh_organization_open_graph
 
 
@@ -170,40 +171,40 @@ def _get_primary_contact(person: Person, contact_type: str):
 
 def _upsert_person_contacts(person: Person, data: dict, row: ImportRow, job: ImportJob):
     if data["email"]:
-        primary = _get_primary_contact(person, "EMAIL")
+        existing = _get_primary_contact(person, "EMAIL")
+        primary = ensure_primary_contact_for_person_field(
+            person,
+            "EMAIL",
+            data["email"],
+            is_public=data.get("email_public"),
+        )
         if primary:
-            primary.value = data["email"]
-            primary.is_public = False
-            primary.save(update_fields=["value", "is_public"])
-            _log(job, row, ImportCommitLog.EntityType.PERSON_CONTACT, primary.id, ImportCommitLog.Action.UPDATED, {"type": "EMAIL", "primary": True})
-        else:
-            primary = PersonContact.objects.create(
-                tenant=person.tenant,
-                person=person,
-                type="EMAIL",
-                value=data["email"],
-                is_primary=True,
-                is_public=False,
+            _log(
+                job,
+                row,
+                ImportCommitLog.EntityType.PERSON_CONTACT,
+                primary.id,
+                ImportCommitLog.Action.UPDATED if existing else ImportCommitLog.Action.CREATED,
+                {"type": "EMAIL", "primary": True},
             )
-            _log(job, row, ImportCommitLog.EntityType.PERSON_CONTACT, primary.id, ImportCommitLog.Action.CREATED, {"type": "EMAIL", "primary": True})
 
     if data["phone"]:
-        primary = _get_primary_contact(person, "PHONE")
+        existing = _get_primary_contact(person, "PHONE")
+        primary = ensure_primary_contact_for_person_field(
+            person,
+            "PHONE",
+            data["phone"],
+            is_public=data.get("phone_public"),
+        )
         if primary:
-            primary.value = data["phone"]
-            primary.is_public = False
-            primary.save(update_fields=["value", "is_public"])
-            _log(job, row, ImportCommitLog.EntityType.PERSON_CONTACT, primary.id, ImportCommitLog.Action.UPDATED, {"type": "PHONE", "primary": True})
-        else:
-            primary = PersonContact.objects.create(
-                tenant=person.tenant,
-                person=person,
-                type="PHONE",
-                value=data["phone"],
-                is_primary=True,
-                is_public=False,
+            _log(
+                job,
+                row,
+                ImportCommitLog.EntityType.PERSON_CONTACT,
+                primary.id,
+                ImportCommitLog.Action.UPDATED if existing else ImportCommitLog.Action.CREATED,
+                {"type": "PHONE", "primary": True},
             )
-            _log(job, row, ImportCommitLog.EntityType.PERSON_CONTACT, primary.id, ImportCommitLog.Action.CREATED, {"type": "PHONE", "primary": True})
 
     for contact in data["secondary_contacts"]:
         secondary, created = PersonContact.objects.get_or_create(

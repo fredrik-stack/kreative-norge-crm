@@ -16,6 +16,7 @@ from .models import (
     ImportCommitLog,
     ExportJob,
 )
+from .services.person_contacts import sync_person_fields_to_primary_contacts, sync_primary_contact_to_person
 
 
 class TenantMembershipSerializer(serializers.ModelSerializer):
@@ -292,6 +293,16 @@ class PersonContactSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["tenant", "created_at"]
 
+    def create(self, validated_data):
+        contact = super().create(validated_data)
+        sync_primary_contact_to_person(contact)
+        return contact
+
+    def update(self, instance, validated_data):
+        contact = super().update(instance, validated_data)
+        sync_primary_contact_to_person(contact)
+        return contact
+
 
 class PublicPersonContactSerializer(serializers.ModelSerializer):
     class Meta:
@@ -405,6 +416,20 @@ class PersonSerializer(serializers.ModelSerializer):
             if tenant_id is not None:
                 return int(tenant_id)
         return None
+
+    def create(self, validated_data):
+        person = super().create(validated_data)
+        sync_person_fields_to_primary_contacts(
+            person,
+            fields={field for field in {"email", "phone"} if field in validated_data},
+        )
+        return person
+
+    def update(self, instance, validated_data):
+        changed_contact_fields = {field for field in {"email", "phone"} if field in validated_data}
+        person = super().update(instance, validated_data)
+        sync_person_fields_to_primary_contacts(person, fields=changed_contact_fields)
+        return person
 
 
 class OrganizationPersonSerializer(serializers.ModelSerializer):
