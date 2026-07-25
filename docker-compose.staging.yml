@@ -38,7 +38,7 @@ services:
     depends_on:
       - api
     ports:
-      - "80:80"
+      - "127.0.0.1:8080:80"
     volumes:
       - django_static:/var/www/django-static:ro
 
