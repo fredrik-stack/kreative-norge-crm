@@ -221,6 +221,23 @@ def main() -> int:
     log("organization_person.patch", r)
 
     # Person-contact CRUD
+    r = client.get(
+        f"/api/tenants/{tenant_id}/person-contacts/?person={person_id}",
+        secure=True,
+        HTTP_HOST=args.host,
+    )
+    assert_status(r, 200, "person_contact.auto_primary")
+    initial_contacts = parse_json(r, "person_contact.auto_primary")
+    if not any(
+        item.get("type") == "EMAIL"
+        and item.get("value") == person_payload["email"]
+        and item.get("is_primary") is True
+        and item.get("is_public") is False
+        for item in initial_contacts
+    ):
+        raise AssertionError("person_contact.auto_primary: expected private primary email contact")
+    log("person_contact.auto_primary", r)
+
     r = client.post(
         f"/api/tenants/{tenant_id}/person-contacts/",
         data=json.dumps(
@@ -229,7 +246,7 @@ def main() -> int:
                 "person": person_id,
                 "type": "EMAIL",
                 "value": f"contact-{suffix}@example.com",
-                "is_primary": True,
+                "is_primary": False,
                 "is_public": False,
             }
         ),

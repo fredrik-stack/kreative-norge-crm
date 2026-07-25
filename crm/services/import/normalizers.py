@@ -29,7 +29,9 @@ PERSON_IMPORT_FIELDS = [
     "person_full_name",
     "person_title",
     "person_email",
+    "person_email_public",
     "person_phone",
+    "person_phone_public",
     "person_municipality",
     "person_website_url",
     "person_instagram_url",
@@ -73,7 +75,9 @@ COMBINED_IMPORT_FIELDS = [
     "person_full_name",
     "person_title",
     "person_email",
+    "person_email_public",
     "person_phone",
+    "person_phone_public",
     "person_municipality",
     "person_website_url",
     "person_instagram_url",
@@ -169,6 +173,17 @@ def parse_bool(value, default: bool = False) -> bool:
     return default
 
 
+def parse_optional_bool(value) -> bool | None:
+    text = clean_string(value).lower()
+    if not text:
+        return None
+    if text in {"1", "true", "yes", "ja", "y", "on"}:
+        return True
+    if text in {"0", "false", "no", "nei", "n", "off"}:
+        return False
+    return None
+
+
 def split_values(value) -> list[str]:
     text = clean_string(value)
     if not text:
@@ -228,7 +243,9 @@ def normalize_import_row(raw_payload: dict, import_mode: str = "COMBINED") -> di
             "normalized_full_name": normalize_name(person_full_name),
             "title": normalize_space(raw_payload.get("person_title")),
             "email": person_email,
+            "email_public": parse_optional_bool(raw_payload.get("person_email_public")),
             "phone": person_phone,
+            "phone_public": parse_optional_bool(raw_payload.get("person_phone_public")),
             "municipality": normalize_space(raw_payload.get("person_municipality")),
             "website_url": clean_string(raw_payload.get("person_website_url")),
             "instagram_url": clean_string(raw_payload.get("person_instagram_url")),
@@ -263,7 +280,9 @@ def normalize_import_row(raw_payload: dict, import_mode: str = "COMBINED") -> di
             "normalized_full_name": "",
             "title": "",
             "email": "",
+            "email_public": None,
             "phone": "",
+            "phone_public": None,
             "municipality": "",
             "website_url": "",
             "instagram_url": "",

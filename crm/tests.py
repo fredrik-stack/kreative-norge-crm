@@ -2,9 +2,11 @@ import tempfile
 import zipfile
 import importlib
 from io import BytesIO
+from io import StringIO
 from xml.sax.saxutils import escape
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from unittest.mock import patch
@@ -528,7 +530,9 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
             "person_full_name": "Ada Artist",
             "person_title": "Manager",
             "person_email": "ada@example.com",
+            "person_email_public": "",
             "person_phone": "+4722222222",
+            "person_phone_public": "",
             "person_municipality": "Oslo",
             "person_website_url": "",
             "person_instagram_url": "",
@@ -808,9 +812,62 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(person.title, "Manager")
         self.assertEqual(person.contacts.filter(type="EMAIL", is_primary=True).count(), 1)
         self.assertEqual(person.contacts.filter(type="PHONE", is_primary=True).count(), 1)
+        self.assertFalse(person.contacts.get(type="EMAIL", is_primary=True).is_public)
+        self.assertFalse(person.contacts.get(type="PHONE", is_primary=True).is_public)
         self.assertTrue(person.contacts.filter(value="ada.booking@example.com", is_public=False).exists())
         self.assertTrue(Tag.objects.filter(tenant=self.tenant, name="jazz").exists())
         self.assertGreater(self.job.commit_logs.count(), 0)
+        refresh_mock.assert_called_once()
+
+    @patch("crm.services.import.commit.refresh_organization_open_graph")
+    def test_commit_can_publish_primary_person_email_explicitly(self, refresh_mock):
+        self._upload_csv([self.base_row | {"person_email_public": "ja"}])
+        self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+
+        response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/commit/", {"skip_unresolved": False}, format="json")
+        self.assertEqual(response.status_code, 200, response.content)
+
+        contact = PersonContact.objects.get(type="EMAIL", value="ada@example.com", is_primary=True)
+        self.assertTrue(contact.is_public)
+        refresh_mock.assert_called_once()
+
+    @patch("crm.services.import.commit.refresh_organization_open_graph")
+    def test_commit_without_person_email_public_preserves_existing_public_flag(self, refresh_mock):
+        organization = Organization.objects.create(
+            tenant=self.tenant,
+            name="Nordlyd Existing",
+            org_number="123456789",
+        )
+        person = Person.objects.create(
+            tenant=self.tenant,
+            full_name="Ada Artist",
+            email="ada@example.com",
+        )
+        contact = PersonContact.objects.create(
+            tenant=self.tenant,
+            person=person,
+            type="EMAIL",
+            value="ada@example.com",
+            is_primary=True,
+            is_public=True,
+        )
+        OrganizationPerson.objects.create(
+            tenant=self.tenant,
+            organization=organization,
+            person=person,
+            status="ACTIVE",
+            publish_person=True,
+        )
+
+        row = {key: value for key, value in self.base_row.items() if key != "person_email_public"}
+        self._upload_csv([row])
+        self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+
+        response = self.client.post(f"{self.import_jobs_url()}{self.job.id}/commit/", {"skip_unresolved": False}, format="json")
+        self.assertEqual(response.status_code, 200, response.content)
+
+        contact.refresh_from_db()
+        self.assertTrue(contact.is_public)
         refresh_mock.assert_called_once()
 
     def test_commit_is_blocked_by_unresolved_rows(self):
@@ -1271,6 +1328,15 @@ class PersonContactViewSetTests(AuthenticatedAPITestCase):
         self.assertIn(self.contact_b.id, ids)
         self.assertNotIn(self.contact_other_tenant.id, ids)
 
+    def test_list_includes_private_contact_channels(self):
+        response = self.client.get(self.tenant_contacts_url(), {"person": self.person_b.id})
+        self.assertEqual(response.status_code, 200)
+
+        payload = response.json()
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]["id"], self.contact_b.id)
+        self.assertFalse(payload[0]["is_public"])
+
     def test_list_supports_person_query_filter(self):
         response = self.client.get(self.tenant_contacts_url(), {"person": self.person_a.id})
         self.assertEqual(response.status_code, 200)
@@ -1309,6 +1375,17 @@ class PersonContactViewSetTests(AuthenticatedAPITestCase):
         self.contact_b.refresh_from_db()
         self.assertTrue(self.contact_b.is_primary)
         self.assertTrue(self.contact_b.is_public)
+
+    def test_primary_email_contact_update_syncs_person_email(self):
+        response = self.client.patch(
+            f"{self.tenant_contacts_url()}{self.contact_a.id}/",
+            {"value": "alice.new@example.com"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+
+        self.person_a.refresh_from_db()
+        self.assertEqual(self.person_a.email, "alice.new@example.com")
 
     def test_rejects_contact_person_from_other_tenant(self):
         response = self.client.post(
@@ -1406,6 +1483,114 @@ class PersonSerializerTests(TestCase):
         self.assertEqual(data["linkedin_url"], "https://linkedin.com/in/personexample")
         self.assertEqual(data["facebook_url"], "https://facebook.com/personexample")
         self.assertEqual(data["youtube_url"], "https://youtube.com/@personexample")
+
+
+class PersonContactSyncApiTests(AuthenticatedAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.tenant = Tenant.objects.create(name="Sync Tenant", slug="sync-tenant")
+        grant_membership(self.user, self.tenant)
+
+    def persons_url(self, person_id: int | None = None) -> str:
+        base = f"/api/tenants/{self.tenant.id}/persons/"
+        return f"{base}{person_id}/" if person_id else base
+
+    def test_create_person_with_email_creates_private_primary_contact(self):
+        response = self.client.post(
+            self.persons_url(),
+            {
+                "full_name": "Ada Sync",
+                "email": "ada.sync@example.com",
+                "phone": "",
+                "municipality": "Oslo",
+                "tag_ids": [],
+                "category_ids": [],
+                "subcategory_ids": [],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+
+        person = Person.objects.get(id=response.json()["id"])
+        contact = PersonContact.objects.get(person=person, type="EMAIL", is_primary=True)
+        self.assertEqual(contact.value, "ada.sync@example.com")
+        self.assertFalse(contact.is_public)
+
+    def test_update_person_email_preserves_existing_public_flag(self):
+        person = Person.objects.create(
+            tenant=self.tenant,
+            full_name="Ada Existing",
+            email="ada.old@example.com",
+            municipality="Oslo",
+        )
+        contact = PersonContact.objects.create(
+            tenant=self.tenant,
+            person=person,
+            type="EMAIL",
+            value="ada.old@example.com",
+            is_primary=True,
+            is_public=True,
+        )
+
+        response = self.client.patch(
+            self.persons_url(person.id),
+            {"email": "ada.new@example.com"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+
+        contact.refresh_from_db()
+        self.assertEqual(contact.value, "ada.new@example.com")
+        self.assertTrue(contact.is_public)
+
+
+class RepairPersonContactsCommandTests(TestCase):
+    def setUp(self):
+        self.tenant = Tenant.objects.create(name="Repair Tenant", slug="repair-tenant")
+
+    def test_dry_run_does_not_change_database(self):
+        Person.objects.create(
+            tenant=self.tenant,
+            full_name="Missing Contact",
+            email="missing@example.com",
+        )
+
+        out = StringIO()
+        call_command("repair_person_contacts", stdout=out)
+
+        self.assertIn("mode=DRY-RUN", out.getvalue())
+        self.assertIn("contacts_to_create=1", out.getvalue())
+        self.assertEqual(PersonContact.objects.count(), 0)
+
+    def test_apply_creates_missing_private_primary_contact(self):
+        person = Person.objects.create(
+            tenant=self.tenant,
+            full_name="Missing Contact",
+            email="missing@example.com",
+        )
+
+        out = StringIO()
+        call_command("repair_person_contacts", "--apply", stdout=out)
+
+        contact = PersonContact.objects.get(person=person, type="EMAIL", is_primary=True)
+        self.assertEqual(contact.value, "missing@example.com")
+        self.assertFalse(contact.is_public)
+        self.assertIn("changes_applied=1", out.getvalue())
+
+    def test_apply_is_idempotent(self):
+        Person.objects.create(
+            tenant=self.tenant,
+            full_name="Missing Contact",
+            email="missing@example.com",
+        )
+
+        call_command("repair_person_contacts", "--apply", stdout=StringIO())
+        out = StringIO()
+        call_command("repair_person_contacts", "--apply", stdout=out)
+
+        self.assertEqual(PersonContact.objects.count(), 1)
+        self.assertIn("contacts_to_create=0", out.getvalue())
+        self.assertIn("changes_applied=0", out.getvalue())
 
 
 class TagModelAndApiTests(AuthenticatedAPITestCase):
@@ -1660,6 +1845,29 @@ class PublicActorSiteTests(TestCase):
             status="ACTIVE",
             publish_person=True,
         )
+        self.public_email_contact = PersonContact.objects.create(
+            tenant=self.tag.tenant,
+            person=self.person,
+            type="EMAIL",
+            value="ada.public@example.com",
+            is_primary=True,
+            is_public=True,
+        )
+        self.private_email_contact = PersonContact.objects.create(
+            tenant=self.tag.tenant,
+            person=self.person,
+            type="EMAIL",
+            value="ada.private@example.com",
+            is_public=False,
+        )
+        self.public_phone_contact = PersonContact.objects.create(
+            tenant=self.tag.tenant,
+            person=self.person,
+            type="PHONE",
+            value="+4744444444",
+            is_primary=True,
+            is_public=True,
+        )
 
         self.hidden_organization = Organization.objects.create(
             tenant=self.tag.tenant,
@@ -1754,13 +1962,52 @@ class PublicActorSiteTests(TestCase):
         self.assertContains(response, "PUBLIK KATEGORI")
         self.assertContains(response, "Publik underkategori")
 
-    def test_public_actor_detail_falls_back_to_person_email_but_not_phone(self):
+    def test_public_actor_detail_uses_public_contacts_without_direct_field_fallback(self):
         response = self.client.get(f"/public/actors/{self.organization.org_number}/")
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Ada Artist")
-        self.assertContains(response, "ada@example.com")
+        self.assertContains(response, "ada.public@example.com")
+        self.assertContains(response, "+4744444444")
+        self.assertNotContains(response, "ada@example.com")
+        self.assertNotContains(response, "ada.private@example.com")
         self.assertNotContains(response, "+4712345678")
+
+    def test_public_api_uses_same_contact_rules_as_html(self):
+        response = self.client.get(f"/api/public/actors/{self.organization.org_number}/")
+        self.assertEqual(response.status_code, 200, response.content)
+
+        people = response.json()["people"]
+        ada = next(person for person in people if person["full_name"] == "Ada Artist")
+        values = {contact["value"] for contact in ada["public_contacts"]}
+        self.assertIn("ada.public@example.com", values)
+        self.assertIn("+4744444444", values)
+        self.assertNotIn("ada@example.com", values)
+        self.assertNotIn("ada.private@example.com", values)
+        self.assertNotIn("+4712345678", values)
+
+    def test_public_api_does_not_fallback_to_person_email_without_public_contact(self):
+        self.public_email_contact.delete()
+
+        response = self.client.get(f"/api/public/actors/{self.organization.org_number}/")
+        self.assertEqual(response.status_code, 200, response.content)
+
+        ada = next(person for person in response.json()["people"] if person["full_name"] == "Ada Artist")
+        values = {contact["value"] for contact in ada["public_contacts"]}
+        self.assertNotIn("ada@example.com", values)
+        self.assertNotIn("ada.private@example.com", values)
+
+    def test_publish_person_false_hides_person_even_with_public_contact(self):
+        self.link.publish_person = False
+        self.link.save(update_fields=["publish_person"])
+
+        api_response = self.client.get(f"/api/public/actors/{self.organization.org_number}/")
+        html_response = self.client.get(f"/public/actors/{self.organization.org_number}/")
+
+        self.assertEqual(api_response.status_code, 200, api_response.content)
+        self.assertEqual(html_response.status_code, 200)
+        self.assertEqual(api_response.json()["people"], [])
+        self.assertNotContains(html_response, "Ada Artist")
 
     def test_public_actor_templates_ignore_favicon_fallback_urls(self):
         self.organization.og_image_url = fallback_preview_image(self.organization.website_url)

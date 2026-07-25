@@ -1006,6 +1006,17 @@ select,
   word-break: break-word;
 }
 
+.editor-contact-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-height: 30px;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid rgba(10, 106, 79, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
 .editor-contact-list {
   display: grid;
   gap: 0.65rem;

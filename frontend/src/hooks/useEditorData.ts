@@ -808,6 +808,7 @@ export function useEditorData() {
         setPersons((current) =>
           current.map((person) => (person.id === updated.id ? { ...person, ...updated } : person)),
         );
+        setPersonContacts(await getPersonContacts(tenantId, selectedPersonId));
       } else {
         throw new Error("Ingen person valgt");
       }
@@ -870,11 +871,23 @@ export function useEditorData() {
         ...contactDraft,
         value: contactDraft.value.trim(),
       });
+      if (created.is_primary) {
+        setPersonDraft((current) => ({
+          ...current,
+          ...(created.type === "EMAIL" ? { email: created.value } : {}),
+          ...(created.type === "PHONE" ? { phone: created.value } : {}),
+        }));
+      }
       setPersonContacts((current) => sortContacts([...current, created]));
       setPersons((current) =>
         current.map((person) =>
           person.id === selectedPersonId
-            ? { ...person, contacts: sortContacts([...(person.contacts ?? []), created]) }
+            ? {
+                ...person,
+                ...(created.is_primary && created.type === "EMAIL" ? { email: created.value } : {}),
+                ...(created.is_primary && created.type === "PHONE" ? { phone: created.value } : {}),
+                contacts: sortContacts([...(person.contacts ?? []), created]),
+              }
             : person,
         ),
       );
@@ -906,6 +919,13 @@ export function useEditorData() {
     try {
       setError(null);
       const updated = await patchPersonContact(tenantId, contactId, payload);
+      if (updated.is_primary) {
+        setPersonDraft((current) => ({
+          ...current,
+          ...(updated.type === "EMAIL" ? { email: updated.value } : {}),
+          ...(updated.type === "PHONE" ? { phone: updated.value } : {}),
+        }));
+      }
       setPersonContacts((current) =>
         sortContacts(current.map((contact) => (contact.id === contactId ? updated : contact))),
       );
@@ -914,6 +934,8 @@ export function useEditorData() {
           person.id === selectedPersonId
             ? {
                 ...person,
+                ...(updated.is_primary && updated.type === "EMAIL" ? { email: updated.value } : {}),
+                ...(updated.is_primary && updated.type === "PHONE" ? { phone: updated.value } : {}),
                 contacts: sortContacts(
                   (person.contacts ?? []).map((contact) => (contact.id === contactId ? updated : contact)),
                 ),
@@ -1186,6 +1208,7 @@ export function useEditorData() {
     onCreateLinkedPerson,
     onSubmitPerson,
     onDeletePerson,
+    createContactFromDraft,
     onCreateContact,
     updateContact,
     removeContact,

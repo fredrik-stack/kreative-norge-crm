@@ -1,10 +1,10 @@
 # Import Architecture
 
-**Status:** Teknisk motor implementert; større produkt- og UX-revisjon planlagt
+**Status:** Teknisk motor implementert; kontaktpublisering rettet som mellomleveranse; større produkt- og UX-revisjon planlagt
 
-**Sist verifisert:** 2026-07-23
+**Sist verifisert:** 2026-07-25
 
-**Verifisert mot:** importmodellene, importtjenestene, API-handlingene, React-siden for import/eksport og nyere commit-historikk.
+**Verifisert mot:** importmodellene, importtjenestene, API-handlingene, React-siden for import/eksport, kontaktregresjonstester og nyere commit-historikk.
 
 ## Implementert teknisk flyt
 
@@ -49,6 +49,20 @@ De skal ikke dokumenteres som fungerende integrasjoner før kode, tester og bruk
 
 Import skal ikke være en ukontrollert masseoppretting. Review, eksplisitte beslutninger, validering og sporbarhet er grunnleggende arkitekturvalg.
 
+## Kontaktfelt i dagens import
+
+`person_email` lagres fortsatt i `Person.email` og synkroniseres til primær `PersonContact` av type `EMAIL`.
+
+`person_phone` lagres fortsatt i `Person.phone` og synkroniseres til primær `PersonContact` av type `PHONE`.
+
+Publisering av primær e-post og telefon er tri-state:
+
+- manglende eller tom `person_email_public` / `person_phone_public`: bevar eksisterende `is_public`, eller bruk `False` for ny kontakt
+- eksplisitt sann verdi: sett primærkontakten offentlig
+- eksplisitt usann verdi: sett primærkontakten intern
+
+Sekundærfeltene `person_secondary_emails_public` og `person_secondary_phones_public` gjelder fortsatt for sekundære kontaktkanaler.
+
 ## Planlagt større UX-revisjon
 
 Dagens tekniske motor er et fundament, men dagens brukeropplevelse skal ikke låse neste løsning. Før videre implementering skal en egen planfase definere en gamification-inspirert arbeidsflyt.
@@ -83,7 +97,7 @@ Det skal utarbeides:
 
 ## Besluttet kontaktretning
 
-`ADR-005` er godkjent, men ikke implementert.
+`ADR-005` er godkjent som langsiktig målarkitektur. Mellomleveransen fra 2026-07-25 implementerer tri-state publisering for dagens `PersonContact.is_public`, men ikke relasjonsspesifikk publisering.
 
 Ved fremtidig kontaktomlegging skal import:
 

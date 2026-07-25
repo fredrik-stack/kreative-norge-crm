@@ -445,6 +445,123 @@ function PeopleEditorPanel(props: {
               </Field>
             </div>
 
+            <section className="link-section">
+              <div className="sidebar-header">
+                <h2>Kontaktkanaler</h2>
+                <span className="meta">
+                  {editor.personContactsLoading ? "Laster" : `${editor.personContacts.length} lagret`}
+                </span>
+              </div>
+
+              <div className="contact-list">
+                {editor.personContacts.map((contact) => (
+                  <article key={contact.id} className="modal-contact-card">
+                    <div className="modal-contact-header">
+                      <strong>{contact.type === "EMAIL" ? "E-post" : "Telefon"}</strong>
+                      <span className="meta">
+                        {contact.is_primary ? "Primær" : "Ekstra"} · {contact.is_public ? "Offentlig" : "Intern"}
+                      </span>
+                    </div>
+                    <div className="contact-inline-input">
+                      <input
+                        type={contact.type === "EMAIL" ? "email" : "text"}
+                        defaultValue={contact.value}
+                        onBlur={(event) => {
+                          const value = event.currentTarget.value.trim();
+                          if (value && value !== contact.value) {
+                            editor.updateContact(contact.id, { value });
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="modal-contact-actions">
+                      <label className="inline-check compact">
+                        <input
+                          type="checkbox"
+                          checked={contact.is_primary}
+                          onChange={(event) => editor.updateContact(contact.id, { is_primary: event.target.checked })}
+                        />
+                        <span>Primær</span>
+                      </label>
+                      <label className="inline-check compact">
+                        <input
+                          type="checkbox"
+                          checked={contact.is_public}
+                          onChange={(event) => editor.updateContact(contact.id, { is_public: event.target.checked })}
+                        />
+                        <span>{contact.type === "EMAIL" ? "Vis e-post offentlig" : "Vis telefon offentlig"}</span>
+                      </label>
+                      <button
+                        type="button"
+                        className="link-delete"
+                        onClick={() => {
+                          if (window.confirm(`Slette ${contact.value}?`)) {
+                            editor.removeContact(contact.id);
+                          }
+                        }}
+                      >
+                        Slett
+                      </button>
+                    </div>
+                  </article>
+                ))}
+                {editor.personContacts.length === 0 ? (
+                  <div className="empty-state">Ingen kontaktkanaler er lagret.</div>
+                ) : null}
+              </div>
+
+              <div className="contact-create">
+                <Field label="Ny kontaktkanal" error={editor.contactFieldErrors.value}>
+                  <div className="contact-inline-input">
+                    <select
+                      value={editor.contactDraft.type}
+                      onChange={(e) =>
+                        editor.setContactDraft((state) => ({ ...state, type: e.target.value as "EMAIL" | "PHONE" }))
+                      }
+                      disabled={typeof editor.selectedPersonId !== "number"}
+                    >
+                      <option value="EMAIL">E-post</option>
+                      <option value="PHONE">Telefon</option>
+                    </select>
+                    <input
+                      type={editor.contactDraft.type === "EMAIL" ? "email" : "text"}
+                      value={editor.contactDraft.value}
+                      onChange={(e) => editor.setContactDraft((state) => ({ ...state, value: e.target.value }))}
+                      disabled={typeof editor.selectedPersonId !== "number"}
+                    />
+                  </div>
+                </Field>
+                <label className="inline-check compact">
+                  <input
+                    type="checkbox"
+                    checked={editor.contactDraft.is_primary}
+                    onChange={(e) => editor.setContactDraft((state) => ({ ...state, is_primary: e.target.checked }))}
+                    disabled={typeof editor.selectedPersonId !== "number"}
+                  />
+                  <span>Primær</span>
+                </label>
+                <label className="inline-check compact">
+                  <input
+                    type="checkbox"
+                    checked={editor.contactDraft.is_public}
+                    onChange={(e) => editor.setContactDraft((state) => ({ ...state, is_public: e.target.checked }))}
+                    disabled={typeof editor.selectedPersonId !== "number"}
+                  />
+                  <span>
+                    {editor.contactDraft.type === "EMAIL" ? "Vis e-post offentlig" : "Vis telefon offentlig"}
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => editor.createContactFromDraft()}
+                  disabled={typeof editor.selectedPersonId !== "number"}
+                >
+                  Legg til kontakt
+                </button>
+              </div>
+            </section>
+
             <Field label="Notat">
               <textarea
                 rows={3}

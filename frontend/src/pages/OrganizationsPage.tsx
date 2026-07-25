@@ -193,15 +193,22 @@ function OrganizationOverviewModal(props: {
   const editor = useEditor();
   const externalLinks = getOrganizationLinkRows(organization);
   const contactsByPersonId = useMemo(() => {
-    const grouped = new Map<number, Array<{ type: string; value: string; is_primary?: boolean; is_public?: boolean }>>();
+    const grouped = new Map<number, Array<{ id?: number; type: string; value: string; is_primary?: boolean; is_public?: boolean }>>();
+    for (const person of editor.persons) {
+      for (const contact of person.contacts ?? []) {
+        const current = grouped.get(person.id) ?? [];
+        current.push(contact);
+        grouped.set(person.id, current);
+      }
+    }
     for (const contact of editor.personContacts) {
       if (!contact.person) continue;
-      const current = grouped.get(contact.person) ?? [];
+      const current = (grouped.get(contact.person) ?? []).filter((item) => item.id !== contact.id);
       current.push(contact);
       grouped.set(contact.person, current);
     }
     return grouped;
-  }, [editor.personContacts]);
+  }, [editor.personContacts, editor.persons]);
   const modal = (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <div className="detail-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
@@ -293,16 +300,16 @@ function OrganizationOverviewModal(props: {
                         {visibleContacts.length > 0 ? (
                           <div className="editor-inline-links">
                             {visibleContacts.map((contact, index) => (
-                              <a
-                                key={`${link.id}-${contact.type}-${index}-${contact.value}`}
-                                href={contact.type === "EMAIL" ? `mailto:${contact.value}` : `tel:${contact.value}`}
-                              >
-                                {contact.value}
-                              </a>
+                              <span key={`${link.id}-${contact.type}-${index}-${contact.value}`} className="editor-contact-chip">
+                                <a href={contact.type === "EMAIL" ? `mailto:${contact.value}` : `tel:${contact.value}`}>
+                                  {contact.value}
+                                </a>
+                                <span className="meta">{contact.is_public ? "Offentlig" : "Intern"}</span>
+                              </span>
                             ))}
                           </div>
                         ) : (
-                          <span className="meta">Ingen offentlig kontaktinfo</span>
+                          <span className="meta">Ingen kontaktinfo lagret</span>
                         )}
                       </div>
                     );
@@ -1180,7 +1187,7 @@ function getOverviewPills(organization: {
 function getEditorVisibleContacts(
   link: NonNullable<ReturnType<typeof useEditor>["organizations"][number]["active_people"]>[number],
   personsById: ReturnType<typeof useEditor>["personsById"],
-  contactsByPersonId: Map<number, Array<{ type: string; value: string; is_primary?: boolean; is_public?: boolean }>>,
+  contactsByPersonId: Map<number, Array<{ id?: number; type: string; value: string; is_primary?: boolean; is_public?: boolean }>>,
 ) {
   const personId = link.person?.id;
   if (!personId) return [];
@@ -1200,7 +1207,7 @@ function getEditorVisibleContacts(
       is_primary: contact.is_primary,
     }))),
   ];
-  const unique = new Map<string, { type: string; value: string; is_primary?: boolean }>();
+  const unique = new Map<string, { type: string; value: string; is_primary?: boolean; is_public?: boolean }>();
   for (const contact of fallbackContacts) {
     if (!contact.value) continue;
     unique.set(`${contact.type}-${contact.value}`, contact);
