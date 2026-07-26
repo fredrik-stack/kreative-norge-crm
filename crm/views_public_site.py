@@ -1,7 +1,10 @@
 import random
 
+from django.http import Http404
 from django.db.models import Q
+from django.shortcuts import redirect
 from django.utils.text import slugify
+from django.views import View
 from django.views.generic import DetailView, ListView
 
 from .models import Organization, Tag
@@ -101,8 +104,7 @@ class PublicActorListView(ListView):
 class PublicActorDetailView(DetailView):
     template_name = "crm/public_actor_detail.html"
     context_object_name = "actor"
-    slug_field = "org_number"
-    slug_url_kwarg = "org_number"
+    pk_url_kwarg = "actor_id"
 
     def get_queryset(self):
         return (
@@ -110,6 +112,18 @@ class PublicActorDetailView(DetailView):
             .prefetch_related("tags", "categories", "subcategories__category", "org_people__person__contacts")
             .order_by("name")
         )
+
+
+class PublicActorLegacyDetailRedirectView(View):
+    def get(self, request, org_number: str, *args, **kwargs):
+        matches = list(
+            Organization.objects.filter(is_published=True, org_number=org_number)
+            .order_by("id")
+            .values_list("id", flat=True)[:2]
+        )
+        if len(matches) != 1:
+            raise Http404("No unique published actor matches this organization number.")
+        return redirect("public-actor-detail", actor_id=matches[0], permanent=True)
 
 
 def dedupe_tags(tags):

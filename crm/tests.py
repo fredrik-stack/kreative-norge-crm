@@ -6,9 +6,10 @@ from io import StringIO
 from xml.sax.saxutils import escape
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from django.core.management import call_command
+from django.core.management import call_command, CommandError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
+from django.urls import reverse
 from unittest.mock import patch
 from rest_framework.test import APIClient
 
@@ -1593,6 +1594,118 @@ class RepairPersonContactsCommandTests(TestCase):
         self.assertIn("changes_applied=0", out.getvalue())
 
 
+class PublishExistingEmailContactsCommandTests(TestCase):
+    def setUp(self):
+        self.tenant = Tenant.objects.create(name="Publish Tenant", slug="publish-tenant")
+        self.nordland = Organization.objects.create(tenant=self.tenant, name="Nordland fylkeskommune")
+        self.badin = Organization.objects.create(tenant=self.tenant, name="Bådin")
+        self.other_org = Organization.objects.create(tenant=self.tenant, name="Annen aktør")
+        self.kathrine = self._person("Kathrine Schem", "kathrine@example.com")
+        self.ole = self._person("Ole-Thomas Kolberg", "ole@example.com")
+        self.jonas = self._person("Jonas Jørgensen Moe", "jonas@example.com")
+        self.public_elsewhere = self._person("Public Elsewhere", "public@example.com")
+
+        self.kathrine_link = self._link(self.nordland, self.kathrine, publish_person=True)
+        self.ole_link = self._link(self.nordland, self.ole, publish_person=True)
+        self.jonas_link = self._link(self.badin, self.jonas, publish_person=True)
+        self.other_link = self._link(self.other_org, self.public_elsewhere, publish_person=False)
+        self.same_person_other_link = self._link(self.other_org, self.jonas, publish_person=False)
+
+    def _person(self, name, email):
+        person = Person.objects.create(tenant=self.tenant, full_name=name, email=email)
+        PersonContact.objects.create(
+            tenant=self.tenant,
+            person=person,
+            type="EMAIL",
+            value=email,
+            is_primary=True,
+            is_public=False,
+        )
+        return person
+
+    def _link(self, organization, person, *, publish_person):
+        return OrganizationPerson.objects.create(
+            tenant=self.tenant,
+            organization=organization,
+            person=person,
+            status="ACTIVE",
+            publish_person=publish_person,
+        )
+
+    def test_dry_run_does_not_change_database(self):
+        out = StringIO()
+
+        call_command("publish_existing_email_contacts", stdout=out)
+
+        self.assertIn("mode=DRY-RUN", out.getvalue())
+        self.assertIn("email_contacts_to_publish=4", out.getvalue())
+        self.assertIn("active_links_to_change=5", out.getvalue())
+        self.assertEqual(PersonContact.objects.filter(is_public=True).count(), 0)
+        self.other_link.refresh_from_db()
+        self.assertFalse(self.other_link.publish_person)
+
+    def test_apply_publishes_email_contacts_and_active_links_except_exceptions(self):
+        out = StringIO()
+
+        call_command("publish_existing_email_contacts", "--apply", stdout=out)
+
+        self.assertEqual(PersonContact.objects.filter(type="EMAIL", is_public=True).count(), 4)
+        self.kathrine_link.refresh_from_db()
+        self.ole_link.refresh_from_db()
+        self.jonas_link.refresh_from_db()
+        self.other_link.refresh_from_db()
+        self.same_person_other_link.refresh_from_db()
+        self.assertFalse(self.kathrine_link.publish_person)
+        self.assertFalse(self.ole_link.publish_person)
+        self.assertFalse(self.jonas_link.publish_person)
+        self.assertTrue(self.other_link.publish_person)
+        self.assertTrue(self.same_person_other_link.publish_person)
+        self.assertIn("exception_links_to_unpublish=3", out.getvalue())
+
+    def test_same_exception_person_can_be_public_at_another_organization(self):
+        call_command("publish_existing_email_contacts", "--apply", stdout=StringIO())
+
+        self.jonas_link.refresh_from_db()
+        self.same_person_other_link.refresh_from_db()
+
+        self.assertFalse(self.jonas_link.publish_person)
+        self.assertTrue(self.same_person_other_link.publish_person)
+
+    def test_phone_public_status_is_unchanged(self):
+        phone = PersonContact.objects.create(
+            tenant=self.tenant,
+            person=self.public_elsewhere,
+            type="PHONE",
+            value="+4711111111",
+            is_primary=True,
+            is_public=False,
+        )
+
+        call_command("publish_existing_email_contacts", "--apply", stdout=StringIO())
+
+        phone.refresh_from_db()
+        self.assertFalse(phone.is_public)
+
+    def test_apply_is_idempotent(self):
+        call_command("publish_existing_email_contacts", "--apply", stdout=StringIO())
+        out = StringIO()
+
+        call_command("publish_existing_email_contacts", "--apply", stdout=out)
+
+        self.assertIn("email_contacts_to_publish=0", out.getvalue())
+        self.assertIn("active_links_to_change=0", out.getvalue())
+        self.assertIn("changes_applied=0", out.getvalue())
+
+    def test_command_aborts_when_exception_does_not_resolve_uniquely(self):
+        self.kathrine.full_name = "Kathrine Schjem"
+        self.kathrine.save(update_fields=["full_name"])
+
+        with self.assertRaises(CommandError):
+            call_command("publish_existing_email_contacts", "--apply", stdout=StringIO())
+
+        self.assertEqual(PersonContact.objects.filter(is_public=True).count(), 0)
+
+
 class TagModelAndApiTests(AuthenticatedAPITestCase):
     def setUp(self):
         super().setUp()
@@ -1876,6 +1989,9 @@ class PublicActorSiteTests(TestCase):
             is_published=False,
         )
 
+    def detail_url(self, organization):
+        return reverse("public-actor-detail", kwargs={"actor_id": organization.id})
+
     def test_public_actor_list_only_shows_published_actors(self):
         response = self.client.get("/public/actors/")
         self.assertEqual(response.status_code, 200)
@@ -1956,14 +2072,14 @@ class PublicActorSiteTests(TestCase):
         self.assertEqual(available_names.count("Etablert"), 1)
 
     def test_public_actor_detail_shows_tags_and_subcategories(self):
-        response = self.client.get(f"/public/actors/{self.organization.org_number}/")
+        response = self.client.get(self.detail_url(self.organization))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Etablert")
         self.assertContains(response, "PUBLIK KATEGORI")
         self.assertContains(response, "Publik underkategori")
 
     def test_public_actor_detail_uses_public_contacts_without_direct_field_fallback(self):
-        response = self.client.get(f"/public/actors/{self.organization.org_number}/")
+        response = self.client.get(self.detail_url(self.organization))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Ada Artist")
@@ -2002,7 +2118,7 @@ class PublicActorSiteTests(TestCase):
         self.link.save(update_fields=["publish_person"])
 
         api_response = self.client.get(f"/api/public/actors/{self.organization.org_number}/")
-        html_response = self.client.get(f"/public/actors/{self.organization.org_number}/")
+        html_response = self.client.get(self.detail_url(self.organization))
 
         self.assertEqual(api_response.status_code, 200, api_response.content)
         self.assertEqual(html_response.status_code, 200)
@@ -2014,7 +2130,7 @@ class PublicActorSiteTests(TestCase):
         self.organization.save(update_fields=["og_image_url"])
 
         list_response = self.client.get("/public/actors/")
-        detail_response = self.client.get(f"/public/actors/{self.organization.org_number}/")
+        detail_response = self.client.get(self.detail_url(self.organization))
 
         self.assertEqual(list_response.status_code, 200)
         self.assertEqual(detail_response.status_code, 200)
@@ -2031,6 +2147,92 @@ class PublicActorSiteTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "https://cdn.example.com/manual-thumb.jpg")
+
+    def test_public_actor_list_links_to_canonical_id_detail_url(self):
+        response = self.client.get("/public/actors/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'href="{self.detail_url(self.organization)}"')
+        self.assertNotContains(response, f"/public/actors/{self.organization.org_number}/")
+
+    def test_public_actor_detail_works_without_org_number(self):
+        self.organization.org_number = None
+        self.organization.save(update_fields=["org_number"])
+
+        list_response = self.client.get("/public/actors/")
+        detail_response = self.client.get(self.detail_url(self.organization))
+
+        self.assertEqual(list_response.status_code, 200)
+        self.assertContains(list_response, f'href="{self.detail_url(self.organization)}"')
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertContains(detail_response, "Nordlyd")
+
+    def test_public_actor_detail_works_with_url_unsafe_org_number(self):
+        self.organization.org_number = "123 456/789?"
+        self.organization.save(update_fields=["org_number"])
+
+        response = self.client.get(self.detail_url(self.organization))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Nordlyd")
+
+    def test_all_public_actor_card_links_return_detail_pages(self):
+        Organization.objects.create(
+            tenant=self.tag.tenant,
+            name="Aktør uten orgnummer",
+            org_number=None,
+            is_published=True,
+        )
+
+        response = self.client.get("/public/actors/")
+        hrefs = []
+        for part in response.content.decode().split('href="')[1:]:
+            href = part.split('"', 1)[0]
+            if href.startswith("/public/actors/id/"):
+                hrefs.append(href)
+
+        self.assertGreaterEqual(len(hrefs), 2)
+        for href in hrefs:
+            detail_response = self.client.get(href)
+            self.assertEqual(detail_response.status_code, 200, href)
+
+    def test_public_actor_canonical_detail_shows_correct_actor(self):
+        other = Organization.objects.create(
+            tenant=self.tag.tenant,
+            name="Annen synlig aktør",
+            org_number=None,
+            is_published=True,
+        )
+
+        response = self.client.get(self.detail_url(other))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Annen synlig aktør")
+        self.assertNotContains(response, "Nordlyd")
+
+    def test_public_actor_canonical_detail_hides_unpublished_actor(self):
+        response = self.client.get(self.detail_url(self.hidden_organization))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_public_actor_legacy_org_number_redirects_to_canonical_detail(self):
+        response = self.client.get(f"/public/actors/{self.organization.org_number}/")
+
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response["Location"], self.detail_url(self.organization))
+
+    def test_check_public_actor_links_command_reports_no_broken_links(self):
+        Organization.objects.create(
+            tenant=self.tag.tenant,
+            name="Aktør uten orgnummer",
+            org_number=None,
+            is_published=True,
+        )
+        out = StringIO()
+
+        call_command("check_public_actor_links", stdout=out)
+
+        self.assertIn("broken_links=0", out.getvalue())
 
 
 class ThumbnailSelectionTests(TestCase):
