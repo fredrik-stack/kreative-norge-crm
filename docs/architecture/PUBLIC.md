@@ -71,7 +71,7 @@ Kommandoen er ikke en migrasjon og kjører som dry-run uten endringer som standa
 - setter alle eksisterende `PersonContact` med `type=EMAIL` til `is_public=True`
 - setter aktive `OrganizationPerson`-koblinger til `publish_person=True`
 - lar disse tre konkrete aktør-person-relasjonene være interne ved `publish_person=False`:
-  - `Nordland fylkeskommune` / `Kathrine Schem`
+  - `Nordland fylkeskommune` / `Kathrine Schjem`
   - `Nordland fylkeskommune` / `Ole-Thomas Kolberg`
   - `Bådin` / `Jonas Jørgensen Moe`
 
