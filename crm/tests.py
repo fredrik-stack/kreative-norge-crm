@@ -1600,7 +1600,7 @@ class PublishExistingEmailContactsCommandTests(TestCase):
         self.nordland = Organization.objects.create(tenant=self.tenant, name="Nordland fylkeskommune")
         self.badin = Organization.objects.create(tenant=self.tenant, name="Bådin")
         self.other_org = Organization.objects.create(tenant=self.tenant, name="Annen aktør")
-        self.kathrine = self._person("Kathrine Schem", "kathrine@example.com")
+        self.kathrine = self._person("Kathrine Schjem", "kathrine@example.com")
         self.ole = self._person("Ole-Thomas Kolberg", "ole@example.com")
         self.jonas = self._person("Jonas Jørgensen Moe", "jonas@example.com")
         self.public_elsewhere = self._person("Public Elsewhere", "public@example.com")
@@ -1697,7 +1697,7 @@ class PublishExistingEmailContactsCommandTests(TestCase):
         self.assertIn("changes_applied=0", out.getvalue())
 
     def test_command_aborts_when_exception_does_not_resolve_uniquely(self):
-        self.kathrine.full_name = "Kathrine Schjem"
+        self.kathrine.full_name = "Kathrine Skjem"
         self.kathrine.save(update_fields=["full_name"])
 
         with self.assertRaises(CommandError):

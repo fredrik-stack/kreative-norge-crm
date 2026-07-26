@@ -9,7 +9,7 @@ from crm.models import Organization, OrganizationPerson, Person, PersonContact, 
 
 
 EXCEPTION_LINKS = (
-    ("Nordland fylkeskommune", "Kathrine Schem"),
+    ("Nordland fylkeskommune", "Kathrine Schjem"),
     ("Nordland fylkeskommune", "Ole-Thomas Kolberg"),
     ("Bådin", "Jonas Jørgensen Moe"),
 )
