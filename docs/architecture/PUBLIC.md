@@ -60,7 +60,7 @@ Rettet mellomleveranse:
 - public HTML bruker ikke lenger fallback til `Person.email`
 - public API og HTML viser samme offentlige kontaktinformasjon
 - direkte personfelt holdes synkronisert med primær intern `PersonContact` for e-post og telefon
-- eksisterende direkte e-post blir ikke automatisk offentlig
+- eksisterende direkte e-post blir ikke automatisk offentlig av synkronisering eller reparasjonskommandoen `repair_person_contacts`
 
 ## Engangspublisering av eksisterende e-post
 
@@ -76,6 +76,17 @@ Kommandoen er ikke en migrasjon og kjører som dry-run uten endringer som standa
   - `Bådin` / `Jonas Jørgensen Moe`
 
 Unntakene er relasjonsspesifikke. Personen gjøres ikke globalt privat, telefonpublisering endres ikke, og `Organization.is_published` endres ikke. Kommandoen avbryter uten endringer dersom unntakene ikke kan identifiseres entydig.
+
+Kommandoen ble kjørt med `--apply` på staging 2026-07-26 etter backup og entydig dry-run. Sluttilstanden på staging var:
+
+- `email_contacts_total=164`
+- `email_contacts_public=164`
+- `email_contacts_private=0`
+- `active_links_total=170`
+- `active_links_publish_true=167`
+- `active_links_publish_false=3`
+
+Dette beskriver en eksplisitt godkjent staging-datakjøring. Nye kontakter blir ikke automatisk offentlige uten bruker- eller importvalg.
 
 Målarkitekturen er godkjent i `ADR-005`:
 

@@ -2,7 +2,7 @@
 
 **Status:** Strategisk arbeidsdokument
 
-**Sist oppdatert:** 2026-07-23
+**Sist oppdatert:** 2026-07-26
 
 ## Fase 0 – Sikre utviklingsarbeidsflyten
 
@@ -21,16 +21,25 @@ Gjenstår:
 
 ## Fase 1 – Stabilisering av PUBLIC og kontaktdata
 
-Diagnosen er gjennomført, og målarkitekturen er godkjent i `ADR-005`. Implementering er ikke startet.
+Diagnosen er gjennomført, og målarkitekturen er godkjent i `ADR-005`. En første mellomleveranse er implementert og deployet til staging:
 
-Arbeidet skal gjennomføres som små, sekvensielle leveranser:
+- PUBLIC HTML og API bruker samme regel for kontaktpersoner og kontaktkanaler.
+- PUBLIC HTML bruker kanonisk ID-basert aktørdetaljrute, slik at aktører uten organisasjonsnummer ikke får ødelagte kortlenker.
+- Editor CRM viser intern kontaktinformasjon og skiller `Vis person offentlig` fra `Vis e-post offentlig` / `Vis telefon offentlig`.
+- Import støtter tri-state for `person_email_public` og `person_phone_public`.
+- `repair_person_contacts`, `publish_existing_email_contacts` og `check_public_actor_links` finnes som management commands.
+- Staging-data ble rettet 2026-07-26 slik at eksisterende e-postkontakter er offentlige, med tre relasjonsspesifikke unntak.
+
+Langsiktig relasjonsspesifikk kontaktpublisering fra `ADR-005` er fortsatt ikke implementert.
+
+Videre arbeid skal gjennomføres som små, sekvensielle leveranser:
 
 1. **Beslutningsgater og databaseline**
-   - godkjenne gjenværende produkt-, personvern-, rolle- og API-valg
-   - kartlegge kontaktdata og offentlig før-bilde i staging og produksjon
+   - godkjenne gjenværende produkt-, personvern-, rolle- og API-valg for langsiktig ADR-005-modell
+   - kartlegge kontaktdata og offentlig før-bilde i produksjon før tilsvarende datakjøring
    - godkjenne backup, migreringsmapping og rollback
 2. **Kontrakts- og personverntester**
-   - reprodusere dagens avvik mellom Editor, HTML og API
+   - videreføre regresjonstestene som nå dekker HTML/API-paritet og negative personverntilfeller
    - etablere publiseringsmatrise og negative personverntester
 3. **Additiv kontaktmodell**
    - utvide `PersonContact`

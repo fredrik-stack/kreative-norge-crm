@@ -2,6 +2,18 @@
 
 Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små kosmetiske justeringer trenger ikke registreres.
 
+## 2026-07-26
+
+### PUBLIC og kontaktpublisering
+
+- rettet PUBLIC HTML slik at aktørkort bruker kanonisk ID-basert detaljrute (`/public/actors/id/<actor_id>/`) og ikke lenger lager ødelagte lenker for publiserte aktører uten organisasjonsnummer
+- beholdt legacy-rute for organisasjonsnummer som redirect når den identifiserer én publisert aktør entydig
+- lagt til skrivebeskyttet `check_public_actor_links` for å kontrollere alle PUBLIC-kortlenker
+- lagt til `publish_existing_email_contacts` som dry-run først, transaksjonell og idempotent staging-/datakommando for godkjent publisering av eksisterende e-postkontakter
+- korrigert relasjonsspesifikt unntak fra `Kathrine Schem` til `Kathrine Schjem`
+- kjørt staging-datakjøring etter backup: `164` av `164` eksisterende e-postkontakter er offentlige, og tre aktive aktør-person-koblinger er satt til `publish_person=False`
+- bekreftet at telefonpublisering og `Organization.is_published` ikke ble endret
+
 ## 2026-07-23
 
 ### Dokumentasjon
