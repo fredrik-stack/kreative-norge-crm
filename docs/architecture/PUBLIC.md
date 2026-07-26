@@ -2,7 +2,7 @@
 
 **Status:** Implementert grunnløsning; kontaktregel for e-postflyt rettet som mellomleveranse
 
-**Sist verifisert:** 2026-07-25
+**Sist verifisert:** 2026-07-26
 
 **Verifisert mot:** public-ruter, `PublicActorViewSet`, public serializer, modeller, public HTML-template, importtjenester, React-editor og regresjonstester.
 
@@ -13,6 +13,16 @@ Public består av:
 - åpent API for publiserte aktører
 - HTML-visning som foreløpig bare brukes i staging
 - publiserte aktørdata, taksonomi, lenker, bilde og eventuelle kontaktpersoner
+
+## Aktørdetaljer
+
+PUBLIC HTML bruker en kanonisk ID-basert detaljrute:
+
+- listekort lenker til `/public/actors/id/<actor_id>/`
+- Django-template skal bruke `{% url 'public-actor-detail' actor.id %}`, ikke manuell sammensetting med `org_number`
+- den gamle ruten `/public/actors/<org_number>/` beholdes som legacy-rute og redirecter bare når `org_number` identifiserer nøyaktig én publisert aktør
+
+Denne regelen gjør at publiserte aktører uten organisasjonsnummer fortsatt får fungerende PUBLIC-lenke. Kommandoen `check_public_actor_links` kan kjøres skrivebeskyttet for å kontrollere at alle kortlenker fra PUBLIC-listen svarer uten 404.
 
 ## Publiseringsregler
 
@@ -51,6 +61,21 @@ Rettet mellomleveranse:
 - public API og HTML viser samme offentlige kontaktinformasjon
 - direkte personfelt holdes synkronisert med primær intern `PersonContact` for e-post og telefon
 - eksisterende direkte e-post blir ikke automatisk offentlig
+
+## Engangspublisering av eksisterende e-post
+
+For den godkjente staging-rettingen 2026-07-26 finnes management-kommandoen `publish_existing_email_contacts`.
+
+Kommandoen er ikke en migrasjon og kjører som dry-run uten endringer som standard. Med `--apply` gjør den følgende i én transaksjon:
+
+- setter alle eksisterende `PersonContact` med `type=EMAIL` til `is_public=True`
+- setter aktive `OrganizationPerson`-koblinger til `publish_person=True`
+- lar disse tre konkrete aktør-person-relasjonene være interne ved `publish_person=False`:
+  - `Nordland fylkeskommune` / `Kathrine Schem`
+  - `Nordland fylkeskommune` / `Ole-Thomas Kolberg`
+  - `Bådin` / `Jonas Jørgensen Moe`
+
+Unntakene er relasjonsspesifikke. Personen gjøres ikke globalt privat, telefonpublisering endres ikke, og `Organization.is_published` endres ikke. Kommandoen avbryter uten endringer dersom unntakene ikke kan identifiseres entydig.
 
 Målarkitekturen er godkjent i `ADR-005`:
 
