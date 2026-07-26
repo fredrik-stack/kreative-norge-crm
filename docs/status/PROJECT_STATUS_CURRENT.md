@@ -2,15 +2,15 @@
 
 **Status:** Verifisert mot kodebasen
 
-**Sist verifisert:** 2026-07-23
+**Sist verifisert:** 2026-07-26
 
-**Verifisert mot:** `crm/models.py`, `crm/views.py`, `crm/permissions.py`, `crm/urls.py`, importtjenestene, React-editoren, staging-dokumentasjonen og nyere commit-historikk.
+**Verifisert mot:** `crm/models.py`, `crm/views.py`, `crm/views_public_site.py`, `crm/urls_public_site.py`, `crm/serializers_public.py`, importtjenestene, React-editoren, staging-dokumentasjonen, PR #7, PR #8 og staging på commit `ea8b8762aecdff760728139b1659f7d3a43445c7`.
 
 **Ansvar:** Prosjekteier + ChatGPT for prioritering og produktretning. Codex for oppdatering etter implementering.
 
 ## Aktiv utviklingsfase
 
-Kontaktproblemet er diagnostisert som et tverrgående produkt- og arkitekturproblem. Fremtidig kontaktarkitektur er godkjent i `ADR-005`, men ikke implementert. Første implementeringsarbeid er beslutningsgater, staging-/produksjonskartlegging og kontraktstester. IMPORT er en omfattende, fungerende modul som skal revurderes på produkt- og UX-nivå før større videreutvikling. PUBLIC fungerer som API og staging-visning, men trenger kontaktomlegging og en mer robust bilde-/thumbnail-løsning. EKSPORT har teknisk grunnlag, men ikke ferdig motor og brukerflyt.
+Kontaktproblemet er diagnostisert som et tverrgående produkt- og arkitekturproblem. Fremtidig kontaktarkitektur er godkjent i `ADR-005`, men bare en mellomleveranse er implementert. Dagens kode har nå felles PUBLIC-regel for HTML/API, intern Editor-visning av kontaktkanaler, import-tri-state for kontaktpublisering og reparasjonskommandoer for eksisterende data. Den langsiktige relasjonsspesifikke kontaktmodellen fra ADR-005 er fortsatt ikke implementert. IMPORT er en omfattende, fungerende modul som skal revurderes på produkt- og UX-nivå før større videreutvikling. PUBLIC fungerer som API og staging-visning, men trenger endelig kontrakt mot Musikkontoret.no og en mer robust bilde-/thumbnail-løsning. EKSPORT har teknisk grunnlag, men ikke ferdig motor og brukerflyt.
 
 ## Implementert
 
@@ -22,6 +22,9 @@ Kontaktproblemet er diagnostisert som et tverrgående produkt- og arkitekturprob
 - intern React-editor med rollebasert tilgang
 - public API for publiserte aktører
 - public HTML-visning, foreløpig kun brukt i staging
+- PUBLIC HTML-detaljsider med kanonisk ID-rute og legacy orgnummer-redirect
+- felles PUBLIC-regel for personkontakt i HTML og API: aktiv kobling med `publish_person=True` og kontaktkanal med `PersonContact.is_public=True`
+- synkronisering mellom `Person.email`/`Person.phone` og primær intern `PersonContact`
 - importjobber med opplasting, parsing, normalisering, preview, validering, matching, AI-forslag, review, beslutninger, commit, commit-logg og feilrapport
 - grunnmodell og grunn-API for eksportjobber
 - Docker-basert lokal kjøring og stagingoppsett
@@ -44,14 +47,39 @@ Kjerne-rollene og tenant-scope håndheves i backend. Invitasjonsflyt, full admin
 
 ### 1. Kontaktpersonenes e-post og publisering
 
-Diagnosen er gjennomført. Problemet skyldes en todelt kontaktarkitektur og forskjellige regler i Editor, import og PUBLIC:
+Første mellomleveranse er implementert og deployet til staging. Problemet skyldte en todelt kontaktarkitektur og forskjellige regler i Editor, import og PUBLIC:
 
 - `Person.email` og `Person.phone` er parallelle med `PersonContact`
-- Editor viser og lagrer i hovedsak direktefeltene
+- Editor viste og lagret i hovedsak direktefeltene
 - enkelte opprettingsflyter skriver både direktefelt og `PersonContact`
-- public API bruker eksplisitte `PersonContact`
-- public HTML kan falle tilbake til direkte person-e-post
-- import kan oppdatere begge kilder og endre publiseringsflagg
+- public API brukte eksplisitte `PersonContact`
+- public HTML kunne falle tilbake til direkte person-e-post
+- import kunne oppdatere begge kilder og endre publiseringsflagg
+
+Implementert mellomregel:
+
+- `OrganizationPerson.publish_person` bestemmer om personen vises som kontaktperson offentlig
+- `PersonContact.is_public` bestemmer om hver e-post eller telefon vises offentlig
+- `Person.email` og `Person.phone` brukes ikke som PUBLIC-fallback
+- Editor CRM er intern og viser kontaktkanaler også når de ikke er offentlige
+- import støtter `person_email_public` og `person_phone_public` som tri-state publiseringsfelt
+- `repair_person_contacts` kan opprette manglende private primære e-postkontakter fra `Person.email`
+- `publish_existing_email_contacts` ble kjørt på staging 2026-07-26 etter backup og gjorde eksisterende e-postkontakter offentlige, med tre relasjonsspesifikke unntak på `publish_person=False`
+
+Staging etter datakjøringen:
+
+- `email_contacts_total=164`
+- `email_contacts_public=164`
+- `email_contacts_private=0`
+- `active_links_total=170`
+- `active_links_publish_true=167`
+- `active_links_publish_false=3`
+
+De tre unntakene er:
+
+- `Nordland fylkeskommune` / `Kathrine Schjem`
+- `Nordland fylkeskommune` / `Ole-Thomas Kolberg`
+- `Bådin` / `Jonas Jørgensen Moe`
 
 Målarkitekturen er godkjent i `docs/decisions/ADR-005-CONTACT_ARCHITECTURE.md`:
 
@@ -61,7 +89,7 @@ Målarkitekturen er godkjent i `docs/decisions/ADR-005-CONTACT_ARCHITECTURE.md`:
 - HTML, API og Editor-preview bruker én offentlig projeksjon
 - migreringen gjennomføres additivt og reverserbart
 
-Implementering er ikke startet. Direktefelt, dagens publiseringsflagg, fallback og API-adferd er fortsatt aktive i kodebasen.
+Den langsiktige ADR-005-modellen er ikke implementert. Direktefelt finnes fortsatt av kompatibilitetshensyn, og dagens `PersonContact.is_public` er fortsatt globalt for kontaktkanalen, ikke relasjonsspesifikt.
 
 ### 2. Varig thumbnail- og bildearkitektur
 
@@ -114,8 +142,6 @@ Google Sheets, Checkin og Mailmojo finnes foreløpig bare som reserverte kildety
 - obligatoriske tester og CI-gates før deploy
 - endelig kontrakt mellom CRM-public og Musikkontoret.no
 - endelig lagringsarkitektur for bilder
-- behandling av direkte e-poster som tidligere har vært offentlige bare gjennom HTML-fallback
-- om en offentlig person kan vises uten offentlig e-post eller telefon
 - eksplisitt publiseringsfelt for organisasjonens e-post
 - roller for kontaktpublisering, bulkpublisering og full kontakt-eksport
 - behandlingsgrunnlag og retensjon for kontakt-, import-, eksport- og auditdata

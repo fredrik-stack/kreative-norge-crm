@@ -2,9 +2,11 @@
 
 ## Status
 
-Godkjent som målarkitektur. Ikke implementert.
+Godkjent som målarkitektur. Delvis implementert som mellomleveranse; langsiktig relasjonsspesifikk kontaktpublisering er ikke implementert.
 
 **Beslutningsdato:** 2026-07-23
+
+**Implementeringsnote 2026-07-26:** PR #7 og PR #8 fjernet PUBLIC-fallback til `Person.email`/`Person.phone`, innførte felles PUBLIC-regel for HTML/API, synkroniserer direkte personfelt med primær `PersonContact`, la til import-tri-state for kontaktpublisering og rettet staging-data for eksisterende e-postkontakter. Dagens kode bruker fortsatt global `PersonContact.is_public`; den nye relasjonsmodellen i dette ADR-et er fortsatt planlagt.
 
 ## Forhold til tidligere ADR-er
 
@@ -17,13 +19,13 @@ Denne beslutningen presiserer og viderefører:
 
 ADR-005 erstatter den langsiktige bruken av direkte `Person.email` og `Person.phone` som selvstendige kontaktkilder, og erstatter global kontaktpublisering via `PersonContact.is_public` med publisering per aktør–person-kobling.
 
-Eksisterende kode følger ennå ikke målarkitekturen.
+Eksisterende kode følger mellomregelen, men ennå ikke hele målarkitekturen.
 
 ## Bakgrunn
 
 Diagnosen av manglende e-post for kontaktpersoner viste at problemet ikke er en isolert visningsfeil.
 
-Dagens løsning har:
+På beslutningstidspunktet hadde løsningen:
 
 - direkte `Person.email` og `Person.phone`
 - normaliserte kontaktposter i `PersonContact`
@@ -32,7 +34,7 @@ Dagens løsning har:
 - forskjellige fallbackregler i Editor, public API og public HTML
 - import som skriver både direktefelt og `PersonContact`, og som kan endre publiseringsflagg ved oppdatering
 
-Editor viser i hovedsak direktefeltene på personen, mens PUBLIC normalt bygger på `PersonContact`. Public HTML har i tillegg en egen e-postfallback til `Person.email` som public API ikke har. Dette kan gi manglende data, duplisering, inkonsistent offentlig visning og utilsiktet eksponering av intern kontaktinformasjon.
+På beslutningstidspunktet viste Editor i hovedsak direktefeltene på personen, mens PUBLIC normalt bygget på `PersonContact`. Public HTML hadde i tillegg en egen e-postfallback til `Person.email` som public API ikke hadde. Dette kunne gi manglende data, duplisering, inkonsistent offentlig visning og utilsiktet eksponering av intern kontaktinformasjon. Denne konkrete fallbacken ble fjernet i mellomleveransen 2026-07-26.
 
 Den lokale databasen bekreftet at direktefelt fremdeles inneholder vesentlig kontaktdata som ikke finnes som `PersonContact`. En overgang må derfor være additiv, datakartlagt og reverserbar.
 
