@@ -1,128 +1,172 @@
 # Roadmap
 
-**Status:** Strategisk arbeidsdokument
+**Status:** Godkjent strategisk arbeidsrekkefølge
 
-**Sist oppdatert:** 2026-07-26
+**Sist oppdatert:** 2026-07-28
 
-## Fase 0 – Sikre utviklingsarbeidsflyten
+Roadmapen skiller mellom produktfaser og et parallelt infrastrukturløp. En fase beskriver prioritert rekkefølge, ikke at innholdet allerede er implementert. Større implementering krever fortsatt et godkjent ADR når arbeidet innebærer et vesentlig arkitekturvalg.
 
-Gjennomført:
+## Fase 0 – Arbeidsflyt og én varig sannhetskilde
 
-- etablert GitHub som levende sannhetskilde
-- etablert Fredrik Development System med `AGENTS.md`, dokumentert workflow og 15 repo-baserte Codex-skills
-- sikret at ChatGPT og Codex har dokumenterte oppstarts- og sannhetskilder
-- etablert ADR-gate for større implementeringer
-- etablert dokumentasjonsplikt ved funksjonelle endringer
-- besluttet session-flyten i `ADR-006`
-- etablert `$start-arbeidsokt` og `$avslutt-arbeidsokt` som SESSION-lag rundt de fire arbeidsnivåene
-- standardisert Git-baseline, project health, SESSION WRAP-UP og neste-session-prompt
-- etablert `$fortsett-prosjekt` som felles inngang: strategisk ChatGPT-rutine og tynn Codex-bro til `$start-arbeidsokt`
-- dokumentert fast `CHATGPT SESSION SUMMARY` og kontinuitetsflyt mellom nye samtaler og sessioner
+**Status:** Gjennomført med PR #10.
 
-Gjenstår:
+- GitHub og `docs/` er etablert som varig prosjektminne.
+- Fredrik Development System består av `AGENTS.md`, dokumentert workflow og 15 repo-baserte Codex-skills.
+- [ADR-006](../decisions/ADR-006-SESSION_WORKFLOW.md) beslutter session-flyten og skillet mellom session-laget og de fire faglige arbeidsnivåene.
+- `$start-arbeidsokt`, `$avslutt-arbeidsokt` og `$fortsett-prosjekt` gir kontrollert oppstart, avslutning og kontinuitet.
+- Gamle rotbaserte handoff-, `REFERENCE`- og `STATUS`-filer ble holdt utenfor den autoritative dokumentasjonen.
+- Genererte Playwright-resultater er ignorert.
 
-- planlegge automatisk staging-deploy ved push
-- definere minimumstester før deploy
+Sikker automatisk deploy til staging er ikke en gjenstående del av fase 0. Det er et separat infrastrukturløp og blokkerer ikke videre produktarbeid.
 
-## Fase 1 – Stabilisering av PUBLIC og kontaktdata
+## Fase 1 – Verifiser staging- og frontend-baseline
 
-Diagnosen er gjennomført, og målarkitekturen er godkjent i `ADR-005`. En første mellomleveranse er implementert og deployet til staging:
+**Status:** Neste aktive produktfase.
 
-- PUBLIC HTML og API bruker samme regel for kontaktpersoner og kontaktkanaler.
-- PUBLIC HTML bruker kanonisk ID-basert aktørdetaljrute, slik at aktører uten organisasjonsnummer ikke får ødelagte kortlenker.
-- Editor CRM viser intern kontaktinformasjon og skiller `Vis person offentlig` fra `Vis e-post offentlig` / `Vis telefon offentlig`.
-- Import støtter tri-state for `person_email_public` og `person_phone_public`.
-- `repair_person_contacts`, `publish_existing_email_contacts` og `check_public_actor_links` finnes som management commands.
-- Staging-data ble rettet 2026-07-26 slik at eksisterende e-postkontakter er offentlige, med tre relasjonsspesifikke unntak.
+Før ny frontendutvikling skal forskjellen mellom lokal `main`, GitHub, staging og det brukeren faktisk ser, diagnostiseres. Arbeidet starter skrivebeskyttet og skal ikke blandes med retting eller deploy.
 
-Langsiktig relasjonsspesifikk kontaktpublisering fra `ADR-005` er fortsatt ikke implementert.
+Kontrollen skal fastslå:
 
-Videre arbeid skal gjennomføres som små, sekvensielle leveranser:
+- hvilken repo-commit serveren har sjekket ut
+- hvilken commit og hvilket bygg de kjørende containerne faktisk bruker
+- om gamle frontend-bundles, statiske filer, bilder eller cache lever videre
+- om nginx, Caddy eller nettlesercache påvirker resultatet
+- om observerte avvik er reelle regresjoner på `main`
+- hvilke forskjeller som finnes mellom lokal kjøring og staging
 
-1. **Beslutningsgater og databaseline**
-   - godkjenne gjenværende produkt-, personvern-, rolle- og API-valg for langsiktig ADR-005-modell
-   - kartlegge kontaktdata og offentlig før-bilde i produksjon før tilsvarende datakjøring
-   - godkjenne backup, migreringsmapping og rollback
-2. **Kontrakts- og personverntester**
-   - videreføre regresjonstestene som nå dekker HTML/API-paritet og negative personverntilfeller
-   - etablere publiseringsmatrise og negative personverntester
-3. **Additiv kontaktmodell**
-   - utvide `PersonContact`
-   - legge til constraints og relasjonsspesifikk kontaktpublisering
-   - beholde alle legacy-felter
-4. **Backfill og migreringsreview**
-   - migrere direkte personfelt til interne kontaktposter
-   - bevare eksplisitte offentlige valg
-   - gjennomgå konflikter og tidligere HTML-fallback
-5. **Felles domenetjeneste og internt API**
-   - samle kontaktregler og atomisk lagring
-   - stoppe ny skriving til direkte personfelt
-6. **Samlet kontaktopplevelse i Editor**
-   - én kontaktseksjon
-   - primærkontakt og offentlig kontaktvalg per aktørkobling
-   - preview fra felles offentlig projeksjon
-7. **Kontaktregler i IMPORT**
-   - trygg merge, eksplisitte operasjoner og tri-state publisering
-   - ingen implisitt sletting, primærbytte eller publisering
-8. **Felles PUBLIC-projeksjon**
-   - samme resultat i HTML, API og Editor-preview
-   - fjerne direktefeltfallback
-   - avklare API-versjonering og Musikkontoret.no-kontrakt
-9. **Kontaktbevisst EKSPORT**
-   - intern arbeidsliste, offentlig katalog og full relasjonell eksport
-10. **Legacy-opprydding**
-    - fjerne gamle API-felter og databasefelter først etter stabilisering
+Hoveddesignet på forsidene i Editor CRM og PUBLIC er godkjent designreferanse. Øvrige sider, kort og komponenter skal videreutvikles innenfor denne visuelle retningen. Fasen avsluttes med en verifisert baseline og en avgrenset liste over eventuelle feil; den innebærer ikke automatisk retting eller deploy.
 
-Detaljerte akseptansekriterier og rollbackkrav finnes i `docs/decisions/ADR-005-CONTACT_ARCHITECTURE.md`.
+## Fase 2 – Liten stabilisering av kontaktvisning
 
-## Fase 2 – Robust bilde- og thumbnail-løsning
+**Status:** Planlagt, avgrenset mellomleveranse.
 
-1. Kartlegge dagens Open Graph-flyt og feilmodi.
-2. Beslutte permanent lagring, bildeformat, dimensjoner og beskjæring.
-3. Designe manuell godkjenning/overstyring og stabil fallback.
-4. Ivareta kilde, opphavsrett og mulighet for senere utskifting.
-5. Implementere og teste lik bruk i Editor CRM, PUBLIC og fremtidig Musikkontoret.no-visning.
+Etter baseline-verifiseringen gjennomføres en liten, generell stabilisering:
 
-## Fase 3 – Ny IMPORT-produktstrategi
+- spor offentlig persontelefon gjennom Editor, API og PUBLIC
+- bruk Ulla-Stina Wiland som konkret undersøkelseseksempel, men rett den generelle årsaken
+- vis `Person.title` offentlig når feltet finnes
+- utsett relasjonsspesifikk tittel til den langsiktige kontaktfasen
+- legg til regresjonstester for e-post, telefon, personlenke og tittel
 
-IMPORT skal ikke bare finjusteres videre. Før implementering gjennomføres en egen planfase for store UX-grep.
+Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md). Dagens mellomregel for kontaktpublisering beholdes til en senere, kontrollert migrering.
 
-Mål:
+## Fase 3 – Robust thumbnail-, bilde- og kortarkitektur
 
-- gamification-inspirert fremdrift og mestring
-- raskere review uten redusert datakvalitet
-- tydelig prioritering av hvilke rader som krever menneskelig innsats
-- gode kvalitetsmål, fremdriftsindikatorer og trygg lagring
-- enkel og intuitiv arbeidsflyt også for uerfarne brukere
-- gjenbruk av dagens importmotor der den er solid
+**Status:** Planlagt hovedområde.
 
-Leveranser før koding:
+Bildeløsningen skal gå fra ustabile eksterne treff til en varig, redaksjonelt kontrollerbar ressurs:
 
-- brukerreise og problemkart
+- Open Graph som mulig kandidat, supplert med Brave eller annen bildesøkekilde
+- preferanse for tidløst logo-, profil- eller motivbilde
+- manuell godkjenning før varig bruk
+- permanent lagring med kilde, proveniens, dato, kreditering og opphavsrett
+- bevaring av original og støtte for beskjæring, fokuspunkt, skalering og format
+- tydelig fallback og manuell overstyring
+- samme valgte bilde i Editor, PUBLIC og senere Musikkontoret.no
+
+Fasen etablerer samtidig et lite, delt frontendgrunnlag for aktørkort og relaterte visningsmønstre:
+
+- aktørkort, bilder, tags, sted, spacing og responsiv overflow
+- konsistente farger og kortvarianter
+- retting av brune tags i PUBLIC
+- robust håndtering av lange stedsnavn
+- konsekvent bildeplassering, skalering og sentrering
+- mindre avvik mellom Editor- og PUBLIC-kort
+
+Dette er ikke en generell redesign. Øvrige kort og komponenter videreutvikles innenfor den godkjente visuelle retningen fra forsidene.
+
+## Fase 4 – Produkt- og UX-design for Import 2.0
+
+**Status:** Planlegging før større kodeendringer.
+
+Den eksisterende importmotoren skal kartlegges og gjenbrukes der den er solid, men dagens brukeropplevelse skal ikke begrense det nye konseptet. Ingen større implementering starter før produkt- og UX-planen er godkjent.
+
+Leveranser:
+
+- kart over dagens import- og mappingmotor og tekniske begrensninger
+- brukerreise og tydelig problemdefinisjon
 - prioriterte brukerhistorier
 - informasjonsarkitektur
-- skisser/wireframes
-- beslutning om kvalitets- og gamification-mekanismer
-- testplan og akseptansekriterier
-- implementeringsplan i etapper
+- wireframes og klikkbar prototype
+- review- og konfliktflyt
+- kvalitetsmål og trygg håndtering av usikre data
+- synlig fremdrift og hensiktsmessige gamification-mekanismer
+- akseptansekriterier og testplan
+- faseinndelt implementeringsplan
 
-## Fase 4 – EKSPORT
+## Fase 5 – Personer, kontaktarkitektur og Editor-UX
 
-- ferdigstille eksportmotor
+**Status:** Planlagt langsiktig kontaktfase.
+
+Denne fasen realiserer målarkitekturen i [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md) i kontrollerte, reversible leveranser:
+
+- én samlet kontaktseksjon
+- flere e-postadresser og telefonnumre
+- én primær intern kontakt per type
+- offentlige kontaktvalg per aktør–person-kobling
+- offentlig preview fra samme projeksjon som API og PUBLIC
+- tydelig skille mellom intern og offentlig status
+- sticky lagreknapp og lagringsstatus nær handlingen
+- mindre unødvendig scrolling og bedre utnyttelse av desktopbredde
+- hensiktsmessig modal- eller redigeringsflyt
+- støtte for relasjonsspesifikk offentlig tittel når produktvalget er avklart
+
+Alle personvern-, migrerings-, rollback-, API- og datakrav i ADR-005 gjelder fortsatt.
+
+## Fase 6 – Implementer Import 2.0
+
+**Status:** Planlagt etter godkjent prototype og stabil kontaktmodell.
+
+- gjenbruk den eksisterende importmotoren som teknisk fundament
+- implementer den godkjente brukerreisen i avgrensede etapper
+- integrer matching, berikelse og AI-forslag uten å skjule usikkerhet
+- gjør trygge rader raske og konflikter tydelige
+- behold menneskelig kontroll over irreversible eller publiserende valg
+- test med representative, reelle filer
+- gjennomfør brukertest med prosjekteier og minst én kollega
+
+## Fase 7 – Eksport som ferdig produkt
+
+**Status:** Delvis teknisk grunnlag, produktet er ikke ferdig.
+
 - CSV- og XLSX-generering
-- valg av felter, filtre og målgrupper
-- sikker nedlasting og jobbhistorikk
-- eksport for e-postlister og senere integrasjoner
+- valg av felter, filtre og segmenter
+- kontaktbevisst eksport
+- intern arbeidsliste
+- offentlig katalog basert på samme PUBLIC-projeksjon
+- e-postlister
+- sikker generering og nedlasting
+- jobbhistorikk og tydelig status
+- grunnlag for senere integrasjoner
 
-## Fase 5 – Plattformmodning
+## AI som gjennomgående produktprinsipp
 
-- automatisk staging-deploy ved push
-- CI og obligatoriske testgates
-- auditlogg og sterkere sporbarhet
-- videreutvikling av roller og invitasjoner
-- eksterne tenant-rom
+AI er ikke en egen sprint. Det brukes der det gir målbar hjelp og alltid innen tydelige regler:
 
-## Senere
+- bilde- og logokandidater i fase 3
+- matching, manglende verdier, berikelse, kategoriforslag og prioritering av usikre rader i Import 2.0
+- ingen automatisk overskriving uten eksplisitt regel eller menneskelig godkjenning
+- AI kan peke ut informasjon eller publiseringsvalg som bør vurderes, men skal aldri aktivere, endre eller utvide offentlig publisering automatisk. Publisering krever en eksplisitt regel eller menneskelig godkjenning.
+
+## Parallelt infrastrukturløp – Sikker automatisk staging-deploy
+
+**Status:** Planlagt; ikke implementert eller verifisert.
+
+Manuell og kontrollert deploy beholdes til denne kjeden er spesifisert, testet og godkjent:
+
+- egen minst privilegert deploy-bruker
+- GitHub Environment for staging
+- secrets som ikke eksponerer serverens root-nøkkel
+- deploy fra `main` først etter grønn obligatorisk CI
+- deploy-lås mot samtidige kjøringer
+- databasebackup før risikofylte steg
+- health check og målrettede smoke-tester
+- dokumentert rollback
+- logging og gradvis hardening
+
+Infrastrukturløpet følger [Staging and Deployment](../development/STAGING_AND_DEPLOYMENT.md), men ligger utenfor produktfasene og blokkerer ikke fase 1–7.
+
+## Senere muligheter
 
 - Google Sheets-import
 - Checkin-import
