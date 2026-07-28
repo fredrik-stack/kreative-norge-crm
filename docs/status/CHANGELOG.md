@@ -14,6 +14,17 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 - kjørt staging-datakjøring etter backup: `164` av `164` eksisterende e-postkontakter er offentlige, og tre aktive aktør-person-koblinger er satt til `publish_person=False`
 - bekreftet at telefonpublisering og `Organization.is_published` ikke ble endret
 
+## 2026-07-24
+
+### Utviklingsarbeidsflyt
+
+- godkjent og implementert `ADR-006` for session-flyt og varig prosjektminne
+- lagt til `$start-arbeidsokt` og `$avslutt-arbeidsokt`
+- standardisert Git-baseline, project health, SESSION WRAP-UP og neste Codex-session-prompt
+- utvidet ADR-006 med `$fortsett-prosjekt` som strategisk ChatGPT-rutine og tynn Codex-bro
+- lagt til fast `CHATGPT SESSION SUMMARY` og dokumentert kontinuitet mellom nye ChatGPT-samtaler og Codex-sessioner
+- validert alle 15 skills og bekreftet `$fortsett-prosjekt` i en separat skrivebeskyttet Codex-session
+
 ## 2026-07-23
 
 ### Dokumentasjon

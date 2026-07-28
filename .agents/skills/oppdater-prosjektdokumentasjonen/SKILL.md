@@ -1,6 +1,6 @@
 ---
 name: oppdater-prosjektdokumentasjonen
-description: Oppdater Markdown-dokumentasjonen i Kreative Norge CRM slik at den fortsatt beskriver faktisk kode, API, dataflyt og prosjektstatus. Bruk etter funksjonelle endringer eller ved avslutning av en Codex-økt.
+description: Oppdater Markdown-dokumentasjonen i Kreative Norge CRM slik at den fortsatt beskriver faktisk kode, API, dataflyt og prosjektstatus. Bruk etter funksjonelle endringer eller når en gjennomgang eller `$avslutt-arbeidsokt` har identifisert et konkret dokumentasjonsavvik.
 ---
 
 # Oppdater prosjektdokumentasjonen
