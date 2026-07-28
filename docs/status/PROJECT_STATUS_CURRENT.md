@@ -1,10 +1,10 @@
 # Project Status Current
 
-**Status:** Verifisert mot kodebasen
+**Status:** Verifisert mot kodebasen og oppdatert for godkjent roadmap
 
-**Sist verifisert:** 2026-07-26
+**Sist verifisert:** 2026-07-28
 
-**Verifisert mot:** `crm/models.py`, `crm/views.py`, `crm/views_public_site.py`, `crm/urls_public_site.py`, `crm/serializers_public.py`, importtjenestene, React-editoren, staging-dokumentasjonen, PR #7, PR #8 og staging på commit `ea8b8762aecdff760728139b1659f7d3a43445c7`.
+**Verifisert mot:** `crm/models.py`, `crm/views.py`, `crm/views_public_site.py`, `crm/urls_public_site.py`, `crm/serializers_public.py`, importtjenestene, React-editoren, staging-dokumentasjonen, PR #7, PR #8, PR #10, staging på commit `ea8b8762aecdff760728139b1659f7d3a43445c7` og godkjent roadmap 2026-07-28.
 
 **Arbeidsflyt sist kontrollert:** 2026-07-28
 
@@ -12,7 +12,9 @@
 
 ## Aktiv utviklingsfase
 
-Kontaktproblemet er diagnostisert som et tverrgående produkt- og arkitekturproblem. Fremtidig kontaktarkitektur er godkjent i `ADR-005`, men bare en mellomleveranse er implementert. Dagens kode har nå felles PUBLIC-regel for HTML/API, intern Editor-visning av kontaktkanaler, import-tri-state for kontaktpublisering og reparasjonskommandoer for eksisterende data. Den langsiktige relasjonsspesifikke kontaktmodellen fra ADR-005 er fortsatt ikke implementert. IMPORT er en omfattende, fungerende modul som skal revurderes på produkt- og UX-nivå før større videreutvikling. PUBLIC fungerer som API og staging-visning, men trenger endelig kontrakt mot Musikkontoret.no og en mer robust bilde-/thumbnail-løsning. EKSPORT har teknisk grunnlag, men ikke ferdig motor og brukerflyt.
+Neste aktive produktfase er fase 1 i [ROADMAP.md](ROADMAP.md): en skrivebeskyttet verifisering av staging- og frontend-baseline før ny frontendutvikling. Kontrollen skal avklare faktisk server-, container-, bygg- og cachetilstand og skille stagingavvik fra reelle regresjoner på `main`. Dagens Editor-forside og PUBLIC-visning er godkjent designreferanse og skal ikke redesignes uten en ny produktbeslutning.
+
+Etter baselinen følger en liten kontaktstabilisering før robust thumbnail- og bildearkitektur. Import 2.0 er det neste store produkt- og UX-området etter bildearbeidet. Den langsiktige relasjonsspesifikke kontaktmodellen fra [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md) kommer senere som en egen person-, kontakt- og Editor-fase.
 
 ## Implementert
 
@@ -45,9 +47,32 @@ Public API og HTML-visning fungerer. HTML-visningen brukes foreløpig bare i sta
 
 Kjerne-rollene og tenant-scope håndheves i backend. Invitasjonsflyt, full administrasjon av medlemmer og den langsiktige modellen for eksterne tenant-rom må videreutvikles.
 
-## Neste tre produktområder
+## Prioritert produktrekkefølge
 
-### 1. Kontaktpersonenes e-post og publisering
+### 1. Staging- og frontend-baseline
+
+Før det endres kode eller deployes, skal en skrivebeskyttet diagnose fastslå:
+
+- repo-commit på serveren
+- faktisk commit og bygg i kjørende containere
+- om frontend-bundles, statiske filer, bilder eller cache er utdaterte
+- påvirkning fra nginx, Caddy og nettlesercache
+- forskjeller mellom lokal `main` og staging
+- hvilke observerte avvik som er reelle regresjoner på `main`
+
+### 2. Liten kontaktstabilisering
+
+Den avgrensede mellomleveransen skal spore offentlig telefon gjennom Editor, API og PUBLIC, vise `Person.title` offentlig når den finnes og legge til regresjonstester for e-post, telefon, personlenke og tittel. Ulla-Stina Wiland brukes som undersøkelseseksempel, men en eventuell retting skal være generell. Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md).
+
+### 3. Thumbnail/bilder og Import 2.0
+
+Robust thumbnail- og bildearkitektur er neste store implementeringsområde etter kontaktstabiliseringen. Deretter skal Import 2.0 gjennom en egen produkt- og UX-designfase før større kodeendringer. Dagens importmotor skal gjenbrukes der den er solid, men skal ikke låse den nye brukeropplevelsen.
+
+Detaljert faseinndeling, AI-prinsipp og senere produktområder finnes i [ROADMAP.md](ROADMAP.md).
+
+## Verifisert kontaktstatus
+
+### Implementert mellomregel
 
 Første mellomleveranse er implementert og deployet til staging. Problemet skyldte en todelt kontaktarkitektur og forskjellige regler i Editor, import og PUBLIC:
 
@@ -93,39 +118,19 @@ Målarkitekturen er godkjent i `docs/decisions/ADR-005-CONTACT_ARCHITECTURE.md`:
 
 Den langsiktige ADR-005-modellen er ikke implementert. Direktefelt finnes fortsatt av kompatibilitetshensyn, og dagens `PersonContact.is_public` er fortsatt globalt for kontaktkanalen, ikke relasjonsspesifikt.
 
-### 2. Varig thumbnail- og bildearkitektur
-
-Open Graph-innhenting må erstattes eller suppleres med en robust løsning som sikrer et relevant bilde over tid. Arbeidet må planlegge:
-
-- valg og godkjenning av bilde
-- permanent lagring fremfor avhengighet av ekstern URL
-- beskjæring og skalering til standardformat
-- fallback og manuell overstyring
-- opphavsrett, kilde og senere utskifting
-- bruk i Editor, PUBLIC og Musikkontoret.no
-
-### 3. Ny IMPORT-opplevelse
-
-Før videre implementering skal IMPORT gjennom en egen produkt- og UX-planfase. Målet er en gamification-inspirert opplevelse som gjør tungt kvalitetsarbeid:
-
-- enkelt å forstå
-- raskt og effektivt
-- motiverende og oversiktlig
-- tydelig på fremdrift og kvalitet
-- trygt, uten at brukeren kompromisser på datakvalitet
-
-Eksisterende importmotor skal kartlegges som teknisk fundament, men dagens UX skal ikke låse den nye løsningen.
-
 ## Planlagt senere
 
 - Google Sheets som importkilde
 - Checkin som importkilde
 - Mailmojo som importkilde
-- automatisk deploy til staging ved push
 - komplett eksportmotor
 - auditlogg og sterkere sporbarhet
 
 Google Sheets, Checkin og Mailmojo finnes foreløpig bare som reserverte kildetyper.
+
+## Separat infrastrukturløp
+
+Sikker automatisk staging-deploy er planlagt utenfor produktfasene og blokkerer ikke fase 1. Manuell og kontrollert deploy gjelder inntil det finnes en testet kjede med minst privilegert deploy-bruker, GitHub Environment og secrets, grønn obligatorisk CI på `main`, deploy-lås, databasebackup, health/smoke-kontroll, rollback og tilstrekkelig logging/hardening. Serverens root-nøkkel skal ikke lagres som GitHub-secret.
 
 ## Teknisk workflow-status
 
@@ -136,10 +141,11 @@ Google Sheets, Checkin og Mailmojo finnes foreløpig bare som reserverte kildety
 - `$fortsett-prosjekt` er installert som en tynn Codex-bro fra ChatGPT-handoff til `$start-arbeidsokt`; ChatGPT-rutinen med samme navn er dokumentert separat.
 - `$start-arbeidsokt` og `$avslutt-arbeidsokt` danner et skrivebeskyttet SESSION-lag rundt de fire arbeidsnivåene, i tråd med `ADR-006`.
 - Alle 15 skills er strukturelt validert. `$fortsett-prosjekt` er eksplisitt runtime-testet i en ny skrivebeskyttet Codex-session med konfliktmerking, full delegering til `$start-arbeidsokt` og uendret arbeidsmappe.
+- Fredrik Skill Pack, ChatGPT og Codex er prosjektets valgte arbeidsverktøy. Claude eller Superpowers er ikke valgt som en parallell arbeidsflyt; nyttige prinsipper fra andre rammeverk kan innarbeides i det eksisterende systemet når de gir konkret verdi.
 - Codex skal lese `docs/README.md`, dette dokumentet og relevant feature-/arkitekturdokument før implementering.
 - Større implementeringer krever godkjent ADR.
 - Funksjonelle endringer skal ledsages av dokumentasjonsoppdatering eller eksplisitt vurdering av at dokumentasjonen fortsatt er korrekt.
-- Automatisk staging-deploy ved push er ønsket, men ikke implementert eller verifisert.
+- Automatisk staging-deploy er et separat infrastrukturløp og er ikke implementert eller verifisert.
 
 ## Åpne avklaringer
 
@@ -155,4 +161,4 @@ Google Sheets, Checkin og Mailmojo finnes foreløpig bare som reserverte kildety
 
 ## Dokumentasjonsstatus
 
-Ny dokumentasjonsstruktur er etablert på `docs/project-workflow-baseline`. Den er migrert og kvalitetssikret på overordnet nivå mot dagens kodebase. Eldre dokumenter beholdes som historiske kilder inntil de eventuelt arkiveres i en senere, separat endring.
+`docs/` er autoritativ dokumentasjonsstruktur og er kvalitetssikret på overordnet nivå mot dagens kodebase. PR #10 fullførte session-workflowen og holdt gamle rotbaserte handoff-, `REFERENCE`- og `STATUS`-filer utenfor repoets parallelle sannhetskilder. Den godkjente produktrekkefølgen er dokumentert i [ROADMAP.md](ROADMAP.md).
