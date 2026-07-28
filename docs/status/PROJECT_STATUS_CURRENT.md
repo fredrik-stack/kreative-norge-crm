@@ -1,10 +1,12 @@
 # Project Status Current
 
-**Status:** Verifisert mot kodebasen og oppdatert for godkjent roadmap
+**Status:** Teknisk verifisert mot kodebasen; produkt-roadmap oppdatert
 
-**Sist verifisert:** 2026-07-28
+**Teknisk sist verifisert:** 2026-07-26
 
-**Verifisert mot:** `crm/models.py`, `crm/views.py`, `crm/views_public_site.py`, `crm/urls_public_site.py`, `crm/serializers_public.py`, importtjenestene, React-editoren, staging-dokumentasjonen, PR #7, PR #8, PR #10, staging på commit `ea8b8762aecdff760728139b1659f7d3a43445c7` og godkjent roadmap 2026-07-28.
+**Teknisk verifisert mot:** `crm/models.py`, `crm/views.py`, `crm/views_public_site.py`, `crm/urls_public_site.py`, `crm/serializers_public.py`, importtjenestene, React-editoren, staging-dokumentasjonen, PR #7, PR #8 og staging på commit `ea8b8762aecdff760728139b1659f7d3a43445c7`.
+
+**Produkt-roadmap sist oppdatert:** 2026-07-28
 
 **Arbeidsflyt sist kontrollert:** 2026-07-28
 
@@ -12,7 +14,7 @@
 
 ## Aktiv utviklingsfase
 
-Neste aktive produktfase er fase 1 i [ROADMAP.md](ROADMAP.md): en skrivebeskyttet verifisering av staging- og frontend-baseline før ny frontendutvikling. Kontrollen skal avklare faktisk server-, container-, bygg- og cachetilstand og skille stagingavvik fra reelle regresjoner på `main`. Dagens Editor-forside og PUBLIC-visning er godkjent designreferanse og skal ikke redesignes uten en ny produktbeslutning.
+Neste aktive produktfase er fase 1 i [ROADMAP.md](ROADMAP.md): en skrivebeskyttet verifisering av staging- og frontend-baseline før ny frontendutvikling. Kontrollen skal avklare faktisk server-, container-, bygg- og cachetilstand og skille stagingavvik fra reelle regresjoner på `main`. Hoveddesignet på forsidene i Editor CRM og PUBLIC er godkjent designreferanse. Øvrige sider, kort og komponenter skal videreutvikles innenfor denne visuelle retningen.
 
 Etter baselinen følger en liten kontaktstabilisering før robust thumbnail- og bildearkitektur. Import 2.0 er det neste store produkt- og UX-området etter bildearbeidet. Den langsiktige relasjonsspesifikke kontaktmodellen fra [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md) kommer senere som en egen person-, kontakt- og Editor-fase.
 

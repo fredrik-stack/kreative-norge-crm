@@ -34,7 +34,7 @@ Kontrollen skal fastslå:
 - om observerte avvik er reelle regresjoner på `main`
 - hvilke forskjeller som finnes mellom lokal kjøring og staging
 
-Dagens Editor-forside og PUBLIC-visning er godkjent designreferanse. De skal ikke redesignes uten en ny produktbeslutning. Fasen avsluttes med en verifisert baseline og en avgrenset liste over eventuelle feil; den innebærer ikke automatisk retting eller deploy.
+Hoveddesignet på forsidene i Editor CRM og PUBLIC er godkjent designreferanse. Øvrige sider, kort og komponenter skal videreutvikles innenfor denne visuelle retningen. Fasen avsluttes med en verifisert baseline og en avgrenset liste over eventuelle feil; den innebærer ikke automatisk retting eller deploy.
 
 ## Fase 2 – Liten stabilisering av kontaktvisning
 
@@ -73,7 +73,7 @@ Fasen etablerer samtidig et lite, delt frontendgrunnlag for aktørkort og relate
 - konsekvent bildeplassering, skalering og sentrering
 - mindre avvik mellom Editor- og PUBLIC-kort
 
-Dette er ikke en generell redesign. Dagens godkjente visuelle referanse beholdes.
+Dette er ikke en generell redesign. Øvrige kort og komponenter videreutvikles innenfor den godkjente visuelle retningen fra forsidene.
 
 ## Fase 4 – Produkt- og UX-design for Import 2.0
 
@@ -146,7 +146,7 @@ AI er ikke en egen sprint. Det brukes der det gir målbar hjelp og alltid innen 
 - bilde- og logokandidater i fase 3
 - matching, manglende verdier, berikelse, kategoriforslag og prioritering av usikre rader i Import 2.0
 - ingen automatisk overskriving uten eksplisitt regel eller menneskelig godkjenning
-- AI skal ikke foreslå eller aktivere publisering
+- AI kan peke ut informasjon eller publiseringsvalg som bør vurderes, men skal aldri aktivere, endre eller utvide offentlig publisering automatisk. Publisering krever en eksplisitt regel eller menneskelig godkjenning.
 
 ## Parallelt infrastrukturløp – Sikker automatisk staging-deploy
 
