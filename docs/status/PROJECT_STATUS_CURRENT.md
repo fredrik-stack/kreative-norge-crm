@@ -6,6 +6,8 @@
 
 **Verifisert mot:** `crm/models.py`, `crm/views.py`, `crm/views_public_site.py`, `crm/urls_public_site.py`, `crm/serializers_public.py`, importtjenestene, React-editoren, staging-dokumentasjonen, PR #7, PR #8 og staging på commit `ea8b8762aecdff760728139b1659f7d3a43445c7`.
 
+**Arbeidsflyt sist kontrollert:** 2026-07-28
+
 **Ansvar:** Prosjekteier + ChatGPT for prioritering og produktretning. Codex for oppdatering etter implementering.
 
 ## Aktiv utviklingsfase
@@ -130,7 +132,10 @@ Google Sheets, Checkin og Mailmojo finnes foreløpig bare som reserverte kildety
 - GitHub er felles sannhetskilde mellom lokal kode, Codex og ChatGPT.
 - ChatGPT kan lese repoet når prosjekteier ber om oppdatert analyse.
 - Fredrik Development System er installert som prosjektets utviklingsplattform.
-- Repo-reglene ligger i `AGENTS.md`, og 12 prosjektbaserte Codex-skills ligger i `.agents/skills/`.
+- Repo-reglene ligger i `AGENTS.md`, og 15 prosjektbaserte Codex-skills ligger i `.agents/skills/`.
+- `$fortsett-prosjekt` er installert som en tynn Codex-bro fra ChatGPT-handoff til `$start-arbeidsokt`; ChatGPT-rutinen med samme navn er dokumentert separat.
+- `$start-arbeidsokt` og `$avslutt-arbeidsokt` danner et skrivebeskyttet SESSION-lag rundt de fire arbeidsnivåene, i tråd med `ADR-006`.
+- Alle 15 skills er strukturelt validert. `$fortsett-prosjekt` er eksplisitt runtime-testet i en ny skrivebeskyttet Codex-session med konfliktmerking, full delegering til `$start-arbeidsokt` og uendret arbeidsmappe.
 - Codex skal lese `docs/README.md`, dette dokumentet og relevant feature-/arkitekturdokument før implementering.
 - Større implementeringer krever godkjent ADR.
 - Funksjonelle endringer skal ledsages av dokumentasjonsoppdatering eller eksplisitt vurdering av at dokumentasjonen fortsatt er korrekt.

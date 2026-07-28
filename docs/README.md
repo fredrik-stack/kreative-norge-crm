@@ -31,3 +31,5 @@ Kode, migrasjoner, aktive API-ruter og verifisert staging-adferd er teknisk fasi
 - Eldre dokumenter beholdes til gyldig innhold er kontrollert og flyttet.
 
 Se også `development/DOCUMENTATION_RULES.md`, `development/WORKFLOW.md` og `development/FREDRIK_SKILL_PACK.md`.
+
+For kontinuitet mellom ChatGPT og Codex, se `development/CHATGPT_SESSION_CONTINUITY.md` og `development/CHATGPT_SESSION_SUMMARY_TEMPLATE.md`.

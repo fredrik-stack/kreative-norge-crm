@@ -1,0 +1,4 @@
+interface:
+  display_name: "Start arbeidsøkt"
+  short_description: "Orienter arbeidsøkten fra repoets fakta"
+  default_prompt: "Bruk $start-arbeidsokt til å etablere verifisert nåstatus, risiko og neste arbeidsplan."

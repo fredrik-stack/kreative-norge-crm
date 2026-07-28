@@ -1,8 +1,58 @@
 # Fredrik Development System – eksempler
 
-**Sist oppdatert:** 2026-07-23
+**Sist oppdatert:** 2026-07-24
 
 Eksemplene viser når hver skill brukes i Kreative Norge CRM. De kan kopieres og tilpasses. Stabil prosjektkunnskap skal fortsatt leses fra `docs/`.
+
+## KONTINUITET – CHATGPT TIL CODEX
+
+### `$fortsett-prosjekt` i ny ChatGPT-chat
+
+Bruk siste strategiske håndoff. ChatGPT-rutinen kontrollerer repoet når tilgang finnes og lager neste Codex-prompt.
+
+```text
+$fortsett-prosjekt
+
+<lim inn siste CHATGPT SESSION SUMMARY>
+```
+
+### `$fortsett-prosjekt` i ny Codex-session
+
+Bruk broskillen når hele ChatGPT-håndoffen følger med. Den verifiserer sammendraget og leder videre til `$start-arbeidsokt` uten å endre filer.
+
+```text
+$fortsett-prosjekt
+
+CHATGPT SESSION SUMMARY
+Dato: 2026-07-24
+Dagens overordnede fokus: Avklare neste leveranse i ADR-005.
+ANBEFALT CODEX-FOKUS: Kontroller beslutningsgatene for leveranse 0.
+VARIG LAGRING
+- ADR-005 er pushet.
+- Prioriteringen finnes bare i sammendraget.
+```
+
+## SESSION – START
+
+### `$start-arbeidsokt`
+
+Bruk ved starten av en utviklings-, planleggings- eller kvalitetsøkt. Oppstarten er skrivebeskyttet og velger riktig inngang til LEVEL 1–4.
+
+```text
+$start-arbeidsokt
+
+Dagens fokus: Finn neste trygge leveranse i ADR-005.
+Les status, roadmap og relevante ADR-er, kontroller Git og åpen PR, og foreslå neste skill og en kort arbeidsplan. Ikke endre noe.
+```
+
+En godkjent oppgave kan uttrykkelig kombinere oppstart og videre skill:
+
+```text
+$start-arbeidsokt
+
+Dagens fokus: Gjennomgå siste kontakt-commit mot ADR-005.
+Lever først oppstartsrapporten. Bruk deretter $gjennomga-siste-endring og stopp før retting.
+```
 
 ## LEVEL 1 – FORSTÅ
 
@@ -130,4 +180,16 @@ Bruk når staging er godkjent og produksjonsrisiko skal vurderes, men deploy ikk
 $klargjor-produksjonssetting
 
 Forbered produksjonssetting av den godkjente kontaktleveransen. Kontroller staging, migrering, backup, rollback og personvern. Stopp før deploy.
+```
+
+## SESSION – SLUTT
+
+### `$avslutt-arbeidsokt`
+
+Bruk før arbeid overleveres eller Codex-sessionen avsluttes. Skillen verifiserer faktisk tilstand, men endrer, committer eller pusher ikke.
+
+```text
+$avslutt-arbeidsokt
+
+Kontroller hva som faktisk ble gjort i denne økten. Skill implementert, besluttet og foreslått, rapporter full leveransestatus og dokumentasjonsbehov, og avslutt med standard SESSION WRAP-UP og en ferdig prompt for neste Codex-session.
 ```

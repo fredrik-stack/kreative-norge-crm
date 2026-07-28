@@ -1,8 +1,8 @@
 # Fredrik Development System – Skill Pack
 
-**Status:** Installert og validert i repo
+**Status:** 15 skills installert og validert
 
-**Sist oppdatert:** 2026-07-23
+**Sist oppdatert:** 2026-07-24
 
 **Plassering:** `.agents/skills/`
 
@@ -53,7 +53,22 @@ Hver `agents/openai.yaml` har:
 
 Implisitt aktivering er på som standard. Beskrivelsene er derfor skrevet slik at de viktigste triggerne kommer tidlig og overlapper minst mulig.
 
-## Fire nivåer
+## Kontinuitetsbro
+
+- `$fortsett-prosjekt`
+
+I Codex er dette en tynn bro fra en eventuell `CHATGPT SESSION SUMMARY` til `$start-arbeidsokt`. Den verifiserer håndoffen mot repoet, men prioriterer ikke produktstrategi og utfører ingen endringer. ChatGPT-rutinen med samme navn er dokumentert i `CHATGPT_SESSION_CONTINUITY.md` og er ikke en Codex-skill.
+
+## SESSION-lag
+
+Session-laget omkranser de fire faglige arbeidsnivåene:
+
+- `$start-arbeidsokt`
+- `$avslutt-arbeidsokt`
+
+De etablerer baseline og handoff, men utfører ikke diagnose, beslutning, implementering, dokumentasjonsendring eller releasehandlinger. Den faste kontrakten er besluttet i `../decisions/ADR-006-SESSION_WORKFLOW.md`.
+
+## Fire faglige nivåer
 
 ### LEVEL 1 – FORSTÅ
 
@@ -79,7 +94,7 @@ Implisitt aktivering er på som standard. Beskrivelsene er derfor skrevet slik a
 - `$oppdater-prosjektdokumentasjonen`
 - `$klargjor-produksjonssetting`
 
-Nivåene er en konseptuell arbeidsflyt. Skills ligger ikke i nivå-undermapper fordi den dokumenterte oppdagelsesroten er `.agents/skills/`, og Codex har ingen dokumentert metadatafunksjon for nivågrupper eller tvungen rekkefølge.
+Nivåene er en konseptuell arbeidsflyt. De 12 fagskillene, de 2 session-skillene og kontinuitetsbroen ligger flatt fordi den dokumenterte oppdagelsesroten er `.agents/skills/`, og Codex har ingen dokumentert metadatafunksjon for nivågrupper eller tvungen rekkefølge.
 
 ## Hvordan Codex oppdager og bruker skills
 
@@ -110,7 +125,7 @@ Implisitt valg styres av beskrivelsen og modellens vurdering, ikke av LEVEL-numm
 
 Skill Pack verifiseres på tre nivåer:
 
-1. **Struktur:** 12 mapper, hver med `SKILL.md` og `agents/openai.yaml`.
+1. **Struktur:** 15 mapper, hver med `SKILL.md` og `agents/openai.yaml`.
 2. **Metadata:** gyldig YAML-frontmatter, samsvar mellom mappe og `name`, gyldig `openai.yaml`, unike navn og de påkrevde sluttdelene.
 3. **Ny Codex-run:** start Codex fra repo-roten, åpne `/skills` eller `$`-menyen, og test minst én eksplisitt og én relevant implisitt prompt.
 
@@ -124,6 +139,16 @@ Ved installasjonen 2026-07-23 ble alle 12 skills godkjent av standardvalidatoren
 - eksplisitt aktivering av `$ta-arkitekturavgjorelse`
 - implisitt valg av `$undersok-feil-for-retting` for et relevant feilsymptom
 
+Ved utvidelsen 2026-07-24 ble `$start-arbeidsokt` og `$avslutt-arbeidsokt` opprettet med standardgeneratoren og godkjent av standardvalidatoren. Alle 14 daværende mapper bestod prosjektets struktur- og metadatakontroll. En ny Codex-session bekreftet senere oppdagelse av begge og eksplisitt bruk av oppstarts- og avslutningskontraktene.
+
+Kontinuitetsutvidelsen samme dag la til `$fortsett-prosjekt` som femtende repo-skill. Alle 15 skills bestod standardvalidator, struktur- og metadatakontroll. En ny, ephemeral Codex-session med `codex-cli 0.146.0-alpha.3` og read-only sandbox bekreftet:
+
+- eksplisitt aktivering av `$fortsett-prosjekt`
+- merking av bevisste `SAMMENDRAG ↔ REPO`-konflikter
+- komplett delegering til `$start-arbeidsokt`
+- ingen implementering eller filendring
+- identisk Git-statuskontrollsum før og etter testen
+
 ## Start en ny Codex-session
 
 CLI:
@@ -133,11 +158,11 @@ cd /sti/til/kreative-norge-crm
 codex
 ```
 
-Kontroller deretter med `/skills` eller ved å skrive `$` at prosjekt-skillene vises. I VS Code skal repo-mappen åpnes som workspace før en ny Codex-samtale startes. Hvis instruksjoner eller skills virker utdaterte, avslutt den gamle samtalen og start en ny fra repoet.
+Kontroller deretter med `/skills` eller ved å skrive `$` at alle 15 prosjekt-skills vises. Test `$fortsett-prosjekt`, `$start-arbeidsokt` og `$avslutt-arbeidsokt` eksplisitt og kontroller relevant implisitt aktivering. I VS Code skal repo-mappen åpnes som workspace før en ny Codex-samtale startes. Hvis instruksjoner eller skills virker utdaterte, avslutt den gamle samtalen og start en ny fra repoet.
 
 ## Begrensninger
 
-- Codex har ingen dokumentert repo-manifestfil som grupperer skills i LEVEL 1–4.
+- Codex har ingen dokumentert repo-manifestfil som grupperer skills i kontinuitetsbro, SESSION eller LEVEL 1–4.
 - «Neste anbefalte skill» er tekstlig veiledning; Codex kjeder ikke skills deterministisk.
 - Implisitt aktivering kan ikke garanteres. Bruk eksplisitt `$skill-navn` ved kritiske arbeidsfaser.
 - Mange installerte skills deler et begrenset metadata-budsjett i startkonteksten. Codex kan forkorte beskrivelser eller utelate enkelte fra startlisten og vise en advarsel.

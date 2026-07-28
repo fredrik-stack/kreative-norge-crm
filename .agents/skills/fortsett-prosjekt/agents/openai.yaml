@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fortsett prosjekt"
+  short_description: "Bro fra ChatGPT-handoff til Codex-oppstart"
+  default_prompt: "Bruk $fortsett-prosjekt til å kontrollere CHATGPT SESSION SUMMARY mot repoet og gå videre til $start-arbeidsokt."

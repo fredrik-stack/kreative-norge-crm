@@ -2,7 +2,7 @@
 
 **Status:** Gjeldende utviklingsplattform
 
-**Sist oppdatert:** 2026-07-23
+**Sist oppdatert:** 2026-07-24
 
 Fredrik Development System er prosjektets samlede system for å forstå, beslutte, bygge og kvalitetssikre Kreative Norge CRM. Systemet består av:
 
@@ -23,6 +23,28 @@ Skill Pack er arbeidsflytdelen av plattformen. Det erstatter ikke arkitektur-, f
 
 En «større implementering» er en endring med vesentlig produkt-, arkitektur-, personvern-, sikkerhets-, integrasjons-, API-, data- eller migreringskonsekvens. Små, reversible feilrettinger og vedlikeholdsoppgaver kan gjennomføres uten nytt ADR når de følger eksisterende beslutninger og har tydelig scope.
 
+## Kontinuitets- og SESSION-lag rundt arbeidsflyten
+
+Kontinuitetsrutinen og session-skillene kobler nye ChatGPT-samtaler til nye Codex-sessioner:
+
+```text
+ChatGPT: $fortsett-prosjekt
+  → Codex: $fortsett-prosjekt
+  → $start-arbeidsokt
+  → LEVEL 1–4 etter behov
+  → $avslutt-arbeidsokt
+```
+
+I ChatGPT er `$fortsett-prosjekt` en strategisk arbeidsrutine som bruker siste `CHATGPT SESSION SUMMARY` og produserer neste prioritet og første Codex-prompt. I Codex er navnet en tynn repo-skill som kontrollerer sammendraget mot repoet og delegerer til `$start-arbeidsokt`.
+
+Oppstarten etablerer dagens fokus, verifisert dokument- og Git-status, åpne beslutninger, risiko, project health og neste arbeidsplan. Avslutningen kontrollerer faktisk utført arbeid, leveransestatus, dokumentasjonsbehov og varig lagring før den lager en standardisert handoff.
+
+Codex-broen og session-skillene er skrivebeskyttede kontroll- og rutingsskills. De erstatter ikke fagarbeidet i LEVEL 1–4, og de overtar ikke strategisk prioritering, commit, push, merge, deploy eller dokumentasjonsoppdatering fra eksisterende arbeidsformer.
+
+GitHub og dokumentasjonen er prosjektets varige hukommelse. En samtale, `CHATGPT SESSION SUMMARY` eller `SESSION WRAP-UP` skal peke til branch, commit, PR og dokumenter, men skal ikke behandles som teknisk fasit uten ny verifisering.
+
+Beslutningen og den faste kontrakten er dokumentert i `docs/decisions/ADR-006-SESSION_WORKFLOW.md`. ChatGPT-rutinen og sammendragsmalen er dokumentert i `docs/development/CHATGPT_SESSION_CONTINUITY.md` og `docs/development/CHATGPT_SESSION_SUMMARY_TEMPLATE.md`.
+
 ## Arbeidsflyt i fire nivåer
 
 | Nivå | Formål | Resultat |
@@ -39,7 +61,7 @@ undersøk → planlegg ved større konsekvens → ADR → Codex-oppgave
 → implementering → gjennomgang → dokumentasjonskontroll → release-forberedelse
 ```
 
-Skillene foreslår neste naturlige skill i slutten av hvert resultat. Dette er veiledning, ikke automatisk kjeding.
+Skillene foreslår neste naturlige skill i slutten av hvert resultat. Dette er veiledning, ikke automatisk kjeding. Session-start velger normalt inngang til riktig nivå, mens session-slutt pakker en kontrollert handoff.
 
 ## Ansvar og sannhetskilder
 
@@ -50,8 +72,9 @@ Skillene foreslår neste naturlige skill i slutten av hvert resultat. Dette er v
 - `docs/decisions/` inneholder godkjente arkitekturbeslutninger.
 - `docs/status/ROADMAP.md` viser planlagt rekkefølge.
 - `.agents/skills/` beskriver hvordan Codex skal utføre bestemte arbeidsformer.
+- Git og GitHub dokumenterer brancher, commits, PR-er, CI og hva som faktisk er delt.
 
-Kode, migrasjoner, aktive API-ruter og verifisert runtime-adferd er teknisk fasit. Dokumentasjonen skal korrigeres når den ikke stemmer.
+Kode, migrasjoner, aktive API-ruter og verifisert runtime-adferd er teknisk fasit. Dokumentasjonen skal korrigeres når den ikke stemmer. Lokale, upushede endringer er ikke tilgjengelige for ChatGPT eller andre maskiner og skal markeres som ikke varig delt.
 
 ## Beslutningsgater
 

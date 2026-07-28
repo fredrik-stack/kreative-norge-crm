@@ -1,0 +1,4 @@
+interface:
+  display_name: "Avslutt arbeidsøkt"
+  short_description: "Kontroller og overlever avsluttet arbeidsøkt"
+  default_prompt: "Bruk $avslutt-arbeidsokt til å verifisere leveransestatus og lage en varig handoff."

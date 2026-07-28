@@ -9,10 +9,15 @@
 Gjennomført:
 
 - etablert GitHub som levende sannhetskilde
-- etablert Fredrik Development System med `AGENTS.md`, dokumentert workflow og 12 repo-baserte Codex-skills
+- etablert Fredrik Development System med `AGENTS.md`, dokumentert workflow og 15 repo-baserte Codex-skills
 - sikret at ChatGPT og Codex har dokumenterte oppstarts- og sannhetskilder
 - etablert ADR-gate for større implementeringer
 - etablert dokumentasjonsplikt ved funksjonelle endringer
+- besluttet session-flyten i `ADR-006`
+- etablert `$start-arbeidsokt` og `$avslutt-arbeidsokt` som SESSION-lag rundt de fire arbeidsnivåene
+- standardisert Git-baseline, project health, SESSION WRAP-UP og neste-session-prompt
+- etablert `$fortsett-prosjekt` som felles inngang: strategisk ChatGPT-rutine og tynn Codex-bro til `$start-arbeidsokt`
+- dokumentert fast `CHATGPT SESSION SUMMARY` og kontinuitetsflyt mellom nye samtaler og sessioner
 
 Gjenstår:
 
