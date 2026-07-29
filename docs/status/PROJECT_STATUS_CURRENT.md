@@ -2,9 +2,9 @@
 
 **Status:** Fase 1 verifisert; fase 2 aktiv
 
-**Teknisk sist verifisert:** 2026-07-29
+**Teknisk sist verifisert:** 2026-07-30
 
-**Teknisk verifisert mot:** fase 2-applikasjonsversjonen i merge-commit `6768af8a3b48314aec028ec5972939c6ef0e38e8` på lokal/GitHub `main`, rent staging-repo på samme commit, nybygde og kjørende API-/web-images, PostgreSQL, Django, migrasjoner, HTTPS, frontendbundle, PUBLIC API/HTML og skrivebeskyttet Editor-kontroll.
+**Teknisk verifisert mot:** fase 2-applikasjonsversjonen i merge-commit `6768af8a3b48314aec028ec5972939c6ef0e38e8`, rent staging-repo på samme commit, kjørende API-/web-images, PostgreSQL, Django, migrasjoner, HTTPS, PUBLIC API/HTML, Editor-API og kontrollert tenant-avgrenset telefonreparasjon etter verifisert backup.
 
 **Produkt-roadmap sist oppdatert:** 2026-07-29
 
@@ -72,9 +72,13 @@ PR #12 ble merget med ordinær merge-commit og deployet kontrollert til staging 
 - eksisterende `Person.title` ble verifisert i både aktivt public API og PUBLIC HTML
 - person uten tittel fikk ingen tom tittelrad, og direkte `Person.phone` ble ikke brukt som PUBLIC-fallback
 - tenant-avgrenset `PHONE`-dry-run for `musikkontoretnord` undersøkte `49` personer, fant `4` kandidater og ingen konflikter; kandidat-ID-ene var `1`, `2`, `132` og `150`
-- dry-run rapporterte `changes_applied=0`; ingen kontaktverdier, publiseringsflagg eller andre stagingdata ble endret
+- etter streng kandidatkontroll og verifisert PostgreSQL-backup opprettet den godkjente `--apply`-kjøringen nøyaktig fire private primære `PHONE`-kontakter, kontakt-ID `233`–`236`, for de fire kandidatene og rapporterte `changes_applied=4`
+- umiddelbar etterfølgende dry-run rapporterte null kandidater, null konflikter og `changes_applied=0`
+- felt- og fingeravtrykkskontroll bekreftet at eksisterende `PHONE`, samtlige `EMAIL`, direkte persontelefoner og relevante Organization-/OrganizationPerson-publiseringsflagg var uendret
+- Editor-API viste de fire nye radene som primære og private; aktivt PUBLIC API og PUBLIC HTML eksponerte ingen av dem
+- PostgreSQL readiness, Django system check, migrasjoner, HTTPS og `122` av `122` PUBLIC-kortlenker var fortsatt grønne etter kjøringen
 
-Fase 2 er fortsatt aktiv til prosjekteier har gjennomført sluttkontroll og eksplisitt besluttet om kandidatene skal håndteres i en separat backup- og apply-økt eller om fasen skal lukkes uten apply.
+Fase 2 er fortsatt aktiv til prosjekteier har gjennomført visuell sluttkontroll i Editor og PUBLIC og deretter eksplisitt godkjent at fasen kan lukkes.
 
 ## Implementert
 
@@ -151,6 +155,7 @@ Implementert mellomregel:
 - Editor CRM er intern og viser kontaktkanaler også når de ikke er offentlige
 - import støtter `person_email_public` og `person_phone_public` som tri-state publiseringsfelt
 - `repair_person_contacts` kan opprette manglende private primære e-postkontakter fra `Person.email`
+- `repair_person_contacts --contact-type PHONE --tenant musikkontoretnord --apply` ble kjørt kontrollert på staging 2026-07-30 etter backup og opprettet fire private primære telefonkontakter uten å endre publiseringsflagg
 - `publish_existing_email_contacts` ble kjørt på staging 2026-07-26 etter backup og gjorde eksisterende e-postkontakter offentlige, med tre relasjonsspesifikke unntak på `publish_person=False`
 
 Staging etter datakjøringen:

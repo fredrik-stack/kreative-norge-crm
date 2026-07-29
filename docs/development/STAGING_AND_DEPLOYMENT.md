@@ -21,15 +21,19 @@ Den skrivebeskyttede fase 1-kontrollen sammenlignet en ren frontendbuild fra `ma
 
 Kjørende serverrepo var eldre enn GitHub `main`, men forskjellen bestod av dokumentasjon og arbeidsflytfiler; de kontrollerte runtimefilene og frontendbundlene matchet dagens applikasjonskode. Se [datert evidensrapport](../status/FRONTEND_BASELINE_2026-07-29.md).
 
-## Telefonreparasjon etter en senere fase 2-deploy
+## Tenant-avgrenset telefonreparasjon 2026-07-30
 
-Fase 2 skal ikke gjøre dataendringer automatisk ved deploy. Etter at fase 2-koden eventuelt er deployet, er den eksakte skrivebeskyttede stagingkommandoen:
+Fase 2 gjør ikke dataendringer automatisk ved deploy. Etter at fase 2-applikasjonsversjonen var verifisert på staging, ble følgende tenant-avgrensede dry-run brukt:
 
 ```bash
-docker-compose -f docker-compose.staging.yml exec -T api python manage.py repair_person_contacts --contact-type PHONE
+docker-compose -f docker-compose.staging.yml exec -T api python manage.py repair_person_contacts --contact-type PHONE --tenant musikkontoretnord
 ```
 
-Kommandoen er dry-run fordi `--apply` ikke er angitt. Kandidater og konflikter skal kontrolleres uten rå kontaktverdier før prosjekteier eventuelt godkjenner en separat backup- og apply-økt. `--tenant <id-eller-slug>` kan legges til når kjøringen skal avgrenses.
+Kommandoen er dry-run fordi `--apply` ikke er angitt. Den undersøkte `49` personer og rapporterte kandidat-ID `1`, `2`, `132` og `150` uten konflikter eller kontaktverdier. Etter streng kontroll av tenant, direkte telefon, eksisterende kontaktsett og normaliserte duplikater ble backupfilen `staging-pre-phone-repair-20260729T222953Z.sql` opprettet og beholdt på stagingserveren. Den var `5 644 648` byte og hadde SHA-256 `e0cb54f1686f2b48c98ebd8b9a0ca3a9b5f1c52184d9b3b1a9258ec1012c5518`.
+
+Prosjekteiers eksplisitt godkjente `--apply`-kjøring opprettet kontakt-ID `233`–`236` som private primære `PHONE`-kontakter for de fire kandidatene og rapporterte `changes_applied=4`. Umiddelbar dry-run etterpå rapporterte null kandidater, null konflikter og `changes_applied=0`. Felt- og fingeravtrykkskontroll bekreftet at eksisterende `PHONE`, samtlige `EMAIL`, direkte persontelefoner og publiseringsflagg var uendret. Editor-API og PUBLIC-smoke bekreftet henholdsvis intern tilgang og fravær av offentlig telefon-eksponering.
+
+Serveren bruker fortsatt eldre Docker Compose `1.29.2`. Denne økten oppgraderte ikke Compose og kjørte ingen restart, recreate eller deploy. Ved fremtidig drift skal unødvendig recreate unngås; dersom den kjente `ContainerConfig`-feilen oppstår, skal kjøringen stoppes og håndteres som kontrollert feilretting med ny helsekontroll, ikke som del av en datareparasjon.
 
 ## Ønsket neste steg
 

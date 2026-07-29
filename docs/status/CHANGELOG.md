@@ -2,6 +2,18 @@
 
 Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små kosmetiske justeringer trenger ikke registreres.
 
+## 2026-07-30
+
+### Fase 2: kontrollert stagingreparasjon av telefonkontakter
+
+- forhåndskontrollert kandidat-ID `1`, `2`, `132` og `150` i tenant `musikkontoretnord` uten å skrive ut kontaktverdier; alle tilhørte riktig tenant, manglet `PHONE`-kontakt og hadde ingen duplikat- eller flertydighetskonflikt
+- opprettet og verifisert en tidsstemplet PostgreSQL-backup før dataendringen
+- kjørt den eksplisitt godkjente, tenant-avgrensede `PHONE --apply`-reparasjonen, opprettet nøyaktig fire private primære telefonkontakter og fått `changes_applied=4`
+- bekreftet med ny dry-run at ingen kandidater eller konflikter gjenstod og at `changes_applied=0`
+- bekreftet med felt- og fingeravtrykkssammenligning at eksisterende telefon- og e-postkontakter, direkte persontelefoner og publiseringsflagg var uendret
+- verifisert de nye private primærkontaktene i Editor-API og fravær av telefon-eksponering i aktivt PUBLIC API og PUBLIC HTML
+- beholdt fase 2 som aktiv i påvente av prosjekteiers visuelle sluttkontroll; ingen produksjonsdeploy, publiseringsendring eller endring utenfor valgt tenant ble utført
+
 ## 2026-07-29
 
 ### Verifisert staging- og frontendbaseline
