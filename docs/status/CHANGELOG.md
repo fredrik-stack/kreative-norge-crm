@@ -12,7 +12,17 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 - bekreftet med ny dry-run at ingen kandidater eller konflikter gjenstod og at `changes_applied=0`
 - bekreftet med felt- og fingeravtrykkssammenligning at eksisterende telefon- og e-postkontakter, direkte persontelefoner og publiseringsflagg var uendret
 - verifisert de nye private primærkontaktene i Editor-API og fravær av telefon-eksponering i aktivt PUBLIC API og PUBLIC HTML
-- beholdt fase 2 som aktiv i påvente av prosjekteiers visuelle sluttkontroll; ingen produksjonsdeploy, publiseringsendring eller endring utenfor valgt tenant ble utført
+- beholdt fase 2 som aktiv frem til prosjekteiers visuelle sluttkontroll; ingen produksjonsdeploy, publiseringsendring eller endring utenfor valgt tenant ble utført
+
+### Fase 2 lukket og fase 3 aktivert
+
+- lukket fase 2 som gjennomført 2026-07-30 etter at prosjekteier visuelt bekreftet i staging at undersøkelseseksemplets telefon finnes under Kontaktkanaler, er markert som primær og fortsatt har offentlig telefon avslått
+- gjort robust thumbnail-, bilde- og kortarkitektur til aktiv produktfase uten å starte implementeringen
+- besluttet at den konservative PHONE-reparasjonskommandoen beholdes uendret som en avgrenset legacy-reparasjon og at telefonarkitekturen ikke blokkerer fase 3
+- lagt en beslutningsgate før fase 4 kan godkjennes som ferdig: et eget ADR skal da spesifisere internasjonal telefonmodell, landkontekst og normalisering
+- planlagt implementering av den nye telefonarkitekturen tidlig i fase 5 og gjort stabil telefonmodell til forutsetning for full telefonmatching i fase 6
+- fastlagt prinsipper om bevart originalverdi, separat normalisert sammenligningsverdi, uttrykkelig land-/regionkontekst, internasjonale numre, separat internnummer, én sentral backendtjeneste, review av tvetydige verdier og ingen publisering som følge av normalisering eller matching
+- beholdt bibliotek, modell- og feltnavn, constraints, API-kontrakt, migrering og backfill som uavklart; ingen ny telefonarkitektur eller nytt ADR ble implementert
 
 ## 2026-07-29
 

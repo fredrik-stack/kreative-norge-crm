@@ -1,12 +1,12 @@
 # Project Status Current
 
-**Status:** Fase 1 verifisert; fase 2 aktiv
+**Status:** Fase 1 og 2 gjennomført; fase 3 aktiv
 
 **Teknisk sist verifisert:** 2026-07-30
 
 **Teknisk verifisert mot:** fase 2-applikasjonsversjonen i merge-commit `6768af8a3b48314aec028ec5972939c6ef0e38e8`, rent staging-repo på samme commit, kjørende API-/web-images, PostgreSQL, Django, migrasjoner, HTTPS, PUBLIC API/HTML, Editor-API og kontrollert tenant-avgrenset telefonreparasjon etter verifisert backup.
 
-**Produkt-roadmap sist oppdatert:** 2026-07-29
+**Produkt-roadmap sist oppdatert:** 2026-07-30
 
 **Arbeidsflyt sist kontrollert:** 2026-07-28
 
@@ -16,7 +16,9 @@
 
 Fase 1 i [ROADMAP.md](ROADMAP.md) ble gjennomført 2026-07-29. Den skrivebeskyttede baselinen verifiserte server-, container-, bygg-, proxy-, cache-, PUBLIC- og Editor-tilstanden. Hoveddesignet på forsidene i Editor CRM og PUBLIC er godkjent designreferanse. Øvrige sider, kort og komponenter skal videreutvikles innenfor denne visuelle retningen.
 
-Aktiv produktfase er fase 2: en liten kontaktstabilisering før robust thumbnail- og bildearkitektur. Fasen skal reparere manglende private primære telefonkontakter kontrollert, gjøre nye publiseringsvalg avslått som standard og vise `Person.title` offentlig. Den langsiktige relasjonsspesifikke kontaktmodellen fra [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md) kommer fortsatt senere.
+Fase 2 ble gjennomført 2026-07-30 etter teknisk stagingverifisering, kontrollert reparasjon av fire private primære legacytelefonkontakter og prosjekteiers visuelle sluttkontroll. Aktiv produktfase er nå fase 3: robust thumbnail-, bilde- og kortarkitektur. Dette er neste planleggings- og implementeringsområde; fase 3-funksjonaliteten er ikke implementert ennå.
+
+Den langsiktige relasjonsspesifikke kontaktmodellen fra [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md) kommer fortsatt senere. Internasjonal telefonmodell skal spesifiseres i et eget ADR ved overgangen fra fase 3 til fase 4 og implementeres tidlig i fase 5; dette blokkerer ikke fase 3.
 
 ## Verifisert fase 1-baseline
 
@@ -57,7 +59,7 @@ Fase 2-leveransen fra PR #12, merget i `6768af8a3b48314aec028ec5972939c6ef0e38e8
 - tydeligere Editor-tekst for personpublisering kontra offentlig e-post/telefon
 - additiv offentlig `Person.title` i aktivt API og PUBLIC HTML
 
-Ingen schema-migrasjon inngår. Leveransen endrer ikke eksisterende publiseringsflagg og kjører ikke data-apply på staging eller produksjon.
+Ingen schema-migrasjon inngår. Kodeleveransen endret ikke eksisterende publiseringsflagg og kjørte ingen data-apply ved merge eller deploy. Den separate, senere stagingreparasjonen ble gjennomført etter uttrykkelig godkjenning og backup som beskrevet nedenfor; produksjon ble ikke endret.
 
 ## Verifisert fase 2-stagingstatus
 
@@ -78,7 +80,7 @@ PR #12 ble merget med ordinær merge-commit og deployet kontrollert til staging 
 - Editor-API viste de fire nye radene som primære og private; aktivt PUBLIC API og PUBLIC HTML eksponerte ingen av dem
 - PostgreSQL readiness, Django system check, migrasjoner, HTTPS og `122` av `122` PUBLIC-kortlenker var fortsatt grønne etter kjøringen
 
-Fase 2 er fortsatt aktiv til prosjekteier har gjennomført visuell sluttkontroll i Editor og PUBLIC og deretter eksplisitt godkjent at fasen kan lukkes.
+Prosjekteier kontrollerte deretter undersøkelseseksemplet visuelt i staging og bekreftet at telefonen finnes under Kontaktkanaler, at Primær er valgt og at «Gjør dette telefonnummeret offentlig» er avslått. De øvrige tre kandidatene var allerede verifisert gjennom preflight, felt- og fingeravtrykkskontroll, Editor-API og PUBLIC-smoke. Denne uttrykkelige produktgodkjenningen lukket fase 2 den 2026-07-30.
 
 ## Implementert
 
@@ -124,13 +126,13 @@ Før det endres kode eller deployes, skal en skrivebeskyttet diagnose fastslå:
 - forskjeller mellom lokal `main` og staging
 - hvilke observerte avvik som er reelle regresjoner på `main`
 
-### 2. Liten kontaktstabilisering – aktiv
+### 2. Liten kontaktstabilisering – gjennomført 2026-07-30
 
-Den avgrensede mellomleveransen skal spore offentlig telefon gjennom Editor, API og PUBLIC, vise `Person.title` offentlig når den finnes og legge til regresjonstester for e-post, telefon, personlenke og tittel. Ulla-Stina Wiland brukes som undersøkelseseksempel, men en eventuell retting skal være generell. Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md).
+Den avgrensede mellomleveransen sporer offentlig telefon gjennom Editor, API og PUBLIC, viser `Person.title` offentlig når den finnes og har regresjonstester for e-post, telefon, personlenke og tittel. Den generelle årsaken ble rettet, fire legacytelefoner ble reparert privat etter backup, og teknisk og visuell stagingkontroll ble godkjent. Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md).
 
-### 3. Thumbnail/bilder og Import 2.0
+### 3. Thumbnail-, bilde- og kortarkitektur – aktiv
 
-Robust thumbnail- og bildearkitektur er neste store implementeringsområde etter kontaktstabiliseringen. Deretter skal Import 2.0 gjennom en egen produkt- og UX-designfase før større kodeendringer. Dagens importmotor skal gjenbrukes der den er solid, men skal ikke låse den nye brukeropplevelsen.
+Robust thumbnail-, bilde- og kortarkitektur er aktiv produktfase og neste store planleggings- og implementeringsområde. Deretter skal Import 2.0 gjennom en egen produkt- og UX-designfase før større kodeendringer. Dagens importmotor skal gjenbrukes der den er solid, men skal ikke låse den nye brukeropplevelsen.
 
 Detaljert faseinndeling, AI-prinsipp og senere produktområder finnes i [ROADMAP.md](ROADMAP.md).
 
@@ -183,6 +185,30 @@ Målarkitekturen er godkjent i `docs/decisions/ADR-005-CONTACT_ARCHITECTURE.md`:
 
 Den langsiktige ADR-005-modellen er ikke implementert. Direktefelt finnes fortsatt av kompatibilitetshensyn, og dagens `PersonContact.is_public` er fortsatt globalt for kontaktkanalen, ikke relasjonsspesifikt.
 
+## Godkjent fremtidig retning for internasjonal telefon
+
+Den konservative PHONE-reparasjonskommandoen fra fase 2 beholdes uendret som en avgrenset legacy-reparasjon. Internasjonal telefonarkitektur blokkerer ikke fase 3.
+
+Godkjent beslutningsgate og tidsplan:
+
+- et eget ADR for internasjonal telefonmodell, landkontekst og normalisering skal utarbeides ved overgangen fra fase 3 til fase 4
+- fase 4, produkt- og UX-design for Import 2.0, kan ikke godkjennes som ferdig før dette ADR-et er godkjent
+- den nye telefonarkitekturen skal implementeres tidlig i fase 5
+- en stabil internasjonal telefonmodell er en forutsetning for full telefonmatching i fase 6
+
+Det senere ADR-et skal bygge på disse godkjente prinsippene:
+
+- original/raw telefonverdi bevares
+- normalisert sammenligningsverdi lagres separat
+- nasjonale numre får uttrykkelig land-/regionkontekst
+- fullstendige internasjonale numre støttes
+- internnummer kan håndteres separat
+- én sentral backendtjeneste brukes av Editor, API, import, eksport og reparasjonsverktøy
+- tvetydige verdier går til review og slås ikke sammen automatisk
+- normalisering og matching aktiverer aldri publisering
+
+Denne retningen er besluttet, men telefonarkitekturen er ikke implementert og et nytt ADR er ikke opprettet eller godkjent.
+
 ## Planlagt senere
 
 - Google Sheets som importkilde
@@ -223,6 +249,9 @@ Sikker automatisk staging-deploy er planlagt utenfor produktfasene og blokkerer 
 - behandlingsgrunnlag og retensjon for kontakt-, import-, eksport- og auditdata
 - versjonering av ny public kontaktkontrakt
 - om personens offentlige tittel senere skal være koblingsspesifikk
+- bibliotek og konkret normaliseringsstandard for internasjonale telefonnumre
+- modell- og feltnavn, constraints og API-kontrakt for originalverdi, normalisert sammenligningsverdi, land-/regionkontekst og internnummer
+- migrerings-, backfill-, konfliktreview- og rollbackopplegg for eksisterende telefondata
 
 ## Dokumentasjonsstatus
 

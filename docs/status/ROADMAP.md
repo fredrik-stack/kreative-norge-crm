@@ -2,7 +2,7 @@
 
 **Status:** Godkjent strategisk arbeidsrekkefølge
 
-**Sist oppdatert:** 2026-07-29
+**Sist oppdatert:** 2026-07-30
 
 Roadmapen skiller mellom produktfaser og et parallelt infrastrukturløp. En fase beskriver prioritert rekkefølge, ikke at innholdet allerede er implementert. Større implementering krever fortsatt et godkjent ADR når arbeidet innebærer et vesentlig arkitekturvalg.
 
@@ -40,21 +40,21 @@ Baselinen verifiserte GitHub og lokal `main`, serverrepo, kjørende images og co
 
 ## Fase 2 – Liten stabilisering av kontaktvisning
 
-**Status:** Aktiv, avgrenset mellomleveranse.
+**Status:** Gjennomført 2026-07-30.
 
-Etter baseline-verifiseringen gjennomføres en liten, generell stabilisering:
+Etter baseline-verifiseringen ble en liten, generell stabilisering gjennomført:
 
-- spor offentlig persontelefon gjennom Editor, API og PUBLIC
-- bruk Ulla-Stina Wiland som konkret undersøkelseseksempel, men rett den generelle årsaken
-- vis `Person.title` offentlig når feltet finnes
-- utsett relasjonsspesifikk tittel til den langsiktige kontaktfasen
-- legg til regresjonstester for e-post, telefon, personlenke og tittel
+- den generelle telefonfeilen ble rettet og de fire identifiserte legacytelefonene ble reparert som private primærkontakter etter verifisert backup
+- nye publiseringsvalg fikk trygge, avslåtte standardverdier og nullstilling ved aktør- eller tenantbytte
+- `Person.title` vises offentlig når feltet finnes
+- regresjonstester dekker e-post, telefon, personlenke og tittel
+- staging og prosjekteiers visuelle sluttkontroll ble godkjent
 
-Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md). Dagens mellomregel for kontaktpublisering beholdes til en senere, kontrollert migrering.
+Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md). Den konservative PHONE-reparasjonskommandoen beholdes uendret som en avgrenset legacy-reparasjon, og dagens mellomregel for kontaktpublisering beholdes til en senere, kontrollert migrering.
 
 ## Fase 3 – Robust thumbnail-, bilde- og kortarkitektur
 
-**Status:** Planlagt hovedområde.
+**Status:** Aktiv produktfase.
 
 Bildeløsningen skal gå fra ustabile eksterne treff til en varig, redaksjonelt kontrollerbar ressurs:
 
@@ -83,6 +83,19 @@ Dette er ikke en generell redesign. Øvrige kort og komponenter videreutvikles i
 
 Den eksisterende importmotoren skal kartlegges og gjenbrukes der den er solid, men dagens brukeropplevelse skal ikke begrense det nye konseptet. Ingen større implementering starter før produkt- og UX-planen er godkjent.
 
+Før fase 4 kan godkjennes som ferdig, skal et eget ADR beskrive internasjonal telefonmodell, landkontekst og normalisering. ADR-arbeidet gjennomføres ved overgangen fra fase 3 til fase 4 og skal minst bygge på disse godkjente prinsippene:
+
+- original/raw telefonverdi bevares
+- en separat normalisert sammenligningsverdi brukes til kontrollert matching
+- nasjonale numre får uttrykkelig land-/regionkontekst
+- fullstendige internasjonale numre støttes
+- internnummer kan håndteres separat
+- én sentral backendtjeneste brukes av Editor, API, import, eksport og reparasjonsverktøy
+- tvetydige verdier går til review og slås ikke sammen automatisk
+- normalisering og matching aktiverer aldri publisering
+
+Eksakt bibliotek, modellnavn, databasefelt, constraints, API-kontrakt, migrering og backfill avgjøres i det senere ADR-et og er ikke besluttet i denne roadmapen.
+
 Leveranser:
 
 - kart over dagens import- og mappingmotor og tekniske begrensninger
@@ -104,6 +117,9 @@ Denne fasen realiserer målarkitekturen i [ADR-005](../decisions/ADR-005-CONTACT
 
 - én samlet kontaktseksjon
 - flere e-postadresser og telefonnumre
+- tidlig implementering av den godkjente internasjonale telefonmodellen fra beslutningsgaten i fase 4
+- sentral telefonnormalisering med bevart originalverdi, normalisert sammenligningsverdi og uttrykkelig landkontekst
+- kontrollert og reverserbar datamigrering med review av tvetydige verdier
 - én primær intern kontakt per type
 - offentlige kontaktvalg per aktør–person-kobling
 - offentlig preview fra samme projeksjon som API og PUBLIC
@@ -122,6 +138,7 @@ Alle personvern-, migrerings-, rollback-, API- og datakrav i ADR-005 gjelder for
 - gjenbruk den eksisterende importmotoren som teknisk fundament
 - implementer den godkjente brukerreisen i avgrensede etapper
 - integrer matching, berikelse og AI-forslag uten å skjule usikkerhet
+- la telefonmatching bruke den stabile kontakt- og telefonmodellen fra fase 5
 - gjør trygge rader raske og konflikter tydelige
 - behold menneskelig kontroll over irreversible eller publiserende valg
 - test med representative, reelle filer
