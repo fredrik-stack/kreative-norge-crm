@@ -260,6 +260,12 @@
       font-weight: 700;
     }
 
+    .person-title {
+      margin: -4px 0 0;
+      color: var(--ink);
+      font-size: 13px;
+    }
+
     .person-municipality {
       color: var(--muted);
       font-size: 12px;
@@ -425,6 +431,9 @@
             {% if link.status == "ACTIVE" and link.publish_person %}
               <article class="person-card">
                 <p class="person-name">{{ link.person.full_name }}</p>
+                {% if link.person.title %}
+                  <p class="person-title">{{ link.person.title }}</p>
+                {% endif %}
                 <div class="person-municipality">{{ link.person.municipality|default:"Ingen kommune registrert" }}</div>
 
                 {% with public_emails=link.person.get_public_emails public_phones=link.person.get_public_phones %}

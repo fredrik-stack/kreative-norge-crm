@@ -1517,6 +1517,27 @@ class PersonContactSyncApiTests(AuthenticatedAPITestCase):
         self.assertEqual(contact.value, "ada.sync@example.com")
         self.assertFalse(contact.is_public)
 
+    def test_create_person_with_phone_creates_private_primary_contact(self):
+        response = self.client.post(
+            self.persons_url(),
+            {
+                "full_name": "Phone Sync",
+                "email": "",
+                "phone": "+4798765432",
+                "municipality": "Bergen",
+                "tag_ids": [],
+                "category_ids": [],
+                "subcategory_ids": [],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+
+        person = Person.objects.get(id=response.json()["id"])
+        contact = PersonContact.objects.get(person=person, type="PHONE", is_primary=True)
+        self.assertEqual(contact.value, "+4798765432")
+        self.assertFalse(contact.is_public)
+
     def test_update_person_email_preserves_existing_public_flag(self):
         person = Person.objects.create(
             tenant=self.tenant,
@@ -1542,6 +1563,33 @@ class PersonContactSyncApiTests(AuthenticatedAPITestCase):
 
         contact.refresh_from_db()
         self.assertEqual(contact.value, "ada.new@example.com")
+        self.assertTrue(contact.is_public)
+
+    def test_update_person_phone_preserves_existing_public_flag(self):
+        person = Person.objects.create(
+            tenant=self.tenant,
+            full_name="Phone Existing",
+            phone="+4711111111",
+            municipality="Tromsø",
+        )
+        contact = PersonContact.objects.create(
+            tenant=self.tenant,
+            person=person,
+            type="PHONE",
+            value="+4711111111",
+            is_primary=True,
+            is_public=True,
+        )
+
+        response = self.client.patch(
+            self.persons_url(person.id),
+            {"phone": "+4722222222"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+
+        contact.refresh_from_db()
+        self.assertEqual(contact.value, "+4722222222")
         self.assertTrue(contact.is_public)
 
 
@@ -1592,6 +1640,206 @@ class RepairPersonContactsCommandTests(TestCase):
         self.assertEqual(PersonContact.objects.count(), 1)
         self.assertIn("contacts_to_create=0", out.getvalue())
         self.assertIn("changes_applied=0", out.getvalue())
+
+    def test_phone_dry_run_finds_missing_contact_without_exposing_value(self):
+        private_phone = "+4799990000"
+        Person.objects.create(
+            tenant=self.tenant,
+            full_name="Phone Missing",
+            phone=private_phone,
+        )
+
+        out = StringIO()
+        call_command("repair_person_contacts", "--contact-type", "PHONE", stdout=out)
+
+        self.assertIn("mode=DRY-RUN", out.getvalue())
+        self.assertIn("contact_type=PHONE", out.getvalue())
+        self.assertIn("contacts_to_create=1", out.getvalue())
+        self.assertNotIn(private_phone, out.getvalue())
+        self.assertFalse(PersonContact.objects.exists())
+
+    def test_phone_apply_creates_one_private_primary_contact_and_is_idempotent(self):
+        person = Person.objects.create(
+            tenant=self.tenant,
+            full_name="Phone Missing",
+            phone="+4799990001",
+        )
+
+        call_command(
+            "repair_person_contacts",
+            "--contact-type",
+            "PHONE",
+            "--apply",
+            stdout=StringIO(),
+        )
+        contact = PersonContact.objects.get(person=person, type="PHONE")
+        self.assertTrue(contact.is_primary)
+        self.assertFalse(contact.is_public)
+
+        out = StringIO()
+        call_command(
+            "repair_person_contacts",
+            "--contact-type",
+            "PHONE",
+            "--apply",
+            stdout=out,
+        )
+        self.assertEqual(PersonContact.objects.filter(person=person, type="PHONE").count(), 1)
+        self.assertIn("contacts_to_create=0", out.getvalue())
+        self.assertIn("changes_applied=0", out.getvalue())
+
+    def test_phone_repair_can_be_limited_to_tenant(self):
+        other_tenant = Tenant.objects.create(name="Other Tenant", slug="other-tenant")
+        included = Person.objects.create(
+            tenant=self.tenant,
+            full_name="Included",
+            phone="+4799990002",
+        )
+        excluded = Person.objects.create(
+            tenant=other_tenant,
+            full_name="Excluded",
+            phone="+4799990003",
+        )
+
+        call_command(
+            "repair_person_contacts",
+            "--contact-type",
+            "PHONE",
+            "--tenant",
+            self.tenant.slug,
+            "--apply",
+            stdout=StringIO(),
+        )
+
+        self.assertTrue(PersonContact.objects.filter(person=included, type="PHONE").exists())
+        self.assertFalse(PersonContact.objects.filter(person=excluded, type="PHONE").exists())
+
+    def test_phone_repair_reports_primary_value_mismatch_without_change(self):
+        person = Person.objects.create(
+            tenant=self.tenant,
+            full_name="Mismatch",
+            phone="+4799990004",
+        )
+        primary = PersonContact.objects.create(
+            tenant=self.tenant,
+            person=person,
+            type="PHONE",
+            value="+4799990005",
+            is_primary=True,
+            is_public=True,
+        )
+
+        out = StringIO()
+        call_command(
+            "repair_person_contacts",
+            "--contact-type",
+            "PHONE",
+            "--apply",
+            stdout=out,
+        )
+
+        primary.refresh_from_db()
+        self.assertEqual(primary.value, "+4799990005")
+        self.assertTrue(primary.is_public)
+        self.assertIn("value_mismatches=1", out.getvalue())
+        self.assertIn("changes_applied=0", out.getvalue())
+
+    def test_phone_repair_reports_matching_non_primary_without_change(self):
+        person = Person.objects.create(
+            tenant=self.tenant,
+            full_name="Non Primary",
+            phone="+4799990006",
+        )
+        contact = PersonContact.objects.create(
+            tenant=self.tenant,
+            person=person,
+            type="PHONE",
+            value="+4799990006",
+            is_primary=False,
+            is_public=False,
+        )
+
+        out = StringIO()
+        call_command(
+            "repair_person_contacts",
+            "--contact-type",
+            "PHONE",
+            "--apply",
+            stdout=out,
+        )
+
+        contact.refresh_from_db()
+        self.assertFalse(contact.is_primary)
+        self.assertFalse(contact.is_public)
+        self.assertIn("matching_non_primary_conflicts=1", out.getvalue())
+        self.assertIn("changes_applied=0", out.getvalue())
+
+    def test_phone_repair_reports_multiple_primaries_without_change(self):
+        person = Person.objects.create(
+            tenant=self.tenant,
+            full_name="Multiple Primary",
+            phone="+4799990007",
+        )
+        first = PersonContact.objects.create(
+            tenant=self.tenant,
+            person=person,
+            type="PHONE",
+            value="+4799990007",
+            is_primary=True,
+            is_public=False,
+        )
+        second = PersonContact.objects.create(
+            tenant=self.tenant,
+            person=person,
+            type="PHONE",
+            value="+4799990008",
+            is_primary=True,
+            is_public=True,
+        )
+
+        out = StringIO()
+        call_command(
+            "repair_person_contacts",
+            "--contact-type",
+            "PHONE",
+            "--apply",
+            stdout=out,
+        )
+
+        first.refresh_from_db()
+        second.refresh_from_db()
+        self.assertFalse(first.is_public)
+        self.assertTrue(second.is_public)
+        self.assertIn("multiple_primary_conflicts=1", out.getvalue())
+        self.assertIn("changes_applied=0", out.getvalue())
+
+    def test_phone_repair_does_not_change_email_contacts(self):
+        person = Person.objects.create(
+            tenant=self.tenant,
+            full_name="Separate Types",
+            email="separate@example.com",
+            phone="+4799990009",
+        )
+        email = PersonContact.objects.create(
+            tenant=self.tenant,
+            person=person,
+            type="EMAIL",
+            value="separate@example.com",
+            is_primary=True,
+            is_public=True,
+        )
+
+        call_command(
+            "repair_person_contacts",
+            "--contact-type",
+            "PHONE",
+            "--apply",
+            stdout=StringIO(),
+        )
+
+        email.refresh_from_db()
+        self.assertTrue(email.is_primary)
+        self.assertTrue(email.is_public)
 
 
 class PublishExistingEmailContactsCommandTests(TestCase):
@@ -1947,6 +2195,7 @@ class PublicActorSiteTests(TestCase):
         self.person = Person.objects.create(
             tenant=self.tag.tenant,
             full_name="Ada Artist",
+            title="Daglig leder",
             email="ada@example.com",
             phone="+4712345678",
             municipality="Oslo",
@@ -2095,12 +2344,36 @@ class PublicActorSiteTests(TestCase):
 
         people = response.json()["people"]
         ada = next(person for person in people if person["full_name"] == "Ada Artist")
+        self.assertEqual(ada["title"], "Daglig leder")
         values = {contact["value"] for contact in ada["public_contacts"]}
         self.assertIn("ada.public@example.com", values)
         self.assertIn("+4744444444", values)
         self.assertNotIn("ada@example.com", values)
         self.assertNotIn("ada.private@example.com", values)
         self.assertNotIn("+4712345678", values)
+
+    def test_public_title_is_shown_in_api_and_html(self):
+        api_response = self.client.get(f"/api/public/actors/{self.organization.org_number}/")
+        html_response = self.client.get(self.detail_url(self.organization))
+
+        self.assertEqual(api_response.status_code, 200, api_response.content)
+        self.assertEqual(html_response.status_code, 200)
+        ada = next(person for person in api_response.json()["people"] if person["full_name"] == "Ada Artist")
+        self.assertEqual(ada["title"], "Daglig leder")
+        self.assertContains(html_response, '<p class="person-title">Daglig leder</p>', html=True)
+
+    def test_missing_public_title_is_omitted_cleanly(self):
+        self.person.title = ""
+        self.person.save(update_fields=["title"])
+
+        api_response = self.client.get(f"/api/public/actors/{self.organization.org_number}/")
+        html_response = self.client.get(self.detail_url(self.organization))
+
+        self.assertEqual(api_response.status_code, 200, api_response.content)
+        self.assertEqual(html_response.status_code, 200)
+        ada = next(person for person in api_response.json()["people"] if person["full_name"] == "Ada Artist")
+        self.assertNotIn("title", ada)
+        self.assertNotContains(html_response, 'class="person-title"')
 
     def test_public_api_does_not_fallback_to_person_email_without_public_contact(self):
         self.public_email_contact.delete()
@@ -2116,6 +2389,18 @@ class PublicActorSiteTests(TestCase):
     def test_publish_person_false_hides_person_even_with_public_contact(self):
         self.link.publish_person = False
         self.link.save(update_fields=["publish_person"])
+
+        api_response = self.client.get(f"/api/public/actors/{self.organization.org_number}/")
+        html_response = self.client.get(self.detail_url(self.organization))
+
+        self.assertEqual(api_response.status_code, 200, api_response.content)
+        self.assertEqual(html_response.status_code, 200)
+        self.assertEqual(api_response.json()["people"], [])
+        self.assertNotContains(html_response, "Ada Artist")
+
+    def test_inactive_link_hides_person_even_with_public_phone(self):
+        self.link.status = "INACTIVE"
+        self.link.save(update_fields=["status"])
 
         api_response = self.client.get(f"/api/public/actors/{self.organization.org_number}/")
         html_response = self.client.get(self.detail_url(self.organization))

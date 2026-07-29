@@ -1,6 +1,6 @@
 # Editor
 
-**Status:** implementert grunnløsning; kontaktkanalredigering rettet som mellomleveranse
+**Status:** implementert grunnløsning; fase 2-standarder for kontaktpublisering implementert
 
 React-editoren støtter tenantvalg, rollebasert tilgang, aktører, personer, relasjoner, kontaktkanaler, søk, taksonomifiltrering og import/eksport-side.
 
@@ -25,6 +25,15 @@ På aktørsiden skilles personpublisering fra kontaktpublisering:
 - `PersonContact.is_public` styrer om e-post eller telefon vises i PUBLIC
 - aktørkortet i Editor viser intern kontaktinformasjon og merker kontaktkanaler som `Offentlig` eller `Intern`
 
+Alle nye publiseringsvalg starter avslått:
+
+- ny persons e-postadresse er intern
+- nytt telefonnummer er internt
+- ny person vises ikke offentlig som kontaktperson
+- kobling av en eksisterende person publiserer ikke personen
+
+Editor-tekstene skiller mellom å vise personen som kontaktperson på aktørsiden og å gjøre den konkrete e-postadressen eller telefonen offentlig. Eksisterende lagrede publiseringsvalg endres ikke av disse standardene.
+
 ## Planlagt kontaktopplevelse
 
 `ADR-005` er godkjent som langsiktig målarkitektur. Relasjonsspesifikk offentlig kontaktpublisering er ikke implementert.
@@ -34,7 +43,7 @@ Editor skal senere presentere kontaktinformasjon som én sammenhengende funksjon
 - flere e-poster og telefonnumre i én kontaktseksjon
 - tydelig intern primærkontakt
 - offentlig kontaktvalg per aktør–person-kobling
-- alle publiseringsvalg slått av som standard
+- relasjonsspesifikke kontaktvalg slått av som standard
 - atomisk lagring av person, kontakter, kobling og publisering
 - preview fra samme offentlige projeksjon som HTML og API
 

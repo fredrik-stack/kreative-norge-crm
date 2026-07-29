@@ -47,7 +47,17 @@ Synkroniseringsregelen er:
 - eksisterende `PersonContact.is_public` bevares ved vanlig oppdatering med mindre bruker eller import eksplisitt endrer publiseringsvalget
 - ingen eksisterende kontakt slettes automatisk av denne synkroniseringen
 
-`repair_person_contacts` kan kjøres som dry-run eller med `--apply` for å opprette manglende private primære e-postkontakter fra `Person.email`.
+`repair_person_contacts` kan kjøres som dry-run eller med `--apply` for å opprette manglende private primære kontakter fra kompatibilitetsfeltene:
+
+- standard uten `--contact-type` er fortsatt `EMAIL`, slik at eksisterende bruk er bakoverkompatibel
+- `--contact-type PHONE` skanner `Person.phone`
+- `--tenant <id-eller-slug>` avgrenser kjøringen til én tenant
+- nye kontakter opprettes med `is_primary=True` og `is_public=False`
+- kandidater og konflikter rapporteres med interne person-/tenant-ID-er, men uten rå kontaktverdier
+- verdiavvik, matchende ikke-primær kontakt og flere primærkontakter endres ikke automatisk
+- kommandoen endrer ikke eksisterende kontaktposter eller publiseringsflagg
+
+Dry-run er standard. `--apply` skal først brukes etter kontroll av en entydig dry-run og nødvendig backup i miljøet det gjelder.
 
 ## Planlagt kontaktarkitektur
 

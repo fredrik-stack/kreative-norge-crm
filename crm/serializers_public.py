@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 
 from .models import Organization, OrganizationPerson, PersonContact, Tag, Category, Subcategory
 
@@ -31,8 +32,15 @@ class PublicPersonContactSerializer(serializers.ModelSerializer):
 
 class PublicPersonSerializer(serializers.Serializer):
     full_name = serializers.CharField()
+    title = serializers.CharField(allow_blank=True, allow_null=True, required=False)
     municipality = serializers.CharField(allow_blank=True, required=False)
     public_contacts = PublicPersonContactSerializer(many=True)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if not data.get("title"):
+            data.pop("title", None)
+        return data
 
 
 class PublicActorSerializer(serializers.ModelSerializer):
@@ -107,6 +115,7 @@ class PublicActorSerializer(serializers.ModelSerializer):
     def get_thumbnail_image_url(self, obj):
         return obj.get_public_image_url()
 
+    @extend_schema_field(PublicPersonSerializer(many=True))
     def get_people(self, obj):
         qs = (
             OrganizationPerson.objects.select_related("person")
@@ -134,6 +143,7 @@ class PublicActorSerializer(serializers.ModelSerializer):
             people_payload.append(
                 {
                     "full_name": getattr(person, "full_name", str(person)),
+                    "title": getattr(person, "title", None),
                     "municipality": getattr(person, "municipality", None),
                     "public_contacts": contacts_qs,
                 }
