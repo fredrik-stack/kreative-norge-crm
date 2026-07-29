@@ -1,12 +1,12 @@
 # Project Status Current
 
-**Status:** Teknisk verifisert mot kodebasen; produkt-roadmap oppdatert
+**Status:** Fase 1 verifisert; fase 2 aktiv
 
-**Teknisk sist verifisert:** 2026-07-26
+**Teknisk sist verifisert:** 2026-07-29
 
-**Teknisk verifisert mot:** `crm/models.py`, `crm/views.py`, `crm/views_public_site.py`, `crm/urls_public_site.py`, `crm/serializers_public.py`, importtjenestene, React-editoren, staging-dokumentasjonen, PR #7, PR #8 og staging på commit `ea8b8762aecdff760728139b1659f7d3a43445c7`.
+**Teknisk verifisert mot:** lokal og GitHub `main` på `f6f03d67ba0c5d3afbe258fb356248e7075c4b49`, staging-repo på `ea8b8762aecdff760728139b1659f7d3a43445c7`, kjørende images og containere, frontendbundles over HTTPS, ren frontendbuild, PUBLIC desktop/mobil og autentisert Editor.
 
-**Produkt-roadmap sist oppdatert:** 2026-07-28
+**Produkt-roadmap sist oppdatert:** 2026-07-29
 
 **Arbeidsflyt sist kontrollert:** 2026-07-28
 
@@ -14,9 +14,39 @@
 
 ## Aktiv utviklingsfase
 
-Neste aktive produktfase er fase 1 i [ROADMAP.md](ROADMAP.md): en skrivebeskyttet verifisering av staging- og frontend-baseline før ny frontendutvikling. Kontrollen skal avklare faktisk server-, container-, bygg- og cachetilstand og skille stagingavvik fra reelle regresjoner på `main`. Hoveddesignet på forsidene i Editor CRM og PUBLIC er godkjent designreferanse. Øvrige sider, kort og komponenter skal videreutvikles innenfor denne visuelle retningen.
+Fase 1 i [ROADMAP.md](ROADMAP.md) ble gjennomført 2026-07-29. Den skrivebeskyttede baselinen verifiserte server-, container-, bygg-, proxy-, cache-, PUBLIC- og Editor-tilstanden. Hoveddesignet på forsidene i Editor CRM og PUBLIC er godkjent designreferanse. Øvrige sider, kort og komponenter skal videreutvikles innenfor denne visuelle retningen.
 
-Etter baselinen følger en liten kontaktstabilisering før robust thumbnail- og bildearkitektur. Import 2.0 er det neste store produkt- og UX-området etter bildearbeidet. Den langsiktige relasjonsspesifikke kontaktmodellen fra [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md) kommer senere som en egen person-, kontakt- og Editor-fase.
+Aktiv produktfase er fase 2: en liten kontaktstabilisering før robust thumbnail- og bildearkitektur. Fasen skal reparere manglende private primære telefonkontakter kontrollert, gjøre nye publiseringsvalg avslått som standard og vise `Person.title` offentlig. Den langsiktige relasjonsspesifikke kontaktmodellen fra [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md) kommer fortsatt senere.
+
+## Verifisert fase 1-baseline
+
+- lokal og GitHub `main` var synkronisert på `f6f03d67ba0c5d3afbe258fb356248e7075c4b49`
+- staging-repoet var rent på `ea8b8762aecdff760728139b1659f7d3a43445c7`; de åtte nyere commitene på `main` endret ikke kjørende applikasjonskode
+- API-koden i imaget kunne knyttes til serverrepo-SHA gjennom innebygd Git-metadata og filhashes
+- web-imagets eksakte commit var ikke merket, men JS- og CSS-bundles matchet ren build fra dagens `main`
+- HTTPS leverte de samme bundlehashene som web-containeren, også med cache-busting
+- nginx og Caddy leverte forventet kjede; proxy og Cloudflare-cache viste ikke gamle frontendfiler
+- Django system check og PostgreSQL readiness var grønne, og de kjørende containerne hadde ingen restarter
+- PUBLIC desktop/mobil og autentisert Editor ble kontrollert; Editor-forsiden er godkjent designreferanse
+- observerte kort-, bilde-, tag- og layoutavvik er lagt til fase 3 eller fase 5 og ble ikke rettet i baselinen
+- ingen kode, data, publiseringsflagg, containere, tjenester eller deploy ble endret i fase 1
+
+Detaljert, datert evidens finnes i [FRONTEND_BASELINE_2026-07-29.md](FRONTEND_BASELINE_2026-07-29.md). Dette dokumentet er fortsatt autoritativ nåstatus.
+
+## Fase 2-baseline
+
+Det konkrete undersøkelseseksemplet viste en person med verdi i direkte `Person.phone`, men uten noen `PersonContact` av type `PHONE`. Personen hadde bare en lagret e-postkontakt. Direkte telefon kan derfor ikke få egen offentlig kontroll og skal heller aldri brukes som PUBLIC-fallback.
+
+Kodekartleggingen viser samtidig at dagens person-API synkroniserer direkte `Person.email` og `Person.phone` til private primære kontakter ved ny lagring. Avviket gjelder derfor eksisterende legacy-data som ikke har gått gjennom denne synkroniseringen. `repair_person_contacts` reparerer før fase 2 bare e-post.
+
+Editor-baselinen viste fire utrygge forhåndsvalg i opprettingsflytene:
+
+- offentlig e-post på ny kontaktperson
+- offentlig telefon på ny kontaktperson
+- publisering av ny kontaktperson
+- publisering ved kobling av eksisterende person
+
+Alle fire skal være avslått som standard i fase 2. Dette endrer ikke eksisterende lagrede publiseringsflagg.
 
 ## Implementert
 
@@ -51,7 +81,7 @@ Kjerne-rollene og tenant-scope håndheves i backend. Invitasjonsflyt, full admin
 
 ## Prioritert produktrekkefølge
 
-### 1. Staging- og frontend-baseline
+### 1. Staging- og frontend-baseline – gjennomført 2026-07-29
 
 Før det endres kode eller deployes, skal en skrivebeskyttet diagnose fastslå:
 
@@ -62,7 +92,7 @@ Før det endres kode eller deployes, skal en skrivebeskyttet diagnose fastslå:
 - forskjeller mellom lokal `main` og staging
 - hvilke observerte avvik som er reelle regresjoner på `main`
 
-### 2. Liten kontaktstabilisering
+### 2. Liten kontaktstabilisering – aktiv
 
 Den avgrensede mellomleveransen skal spore offentlig telefon gjennom Editor, API og PUBLIC, vise `Person.title` offentlig når den finnes og legge til regresjonstester for e-post, telefon, personlenke og tittel. Ulla-Stina Wiland brukes som undersøkelseseksempel, men en eventuell retting skal være generell. Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md).
 

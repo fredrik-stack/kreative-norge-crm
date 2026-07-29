@@ -8,6 +8,19 @@ Caddy terminerer HTTPS for `staging.northernsound.no` og sender trafikk videre t
 
 Public HTML-visning brukes foreløpig bare i staging.
 
+## Verifisert frontendbaseline 2026-07-29
+
+Den skrivebeskyttede fase 1-kontrollen sammenlignet en ren frontendbuild fra `main` med filene i kjørende web-container og filene levert over HTTPS.
+
+- JavaScript- og CSS-bundle hadde samme filnavn, størrelse og SHA-256 i ren build, web-container og HTTPS-respons
+- cache-busting returnerte samme innhold som ordinære forespørsler
+- nginx lastet forventet stagingkonfigurasjon
+- Caddy var aktiv og videresendte til den lokale web-tjenesten
+- proxy- eller cachekjeden var derfor ikke årsak til de observerte UI-avvikene
+- ingen containere, tjenester, cache, DNS, data eller deploy ble endret under kontrollen
+
+Kjørende serverrepo var eldre enn GitHub `main`, men forskjellen bestod av dokumentasjon og arbeidsflytfiler; de kontrollerte runtimefilene og frontendbundlene matchet dagens applikasjonskode. Se [datert evidensrapport](../status/FRONTEND_BASELINE_2026-07-29.md).
+
 ## Ønsket neste steg
 
 Push til avtalt branch skal kunne utløse en sikker automatisk deploy til staging etter at obligatoriske tester er bestått.

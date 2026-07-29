@@ -2,7 +2,7 @@
 
 **Status:** Godkjent strategisk arbeidsrekkefølge
 
-**Sist oppdatert:** 2026-07-28
+**Sist oppdatert:** 2026-07-29
 
 Roadmapen skiller mellom produktfaser og et parallelt infrastrukturløp. En fase beskriver prioritert rekkefølge, ikke at innholdet allerede er implementert. Større implementering krever fortsatt et godkjent ADR når arbeidet innebærer et vesentlig arkitekturvalg.
 
@@ -21,7 +21,7 @@ Sikker automatisk deploy til staging er ikke en gjenstående del av fase 0. Det 
 
 ## Fase 1 – Verifiser staging- og frontend-baseline
 
-**Status:** Neste aktive produktfase.
+**Status:** Gjennomført 2026-07-29.
 
 Før ny frontendutvikling skal forskjellen mellom lokal `main`, GitHub, staging og det brukeren faktisk ser, diagnostiseres. Arbeidet starter skrivebeskyttet og skal ikke blandes med retting eller deploy.
 
@@ -36,9 +36,11 @@ Kontrollen skal fastslå:
 
 Hoveddesignet på forsidene i Editor CRM og PUBLIC er godkjent designreferanse. Øvrige sider, kort og komponenter skal videreutvikles innenfor denne visuelle retningen. Fasen avsluttes med en verifisert baseline og en avgrenset liste over eventuelle feil; den innebærer ikke automatisk retting eller deploy.
 
+Baselinen verifiserte GitHub og lokal `main`, serverrepo, kjørende images og containere, frontendbundles, HTTPS-/cachekjeden, PUBLIC og en autentisert Editor-visning. Kjørende frontendinnhold matchet en ren build fra `main`, og proxy/cache var ikke årsaken til de observerte UI-avvikene. Ingen kode, data eller deploy ble endret som del av fase 1. Datert evidens finnes i [FRONTEND_BASELINE_2026-07-29.md](FRONTEND_BASELINE_2026-07-29.md).
+
 ## Fase 2 – Liten stabilisering av kontaktvisning
 
-**Status:** Planlagt, avgrenset mellomleveranse.
+**Status:** Aktiv, avgrenset mellomleveranse.
 
 Etter baseline-verifiseringen gjennomføres en liten, generell stabilisering:
 
