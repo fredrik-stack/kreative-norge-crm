@@ -493,6 +493,26 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         updated_at: now,
         contacts: [],
       };
+      let nextContactId = Math.max(0, ...state.personContacts.map((contact) => contact.id)) + 1;
+      for (const [type, value] of [
+        ["EMAIL", created.email],
+        ["PHONE", created.phone],
+      ] as const) {
+        if (!value) continue;
+        const contact: PersonContact = {
+          id: nextContactId,
+          tenant: 1,
+          person: created.id,
+          type,
+          value,
+          is_primary: true,
+          is_public: false,
+          created_at: now,
+        };
+        nextContactId += 1;
+        created.contacts.push(contact);
+        state.personContacts.push(contact);
+      }
       state.persons.push(created);
       await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(created) });
       return;

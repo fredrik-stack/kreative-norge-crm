@@ -14,9 +14,9 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 
 ### Fase 2: telefon, publiseringsstandarder og offentlig tittel
 
-- utvidet `repair_person_contacts` bakoverkompatibelt med eksplisitt telefonmodus, tenant-filter, trygg dry-run, privat oppretting og konfliktstopp
+- utvidet `repair_person_contacts` bakoverkompatibelt med eksplisitt telefonmodus, tenant-filter, trygg dry-run og privat oppretting; konflikter rapporteres og den berørte posten hoppes over uten automatisk endring
 - beholdt eksisterende e-postmodus som standard og lot eksisterende kontakt- og publiseringsflagg være urørt
-- gjort publisering av ny e-post, ny telefon, ny kontaktperson og ny eksisterende personkobling avslått som standard i Editor
+- gjort publisering av ny e-post, ny telefon, ny kontaktperson og ny eksisterende personkobling avslått som standard i Editor og nullstilt ved faktisk aktør- eller tenantbytte
 - tydeliggjort forskjellen mellom offentlig personvisning og offentliggjøring av en konkret kontaktkanal
 - lagt `Person.title` additivt til aktivt public API og PUBLIC HTML når feltet har verdi
 - utvidet backend-, frontend- og Playwright-regresjonstester uten schema-migrasjon eller data-apply utenfor testdatabasen

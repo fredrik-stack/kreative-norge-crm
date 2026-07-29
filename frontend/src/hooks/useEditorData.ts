@@ -273,6 +273,14 @@ export function useEditorData() {
       : null;
 
   useEffect(() => {
+    setLinkedPersonDraft(emptyLinkedPersonDraft);
+    setLinkPublishPerson(false);
+    setLinkStatus("ACTIVE");
+    setLinkedPersonFieldErrors({});
+    setLinkedPersonSaveState("idle");
+  }, [tenantId, selectedOrgId]);
+
+  useEffect(() => {
     if (selectedOrgId === "new") {
       setDraft(emptyDraft);
       setOrganizationTagInput("");
@@ -706,6 +714,7 @@ export function useEditorData() {
       });
       await reloadPeopleAndLinks();
       setLinkPublishPerson(false);
+      setLinkStatus("ACTIVE");
     } catch (err) {
       setError(apiErrorMessage(err, "Kunne ikke opprette kobling"));
     }
@@ -777,6 +786,8 @@ export function useEditorData() {
 
       await reloadPeopleAndLinks();
       setLinkedPersonDraft(emptyLinkedPersonDraft);
+      setLinkPublishPerson(false);
+      setLinkStatus("ACTIVE");
       setLinkedPersonFieldErrors({});
       setLinkedPersonSaveState("saved");
       setSelectedPersonId(createdPerson.id);
