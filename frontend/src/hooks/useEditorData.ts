@@ -139,9 +139,9 @@ const emptyLinkedPersonDraft: LinkedPersonDraft = {
   municipality: "",
   email: "",
   phone: "",
-  publish_email: true,
-  publish_phone: true,
-  publish_person: true,
+  publish_email: false,
+  publish_phone: false,
+  publish_person: false,
   status: "ACTIVE",
 };
 
@@ -175,7 +175,7 @@ export function useEditorData() {
   const [error, setError] = useState<string | null>(null);
   const [linkPersonId, setLinkPersonId] = useState<number | null>(null);
   const [linkStatus, setLinkStatus] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
-  const [linkPublishPerson, setLinkPublishPerson] = useState(true);
+  const [linkPublishPerson, setLinkPublishPerson] = useState(false);
   const [contactDraft, setContactDraft] = useState<ContactDraft>(emptyContactDraft);
   const [linkedPersonDraft, setLinkedPersonDraft] = useState<LinkedPersonDraft>(emptyLinkedPersonDraft);
   const [linkedPersonSaveState, setLinkedPersonSaveState] = useState<SaveState>("idle");
@@ -705,6 +705,7 @@ export function useEditorData() {
         publish_person: linkPublishPerson,
       });
       await reloadPeopleAndLinks();
+      setLinkPublishPerson(false);
     } catch (err) {
       setError(apiErrorMessage(err, "Kunne ikke opprette kobling"));
     }
@@ -736,25 +737,34 @@ export function useEditorData() {
         phone: nullableString(linkedPersonDraft.phone),
       });
 
-      const emailValue = linkedPersonDraft.email.trim();
-      if (emailValue) {
+      const initialContacts = await getPersonContacts(tenantId, createdPerson.id);
+      const initialContactChoices = [
+        {
+          type: "EMAIL" as const,
+          value: linkedPersonDraft.email.trim(),
+          isPublic: linkedPersonDraft.publish_email,
+        },
+        {
+          type: "PHONE" as const,
+          value: linkedPersonDraft.phone.trim(),
+          isPublic: linkedPersonDraft.publish_phone,
+        },
+      ];
+      for (const choice of initialContactChoices) {
+        if (!choice.value) continue;
+        const primary = initialContacts.find((contact) => contact.type === choice.type && contact.is_primary);
+        if (primary) {
+          if (primary.is_public !== choice.isPublic) {
+            await patchPersonContact(tenantId, primary.id, { is_public: choice.isPublic });
+          }
+          continue;
+        }
         await createPersonContact(tenantId, {
           person: createdPerson.id,
-          type: "EMAIL",
-          value: emailValue,
+          type: choice.type,
+          value: choice.value,
           is_primary: true,
-          is_public: linkedPersonDraft.publish_email,
-        });
-      }
-
-      const phoneValue = linkedPersonDraft.phone.trim();
-      if (phoneValue) {
-        await createPersonContact(tenantId, {
-          person: createdPerson.id,
-          type: "PHONE",
-          value: phoneValue,
-          is_primary: true,
-          is_public: linkedPersonDraft.publish_phone,
+          is_public: choice.isPublic,
         });
       }
 

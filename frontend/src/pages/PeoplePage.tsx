@@ -489,7 +489,11 @@ function PeopleEditorPanel(props: {
                           checked={contact.is_public}
                           onChange={(event) => editor.updateContact(contact.id, { is_public: event.target.checked })}
                         />
-                        <span>{contact.type === "EMAIL" ? "Vis e-post offentlig" : "Vis telefon offentlig"}</span>
+                        <span>
+                          {contact.type === "EMAIL"
+                            ? "Gjør denne e-postadressen offentlig"
+                            : "Gjør dette telefonnummeret offentlig"}
+                        </span>
                       </label>
                       <button
                         type="button"
@@ -548,7 +552,9 @@ function PeopleEditorPanel(props: {
                     disabled={typeof editor.selectedPersonId !== "number"}
                   />
                   <span>
-                    {editor.contactDraft.type === "EMAIL" ? "Vis e-post offentlig" : "Vis telefon offentlig"}
+                    {editor.contactDraft.type === "EMAIL"
+                      ? "Gjør denne e-postadressen offentlig"
+                      : "Gjør dette telefonnummeret offentlig"}
                   </span>
                 </label>
                 <button

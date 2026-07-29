@@ -683,8 +683,8 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
                     onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, publish_email: e.target.checked }))}
                   />
                   <div>
-                    <strong>Gjør e-post offentlig</strong>
-                    <p>Brukes hvis e-post legges inn nå.</p>
+                    <strong>Gjør denne e-postadressen offentlig</strong>
+                    <p>Vises i PUBLIC når personen også er publisert som kontaktperson.</p>
                   </div>
                 </label>
                 <label className="toggle-card">
@@ -694,8 +694,8 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
                     onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, publish_phone: e.target.checked }))}
                   />
                   <div>
-                    <strong>Gjør telefon offentlig</strong>
-                    <p>Brukes hvis telefon legges inn nå.</p>
+                    <strong>Gjør dette telefonnummeret offentlig</strong>
+                    <p>Vises i PUBLIC når personen også er publisert som kontaktperson.</p>
                   </div>
                 </label>
               </div>
@@ -708,8 +708,8 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
                     onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, publish_person: e.target.checked }))}
                   />
                   <div>
-                    <strong>Vis personen offentlig</strong>
-                    <p>Skal denne personen vises som kontaktperson på aktørsiden?</p>
+                    <strong>Vis ny person som kontaktperson offentlig</strong>
+                    <p>Styrer om navn og eventuell tittel vises på denne aktørsiden.</p>
                   </div>
                 </label>
                 <Field label="Status på kobling">
@@ -790,7 +790,7 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
                 checked={editor.linkPublishPerson}
                 onChange={(e) => editor.setLinkPublishPerson(e.target.checked)}
               />
-              <span>Publiser person</span>
+              <span>Vis eksisterende person som kontaktperson offentlig</span>
             </label>
 
             <button
@@ -829,7 +829,7 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
                         checked={link.publish_person}
                         onChange={(e) => editor.updateLink(link.id, { publish_person: e.target.checked })}
                       />
-                      <span>Publiser</span>
+                      <span>Vis person offentlig</span>
                     </label>
 
                     <button

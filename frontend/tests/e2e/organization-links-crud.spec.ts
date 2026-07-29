@@ -38,17 +38,26 @@ test("create, update and remove organization-person link", async ({ page }) => {
 
   await page.getByRole("button", { name: "Rediger" }).click();
   await expect(page.getByRole("heading", { name: "Personkoblinger" })).toBeVisible();
+  const existingPersonPublish = page.getByRole("checkbox", {
+    name: "Vis eksisterende person som kontaktperson offentlig",
+  });
+  await expect(existingPersonPublish).not.toBeChecked();
+  await expect(page.getByRole("checkbox", { name: /Gjør denne e-postadressen offentlig/ })).not.toBeChecked();
+  await expect(page.getByRole("checkbox", { name: /Gjør dette telefonnummeret offentlig/ })).not.toBeChecked();
+  await expect(page.getByRole("checkbox", { name: /Vis ny person som kontaktperson offentlig/ })).not.toBeChecked();
+
+  await existingPersonPublish.check();
   await page.getByRole("button", { name: "Knytt eksisterende person" }).click();
 
   const row = page.locator(".link-row").filter({ hasText: "Ada Editor" }).first();
   await expect(row).toBeVisible();
   await expect(row.getByRole("combobox").first()).toHaveValue("ACTIVE");
-  await expect(row.getByRole("checkbox", { name: "Publiser" })).toBeChecked();
+  await expect(row.getByRole("checkbox", { name: "Vis person offentlig" })).toBeChecked();
 
   await row.getByRole("combobox").first().selectOption("INACTIVE");
-  await row.getByRole("checkbox", { name: "Publiser" }).click();
+  await row.getByRole("checkbox", { name: "Vis person offentlig" }).click();
   await expect(row.getByRole("combobox").first()).toHaveValue("INACTIVE");
-  await expect(row.getByRole("checkbox", { name: "Publiser" })).not.toBeChecked();
+  await expect(row.getByRole("checkbox", { name: "Vis person offentlig" })).not.toBeChecked();
 
   page.once("dialog", (dialog) => dialog.accept());
   await row.getByRole("button", { name: "Fjern" }).click();

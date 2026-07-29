@@ -21,6 +21,16 @@ Den skrivebeskyttede fase 1-kontrollen sammenlignet en ren frontendbuild fra `ma
 
 Kjørende serverrepo var eldre enn GitHub `main`, men forskjellen bestod av dokumentasjon og arbeidsflytfiler; de kontrollerte runtimefilene og frontendbundlene matchet dagens applikasjonskode. Se [datert evidensrapport](../status/FRONTEND_BASELINE_2026-07-29.md).
 
+## Telefonreparasjon etter en senere fase 2-deploy
+
+Fase 2 skal ikke gjøre dataendringer automatisk ved deploy. Etter at fase 2-koden eventuelt er deployet, er den eksakte skrivebeskyttede stagingkommandoen:
+
+```bash
+docker-compose -f docker-compose.staging.yml exec -T api python manage.py repair_person_contacts --contact-type PHONE
+```
+
+Kommandoen er dry-run fordi `--apply` ikke er angitt. Kandidater og konflikter skal kontrolleres uten rå kontaktverdier før prosjekteier eventuelt godkjenner en separat backup- og apply-økt. `--tenant <id-eller-slug>` kan legges til når kjøringen skal avgrenses.
+
 ## Ønsket neste steg
 
 Push til avtalt branch skal kunne utløse en sikker automatisk deploy til staging etter at obligatoriske tester er bestått.

@@ -1,8 +1,8 @@
 # Public Architecture
 
-**Status:** Implementert grunnløsning; kontaktregel for e-postflyt rettet som mellomleveranse
+**Status:** Implementert grunnløsning; kontaktregel og fase 2-stabilisering implementert
 
-**Sist verifisert:** 2026-07-26
+**Sist verifisert:** 2026-07-29
 
 **Verifisert mot:** public-ruter, `PublicActorViewSet`, public serializer, modeller, public HTML-template, importtjenester, React-editor og regresjonstester.
 
@@ -43,6 +43,7 @@ Implementert mellomregel fra 2026-07-25:
 - `Person.email` og `Person.phone` er interne kompatibilitetsfelt og brukes ikke som PUBLIC-fallback.
 - PUBLIC HTML og PUBLIC API bruker samme regel: bare aktive koblinger med `publish_person=True`, og bare kontaktkanaler med `is_public=True`.
 - En offentlig person kan vises uten offentlig e-post eller telefon.
+- `Person.title` vises i public API og PUBLIC HTML når feltet har en verdi, og utelates rent når det er tomt.
 
 ## Rettet feilområde: kontaktpersoners e-post
 
@@ -96,6 +97,21 @@ Målarkitekturen er godkjent i `ADR-005`:
 - direktefeltfallback fjernes
 
 Full ADR-005-målmodell med relasjonsspesifikk kontaktpublisering er fortsatt planlagt og ikke implementert.
+
+## Fase 2: trygg telefonstabilisering
+
+Fase 2 utvider den eksisterende, bakoverkompatible `repair_person_contacts`-kommandoen med et eksplisitt `--contact-type PHONE`. Uten valget reparerer kommandoen fortsatt bare e-post.
+
+Telefonkjøringen:
+
+- er dry-run som standard
+- kan avgrenses med `--tenant`
+- oppretter bare en manglende privat primær `PHONE`-kontakt
+- aktiverer aldri publisering
+- endrer ikke eksisterende telefon- eller e-postkontakter
+- rapporterer kandidater med interne ID-er og flere primærtelefoner, verdiavvik og matchende ikke-primær telefon uten rå kontaktverdier eller automatisk konfliktreparasjon
+
+Direkte `Person.phone` brukes fortsatt aldri som PUBLIC-fallback. Offentlig telefon krever publisert aktør, aktiv kobling, `publish_person=True` og en `PHONE`-kontakt med `is_public=True`.
 
 ## Bilde og thumbnail
 

@@ -6,7 +6,9 @@ API-et omfatter autentisering, tenants, taksonomi, aktører, personer, koblinger
 
 Tenant-scope Editor-API returnerer både interne og offentlige `PersonContact` for autoriserte brukere.
 
-Public API returnerer bare kontaktpersoner fra aktive `OrganizationPerson`-koblinger med `publish_person=True`, og bare kontaktverdier fra `PersonContact` der `is_public=True`. Public API bruker ikke fallback fra `Person.email` eller `Person.phone`.
+Det aktive public API-et under `/api/public/` bruker `crm.serializers_public.PublicActorSerializer`. Det returnerer bare kontaktpersoner fra aktive `OrganizationPerson`-koblinger med `publish_person=True`, og bare kontaktverdier fra `PersonContact` der `is_public=True`. Public API bruker ikke fallback fra `Person.email` eller `Person.phone`.
+
+Personobjektet i public-kontrakten inneholder additivt `title` når `Person.title` har en verdi. Feltet utelates når tittelen er null eller tom. Tittelen er foreløpig global på `Person`; relasjonsspesifikk tittel er planlagt senere.
 
 Import har egne handlinger for opplasting, preview, rader, AI-generering, beslutninger, commit og feilrapport.
 

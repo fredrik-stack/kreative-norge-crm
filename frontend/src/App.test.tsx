@@ -67,6 +67,25 @@ describe("App integration", () => {
     expect(screen.getByRole("link", { name: /^Aktører/ })).toBeInTheDocument();
   });
 
+  it("starts every new person publication choice turned off", async () => {
+    window.history.pushState({}, "", "/organizations");
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Logg inn" });
+    await userEvent.type(screen.getByLabelText("Brukernavn"), "editor");
+    await userEvent.type(screen.getByLabelText("Passord"), "secret123");
+    await userEvent.click(screen.getByRole("button", { name: "Logg inn" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Rediger" }));
+
+    expect(
+      screen.getByRole("checkbox", { name: "Vis eksisterende person som kontaktperson offentlig" }),
+    ).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /Gjør denne e-postadressen offentlig/ })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /Gjør dette telefonnummeret offentlig/ })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /Vis ny person som kontaktperson offentlig/ })).not.toBeChecked();
+  });
+
   it("supports the import and export page flow", async () => {
     window.history.pushState({}, "", "/import-export");
 

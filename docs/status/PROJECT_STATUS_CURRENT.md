@@ -48,6 +48,17 @@ Editor-baselinen viste fire utrygge forhåndsvalg i opprettingsflytene:
 
 Alle fire skal være avslått som standard i fase 2. Dette endrer ikke eksisterende lagrede publiseringsflagg.
 
+Fase 2-koden på arbeidsbranchen implementerer:
+
+- eksplisitt `--contact-type PHONE` i den bakoverkompatible, dry-run-først `repair_person_contacts`-kommandoen
+- tenant-filter, idempotens og kandidat-/konfliktrapport med interne ID-er uten kontaktverdier
+- privat primær telefonkontakt ved entydig lokal/test-apply
+- alle fire nye publiseringsvalg avslått som standard
+- tydeligere Editor-tekst for personpublisering kontra offentlig e-post/telefon
+- additiv offentlig `Person.title` i aktivt API og PUBLIC HTML
+
+Ingen schema-migrasjon inngår. Leveransen endrer ikke eksisterende publiseringsflagg og kjører ikke data-apply på staging eller produksjon.
+
 ## Implementert
 
 - tenant-basert CRM for aktører og personer
