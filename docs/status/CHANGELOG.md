@@ -20,6 +20,12 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 - tydeliggjort forskjellen mellom offentlig personvisning og offentliggjøring av en konkret kontaktkanal
 - lagt `Person.title` additivt til aktivt public API og PUBLIC HTML når feltet har verdi
 - utvidet backend-, frontend- og Playwright-regresjonstester uten schema-migrasjon eller data-apply utenfor testdatabasen
+- merget PR #12 som merge-commit `6768af8a3b48314aec028ec5972939c6ef0e38e8` og deployet samme applikasjonsversjon kontrollert til staging
+- verifisert PostgreSQL, Django, migrasjoner, containere, HTTPS, public API/HTML, alle PUBLIC-kortlenker og at ny frontendbundle faktisk serveres
+- verifisert skrivebeskyttet at Editor nullstiller de fire publiseringsvalgene, skjemaet, feiltilstand og koblingsstatuser ved aktørbytte uten å sende tenantmutasjoner
+- verifisert `Person.title`, fravær av tom tittelrad og fravær av direkte `Person.phone`-fallback i PUBLIC
+- kjørt tenant-avgrenset `PHONE`-dry-run for `musikkontoretnord`: `49` undersøkt, `4` kandidater (`1`, `2`, `132`, `150`), ingen konflikter og `changes_applied=0`
+- beholdt fase 2 som aktiv; ingen produksjonsdeploy, data-apply, kontaktverdi- eller publiseringsendring ble utført
 
 ## 2026-07-28
 

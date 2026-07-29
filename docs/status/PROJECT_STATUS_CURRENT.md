@@ -4,7 +4,7 @@
 
 **Teknisk sist verifisert:** 2026-07-29
 
-**Teknisk verifisert mot:** lokal og GitHub `main` på `f6f03d67ba0c5d3afbe258fb356248e7075c4b49`, staging-repo på `ea8b8762aecdff760728139b1659f7d3a43445c7`, kjørende images og containere, frontendbundles over HTTPS, ren frontendbuild, PUBLIC desktop/mobil og autentisert Editor.
+**Teknisk verifisert mot:** fase 2-applikasjonsversjonen i merge-commit `6768af8a3b48314aec028ec5972939c6ef0e38e8` på lokal/GitHub `main`, rent staging-repo på samme commit, nybygde og kjørende API-/web-images, PostgreSQL, Django, migrasjoner, HTTPS, frontendbundle, PUBLIC API/HTML og skrivebeskyttet Editor-kontroll.
 
 **Produkt-roadmap sist oppdatert:** 2026-07-29
 
@@ -48,7 +48,7 @@ Editor-baselinen viste fire utrygge forhåndsvalg i opprettingsflytene:
 
 Alle fire skal være avslått som standard i fase 2. Dette endrer ikke eksisterende lagrede publiseringsflagg.
 
-Fase 2-leveransen i PR #12 implementerer:
+Fase 2-leveransen fra PR #12, merget i `6768af8a3b48314aec028ec5972939c6ef0e38e8`, implementerer:
 
 - eksplisitt `--contact-type PHONE` i den bakoverkompatible, dry-run-først `repair_person_contacts`-kommandoen
 - tenant-filter, idempotens og kandidat-/konfliktrapport med interne ID-er uten kontaktverdier
@@ -58,6 +58,23 @@ Fase 2-leveransen i PR #12 implementerer:
 - additiv offentlig `Person.title` i aktivt API og PUBLIC HTML
 
 Ingen schema-migrasjon inngår. Leveransen endrer ikke eksisterende publiseringsflagg og kjører ikke data-apply på staging eller produksjon.
+
+## Verifisert fase 2-stagingstatus
+
+PR #12 ble merget med ordinær merge-commit og deployet kontrollert til staging 2026-07-29. Staging-repoet var rent på merge-commiten da API- og web-imagene ble bygget og startet.
+
+- PostgreSQL readiness, Django system check og migrasjonsstatus var grønne
+- API-, web- og databasecontainer kjørte; API og web hadde ingen restarter etter ny oppstart
+- HTTPS, auth-session, PUBLIC HTML og aktivt public API svarte `200`
+- `check_public_actor_links` kontrollerte `122` publiserte aktører og `122` kortlenker uten brutte lenker
+- JavaScript-bundlen `index-DvXY3g5v.js` ble levert fra staging, og SHA-256 var identisk over HTTPS og i web-containeren
+- stagingbyggets Editor nullstilte ny-personskjema, feiltilstand, koblingsstatuser og alle fire nye publiseringsvalg ved faktisk aktørbytte; kontrollen sendte ingen tenantmutasjoner
+- eksisterende `Person.title` ble verifisert i både aktivt public API og PUBLIC HTML
+- person uten tittel fikk ingen tom tittelrad, og direkte `Person.phone` ble ikke brukt som PUBLIC-fallback
+- tenant-avgrenset `PHONE`-dry-run for `musikkontoretnord` undersøkte `49` personer, fant `4` kandidater og ingen konflikter; kandidat-ID-ene var `1`, `2`, `132` og `150`
+- dry-run rapporterte `changes_applied=0`; ingen kontaktverdier, publiseringsflagg eller andre stagingdata ble endret
+
+Fase 2 er fortsatt aktiv til prosjekteier har gjennomført sluttkontroll og eksplisitt besluttet om kandidatene skal håndteres i en separat backup- og apply-økt eller om fasen skal lukkes uten apply.
 
 ## Implementert
 
