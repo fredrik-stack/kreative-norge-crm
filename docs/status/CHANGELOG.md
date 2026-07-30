@@ -2,6 +2,18 @@
 
 Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små kosmetiske justeringer trenger ikke registreres.
 
+## 2026-07-31
+
+### Fase 3A og ADR-007
+
+- godkjent fase 3A-kartleggingen av thumbnail-, bilde-, storage-, import- og kortflyten som beslutningsgrunnlag
+- godkjent [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) med flyten `ImageCandidate` → kontrollert fetch og validering → tenant-eid `ImageAsset` → `OrganizationImageSelection` → `ImageRendition` → felles public image projection
+- besluttet append-only bildehistorikk, versjonert ett-klikk-godkjenning, eksplisitt locking/replacement, rolleavgrenset takedown og karantene, retensjonsregler og deterministisk systemfallback
+- besluttet lokal filsystemstorage og S3-kompatibel staging-/produksjonsretning gjennom Djangos `STORAGES`, med private originaler, immutable offentlige renditions og samlet backup/restore
+- besluttet additiv public API-overgang og den fremtidige Import 2.0-kontrakten `KEEP_LOCKED_IMAGE`, `SET_APPROVED_IMAGE` og `USE_APPROVED_FALLBACK`
+- gjort fase 3B teknisk prototype til neste aktive leveranse; leverandør, bibliotek, terskler, formater, SVG, kø, API-schema og øvrige spikevalg er fortsatt åpne
+- ikke endret applikasjonskode, modeller, migrasjoner, storage, data, staging eller deploy; dagens legacy bilde-URL- og faviconflyt er fortsatt implementert adferd
+
 ## 2026-07-30
 
 ### Fase 2: kontrollert stagingreparasjon av telefonkontakter

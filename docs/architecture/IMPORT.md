@@ -91,9 +91,26 @@ Det skal utarbeides:
 
 ## Åpne arkitekturspørsmål
 
-- hvordan importerte bilder og lenker skal samspille med fremtidig bildelagring
 - hvordan store jobber senere skal behandles asynkront
 - hvor lenge importfiler og rapporter skal lagres
+
+## Godkjent fremtidig bildekontrakt
+
+[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) avgjør prinsippene for hvordan Import 2.0 senere skal samspille med bildearkitekturen. Kontrakten er ikke implementert.
+
+Fremtidige typed bildeutfall er:
+
+- `KEEP_LOCKED_IMAGE`
+- `SET_APPROVED_IMAGE`
+- `USE_APPROVED_FALLBACK`
+
+Manglende bildevalg for en eksisterende aktør betyr `KEEP_LOCKED_IMAGE`. Et tenant-eid asset kan være teknisk validert og godkjent før en ny `Organization` opprettes. En typed importbeslutning skal da referere med referanseintegritet til asset, fit, fokus, processing-version, ferdig rendition-sett og et immutable proposed-actor-/ImportRow-snapshot.
+
+`SET_APPROVED_IMAGE` eller `USE_APPROVED_FALLBACK` mot en eksisterende låst selection er en eksplisitt replacement og skal stoppe dersom selection-revisjonen har endret seg etter review.
+
+Import-commit skal bare koble et allerede godkjent og ferdig asset eller fallbackvalg. Den skal ikke utføre Brave-søk, Open Graph-henting, ekstern nedlasting, dekoding, rendition-generering, automatisk replacement eller noen publiseringsendring.
+
+Approvalhistorikken skal ligge i append-only bildehistorikk, ikke bare i `decision_json` eller en commitlogg som kan regenereres. Full produkt- og review-UX for bilder implementeres fortsatt først som del av senere Import 2.0.
 
 ## Besluttet kontaktretning
 
