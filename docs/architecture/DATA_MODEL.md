@@ -73,4 +73,20 @@ Planlagt retning:
 
 Dagens modeller og migrasjoner følger fortsatt den todelte legacy-modellen, men nye skriveruter holder primære kompatibilitetsfelt og `PersonContact` synkronisert.
 
+## Godkjent planlagt bildearkitektur
+
+[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag, men ingen av bildemodellene eller migrasjonene er implementert.
+
+Konseptuell målmodell:
+
+```text
+ImageCandidate
+    → tenant-eid ImageAsset
+    → typed OrganizationImageSelection
+    → ImageRendition
+    → én felles public image projection
+```
+
+Viktige overganger skal ha append-only bildehistorikk. Assetet eies av tenant og kan finnes før en aktør; bare ett selection er aktivt per aktør. Første implementering gjelder `Organization`, uten `GenericForeignKey` eller en generell selection for andre objekttyper.
+
 Denne filen skal i neste dokumentasjonsfase utvides med felter, constraints og relasjoner direkte fra `crm/models.py` og migrasjonene.

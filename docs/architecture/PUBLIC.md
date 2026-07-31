@@ -117,16 +117,24 @@ Direkte `Person.phone` brukes fortsatt aldri som PUBLIC-fallback. Offentlig tele
 
 Dagens løsning velger mellom manuell thumbnail, automatisk thumbnail og Open Graph-bilde. Eksterne bilde-URL-er kan forsvinne, endres, blokkere hotlinking eller ha feil format.
 
-Målarkitekturen skal vurderes før implementering og bør støtte:
+[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som målarkitektur. Den er ikke implementert; dagens eksterne URL- og fallbackflyt gjelder fortsatt.
 
-- innhenting av kandidater fra Open Graph eller nettside
-- menneskelig valg/godkjenning
-- permanent lagring av valgt bilde
-- standardisert beskjæring og skalering
-- definert original, visningsformat og thumbnail-format
-- manuell overstyring og trygg fallback
-- registrering av kilde og tidspunkt
-- lik presentasjon i Editor, PUBLIC og senere Musikkontoret.no
+Planlagt retning:
+
+- kandidater fra offisiell nettside, Open Graph, upload, limt URL og senere en kontrollert Brave-provider
+- kontrollert fetch og teknisk validering før eksplisitt menneskelig godkjenning
+- tenant-eid asset med privat original
+- typed aktør-selection med fit, ett fokuspunkt, locking og append-only historikk
+- square-, landscape- og 1200 × 630-share-renditions
+- deterministisk Kreative Norge-fallback uten ekstern bildekilde
+- én felles public image projection for Editor-preview, PUBLIC HTML, public API og delingsmetadata
+- ingen endring av aktør-, person- eller kontaktpublisering som følge av bildehandlinger
+
+PUBLIC skal etter cutover bare bruke CRM-kontrollerte renditions eller systemfallback. Rå kilde-URL, intern proveniens, audit og privat original skal ikke eksponeres.
+
+Godkjente kortmål beholder 90 × 90 i PUBLIC-oversikten og bruker 160 × 160 på desktop-detaljen. Mobil detalj forblir rektangulær; eksakt felles høyde avgjøres i fase 3B. Logo bruker `contain`, foto bruker `cover` og fokuspunkt, PUBLIC-tags er grønne, og lange navn, kommuner, tags og knapper skal ikke gi overflow.
+
+PUBLIC-detaljen skal få absolutt canonical, Open Graph og Twitter Card. Canonical app-origin og public media-origin skal være miljøkonfigurerte og allowlistede, ikke avledet fra vilkårlig request-host. `og:image` bruker CRM-kontrollert share-rendition eller fallback på 1200 × 630. Korrekt metadata kan leveres, men det kan ikke loves at alle meldingsklienter viser preview.
 
 ## Videre integrasjon
 

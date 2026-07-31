@@ -2,7 +2,7 @@
 
 **Status:** Godkjent strategisk arbeidsrekkefølge
 
-**Sist oppdatert:** 2026-07-30
+**Sist oppdatert:** 2026-07-31
 
 Roadmapen skiller mellom produktfaser og et parallelt infrastrukturløp. En fase beskriver prioritert rekkefølge, ikke at innholdet allerede er implementert. Større implementering krever fortsatt et godkjent ADR når arbeidet innebærer et vesentlig arkitekturvalg.
 
@@ -54,17 +54,24 @@ Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCH
 
 ## Fase 3 – Robust thumbnail-, bilde- og kortarkitektur
 
-**Status:** Aktiv produktfase.
+**Status:** Fase 3A gjennomført; fase 3B teknisk prototype er neste aktive leveranse.
+
+Fase 3A kartla dagens legacy URL-, Open Graph-, kort-, import-, storage- og driftsflyt. [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag.
+
+Bildearkitekturen er ikke implementert. Dagens `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- og faviconflyt gjelder fortsatt frem til en kontrollert overgang er levert og verifisert.
 
 Bildeløsningen skal gå fra ustabile eksterne treff til en varig, redaksjonelt kontrollerbar ressurs:
 
-- Open Graph som mulig kandidat, supplert med Brave eller annen bildesøkekilde
-- preferanse for tidløst logo-, profil- eller motivbilde
-- manuell godkjenning før varig bruk
-- permanent lagring med kilde, proveniens, dato, kreditering og opphavsrett
-- bevaring av original og støtte for beskjæring, fokuspunkt, skalering og format
-- tydelig fallback og manuell overstyring
-- samme valgte bilde i Editor, PUBLIC og senere Musikkontoret.no
+- kandidater fra offisiell nettside, Open Graph, opplasting, limt URL og senere en kontrollert Brave-provider
+- kontrollert fetch og teknisk validering før menneskelig godkjenning
+- tenant-eid asset med privat original og nødvendig proveniens
+- typed aktør-selection med fit, ett fokuspunkt, eksplisitt approval og låsing
+- valgfri eller påkrevd kreditering når et konkret krav finnes
+- kontrollerte square-, landscape- og share-renditions
+- deterministisk Kreative Norge-fallback
+- én felles image projection for Editor, PUBLIC, public API og delingsmetadata
+- append-only historikk for approval, replacement, restore og takedown
+- additiv og bakoverkompatibel API- og legacyovergang
 
 Fasen etablerer samtidig et lite, delt frontendgrunnlag for aktørkort og relaterte visningsmønstre:
 
@@ -76,6 +83,66 @@ Fasen etablerer samtidig et lite, delt frontendgrunnlag for aktørkort og relate
 - mindre avvik mellom Editor- og PUBLIC-kort
 
 Dette er ikke en generell redesign. Øvrige kort og komponenter videreutvikles innenfor den godkjente visuelle retningen fra forsidene.
+
+### Fase 3A – kartlegging og arkitekturbeslutning
+
+**Status:** Gjennomført 2026-07-30.
+
+- skrivebeskyttet kartlegging av backend, frontend, PUBLIC, API, import, storage, drift og åtte kort-/bildevisninger
+- godkjent ADR-007 med ansvarsdelingen `ImageCandidate` → `ImageAsset` → `OrganizationImageSelection` → `ImageRendition` → felles public image projection
+- godkjente roller, approvaltekst, fallback, retensjon, takedown, storage-retning, API-overgang og fremtidig Import 2.0-kontrakt
+
+### Fase 3B – teknisk prototype og kontrakt
+
+**Status:** Neste aktive leveranse.
+
+- velge og måle bildebehandlingsbibliotek, format, terskler og ressursbruk
+- prototype contain, cover, fokuspunkt, renditions og deterministisk fallback i godkjente kortmål
+- spike lokal storage og S3-kompatibel objektlagring gjennom Djangos `STORAGES`
+- verifisere private originaler, absolutte public URL-er, immutable keys, purge, takedown og backup/restore
+- fastsette API-schema, aliasmapping, concurrency, retentionmekanisme og sync/async-grense
+
+### Fase 3C – additiv backend- og storagegrunnmur
+
+**Status:** Planlagt etter godkjent fase 3B.
+
+- additive modeller, constraints og migrasjoner
+- kontrollert ingest, private originaler og renditions
+- capability-permissions, approval, locking, audit, retention, karantene og takedown
+- feature av frem til test- og datagrunnlaget er godkjent
+
+### Fase 3D – Editor-flyt for aktørbilde
+
+**Status:** Planlagt.
+
+- kandidatfunn, upload, limt URL og fallback
+- «Godkjenn og lås bilde» og eksplisitt replacement
+- ordinær arkivering, restore og historikk; takedown-UI forberedes deaktivert til deny-gaten er verifisert
+- preview fra samme selection- og projectionkontrakt som PUBLIC
+
+### Fase 3E – PUBLIC, API, deling og kort
+
+**Status:** Planlagt.
+
+- felles public image projection og kontrollert cutover
+- strukturert bildeobjekt med deprecated kompatibilitetsaliaser
+- canonical, Open Graph og Twitter Card med 1200 × 630-sharevariant
+- godkjente kortmål, grønne PUBLIC-tags, felles fit/fokus og robust overflow
+- aktivere rolleavgrenset takedown først når legacy og ny projection følger samme deny-status
+
+### Fase 3F – legacyovergang og driftsverifisering
+
+**Status:** Planlagt.
+
+- inventere legacy URL-er og gjøre dem til kandidater uten automatisk godkjenning
+- stoppe automatisk refresh ved vanlig aktørlagring og nettverk i import-commit
+- etablere typed bildekontrakt for senere Import 2.0
+- verifisere database- og assetrestore, staging, takedown, fallback og API-overgang
+- beholde legacyfelt og aliaser gjennom stabiliseringsperioden; fysisk opprydding får egne senere gater
+
+Fase 3 etablerer bare bildekontrakten som senere Import 2.0 skal bruke. Produkt- og UX-design for Import 2.0 ligger fortsatt i fase 4, og implementeringen ligger i fase 6. Beslutningsgaten for internasjonal telefon ved overgangen til fase 4 er uendret.
+
+Leveransevise akseptansekriterier, testkrav, rollback og de tverrgående ferdigkriteriene for aktivt CRM-bilde, privat original, renditions, approval, locking, fallback, API-kompatibilitet, Open Graph, import, takedown, backup/restore og legacyutfasing finnes i [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md#implementeringsleveranser-og-akseptansekriterier).
 
 ## Fase 4 – Produkt- og UX-design for Import 2.0
 
