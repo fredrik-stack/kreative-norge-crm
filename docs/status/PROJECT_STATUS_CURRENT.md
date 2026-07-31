@@ -1,10 +1,10 @@
 # Project Status Current
 
-**Status:** Fase 1 og 2 gjennomført; fase 3A gjennomført; fase 3B aktiv
+**Status:** Fase 1 og 2 gjennomført; fase 3A og fase 3B.1 gjennomført; fase 3B fortsatt aktiv
 
-**Teknisk sist verifisert:** 2026-07-30
+**Teknisk sist verifisert:** 2026-07-31
 
-**Teknisk verifisert mot:** fase 2-applikasjonsversjonen i merge-commit `6768af8a3b48314aec028ec5972939c6ef0e38e8`, rent staging-repo på samme commit, kjørende API-/web-images, PostgreSQL, Django, migrasjoner, HTTPS, PUBLIC API/HTML, Editor-API og kontrollert tenant-avgrenset telefonreparasjon etter verifisert backup.
+**Teknisk verifisert mot:** fase 2-applikasjonsversjonen i merge-commit `6768af8a3b48314aec028ec5972939c6ef0e38e8`, rent staging-repo på samme commit, kjørende API-/web-images, PostgreSQL, Django, migrasjoner, HTTPS, PUBLIC API/HTML, Editor-API og kontrollert tenant-avgrenset telefonreparasjon etter verifisert backup; fase 3B.1 er i tillegg verifisert som isolert lokal/Linux-prototype uten CRM-runtimekobling.
 
 **Produkt-roadmap sist oppdatert:** 2026-07-31
 
@@ -18,7 +18,9 @@ Fase 1 i [ROADMAP.md](ROADMAP.md) ble gjennomført 2026-07-29. Den skrivebeskytt
 
 Fase 2 ble gjennomført 2026-07-30 etter teknisk stagingverifisering, kontrollert reparasjon av fire private primære legacytelefonkontakter og prosjekteiers visuelle sluttkontroll.
 
-Fase 3A kartla deretter dagens thumbnail-, bilde-, storage-, import- og kortflyt uten endringer. [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag, og fase 3B teknisk prototype er neste aktive leveranse.
+Fase 3A kartla deretter dagens thumbnail-, bilde-, storage-, import- og kortflyt uten endringer. [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag.
+
+[Fase 3B.1](PHASE_3B1_IMAGE_RENDITION_SPIKE.md) har gjennomført en isolert bildebehandlings- og renditionprototype med syntetiske fixtures. Pillow og pyvips/libvips, sikker dekoding, contain/cover, fokus, formater, determinisme, fallback og ressursbruk er målt. Spiken anbefaler foreløpig Pillow for første MVP, men bibliotek, format og terskler krever fortsatt prosjekteiers godkjenning. Neste foreslåtte delsteg er fase 3B.2 storage-, key- og restorelab.
 
 Bildearkitekturen er ikke implementert. Det er ikke opprettet modeller eller migrasjoner, konfigurert media-/objektstorage, endret API eller frontend eller gjennomført deploy. Dagens eksterne `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- og faviconflyt gjelder fortsatt.
 
@@ -52,7 +54,7 @@ Godkjente hovedprinsipper:
 - Import 2.0 skal senere bruke `KEEP_LOCKED_IMAGE`, `SET_APPROVED_IMAGE` og `USE_APPROVED_FALLBACK` uten nettverk eller bildebehandling i commit
 - ingen bildehandling endrer aktør-, person- eller kontaktpublisering
 
-Fase 3B skal velge og verifisere konkret bildebehandlingsbibliotek, tekniske terskler, formatkombinasjon, objektlagringsleverandør, SVG-verktøy, eventuelt kø-/skadevareoppsett, endelig API-schema, purge/restore og øvrige detaljer som ADR-007 uttrykkelig holder åpne.
+Fase 3B.1 har gitt en teknisk anbefaling for bildebehandlingsbibliotek, minimumsformat og foreløpige terskler. Fase 3B skal fortsatt velge objektlagringsleverandør, endelig SVG-/AVIF-policy, eventuelt kø-/skadevareoppsett, endelig API-schema, purge/restore og øvrige detaljer som ADR-007 uttrykkelig holder åpne.
 
 ## Verifisert fase 1-baseline
 

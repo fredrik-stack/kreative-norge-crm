@@ -94,13 +94,15 @@ Dette er ikke en generell redesign. Øvrige kort og komponenter videreutvikles i
 
 ### Fase 3B – teknisk prototype og kontrakt
 
-**Status:** Neste aktive leveranse.
+**Status:** Fase 3B.1 gjennomført som isolert prototypeevidens; anbefalingene er ikke produksjonsimplementert eller endelig godkjent. Fase 3B.2 er neste foreslåtte leveranse.
 
-- velge og måle bildebehandlingsbibliotek, format, terskler og ressursbruk
-- prototype contain, cover, fokuspunkt, renditions og deterministisk fallback i godkjente kortmål
+- [fase 3B.1](PHASE_3B1_IMAGE_RENDITION_SPIKE.md) målte Pillow og pyvips/libvips, format, foreløpige terskler og ressursbruk på syntetiske fixtures
+- fase 3B.1 prototypet contain, cover, fokuspunkt, square/landscape/share, deterministisk fallback og statisk nødvariant uten CRM-runtimekobling
 - spike lokal storage og S3-kompatibel objektlagring gjennom Djangos `STORAGES`
 - verifisere private originaler, absolutte public URL-er, immutable keys, purge, takedown og backup/restore
 - fastsette API-schema, aliasmapping, concurrency, retentionmekanisme og sync/async-grense
+
+Neste anbefalte delsteg er en isolert fase 3B.2 storage-, key- og restorelab. Bibliotek-, format- og terskelanbefalingene fra 3B.1 må godkjennes eksplisitt før fase 3C.
 
 ### Fase 3C – additiv backend- og storagegrunnmur
 
