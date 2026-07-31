@@ -1,10 +1,10 @@
 # Project Status Current
 
-**Status:** Fase 1 og 2 gjennomført; fase 3A gjennomført; fase 3B aktiv
+**Status:** Fase 1 og 2 gjennomført; fase 3A og fase 3B.1 gjennomført; fase 3B fortsatt aktiv
 
-**Teknisk sist verifisert:** 2026-07-30
+**Teknisk sist verifisert:** 2026-07-31
 
-**Teknisk verifisert mot:** fase 2-applikasjonsversjonen i merge-commit `6768af8a3b48314aec028ec5972939c6ef0e38e8`, rent staging-repo på samme commit, kjørende API-/web-images, PostgreSQL, Django, migrasjoner, HTTPS, PUBLIC API/HTML, Editor-API og kontrollert tenant-avgrenset telefonreparasjon etter verifisert backup.
+**Teknisk verifisert mot:** fase 2-applikasjonsversjonen i merge-commit `6768af8a3b48314aec028ec5972939c6ef0e38e8`, rent staging-repo på samme commit, kjørende API-/web-images, PostgreSQL, Django, migrasjoner, HTTPS, PUBLIC API/HTML, Editor-API og kontrollert tenant-avgrenset telefonreparasjon etter verifisert backup; fase 3B.1 er i tillegg verifisert som isolert lokal/Linux-prototype uten CRM-runtimekobling.
 
 **Produkt-roadmap sist oppdatert:** 2026-07-31
 
@@ -18,7 +18,9 @@ Fase 1 i [ROADMAP.md](ROADMAP.md) ble gjennomført 2026-07-29. Den skrivebeskytt
 
 Fase 2 ble gjennomført 2026-07-30 etter teknisk stagingverifisering, kontrollert reparasjon av fire private primære legacytelefonkontakter og prosjekteiers visuelle sluttkontroll.
 
-Fase 3A kartla deretter dagens thumbnail-, bilde-, storage-, import- og kortflyt uten endringer. [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag, og fase 3B teknisk prototype er neste aktive leveranse.
+Fase 3A kartla deretter dagens thumbnail-, bilde-, storage-, import- og kortflyt uten endringer. [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag.
+
+[Fase 3B.1](PHASE_3B1_IMAGE_RENDITION_SPIKE.md) har gjennomført en isolert bildebehandlings- og renditionprototype med syntetiske fixtures. Pillow og pyvips/libvips, sikker dekoding, contain/cover, fokus, formater, determinisme, fallback og ressursbruk er målt. Prosjekteier har godkjent Pillow bak intern adapter, statisk JPEG/PNG/WebP-input, processing profile v1, no-upscale, immutable key-invarianten og 15 MiB som konfigurerbar standard. Endelig pixelgrense, dimensjons- og blur-/komprimeringsregler er fortsatt åpne. Fase 3B.2 er neste godkjente isolerte storage-, key- og restorelab; fase 3B.1R er påkrevd før fase 3C.
 
 Bildearkitekturen er ikke implementert. Det er ikke opprettet modeller eller migrasjoner, konfigurert media-/objektstorage, endret API eller frontend eller gjennomført deploy. Dagens eksterne `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- og faviconflyt gjelder fortsatt.
 
@@ -52,7 +54,7 @@ Godkjente hovedprinsipper:
 - Import 2.0 skal senere bruke `KEEP_LOCKED_IMAGE`, `SET_APPROVED_IMAGE` og `USE_APPROVED_FALLBACK` uten nettverk eller bildebehandling i commit
 - ingen bildehandling endrer aktør-, person- eller kontaktpublisering
 
-Fase 3B skal velge og verifisere konkret bildebehandlingsbibliotek, tekniske terskler, formatkombinasjon, objektlagringsleverandør, SVG-verktøy, eventuelt kø-/skadevareoppsett, endelig API-schema, purge/restore og øvrige detaljer som ADR-007 uttrykkelig holder åpne.
+Godkjent processing profile v1 bruker `square` 512 × 512 og `landscape` 800 × 450 som WebP quality 82 for foto, `share` 1200 × 630 som ikke-progressiv JPEG quality 85, PNG for logo med alpha og WebP/JPEG for fallback. Format, encoderinnstillinger, source checksum, fit, fokus, variant og processing-version inngår i immutable key. Før fase 3C skal fase 3B.1R teste representative ekte bilder og eksplisitt sRGB-normalisering. Fase 3B skal fortsatt fastsette kvalitetsgrenser, velge objektlagringsleverandør, avklare SVG-rasterisering ved behov, eventuelt kø-/skadevareoppsett, endelig API-schema, purge/restore og øvrige åpne detaljer i ADR-007.
 
 ## Verifisert fase 1-baseline
 
@@ -164,9 +166,9 @@ Før det endres kode eller deployes, skal en skrivebeskyttet diagnose fastslå:
 
 Den avgrensede mellomleveransen sporer offentlig telefon gjennom Editor, API og PUBLIC, viser `Person.title` offentlig når den finnes og har regresjonstester for e-post, telefon, personlenke og tittel. Den generelle årsaken ble rettet, fire legacytelefoner ble reparert privat etter backup, og teknisk og visuell stagingkontroll ble godkjent. Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md).
 
-### 3. Thumbnail-, bilde- og kortarkitektur – fase 3A gjennomført; fase 3B aktiv
+### 3. Thumbnail-, bilde- og kortarkitektur – fase 3B.1 gjennomført; fase 3B.2 neste
 
-Fase 3A-kartleggingen og ADR-007 er gjennomført som beslutningsgrunnlag. Neste leveranse er en avgrenset fase 3B-prototype som skal bevise storage-, processing-, fallback-, rendition-, purge-, restore-, API- og kortkontrakten før modeller eller produksjonsrettet implementering starter.
+Fase 3A-kartleggingen, ADR-007 og den isolerte processingprototypen i fase 3B.1 er gjennomført. Neste godkjente leveranse er fase 3B.2, en avgrenset storage-, immutable-key-, purge-, deny- og restorelab uten CRM-modeller, migrasjoner, API, Editor, PUBLIC eller stagingdeploy. Fase 3B.1R med representative bilder og fargeprofiler må fullføres før fase 3C, men blokkerer ikke 3B.2.
 
 Deretter skal Import 2.0 gjennom en egen produkt- og UX-designfase før større kodeendringer. Dagens importmotor skal gjenbrukes der den er solid, men skal ikke låse den nye brukeropplevelsen.
 
@@ -279,7 +281,7 @@ Sikker automatisk staging-deploy er planlagt utenfor produktfasene og blokkerer 
 - valgt mekanisme for automatisk staging-deploy
 - obligatoriske tester og CI-gates før deploy
 - endelig kontrakt mellom CRM-public og Musikkontoret.no
-- konkret S3-kompatibel bildeleverandør, bildebehandlingsbibliotek, tekniske kvalitetsterskler, format-/renditionvalg, SVG-verktøy, API-schema og sync/async-grense i fase 3B
+- konkret S3-kompatibel bildeleverandør, representative pixel-/dimensjons-/kvalitetsgrenser, sRGB-kontrakt, eventuelt SVG-verktøy, API-schema og sync/async-grense i fase 3B
 - eksplisitt publiseringsfelt for organisasjonens e-post
 - roller for kontaktpublisering, bulkpublisering og full kontakt-eksport
 - behandlingsgrunnlag og retensjon for kontakt-, import-, eksport- og auditdata

@@ -54,7 +54,7 @@ Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCH
 
 ## Fase 3 – Robust thumbnail-, bilde- og kortarkitektur
 
-**Status:** Fase 3A gjennomført; fase 3B teknisk prototype er neste aktive leveranse.
+**Status:** Fase 3A og fase 3B.1 gjennomført; fase 3B.2 er neste godkjente tekniske spike.
 
 Fase 3A kartla dagens legacy URL-, Open Graph-, kort-, import-, storage- og driftsflyt. [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag.
 
@@ -94,13 +94,18 @@ Dette er ikke en generell redesign. Øvrige kort og komponenter videreutvikles i
 
 ### Fase 3B – teknisk prototype og kontrakt
 
-**Status:** Neste aktive leveranse.
+**Status:** Fase 3B.1 er teknisk gjennomført og processing profile v1 er godkjent. Fase 3B.2 er neste godkjente leveranse. Fase 3B.1R er påkrevd før fase 3C.
 
-- velge og måle bildebehandlingsbibliotek, format, terskler og ressursbruk
-- prototype contain, cover, fokuspunkt, renditions og deterministisk fallback i godkjente kortmål
-- spike lokal storage og S3-kompatibel objektlagring gjennom Djangos `STORAGES`
-- verifisere private originaler, absolutte public URL-er, immutable keys, purge, takedown og backup/restore
-- fastsette API-schema, aliasmapping, concurrency, retentionmekanisme og sync/async-grense
+- [fase 3B.1](PHASE_3B1_IMAGE_RENDITION_SPIKE.md) målte Pillow og pyvips/libvips, format, foreløpige terskler og ressursbruk på syntetiske fixtures
+- fase 3B.1 prototypet contain, cover, fokuspunkt, square/landscape/share, deterministisk fallback og statisk nødvariant uten CRM-runtimekobling
+- prosjekteier har godkjent Pillow bak intern adapter, statisk JPEG/PNG/WebP-input, outputmappingen WebP/PNG/JPEG, 512 × 512 `square`, 800 × 450 `landscape`, 1200 × 630 `share`, no-upscale, immutable key-invarianten og 15 MiB som konfigurerbar standard
+- endelig pixelgrense, dimensjonsregler og blur-/komprimeringsregler er ikke godkjent
+- fase 3B.1R skal teste representative, rettighetsavklarte ekte bilder og sRGB/fargeprofiler og fastsette kvalitetsreglene før fase 3C; delsteget blokkerer ikke 3B.2
+- fase 3B.2 skal spike separate private/public `STORAGES`-aliaser, lokal filesystemreferanse og én disponibel S3-kompatibel testbackend, immutable keys, absolutte allowlistede media-origins, origin-sletting, purge/takedown, deny-journal og backup/restore
+- fase 3B.2 skal ikke opprette CRM-modeller, migrasjoner, API/OpenAPI, Editor, PUBLIC, Import 2.0-integrasjon, bakgrunnskø eller stagingdeploy
+- senere fase 3B-gater skal fastsette API-schema, aliasmapping, concurrency, retentionmekanisme og sync/async-grense
+
+Processing profile v1 er arkitekturgrunnlag, ikke produksjonsimplementering. Dagens CRM-runtime og legacy URL-/faviconflyt gjelder fortsatt.
 
 ### Fase 3C – additiv backend- og storagegrunnmur
 
