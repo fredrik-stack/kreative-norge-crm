@@ -1,10 +1,10 @@
 # Project Status Current
 
-**Status:** Fase 1 og 2 gjennomført; fase 3A og fase 3B.1 gjennomført; fase 3B fortsatt aktiv
+**Status:** Fase 1 og 2 gjennomført; fase 3A og fase 3B.1 gjennomført; fase 3B.2 er teknisk prototypeevidens på PR-branch; fase 3B fortsatt aktiv
 
 **Teknisk sist verifisert:** 2026-07-31
 
-**Teknisk verifisert mot:** fase 2-applikasjonsversjonen i merge-commit `6768af8a3b48314aec028ec5972939c6ef0e38e8`, rent staging-repo på samme commit, kjørende API-/web-images, PostgreSQL, Django, migrasjoner, HTTPS, PUBLIC API/HTML, Editor-API og kontrollert tenant-avgrenset telefonreparasjon etter verifisert backup; fase 3B.1 er i tillegg verifisert som isolert lokal/Linux-prototype uten CRM-runtimekobling.
+**Teknisk verifisert mot:** fase 2-applikasjonsversjonen i merge-commit `6768af8a3b48314aec028ec5972939c6ef0e38e8`, rent staging-repo på samme commit, kjørende API-/web-images, PostgreSQL, Django, migrasjoner, HTTPS, PUBLIC API/HTML, Editor-API og kontrollert tenant-avgrenset telefonreparasjon etter verifisert backup; fase 3B.1 er i tillegg verifisert som isolert lokal/Linux-prototype uten CRM-runtimekobling, og fase 3B.2 foreligger som isolert lokal storage-/restoreprototype på PR-branch uten staging eller runtimekobling.
 
 **Produkt-roadmap sist oppdatert:** 2026-07-31
 
@@ -20,7 +20,9 @@ Fase 2 ble gjennomført 2026-07-30 etter teknisk stagingverifisering, kontroller
 
 Fase 3A kartla deretter dagens thumbnail-, bilde-, storage-, import- og kortflyt uten endringer. [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag.
 
-[Fase 3B.1](PHASE_3B1_IMAGE_RENDITION_SPIKE.md) har gjennomført en isolert bildebehandlings- og renditionprototype med syntetiske fixtures. Pillow og pyvips/libvips, sikker dekoding, contain/cover, fokus, formater, determinisme, fallback og ressursbruk er målt. Prosjekteier har godkjent Pillow bak intern adapter, statisk JPEG/PNG/WebP-input, processing profile v1, no-upscale, immutable key-invarianten og 15 MiB som konfigurerbar standard. Endelig pixelgrense, dimensjons- og blur-/komprimeringsregler er fortsatt åpne. Fase 3B.2 er neste godkjente isolerte storage-, key- og restorelab; fase 3B.1R er påkrevd før fase 3C.
+[Fase 3B.1](PHASE_3B1_IMAGE_RENDITION_SPIKE.md) har gjennomført en isolert bildebehandlings- og renditionprototype med syntetiske fixtures. Pillow og pyvips/libvips, sikker dekoding, contain/cover, fokus, formater, determinisme, fallback og ressursbruk er målt. Prosjekteier har godkjent Pillow bak intern adapter, statisk JPEG/PNG/WebP-input, processing profile v1, no-upscale, immutable key-invarianten og 15 MiB som konfigurerbar standard. Endelig pixelgrense, dimensjons- og blur-/komprimeringsregler er fortsatt åpne.
+
+[Fase 3B.2](PHASE_3B2_STORAGE_RESTORE_SPIKE.md) foreligger som teknisk prototypeevidens på PR-branch. Den isolerte laben måler separate Django-storagealiaser, gjenbrukt processing artifact key, separat public release key, private/public Moto-buckets, versioning, purge/cache, deny-journal, T0–T5 restore-reconciliation, backupstrategier og statisk fallback. Anbefalingene om to-key-kontrakt, unversioned public storage, hybridbackup og separat varig deny-journal er ikke automatisk godkjente arkitekturvalg. Ingen produksjonsleverandør er valgt. Fase 3B.1R er fortsatt påkrevd før fase 3C, og senere fase 3B-gater for leverandør/IAM/CDN, API-schema, concurrency, retention og sync/async gjenstår.
 
 Bildearkitekturen er ikke implementert. Det er ikke opprettet modeller eller migrasjoner, konfigurert media-/objektstorage, endret API eller frontend eller gjennomført deploy. Dagens eksterne `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- og faviconflyt gjelder fortsatt.
 
@@ -166,9 +168,9 @@ Før det endres kode eller deployes, skal en skrivebeskyttet diagnose fastslå:
 
 Den avgrensede mellomleveransen sporer offentlig telefon gjennom Editor, API og PUBLIC, viser `Person.title` offentlig når den finnes og har regresjonstester for e-post, telefon, personlenke og tittel. Den generelle årsaken ble rettet, fire legacytelefoner ble reparert privat etter backup, og teknisk og visuell stagingkontroll ble godkjent. Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md).
 
-### 3. Thumbnail-, bilde- og kortarkitektur – fase 3B.1 gjennomført; fase 3B.2 neste
+### 3. Thumbnail-, bilde- og kortarkitektur – fase 3B.2 prototype på PR-branch
 
-Fase 3A-kartleggingen, ADR-007 og den isolerte processingprototypen i fase 3B.1 er gjennomført. Neste godkjente leveranse er fase 3B.2, en avgrenset storage-, immutable-key-, purge-, deny- og restorelab uten CRM-modeller, migrasjoner, API, Editor, PUBLIC eller stagingdeploy. Fase 3B.1R med representative bilder og fargeprofiler må fullføres før fase 3C, men blokkerer ikke 3B.2.
+Fase 3A-kartleggingen, ADR-007 og den isolerte processingprototypen i fase 3B.1 er gjennomført. Fase 3B.2 foreligger som avgrenset storage-, immutable-key-, purge-, deny- og restoreprototype på PR-branch uten CRM-modeller, migrasjoner, API, Editor, PUBLIC eller stagingdeploy. Resultatene må gjennom prosjekteiers beslutningsgate; de endrer ikke ADR-007 automatisk. Fase 3B.1R med representative bilder og fargeprofiler må fullføres før fase 3C, og øvrige fase 3B-gater gjenstår.
 
 Deretter skal Import 2.0 gjennom en egen produkt- og UX-designfase før større kodeendringer. Dagens importmotor skal gjenbrukes der den er solid, men skal ikke låse den nye brukeropplevelsen.
 

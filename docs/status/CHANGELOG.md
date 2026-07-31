@@ -4,6 +4,18 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 
 ## 2026-07-31
 
+### Fase 3B.2: isolert storage-, takedown- og restoreprototype på PR-branch
+
+- lagt en isolert Django 5.1-lab under `spikes/storage_pipeline/` med eksplisitt bevart `default`/`staticfiles` og separate private/public image-aliaser uten å endre runtime-settings eller root-avhengigheter
+- pin-net Moto Server 5.2.2, django-storages og boto3 i laben og testet create/put/get/head/delete, policy, versioning, version listing, delete marker og copy mot disponibel lokal emulator
+- gjenbrukt fase 3B.1s processing artifact key og bevist separat tenant-/actor-/release-skopet R1/R2-key uten re-encoding eller overskriving av gamle public keys
+- gjennomført T0–T5 med nyere deny-journal utenfor gammelt app-snapshot, origin delete, stale-cache-simulering, idempotent purge, kontrollert reintroduksjon, reconciliation, fallback og autorisert R2 mens R1 forblir denied
+- sammenlignet direkte backup av aktive renditions med regenerering fra privat original + canonical metadata og anbefalt hybridmodell til prosjekteiers vurdering
+- dokumentert Moto-gap der unsigned `VersionId` kunne nå eldre privat versjon; recording private-access boundary håndhever ønsket domenekontrakt, men faktisk leverandør/IAM må verifiseres senere
+- anbefalt til vurdering to-key-kontrakt, unversioned aktiv public storage, hybridbackup og separat varig deny-journal; anbefalingene er ikke godkjente arkitekturvalg og ingen produksjonsleverandør er valgt
+- lagt til separat path-filtrert spike-CI og tekstlig evidens uten secrets, eksterne data, staging eller produksjonskontakt
+- ikke implementert bildearkitekturen i CRM-runtime og ikke endret modeller, migrasjoner, API, Editor, PUBLIC, root requirements, produksjonscontainere, ordinære Compose-filer, staging eller deploy; legacy URL-/faviconflyt gjelder fortsatt, fase 3B.1R og senere fase 3B-gater gjenstår
+
 ### Fase 3B.1: isolert bildebehandlings- og renditionprototype
 
 - sammenlignet Pillow og pyvips/libvips praktisk i en separat prototypepakke og dedikert labcontainer uten runtimekobling
