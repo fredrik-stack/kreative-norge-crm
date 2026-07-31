@@ -2,7 +2,7 @@
 
 **Dato:** 2026-07-31
 
-**Status:** Prototypeevidens. Ikke produksjonsklar, ikke implementert i CRM og ikke godkjent som endelig fase 3B-kontrakt.
+**Status:** Teknisk gjennomført prototypeevidens. Prosjekteier har godkjent processing profile v1 og neste spikeavgrensning; åpne kvalitetsgrenser krever fase 3B.1R. Ikke produksjonsklar og ikke implementert i CRM.
 
 **Arkitekturgrunnlag:** [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md)
 
@@ -16,7 +16,7 @@ Rapporten skiller mellom:
 
 - **målt fakta:** resultat fra den isolerte spiken på oppgitt miljø
 - **teknisk anbefaling:** Codex-anbefaling basert på målingene
-- **foreløpig produktanbefaling:** trenger prosjekteiers godkjenning
+- **godkjent beslutning:** prosjekteiers valg etter prototypen, lagret i [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md#23-fase-3b1-godkjent-processingkontrakt-v1)
 - **åpent valg:** må bevises eller avgjøres senere
 
 Ingen modeller, migrasjoner, API-ruter, frontend, storagekonfigurasjon eller runtimeintegrasjon er aktivert. Ingen storageleverandør er valgt.
@@ -38,6 +38,8 @@ Spiken beviser at den avgrensede renditionkontrakten kan implementeres determini
 **Teknisk anbefaling:** Bruk Pillow som første produksjonsrettede MVP-bibliotek bak en liten intern adapter. Behold benchmarkkontrakten slik at pyvips kan vurderes på nytt dersom representative batcher viser at Pillow bryter avtalte ressursgrenser.
 
 **Foreløpig formatanbefaling:** Godta JPEG, PNG og WebP som rasterinput. Bruk WebP for foto i `square`/`landscape`, PNG for logo med alpha og JPEG for `share`. Utsett AVIF og avvis SVG frem til egne kompatibilitets- og sikkerhetstester er godkjent.
+
+Prosjekteier godkjente 2026-07-31 Pillow bak en intern adapter, det statiske JPEG-/PNG-/WebP-formatsettet, processing profile v1 og fase 3B.2-avgrensningen. Pixel-, dimensjons- og blurgrensene ble ikke endelig godkjent; de flyttes til representativ fase 3B.1R før fase 3C.
 
 ## 2. Testmiljø
 
@@ -136,8 +138,8 @@ Square, landscape og share kan ikke ha identisk pikselutsnitt. De bruker samme f
 
 | Variant | Prototypestørrelse | Status |
 | --- | --- | --- |
-| `square` | 512 × 512 | Foreløpig prototypeverdi; støtter god nedskalering til 160 og 90 piksler |
-| `landscape` | 800 × 450 | Foreløpig prototypeverdi; mobil detaljhøyde og endelig kortkontrakt er ikke besluttet |
+| `square` | 512 × 512 | Målt prototypeverdi; senere godkjent i processing profile v1 |
+| `landscape` | 800 × 450 | Målt prototypeverdi; senere godkjent i processing profile v1; mobil detaljhøyde er fortsatt åpen |
 | `share` | 1200 × 630 | Eksakt godkjent ADR-mål og verifisert |
 
 Alle tre ble generert for contain-logo, cover-foto, dynamisk fallback og statisk nød-fallback.
@@ -207,23 +209,23 @@ JPEG, PNG og WebP er et realistisk minimumssett. AVIF-resultatet beviser bare lo
 
 ## 14. Foreløpige terskelanbefalinger
 
-### Harde tekniske grenser
+### Verdier brukt i prototypen
 
-- filstørrelse: 15 MiB
-- pixelgrense: 20 megapiksler
+- filstørrelse: 15 MiB; senere godkjent som konfigurerbar standardverdi
+- pixelgrense: 20 megapiksler; ikke godkjent som endelig grense
 - bare faktisk dekodbar JPEG, PNG eller WebP i første MVP
 - oppgitt MIME må matche bytes
 - SVG og ukjent format avvises
 - cover-rendition avvises dersom korrekt crop er mindre enn målvarianten
 - ingen automatisk oppskalering
 
-### Dimensjonsmodell
+### Ikke-godkjent prototype for dimensjonsmodell
 
 - korteste side under 160 piksler: hard fail for offentlig rendition
 - korteste side 160–511 piksler: review
 - minst 512 piksler: generell dimensjonspass, men hver variant må fortsatt bestå sin egen no-upscale-kontroll
 
-### Foreløpig edge-variance-modell
+### Ikke-godkjent edge-variance-prototype
 
 - under 5: hard-fail-kandidat
 - 5–24,999: manuelt review
@@ -247,7 +249,7 @@ Det syntetiske skarpe fotoet målte 437,687; blurfixtureen 2,741. Sterkt komprim
 
 ## 16. Anbefalt bildebehandlingsbibliotek
 
-**Teknisk anbefaling, ikke godkjent beslutning:** Pillow 12.3.0 for første MVP.
+**Teknisk anbefaling fra prototypen:** Pillow 12.3.0 for første MVP. Prosjekteier godkjente bibliotekretningen, men ikke en permanent binding til denne konkrete versjonen; se punkt 18.
 
 Begrunnelse:
 
@@ -261,7 +263,7 @@ pyvips er det målte ytelsesvalget og bør revurderes dersom representative batc
 
 ## 17. Anbefalt minimumsformatsett
 
-**Foreløpig anbefaling:**
+**Anbefaling fra prototypen, senere godkjent som processing profile v1 i punkt 18:**
 
 - input: JPEG, PNG og WebP
 - foto `square` og `landscape`: WebP, quality 82
@@ -273,36 +275,70 @@ pyvips er det målte ytelsesvalget og bør revurderes dersom representative batc
 
 Alle outputformater skal strippe sensitive metadata. Format og encoderinnstillinger inngår i processing-version og immutable key.
 
-## 18. Valg som fortsatt må bevises senere
+## 18. Prosjekteiers godkjenning etter prototypeanbefalingene
 
-- representative dimensjons-, blur- og komprimeringsgrenser
-- om outputkontrakten trenger JPEG/PNG-fallback ved siden av WebP
+Prosjekteier godkjente 2026-07-31 følgende som tekniske beslutninger i [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md#23-fase-3b1-godkjent-processingkontrakt-v1):
+
+- Pillow er primær MVP-backend bak en liten intern adapter. pyvips/libvips beholdes som ytelsesalternativ hvis representative batcher senere bryter godkjente ressursgrenser.
+- Produksjonsavhengigheten skal pin-nes og verifiseres når den innføres; valget er ikke låst til Pillow 12.3.0.
+- Global `Image.MAX_IMAGE_PIXELS` skal ikke muteres per request eller parallell operasjon. Pixelbeskyttelsen må være trådsikker, prosessfast eller isolert.
+- Første MVP støtter bare statiske JPEG-, PNG- og WebP-input. SVG, påkrevd AVIF-input, GIF, HEIC/HEIF, TIFF, ukjente formater og animerte WebP-filer avvises forklarlig. Ingen animert fil reduseres stilltiende til første frame.
+- `square` er 512 × 512, `landscape` er 800 × 450 og `share` er 1200 × 630.
+- Foto bruker WebP quality 82 for `square`/`landscape` og ikke-progressiv JPEG quality 85 for `share`; logo med alpha bruker PNG; dynamisk fallback bruker WebP, mens share-fallback bruker JPEG.
+- Format, encoderinnstillinger, source checksum, fit, fokus, variant og processing-version inngår i immutable key. Endret verdi gir ny key og overskriver aldri historisk output.
+- Logo bruker `contain`; foto bruker `cover` og normalisert fokus med sentrum som standard. EXIF-orientering skjer før crop, og sensitive metadata fjernes fra offentlige renditions.
+- Ingen kildepiksler skaleres automatisk opp. For svak kilde håndteres med bedre kilde, annet bilde eller kontrollert Kreative Norge-komposisjon/fallback.
+- Maksimal kildefilstørrelse 15 MiB er godkjent som konfigurerbar standardverdi.
+- Fase 3B.2 er neste godkjente isolerte storage-, immutable-key-, purge-, deny- og restorelab og er ikke implementert.
+
+AVIF er ikke et MVP-krav. Rå SVG skal ikke serveres offentlig. En separat sikker rasterizerspike kan vurderes senere, og SVG-behovet skal vurderes på nytt før storstilt logoimport eller legacyovergang dersom mange offisielle logoer bare finnes som SVG.
+
+Fase 3B.1 beviste metadatafjerning, men ikke en eksplisitt sRGB-normaliseringskontrakt. Denne må testes før fase 3C.
+
+Følgende prototypeverdier ble uttrykkelig ikke godkjent som endelige produktgrenser:
+
+- 20 megapiksler som endelig pixelgrense
+- en universell korteste-side-modell med hard fail under 160, review 160–511 og pass fra 512
+- edge variance under 5 som automatisk hard fail
+- de øvrige edge-variance-/blurintervallene
+
+Blur-/edge-variance er foreløpig bare varsel, reviewprioritering og diagnostikk. Dimensjonsregler må vurderes per bildetype, fit, variant, reelt cropområde og oppskaleringsbehov.
+
+## 19. Valg som fortsatt må bevises senere
+
+- endelig pixelgrense og representative dimensjons-, crop-, blur-, komprimerings- og logolesbarhetsregler
+- om outputkontrakten trenger ekstra kompatibilitetsfallback ved siden av processing profile v1
 - om AVIF gir nok gevinst til å forsvare klient-, drift- og cachekompleksitet
 - eventuell trygg SVG-rasterizer
 - køgrense, samtidighet, timeout og reell storbatchprofil
 - fargeprofilnormalisering til eksplisitt sRGB
-- animert GIF/WebP, HEIC/HEIF og TIFF-policy
 - automatisk oppdagelse av plattformlogo, vannmerke, datoplakat og irrelevant bilde
-- endelig square-/landscape-størrelse og mobil detaljhøyde
+- mobil detaljhøyde
 - endelig fallbackdesign og fontasset
 - prosesseringsadapterens konkrete runtimeplassering
 
-## 19. Hva fase 3B.2 skal teste
+## 20. Fase 3B.1R: representativ kvalitetsvalidering
 
-Neste anbefalte og mindre scope er en isolert **storage-, key- og restorelab**:
+Før fase 3C skal et lite, rettighetsavklart sett med ekte brede og høye logoer, logoer med liten tekst og mye whitespace, portretter, gruppebilder, mørke scene-/konsertbilder, komprimerte nettsidebilder, plakater og årstall, vannmerker, høyoppløselige mobilbilder og reelle ICC-/fargeprofiler testes.
+
+Fase 3B.1R skal brukes til å fastsette pixelgrense, dimensjonsregler per reelt renditionbehov, blur-/komprimeringsvarsler, lesbarhetsvarsler for logo og eventuell begrenset kvalitetsregel. Delsteget blokkerer ikke fase 3B.2, men må være gjennomført og godkjent før fase 3C.
+
+## 21. Hva fase 3B.2 skal teste
+
+Neste godkjente og avgrensede scope er en isolert **storage-, immutable-key-, purge-, deny- og restorelab**:
 
 1. separate navngitte private/public `STORAGES`-aliaser uten å endre default storage
 2. lokal filesystemreferanse og én disponibel S3-kompatibel testbackend
-3. immutable renditionkeys fra denne spikens processing-kontrakt
+3. immutable renditionkeys fra processing profile v1
 4. privat original versus offentlig rendition og absolutte allowlistede media-origins
 5. origin-sletting, purge/takedown og ny key ved restore
 6. varig deny-journal som vinner over eldre database-/object-storage-backup
 7. deterministisk regenerering versus direkte renditionbackup
 8. statisk fallback når storage eller dynamisk renderer feiler
 
-3B.2 skal fortsatt ikke opprette CRM-modeller, API-ruter eller frontend. API-schema, aliasmapping, selection-concurrency og background-queue er senere 3B-gater etter storageevidensen.
+3B.2 skal ikke opprette CRM-bildemodeller, migrasjoner, aktive API-ruter, OpenAPI-schema, Editor, PUBLIC, selection-concurrency, Import 2.0-integrasjon, bakgrunnskø eller stagingdeploy. API-schema, aliasmapping, selection-concurrency og køgrense er senere fase 3B-gater etter storageevidensen.
 
-## 20. Eksplisitt avgrensningsbekreftelse
+## 22. Eksplisitt avgrensningsbekreftelse
 
 Fase 3B.1 har ikke:
 
@@ -315,4 +351,4 @@ Fase 3B.1 har ikke:
 - endret database, publiseringsflagg, staging eller produksjonsdata
 - deployet eller merget prototypekoden
 
-Spiken er bare reproduserbar teknisk evidens. Prosjekteier må godkjenne bibliotek, format- og terskelanbefalingene før de kan behandles som beslutninger eller brukes som grunnlag for fase 3C.
+Spiken er reproduserbar teknisk evidens. Prosjekteier har godkjent bibliotekretningen, formatmappingen, processing profile v1 og fase 3B.2-scope. Fase 3B.1R, storage-/restorekontrakten og øvrige åpne fase 3B-gater må fortsatt godkjennes før fase 3C.

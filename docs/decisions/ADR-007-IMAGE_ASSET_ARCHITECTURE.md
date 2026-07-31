@@ -2,9 +2,11 @@
 
 ## Status
 
-Godkjent som arkitekturgrunnlag. Fase 3A er gjennomført, men bildearkitekturen er ikke implementert.
+Godkjent som arkitekturgrunnlag. Fase 3A og den isolerte fase 3B.1-prototypen er gjennomført. Prosjekteier har godkjent processing profile v1 og faseinndelingen nedenfor, men bildearkitekturen er ikke implementert i CRM-runtime.
 
 **Beslutningsdato:** 2026-07-30
+
+**Fase 3B.1-valg godkjent:** 2026-07-31
 
 **Dokumentert i repo:** 2026-07-31
 
@@ -125,11 +127,11 @@ Første kontrakt omfatter:
 - `landscape`
 - `share` på 1200 × 630
 
-Rendition skal minst dokumentere variant, bredde, høyde, format, checksum, prosesseringsversjon og immutable storage key.
+Rendition skal minst dokumentere variant, bredde, høyde, format, checksum, prosesseringsversjon og immutable storage key. Processing profile v1 bruker `square` 512 × 512, `landscape` 800 × 450 og `share` 1200 × 630. Formatmapping og nøkkelkontrakt er fastsatt i punkt 23.
 
 Et rendition-sett identifiseres av asset, fit, fokuspunkt og prosesseringsversjon. Det kan forberedes fra en typed og godkjent presentasjonsoppskrift før `Organization` finnes. Den senere selection-revisjonen peker til nøyaktig dette immutable settet; endret fit, fokus eller prosesseringsversjon gir et nytt sett.
 
-Eksakt modellering av `rendition_set` eller tilsvarende kan følge repoets navnestandard, men referanseintegriteten kan ikke bare ligge i JSON. Eksakte størrelser og formater utover godkjente UI- og sharemål avgjøres i fase 3B.
+Eksakt modellering av `rendition_set` eller tilsvarende kan følge repoets navnestandard, men referanseintegriteten kan ikke bare ligge i JSON. Nye størrelser eller formater utover processing profile v1 krever en ny versjonert profil og nye immutable keys.
 
 #### `ImageReviewEvent`
 
@@ -210,7 +212,7 @@ Kontrollert ingest skal minst støtte:
 - eksplisitt SVG-policy og trygg rasterisering eller avvisning
 - blokkering av favicons, sosiale medie-/plattformlogoer og andre generiske plattformikoner
 
-Eksakte grenser, bibliotek og eventuell skadevarekontroll avgjøres i fase 3B.
+Processingbibliotek, første formatsett og maksimal kildefilstørrelse er godkjent i punkt 23. Endelig pixelgrense, dimensjonsregler, kvalitetsgrenser og eventuell skadevarekontroll avgjøres fortsatt gjennom senere fase 3B-evidens.
 
 Relevans, vannmerke, plakat-/datoinnhold, mye tekst, usikker aktørmatch og lignende kan være review-varsler. En kjent plattformlogo kan ikke godkjennes som aktørbilde.
 
@@ -399,7 +401,8 @@ Fallback-nøkkelen skal versjoneres når navn, hovedkategori, renderer eller des
 - Logo og navnetrekk bruker `contain` og skal ikke kuttes.
 - Foto bruker `cover` og det lagrede fokuspunktet.
 - Sentrum er standard fokus når et bedre punkt ikke er valgt.
-- Bilder skal ikke strekkes eller oppskaleres unødvendig.
+- Bilder skal ikke strekkes eller skaleres opp automatisk for å skjule for lav kildeoppløsning.
+- Når nødvendig rendition ikke kan produseres uten oppskalering, skal flyten be om en bedre kilde, velge et annet bilde eller bruke en kontrollert Kreative Norge-komposisjon eller fallback.
 - Square, landscape og share bruker samme godkjente original, fit og fokusintensjon.
 - Ulike aspect ratios kan ikke ha identisk pikselutsnitt; tilsvarende visninger med samme ratio skal bruke samme cropkontrakt.
 - Aktørnavn er trygg standard for alt-tekst når ingen bedre redaksjonell tekst finnes.
@@ -615,6 +618,95 @@ Feltene droppes først i en separat leveranse etter stabiliseringsperiode, dokum
 
 Rollback kan aldri gjeneksponere et tatt ned, avvist, karantenelagt eller eksplisitt erstattet legacybilde. Takedown- og deny-status har prioritet over enhver midlertidig legacyresolver.
 
+### 23. Fase 3B.1: godkjent processingkontrakt v1
+
+Den isolerte [fase 3B.1-spiken](../status/PHASE_3B1_IMAGE_RENDITION_SPIKE.md) målte Pillow og pyvips/libvips på syntetiske fixtures. Prosjekteier har godkjent følgende tekniske retning for første produksjonsrettede MVP. Godkjenningen gjør valgene til arkitekturgrunnlag; den aktiverer ingen runtimekode eller produksjonsavhengighet.
+
+#### Bibliotek og adaptergrense
+
+- Pillow er primært bildebehandlingsbibliotek for første MVP og skal ligge bak en liten intern adapter.
+- Domene, storagekontrakt og API skal ikke avhenge av Pillow-spesifikke typer.
+- pyvips/libvips beholdes som dokumentert ytelsesalternativ og vurderes på nytt hvis representative batchmålinger viser at Pillow ikke møter senere godkjente ressursgrenser.
+- ADR-et låser ikke en bestemt Pillow-versjon. Produksjonsversjonen pin-nes og verifiseres når avhengigheten faktisk innføres.
+- Produksjonskode skal ikke mutere globale `Image.MAX_IMAGE_PIXELS` per request eller parallell behandlingsoperasjon. Pixelbeskyttelsen må håndteres trådsikkert og prosessfast eller gjennom en isolert worker-/valideringsstrategi.
+
+#### Inputformater
+
+Første MVP støtter bare statiske JPEG-, PNG- og WebP-filer. Følgende avvises forklarlig:
+
+- SVG
+- AVIF som påkrevd inputformat
+- GIF
+- HEIC/HEIF
+- TIFF
+- ukjente formater
+- animerte WebP-filer
+
+Ingen animert fil skal stilltiende behandles som første frame. Rå SVG skal ikke serveres offentlig. SVG kan vurderes senere gjennom en separat, sikker rasterizerspike og skal vurderes på nytt før storstilt logoimport eller legacyovergang hvis kartleggingen viser at mange offisielle logoer bare finnes som SVG.
+
+#### Output, renditions og immutable keys
+
+Processing profile v1 er:
+
+| Variant og innhold | Størrelse | Output |
+| --- | --- | --- |
+| Foto `square` | 512 × 512 | WebP, quality 82 |
+| Foto `landscape` | 800 × 450 | WebP, quality 82 |
+| Foto `share` | 1200 × 630 | JPEG, quality 85, ikke-progressiv |
+| Logo med alpha | relevant variantstørrelse | PNG |
+| Dynamisk fallback `square`/`landscape` | relevant variantstørrelse | WebP |
+| Fallback `share` | 1200 × 630 | JPEG |
+
+Format, encoderinnstillinger, source checksum, fit, normalisert fokus, renditionvariant og processing-version inngår i immutable key. Endring av en av disse verdiene gir ny key og overskriver aldri historisk output. AVIF er utsatt og er ikke et MVP-krav.
+
+Offentlige renditions skal ha en eksplisitt testet sRGB-normaliseringskontrakt før fase 3C. Fase 3B.1 beviste metadatafjerning, men fastsatte ikke fargeprofilnormalisering.
+
+#### Fit, fokus, oppskalering og metadata
+
+- Logo bruker `contain` og skal ikke kuttes eller strekkes.
+- Foto bruker `cover` og lagret normalisert fokuspunkt; sentrum er standard.
+- EXIF-orientering skjer før crop.
+- Sensitive metadata fjernes fra offentlige renditions.
+- Ingen kildepiksler skaleres opp automatisk. For lavt reelt cropområde håndteres med bedre kilde, annet bilde eller kontrollert komposisjon/fallback, ikke et uskarpt offentlig bilde.
+- Privat original følger den separate storage- og retensjonskontrakten.
+
+#### Tekniske grenser og fortsatt åpne kvalitetsvalg
+
+Maksimal kildefilstørrelse på 15 MiB er godkjent som konfigurerbar standardverdi.
+
+Følgende er fortsatt prototypeverdier og ikke godkjente endelige produktgrenser:
+
+- 20 megapiksler som maksimal pixelgrense
+- korteste side under 160 som universell hard fail
+- 160–511 som universelt reviewområde
+- minst 512 som universell pass
+- edge variance under 5 som automatisk hard fail
+- de øvrige edge-variance-/blurintervallene
+
+En pixelgrense skal finnes av sikkerhetshensyn, men endelig tall krever representative høyoppløselige fixtures og ressursmålinger. Dimensjonsregler skal vurderes per bildetype, fit, variant, reelt cropområde og behov for oppskalering. Én universell regel basert bare på korteste side skal ikke avvise alle logoer og foto. Blur-/edge-variance brukes foreløpig bare som varsel, reviewprioritering og diagnostisk informasjon, ikke automatisk endelig hard fail.
+
+#### Fase 3B.1R: representativ kvalitetsvalidering
+
+Før fase 3C skal et lite, rettighetsavklart datasett med ekte brede/høye logoer, logoer med liten tekst og whitespace, portretter, gruppebilder, mørke scene-/konsertbilder, komprimerte nettsidebilder, plakater/årstall, vannmerker, høyoppløselige mobilbilder og reelle ICC-/fargeprofiler testes.
+
+Fase 3B.1R skal brukes til å fastsette pixelgrense, variant- og cropbaserte dimensjonsregler, blur-/komprimeringsvarsler, lesbarhetsvarsler for logo og eventuell begrenset kvalitetsregel. Delsteget blokkerer ikke fase 3B.2, men må være gjennomført og godkjent før fase 3C.
+
+#### Fase 3B.2: neste godkjente spike
+
+Neste leveranse er en isolert storage-, immutable-key-, purge-, deny- og restorelab. Den skal teste:
+
+- separate private/public `STORAGES`-aliaser uten å endre default storage for eksisterende import-/eksportfiler
+- lokal filesystemreferanse og én disponibel S3-kompatibel testbackend
+- immutable renditionkeys fra processing profile v1
+- private originaler og offentlige renditions
+- allowlistede og absolutte media-origins
+- origin-sletting, purge/takedown og ny offentlig key ved restore
+- en varig deny-journal som vinner over eldre database-/object-backup
+- direkte renditionbackup mot deterministisk regenerering
+- statisk nød-fallback ved storage- eller rendererfeil
+
+Fase 3B.2 er ikke implementert og skal ikke opprette CRM-bildemodeller, migrasjoner, aktive API-ruter, OpenAPI-schema, Editor, PUBLIC, selection-concurrency, Import 2.0-integrasjon, bakgrunnskø eller stagingdeploy.
+
 ## Begrunnelse
 
 Denne ansvarsdelingen skiller:
@@ -667,6 +759,10 @@ Avvist som målarkitektur fordi private originaler, offentlig leveranse, cache, 
 
 Avvist fordi det binder databasebackup, levering og bildebehandling sammen og gjør objektlagring/CDN vanskeligere.
 
+### Bruke pyvips/libvips som primær backend i første MVP
+
+Utsatt, ikke permanent avvist. Fase 3B.1 målte omtrent dobbelt så lav veggtid for de syntetiske arbeidslastene, men Pillow bestod den samme avgrensede kontrakten med en mindre operasjonell dependencyflate. Adaptergrensen og benchmarkkontrakten beholdes slik at pyvips kan overta uten å endre domene, storage eller API hvis representative batchmålinger senere tilsier det.
+
 ## Konsekvenser
 
 ### Positive konsekvenser
@@ -685,7 +781,8 @@ Avvist fordi det binder databasebackup, levering og bildebehandling sammen og gj
 
 - flere modeller, statuser og permissions
 - ny storage-, backup-, restore- og cleanupkontrakt
-- bildebehandling og teknisk kvalitetskontroll
+- en pin-net og verifisert Pillow-avhengighet bak intern adapter når produksjonsimplementeringen starter
+- bildebehandling, sRGB-normalisering og teknisk kvalitetskontroll
 - større testmatrise for sikker fetch, tenant-isolasjon, kort og responsive varianter
 - CDN-/cachehåndtering ved takedown
 - midlertidig dual-read/compatibility under legacyovergangen
@@ -693,8 +790,8 @@ Avvist fordi det binder databasebackup, levering og bildebehandling sammen og gj
 
 ### Risiko som skal reduseres i fase 3B
 
-- for høy prosesseringskostnad eller minnebruk
-- uegnet bildebehandlingsbibliotek eller formatvalg
+- for høy prosesseringskostnad eller minnebruk på representative batcher
+- manglende eller inkonsistent sRGB-normalisering
 - storageleverandør uten tilstrekkelig privat tilgang, purge eller restore
 - dårlig kvalitetsterskel som avviser gode logoer eller godkjenner svake bilder
 - uklare regler for samme-tenant assetgjenbruk og orphan cleanup
@@ -707,10 +804,13 @@ Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkj
 
 ### Fase 3B: teknisk prototype og kontrakt
 
+**Status:** Fase 3B.1 er teknisk gjennomført og processing profile v1 er godkjent. Fase 3B.1R er en påkrevd kvalitetsgate før fase 3C. Fase 3B.2 er neste godkjente isolerte spike og er ikke implementert.
+
 **Omfang:**
 
-- representativt fixture-sett med logo, foto, transparens, EXIF, SVG, små/store, korrupte og uønskede plattformbilder
-- spike av bildebehandlingsbibliotek, format, kvalitet, ressursbruk og deterministic renditions
+- syntetisk fixture-sett for logo, foto, transparens, EXIF, SVG, små/store, korrupte og uønskede plattformbilder i fase 3B.1
+- rettighetsavklart, representativt bildesett og fargeprofiler i fase 3B.1R
+- spike av bildebehandlingsbibliotek, format, kvalitet, ressursbruk og deterministic renditions i fase 3B.1
 - prototype av contain, cover, ett fokuspunkt og fallback i godkjente kortmål
 - spike av separate `STORAGES`-aliaser for private originaler og offentlige renditions uten å endre default storage for eksisterende import-/eksportfiler
 - spike av absolutte URL-er, purge, response-cacheinvalidering, restore og varig deny-journal
@@ -945,20 +1045,19 @@ ADR-007 regnes som implementert først når:
 
 ## Tekniske valg som fortsatt er åpne
 
-Følgende delegeres uttrykkelig til fase 3B-prototypen:
+Følgende gjenstår etter de godkjente fase 3B.1-valgene:
 
-- bildebehandlingsbibliotek
-- eksakte minimumsdimensjoner
-- eksakt blur-grense
-- formatkombinasjon for JPEG, PNG, WebP og AVIF
+- endelig pixelgrense basert på representative høyoppløselige fixtures og ressursmålinger
+- dimensjonsregler per bildetype, fit, variant, reelt cropområde og oppskaleringsbehov
+- blur-, komprimerings- og logolesbarhetsvarsler og eventuell begrenset kvalitetsregel
+- eksplisitt sRGB-normaliseringskontrakt
 - konkret S3-kompatibel objektlagringsleverandør
-- rendition-størrelser utover godkjente UI- og sharemål
 - SVG-rasteriseringsverktøy
 - eventuell bakgrunnskø
 - eventuell skadevarekontroll
 - om mer enn ett fokuspunkt eller en placementmodell senere trengs
 - eksakt public API-feltnavn, enum og alias-til-variant-mapping
-- processing-version-, cache-key- og purgekontrakt
+- konkret storage-key-, cache- og purgekontrakt innenfor den godkjente immutable key-invarianten
 - om første MVP tillater logisk same-tenant assetgjenbruk
 - retensjonsfrist for godkjente, aldri tilknyttede assets
 - om fallback-selection låser innholdssnapshot eller rendereroppskrift
@@ -967,20 +1066,21 @@ Følgende delegeres uttrykkelig til fase 3B-prototypen:
 - scheduler-/workergrense for retensjon
 - om renditions sikkerhetskopieres eller regenereres ved restore
 
-Disse valgene endrer ikke hovedarkitekturen. Anbefalingene og spikebeviset skal dokumenteres og godkjennes før fase 3C starter.
+Disse valgene endrer ikke hovedarkitekturen. Fase 3B.1R-, 3B.2- og øvrig fase 3B-evidens skal dokumenteres og relevante beslutninger godkjennes før fase 3C starter.
 
 ## Beslutninger som fortsatt krever eksplisitt godkjenning
 
 Fase 3B-resultatet må godkjennes før produksjonsrettet implementering av fase 3C. Godkjenningen skal minst omfatte:
 
 - konkret storageleverandør og backup-/restorekontrakt
-- bildebehandlingsbibliotek, format og kvalitetsgrenser
+- representative pixel-, dimensjons- og kvalitetsgrenser fra fase 3B.1R
+- eksplisitt sRGB-normaliseringskontrakt
 - purge-/takedownadferd
 - endelig API-schema og aliasmapping
 - sync/async-grense og cleanupmekanisme
 - same-tenant reuse- og orphan-retensjonsregel
 
-Den overordnede arkitekturen, rollene, approvalteksten, fallbacken, den additive API-overgangen, retensjonsprinsippene og Import 2.0-kontrakten er godkjent gjennom dette ADR-et og skal ikke åpnes på nytt uten ny evidens eller en eksplisitt endringsbeslutning.
+Den overordnede arkitekturen, rollene, approvalteksten, fallbacken, den additive API-overgangen, retensjonsprinsippene, Import 2.0-kontrakten og fase 3B.1 processing profile v1 er godkjent gjennom dette ADR-et og skal ikke åpnes på nytt uten ny evidens eller en eksplisitt endringsbeslutning.
 
 ## Ferdigkriterium
 

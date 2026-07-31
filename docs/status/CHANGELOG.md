@@ -10,8 +10,10 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 - generert 20 syntetiske fixtures og verifisert sikker dekoding, MIME-/byteskontroll, pixelgrense, EXIF, metadatafjerning, alpha, contain, cover, fokus og ingen automatisk oppskalering
 - generert square-, landscape- og 1200 × 630-sharevarianter, deterministisk dynamisk fallback og tre statiske nødvarianter
 - dokumentert byte-identisk Pillow-output over tre kjøringer og retningsgivende CPU-, minne-, tids- og filstørrelsesmålinger
-- anbefalt Pillow, JPEG/PNG/WebP og foreløpige terskler som produktvalg som fortsatt krever uttrykkelig godkjenning
-- avgrenset neste foreslåtte fase 3B.2 til en isolert storage-, key- og restorelab
+- prosjekteier har godkjent Pillow bak intern adapter, statisk JPEG/PNG/WebP-input, processing profile v1, no-upscale, immutable key-invarianten og 15 MiB som konfigurerbar standardverdi
+- beholdt 20 megapiksler, universelle korteste-side-bånd og edge-variance-/blurintervaller som ikke-godkjente prototypeverdier; fase 3B.1R med representative ekte bilder og sRGB/fargeprofiler er påkrevd før fase 3C
+- godkjent neste fase 3B.2 som en isolert storage-, immutable-key-, purge-, deny- og restorelab uten CRM-runtime, modeller, migrasjoner, API, Editor, PUBLIC eller stagingdeploy
+- flyttet den isolerte spikejobben fra ordinær CI til en separat, path-filtrert workflow med manuell trigger
 - ikke endret Django-runtime, modeller, migrasjoner, API, frontend, default storage, database, staging eller deploy
 
 ### Fase 3A og ADR-007

@@ -2,7 +2,7 @@
 
 **Status:** Isolated prototype. Not production-ready and not imported by the CRM runtime.
 
-This lab tests the image-processing choices approved for investigation in ADR-007. It generates only synthetic fixtures and performs no network fetches.
+This lab tests the image-processing choices investigated in ADR-007. The owner-approved processing profile v1 and the remaining quality gates are documented in [ADR-007](../../docs/decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md#23-fase-3b1-godkjent-processingkontrakt-v1). The lab generates only synthetic fixtures and performs no network fetches.
 
 ## Isolation contract
 
@@ -32,17 +32,16 @@ docker build -t kreative-norge-phase3b1-lab spikes/image_pipeline
 docker run --rm kreative-norge-phase3b1-lab
 ```
 
-Pillow and pyvips/libvips are both tested. The exact `pyvips-binary` package that the official binary extra resolves to is pinned explicitly, together with its Python bridge dependencies, so the comparison can be repeated without changing the production Docker image. The report records its operational trade-offs; this file does not select a production dependency.
+Pillow and pyvips/libvips are both tested. The exact `pyvips-binary` package that the official binary extra resolves to is pinned explicitly, together with its Python bridge dependencies, so the comparison can be repeated without changing the production Docker image. ADR-007 records Pillow as the first MVP direction; these lab pins remain isolated and do not introduce a root runtime dependency.
 
 ## Prototype contract
 
-- prototype variants: `square` 512 × 512 and `landscape` 800 × 450
-- approved share size: `share` 1200 × 630
+- processing profile v1 variants: `square` 512 × 512, `landscape` 800 × 450 and `share` 1200 × 630
 - logo/name mark: `contain`, controlled 8% padding, preserved alpha, no upscaling
 - photo: `cover`, one normalized focus point, EXIF orientation before crop, no upscaling
-- maximum file size: 15 MiB
-- maximum decoded size: 20 megapixels
+- approved configurable maximum file-size default: 15 MiB
+- prototype-only maximum decoded size: 20 megapixels
 - public rendition encoders strip EXIF, ICC, XMP and comments
 - output keys include source checksum, processing version and canonical render configuration
 
-Square and landscape sizes, byte/pixel limits and quality bands are prototype recommendations only. They require owner approval before phase 3C.
+The 20-megapixel limit, universal shortest-side bands and edge-variance/blur bands remain prototype values. Phase 3B.1R must set representative pixel, dimension and quality rules and prove explicit sRGB normalization before phase 3C.
