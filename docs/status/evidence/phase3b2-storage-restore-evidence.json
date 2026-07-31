@@ -1,0 +1,271 @@
+{
+  "backup": {
+    "recommendation": "hybrid-active-renditions-plus-originals-and-metadata",
+    "strategy_a": {
+      "byte_identical": true,
+      "byte_size": 92,
+      "object_count": 2,
+      "processing_version_required": false,
+      "restore_ms": 0.004,
+      "strategy": "A-direct-active-rendition"
+    },
+    "strategy_b": {
+      "byte_identical": true,
+      "byte_size": 207,
+      "object_count": 1,
+      "processing_version_required": true,
+      "restore_ms": 0.004,
+      "strategy": "B-original-plus-metadata"
+    }
+  },
+  "dependencies": {
+    "boto3": "1.43.62",
+    "django": "5.1.15",
+    "django_storages": "1.14.6",
+    "moto": "5.2.2"
+  },
+  "emulator": {
+    "buckets": {
+      "private": "phase3b2-private",
+      "public_unversioned": "phase3b2-public",
+      "public_versioned_probe": "phase3b2-public-versioned"
+    },
+    "locations": {
+      "phase3b2-private": "us-east-1",
+      "phase3b2-public": "us-east-1",
+      "phase3b2-public-versioned": "us-east-1"
+    },
+    "name": "Moto Server",
+    "production_provider": false
+  },
+  "fallback": {
+    "byte_size": 11510,
+    "checksum": "3cc8c5d08b473d2e114a9d01324f5a422ca9665dd336fd3f29f231d370598df8",
+    "covered_failures": [
+      "storage_unavailable",
+      "rendition_missing",
+      "private_storage_unavailable",
+      "deny_reconciliation_incomplete",
+      "dynamic_renderer_failed",
+      "state_or_key_unknown"
+    ],
+    "external_dependencies": [],
+    "filename": "emergency-fallback-landscape.png"
+  },
+  "journal": {
+    "append_only_api": [
+      "append",
+      "replay",
+      "deny_set"
+    ],
+    "denied_keys": [
+      "public/tenant-a/actor-42/r1/landscape-d7ce9829b2d2ae19545c.webp"
+    ],
+    "event_count": 2,
+    "separate_from_snapshot": true
+  },
+  "key_contract": {
+    "artifact_checksum": "d7ce9829b2d2ae19545c30aafa1f5187d1ecbe2742b6468bad13fdb028710092",
+    "artifact_key": "renditions/phase3b1-pillow-v1/b9f0b25fb8290bd1/landscape-fba14cf447afda26f4a5.webp",
+    "processing_version": "phase3b1-pillow-v1",
+    "r1": "public/tenant-a/actor-42/r1/landscape-d7ce9829b2d2ae19545c.webp",
+    "r2": "public/tenant-a/actor-42/r2/landscape-d7ce9829b2d2ae19545c.webp",
+    "same_artifact_bytes": true
+  },
+  "objects": {
+    "artifact": {
+      "alias": "private-artifact-admin",
+      "bucket": "phase3b2-private",
+      "cache_control": "private, no-store",
+      "checksum": "d7ce9829b2d2ae19545c30aafa1f5187d1ecbe2742b6468bad13fdb028710092",
+      "content_type": "image/webp",
+      "created": true,
+      "key": "renditions/phase3b1-pillow-v1/b9f0b25fb8290bd1/landscape-fba14cf447afda26f4a5.webp"
+    },
+    "private_original": {
+      "alias": "image_originals_private",
+      "bucket": "phase3b2-private",
+      "cache_control": "private, no-store",
+      "checksum": "b9f0b25fb8290bd13fc1a863abb634f67323e87996eeb46deebd8e8fbe6fd10a",
+      "content_type": "image/png",
+      "created": true,
+      "key": "originals/tenant-a/b9f0b25fb8290bd1/b9f0b25fb8290bd13fc1a863abb634f67323e87996eeb46deebd8e8fbe6fd10a.png"
+    },
+    "r1": {
+      "alias": "image_renditions_public",
+      "bucket": "phase3b2-public",
+      "cache_control": "public, max-age=31536000, immutable",
+      "checksum": "d7ce9829b2d2ae19545c30aafa1f5187d1ecbe2742b6468bad13fdb028710092",
+      "content_type": "image/webp",
+      "created": true,
+      "key": "public/tenant-a/actor-42/r1/landscape-d7ce9829b2d2ae19545c.webp"
+    },
+    "r2": {
+      "alias": "image_renditions_public",
+      "bucket": "phase3b2-public",
+      "cache_control": "public, max-age=31536000, immutable",
+      "checksum": "d7ce9829b2d2ae19545c30aafa1f5187d1ecbe2742b6468bad13fdb028710092",
+      "content_type": "image/webp",
+      "created": true,
+      "key": "public/tenant-a/actor-42/r2/landscape-d7ce9829b2d2ae19545c.webp"
+    }
+  },
+  "origin_contract": {
+    "configured_public_url": "https://media.example.test/assets/public/tenant-a/actor-42/r2/landscape-d7ce9829b2d2ae19545c.webp",
+    "internal_endpoint_leaked": false,
+    "public_media_origin": "https://media.example.test/assets",
+    "public_site_origin": "https://www.example.test",
+    "request_host_ignored": "https://media.example.test/assets/public/tenant-a/actor-42/r2/landscape-d7ce9829b2d2ae19545c.webp",
+    "x_forwarded_host_ignored": "https://media.example.test/assets/public/tenant-a/actor-42/r2/landscape-d7ce9829b2d2ae19545c.webp"
+  },
+  "private_access": {
+    "anonymous_denied": true,
+    "under_public_origin": false
+  },
+  "public_access": {
+    "cache_control": "public, max-age=31536000, immutable",
+    "content_type": "image/webp",
+    "r2_anonymous": true
+  },
+  "purge_calls": [
+    "https://media.example.test/assets/public/tenant-a/actor-42/r1/landscape-d7ce9829b2d2ae19545c.webp"
+  ],
+  "s3_operations_exercised": [
+    "create_bucket",
+    "put_object",
+    "get_object",
+    "head_object",
+    "delete_object",
+    "put_bucket_policy",
+    "put_bucket_versioning",
+    "list_object_versions",
+    "delete_marker",
+    "copy_object"
+  ],
+  "schema_version": 1,
+  "status": "prototype-evidence-not-runtime",
+  "storage_aliases": {
+    "aliases": [
+      "default",
+      "image_originals_private",
+      "image_renditions_public",
+      "staticfiles"
+    ],
+    "crm_import_export_models_used": false,
+    "default_backend": "FileSystemStorage",
+    "default_exists": true,
+    "default_saved_name": "sentinel/default-import-export-contract.txt",
+    "default_under_lab_root": true,
+    "private_bucket": "phase3b2-private",
+    "public_bucket": "phase3b2-public",
+    "separate_destinations": true,
+    "staticfiles_backend": "StaticFilesStorage"
+  },
+  "takedown_restore": {
+    "T0": {
+      "artifact": true,
+      "journal_events": 0,
+      "private_original": true,
+      "r1": true,
+      "r1_anonymous": true,
+      "state_key": "public/tenant-a/actor-42/r1/landscape-d7ce9829b2d2ae19545c.webp"
+    },
+    "T1": {
+      "deny_journal_in_snapshot": false,
+      "object_inventory": {
+        "checksums": {
+          "originals/tenant-a/b9f0b25fb8290bd1/b9f0b25fb8290bd13fc1a863abb634f67323e87996eeb46deebd8e8fbe6fd10a.png": "b9f0b25fb8290bd13fc1a863abb634f67323e87996eeb46deebd8e8fbe6fd10a",
+          "public/tenant-a/actor-42/r1/landscape-d7ce9829b2d2ae19545c.webp": "d7ce9829b2d2ae19545c30aafa1f5187d1ecbe2742b6468bad13fdb028710092",
+          "renditions/phase3b1-pillow-v1/b9f0b25fb8290bd1/landscape-fba14cf447afda26f4a5.webp": "d7ce9829b2d2ae19545c30aafa1f5187d1ecbe2742b6468bad13fdb028710092"
+        },
+        "private": [
+          "originals/tenant-a/b9f0b25fb8290bd1/b9f0b25fb8290bd13fc1a863abb634f67323e87996eeb46deebd8e8fbe6fd10a.png",
+          "renditions/phase3b1-pillow-v1/b9f0b25fb8290bd1/landscape-fba14cf447afda26f4a5.webp"
+        ],
+        "public": [
+          "public/tenant-a/actor-42/r1/landscape-d7ce9829b2d2ae19545c.webp"
+        ]
+      },
+      "state_snapshot": {
+        "actor": "actor-42",
+        "artifact_key": "renditions/phase3b1-pillow-v1/b9f0b25fb8290bd1/landscape-fba14cf447afda26f4a5.webp",
+        "public_key": "public/tenant-a/actor-42/r1/landscape-d7ce9829b2d2ae19545c.webp",
+        "release_revision": 1,
+        "tenant": "tenant-a"
+      }
+    },
+    "T2": {
+      "deny_appended": true,
+      "origin_deleted": true,
+      "purge": {
+        "error": null,
+        "idempotent_replay": false,
+        "purged": true,
+        "request_id": "purge-9a4161f1750d14a0",
+        "retryable": false,
+        "status": "success",
+        "target": "https://media.example.test/assets/public/tenant-a/actor-42/r1/landscape-d7ce9829b2d2ae19545c.webp"
+      },
+      "r1_not_delivered": true,
+      "resolver": {
+        "filename": "emergency-fallback-landscape.png",
+        "kind": "static_fallback",
+        "reason": "release_denied"
+      },
+      "stale_before_purge": true
+    },
+    "T3": {
+      "journal_events": 1,
+      "journal_rolled_back": false,
+      "r1_reintroduced": true,
+      "restored_state_key": "public/tenant-a/actor-42/r1/landscape-d7ce9829b2d2ae19545c.webp"
+    },
+    "T4": {
+      "actions": [
+        "deleted:public/tenant-a/actor-42/r1/landscape-d7ce9829b2d2ae19545c.webp",
+        "blocked:public/tenant-a/actor-42/r1/landscape-d7ce9829b2d2ae19545c.webp"
+      ],
+      "r1_denied": true,
+      "r1_origin_blocked": true,
+      "resolver": {
+        "filename": "emergency-fallback-landscape.png",
+        "kind": "static_fallback",
+        "reason": "state_missing"
+      }
+    },
+    "T5": {
+      "r1_absent": true,
+      "r1_still_denied": true,
+      "r2_created": true,
+      "r2_differs_from_r1": true,
+      "resolver": {
+        "key": "public/tenant-a/actor-42/r2/landscape-d7ce9829b2d2ae19545c.webp",
+        "kind": "public",
+        "url": "https://media.example.test/assets/public/tenant-a/actor-42/r2/landscape-d7ce9829b2d2ae19545c.webp"
+      }
+    }
+  },
+  "versioning": {
+    "private": {
+      "copy_object_preserved_bytes": true,
+      "delete_markers": 1,
+      "distinct_version_ids": true,
+      "domain_boundary_anonymous_denied": true,
+      "emulator_gap": "Moto 5.2.2 allowed unsigned VersionId access despite no private bucket policy",
+      "enabled": true,
+      "moto_old_version_anonymous_reachable": true,
+      "old_admin_access": true,
+      "two_versions": true
+    },
+    "public_unversioned_active": {
+      "enabled": true,
+      "immutable_keys": true
+    },
+    "public_versioned_probe": {
+      "old_version_anonymously_reachable": true,
+      "risk": "historical bytes can remain reachable in a public bucket",
+      "two_versions": true
+    },
+    "recommendation": "unversioned-public-with-immutable-release-keys"
+  }
+}

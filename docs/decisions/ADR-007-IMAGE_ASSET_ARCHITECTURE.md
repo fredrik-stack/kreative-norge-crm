@@ -2,13 +2,15 @@
 
 ## Status
 
-Godkjent som arkitekturgrunnlag. Fase 3A og den isolerte fase 3B.1-prototypen er gjennomført. Prosjekteier har godkjent processing profile v1 og faseinndelingen nedenfor, men bildearkitekturen er ikke implementert i CRM-runtime.
+Godkjent som arkitekturgrunnlag. Fase 3A og de isolerte fase 3B.1- og 3B.2-prototypene er teknisk gjennomført. Prosjekteier har godkjent processing profile v1 og storage-, delivery-, takedown- og restoreprinsippene nedenfor, men bildearkitekturen er ikke implementert i CRM-runtime.
 
 **Beslutningsdato:** 2026-07-30
 
 **Fase 3B.1-valg godkjent:** 2026-07-31
 
-**Dokumentert i repo:** 2026-07-31
+**Fase 3B.2-valg godkjent:** 2026-08-01
+
+**Dokumentert i repo:** 2026-08-01
 
 Denne beslutningen innebærer ingen applikasjonskode, datamodell, migrasjon, storage-konfigurasjon, API-endring, frontendendring, dataendring eller deploy. Dagens legacyflyt med eksterne bilde-URL-er gjelder fortsatt frem til en kontrollert overgang er implementert og verifisert.
 
@@ -496,13 +498,13 @@ Målretningen er:
 - S3-kompatibel objektlagring i staging og produksjon
 - Djangos `STORAGES`-grensesnitt mellom applikasjon og leverandør
 
-Endelig leverandør besluttes etter en teknisk spike.
+Endelig leverandør besluttes først etter en egen, skrivebeskyttet provider- og driftsgate. Fase 3B.2 fastsatte de leverandøruavhengige prinsippene i punkt 24, men valgte ingen provider, region, CDN eller konkret driftstjeneste.
 
 Storage-kontrakten er:
 
 - originaler er private
-- offentlige renditions har immutable, cachevennlige og versjonerte nøkler
-- offentlige renditions kan leveres gjennom objektlager og CDN
+- aktive offentlige renditions har immutable, cachevennlige public release keys i en dedikert, unversioned delivery-store eller et likeverdig namespace
+- offentlig delivery skjer gjennom en kontrollert CDN/media-origin foran et privat eller origin-begrenset objektlager; en anonym object-storage-bucket er ikke et produksjonskrav
 - originaler krever autentisert og rollebeskyttet administrativ tilgang
 - database og bildefiler inngår begge i backup og restore
 - restore skal kontrollere konsistens mellom database, originaler og aktive renditionreferanser
@@ -513,7 +515,7 @@ Storage-kontrakten er:
 
 Private originaler og offentlige renditions skal bruke egne navngitte `STORAGES`-aliaser og tilgangspolicyer. Eksisterende import- og eksportfiler bruker allerede Djangos default storage; bildearbeidet skal ikke endre deres backend eller filplassering uten en separat kompatibilitets- og migreringsplan.
 
-Fase 3B avgjør om renditions inngår direkte i backup eller kan regenereres deterministisk fra original, selection og prosesseringsversjon. Privat original og nødvendig audit/proveniens skal alltid kunne gjenopprettes etter den vedtatte retensjonen.
+Aktive public rendition-bytes inngår i en godkjent hybridbackup sammen med private originaler, canonical metadata, eksakt processing-version/-profil, nødvendige selection-/release-referanser og audit-/approvalhistorikk. Deterministisk regenerering beholdes som sekundær reparasjonsvei, ikke eneste katastrofeplan. Privat original og nødvendig audit/proveniens skal alltid kunne gjenopprettes etter den vedtatte retensjonen.
 
 Restore kan ikke publisere media før en separat, varig takedown-/deny-journal er avstemt mot den restaurerte databasen og objektlageret. Takedown som skjedde etter et eldre backup-punkt skal fortsatt vinne. Inntil avstemmingen er verifisert, leverer public image projection systemfallback. Gamle objektnøkler eller S3-versjoner kan aldri reaktiveres automatisk av restore.
 
@@ -691,9 +693,9 @@ Før fase 3C skal et lite, rettighetsavklart datasett med ekte brede/høye logoe
 
 Fase 3B.1R skal brukes til å fastsette pixelgrense, variant- og cropbaserte dimensjonsregler, blur-/komprimeringsvarsler, lesbarhetsvarsler for logo og eventuell begrenset kvalitetsregel. Delsteget blokkerer ikke fase 3B.2, men må være gjennomført og godkjent før fase 3C.
 
-#### Fase 3B.2: neste godkjente spike
+#### Fase 3B.2: teknisk gjennomført storage-, takedown- og restoreprototype
 
-Neste leveranse er en isolert storage-, immutable-key-, purge-, deny- og restorelab. Den skal teste:
+Den isolerte [fase 3B.2-spiken](../status/PHASE_3B2_STORAGE_RESTORE_SPIKE.md) har testet:
 
 - separate private/public `STORAGES`-aliaser uten å endre default storage for eksisterende import-/eksportfiler
 - lokal filesystemreferanse og én disponibel S3-kompatibel testbackend
@@ -701,11 +703,115 @@ Neste leveranse er en isolert storage-, immutable-key-, purge-, deny- og restore
 - private originaler og offentlige renditions
 - allowlistede og absolutte media-origins
 - origin-sletting, purge/takedown og ny offentlig key ved restore
-- en varig deny-journal som vinner over eldre database-/object-backup
+- en append-only-orientert deny-journalprototype som vinner over eldre database-/object-backup
 - direkte renditionbackup mot deterministisk regenerering
 - statisk nød-fallback ved storage- eller rendererfeil
 
-Fase 3B.2 er ikke implementert og skal ikke opprette CRM-bildemodeller, migrasjoner, aktive API-ruter, OpenAPI-schema, Editor, PUBLIC, selection-concurrency, Import 2.0-integrasjon, bakgrunnskø eller stagingdeploy.
+Spiken er prototypeevidens, ikke runtimeimplementering. Den har ikke opprettet CRM-bildemodeller, migrasjoner, aktive API-ruter, OpenAPI-schema, Editor, PUBLIC, selection-concurrency, Import 2.0-integrasjon, bakgrunnskø eller stagingdeploy. De godkjente beslutningene som følger av evidensen står i punkt 24.
+
+### 24. Fase 3B.2: godkjent storage-, delivery-, takedown- og restorekontrakt
+
+Følgende prinsipper ble godkjent av prosjekteier 2026-08-01. De er arkitekturgrunnlag for senere leveranser, men er ikke implementert i CRM-runtime.
+
+#### To-key-kontrakt
+
+Det skal være et uttrykkelig skille mellom:
+
+1. **Processing artifact identity:** deterministisk identitet for prosesserte bildebytes basert på source checksum, processing-version, format, encoderinnstillinger, variant, fit, normalisert fokus og canonical render config.
+2. **Public release identity:** en separat immutable release identity for én konkret offentlig publiseringsrevisjon av artifactet.
+
+En ny offentlig release får alltid ny identity og public key. En gammel public key overskrives eller gjenbrukes aldri. Restore etter takedown bruker ny public release identity, også når den gjenbruker nøyaktig samme artifact-bytes uten ny encoding.
+
+Den eksakte public key-strukturen er fortsatt åpen. Produksjonen er ikke låst til prototypens `public/<tenant>/<actor>/r<n>/...`; revisjon, UUID eller en annen opaque releaseidentitet kan brukes så lenge invariantene beholdes.
+
+#### Aktiv public rendition-storage
+
+Første MVP skal bruke en dedikert, unversioned aktiv public rendition-store eller et likeverdig namespace med immutable release keys. Samme public key kan ikke overskrives med andre bytes, gamle public release keys gjenbrukes aldri, takedown fjerner eller blokkerer den konkrete releasen, og autorisert restore oppretter en ny release key.
+
+Historiske public bytes skal ikke være tilgjengelige gjennom `versionId` eller en tilsvarende offentlig mekanisme. En bucket med suspended versioning skal ikke automatisk behandles som aldri-versioned. Hvis et S3-kompatibelt namespace tidligere har hatt versioning aktivert, skal prosjektet enten bruke et nytt dedikert delivery-namespace, permanent fjerne historiske versjoner og bevise at de ikke kan nås, eller dokumentere en leverandørmekanisme med tilsvarende sikker takedownadferd.
+
+#### Public delivery er ikke det samme som public bucket
+
+«Public storage» beskriver offentlige rendition-bytes, ikke et krav om anonym object-storage-bucket. Godkjent produksjonsretning er privat eller origin-begrenset objektlager bak et kontrollert CDN-/media-originlag med eksplisitt origin-tilgang.
+
+Klienter bruker `PUBLIC_MEDIA_ORIGIN`. Intern S3-/provider-endpoint eksponeres ikke, og offentlige URL-er inneholder ikke credentials eller signerte queryparametere. Valgt provider/CDN må støtte origin-delete og kontrollert purge. Fase 3B.2-labens anonyme Moto-GET er bare protokollevidens og er ikke valgt produksjonsmodell.
+
+#### Private originaler
+
+Private originaler skal ha versioning eller en likeverdig, verifisert historikk-/immutabilitymekanisme. Alle versjoner er private; ingen offentlig mediaresolver kan returnere private originaler; historiske versjoner åpnes bare gjennom særskilt administrativ tilgang.
+
+Faktisk provider må bevise IAM og public-access-block også for eksplisitt `versionId`. Moto er ikke tilstrekkelig sikkerhetsbevis. Endelig private-access-, IAM-, signert URL-, KMS-, retention- og Object Lock-kontrakt forblir åpen til provider-gaten.
+
+#### Hybridbackup
+
+Godkjent backupretning omfatter:
+
+- private originaler, source checksum og canonical metadata
+- eksakt processing-version og processing profile
+- nødvendige selection-/release-referanser
+- aktive public rendition-bytes
+- nødvendig audit- og approvalhistorikk
+- deny-journal i separat backup- og failure-domain
+
+Deterministisk regenerering beholdes som sekundær reparasjonsvei og er ikke eneste katastrofeplan. Byte-identisk regenerering kan avhenge av at gammel Pillow-, encoder-, wheel- og processingprofil fortsatt er tilgjengelig; aktive public bytes beholdes derfor for rask og eksakt restore. Backupverktøy, frekvens, retention, regionredundans, RPO og RTO er fortsatt åpne.
+
+#### Restore-gate
+
+Restore skal ikke automatisk republisere eldre public objekter. Godkjent konseptuell rekkefølge er:
+
+1. restore private originaler og canonical metadata
+2. restore rendition-bytes til et ikke-offentlig restore-/karanteneområde
+3. last inn nyeste autoritative deny-journal
+4. replay og materialiser deny-state
+5. reconcile restaurert state, keys og checksums mot deny-state
+6. slett eller blokker denied releases
+7. verifiser referanseintegritet og checksums
+8. åpne public serving
+9. bruk nye release keys ved ny autorisert publisering
+
+Når journal eller reconciliation mangler, er korrupt, er uferdig eller har ukjent cursor/integritet, skal public image projection returnere statisk Kreative Norge-fallback. Et eldre app- eller databasesnapshot kan aldri vinne over en nyere deny-hendelse.
+
+#### Varig deny-journal
+
+Takedown-/deny-sporet er append-only eller WORM-orientert, har eget backup- og failure-domain og rulles ikke automatisk tilbake med app-state eller databasebackup. Event-ID-er er idempotente, gamle hendelser redigeres ikke, og restore/gjenoppretting registreres som ny kompenserende hendelse.
+
+Manglende eller korrupt autoritativ journal feiler lukket til fallback. Journalen skal replikeres, overvåkes og ha schema-version. Normal takedown bruker deny-first: varig deny-registrering før origin-delete og purge.
+
+Permanent journalteknologi er fortsatt åpen. JSONL-filen i fase 3B.2 er bare domene- og replaybevis og beviser ikke WORM, tamper evidence, tilgangskontroll eller katastrofegjenoppretting.
+
+#### Journal og runtime read-model
+
+Den append-only journalen er autoritativ. Produksjonsruntime kan bruke en materialisert deny-indeks/read-model med kjent journalcursor eller tilsvarende. Etter restore replayes journalen og read-modelen avstemmes før public serving åpnes. Ukjent eller stale sikkerhetstilstand gir fallback.
+
+Eksakt read-model-, cache- og cursorimplementasjon avgjøres senere.
+
+#### Deny-scopes
+
+Produksjonsmodellen skal senere støtte minst:
+
+- public release deny for én konkret release key
+- tenant-scopet checksum deny som hindrer stille reupload/godkjenning av samme forbudte bytes i samme tenant
+- global checksum deny som separat plattform-superadminhandling med eget scope og audit uten informasjonslekkasje mellom tenants
+
+Fase 3B.2 beviste bare public release deny. At journalhendelsen inneholder artifact- og source-checksum betyr ikke at checksum-deny er implementert eller bevist. Checksum-deny implementeres først i en senere backendfase med egne tenant-, rolle- og personverntester.
+
+#### Purge
+
+Origin-delete alene er ikke nok. Relevant CDN-/cacheoppføring skal purges; purge er idempotent; retrybare og permanente feil skilles; request-/hendelses-ID registreres; og takedown er ikke komplett før nødvendig purge og verifikasjon er registrert. Fallback brukes mens public levering har ukjent sikkerhetstilstand.
+
+`RecordingPurgeProvider` og cache-simulatoren er domeneprototyper. De beviser ikke faktisk provider-API, propagation, rate limits, partial failure eller autentisering.
+
+#### Moto
+
+Moto Server 5.2.2 beholdes bare som dokumentert emulator for fase 3B.2-evidensen. Moto er ikke produksjonsleverandør, IAM-sikkerhetsbevis, bevis for bucket-policy conditions eller bevis for privat historisk versjonstilgang, og skal ikke innføres i CRM-runtime eller staging.
+
+Det observerte gapet der unsigned GET med eksplisitt `versionId` nådde en eldre privat versjon, beholdes uendret som en eksplisitt provider-gate.
+
+#### Neste beslutningsgate og fortsatt åpne valg
+
+Neste anbefalte planleggingsleveranse er en skrivebeskyttet provider- og driftsgate. Den skal senere sammenligne reelle alternativer mot EU/EØS-region og data residency, databehandleravtale, S3-kompatibilitet, private originaler og historiske versjoner, origin access, CDN, purge, IAM, kryptering/key management, lifecycle, backup/restore, WORM-/journalmuligheter, kostnad, egress, leverandørlåsing, RPO/RTO, drift og observability.
+
+Provider, region, IAM, CDN, permanent journalteknologi, konkrete driftstjenester, backupverktøy og RPO/RTO er fortsatt åpne. Denne provider-/driftsgaten og fase 3B.1R er separate gjenstående fase 3B-gater og åpner ikke fase 3C.
 
 ## Begrunnelse
 
@@ -804,7 +910,7 @@ Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkj
 
 ### Fase 3B: teknisk prototype og kontrakt
 
-**Status:** Fase 3B.1 er teknisk gjennomført og processing profile v1 er godkjent. Fase 3B.1R er en påkrevd kvalitetsgate før fase 3C. Fase 3B.2 er neste godkjente isolerte spike og er ikke implementert.
+**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, og de tilhørende processing-, storage-, delivery-, takedown- og restoreprinsippene er godkjent. Fase 3B er fortsatt aktiv. Fase 3B.1R, provider-/driftsgaten og senere API-, concurrency-, retention- og sync/async-gater gjenstår før fase 3C.
 
 **Omfang:**
 
@@ -824,7 +930,7 @@ Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkj
 - sharevariant er 1200 × 630
 - fallback finnes i alle tre varianter og har en statisk nødvariant
 - private originaler kan ikke nås offentlig
-- providerprototypen beviser origin-fjerning, CDN-purge og gjenoppretting med ny nøkkel
+- storageprototypen beviser domenekontrakten for origin-fjerning, recording-purge og gjenoppretting med ny nøkkel; faktisk provider-/CDN-adferd krever den senere provider-gaten
 - canonical, `og:url` og public rendition-URL er stabile ved endret request-host og følger konfigurert HTTPS-origin
 - backup/restore-kontrakten er prøvd i isolert miljø og reaktiverer ikke en takedown som skjedde etter backup-punktet
 - pre-Organization review kan forberede asset, fit, fokus og immutable renditions, og senere commit gjør null renderer-/storagekall
@@ -1045,42 +1151,47 @@ ADR-007 regnes som implementert først når:
 
 ## Tekniske valg som fortsatt er åpne
 
-Følgende gjenstår etter de godkjente fase 3B.1-valgene:
+Følgende gjenstår etter de godkjente fase 3B.1- og 3B.2-valgene:
 
 - endelig pixelgrense basert på representative høyoppløselige fixtures og ressursmålinger
 - dimensjonsregler per bildetype, fit, variant, reelt cropområde og oppskaleringsbehov
 - blur-, komprimerings- og logolesbarhetsvarsler og eventuell begrenset kvalitetsregel
 - eksplisitt sRGB-normaliseringskontrakt
 - konkret S3-kompatibel objektlagringsleverandør
+- region, data residency, databehandleravtale og konkret CDN/media-origin
+- provider-IAM, public-access-block og administrativ tilgang til alle private originalversjoner
+- permanent deny-journalteknologi, WORM/tamper evidence, read-model og cursor
+- backupverktøy, frekvens, retention, regionredundans, RPO og RTO
 - SVG-rasteriseringsverktøy
 - eventuell bakgrunnskø
 - eventuell skadevarekontroll
 - om mer enn ett fokuspunkt eller en placementmodell senere trengs
 - eksakt public API-feltnavn, enum og alias-til-variant-mapping
-- konkret storage-key-, cache- og purgekontrakt innenfor den godkjente immutable key-invarianten
+- eksakt public release key-struktur innenfor den godkjente to-key- og immutable release-invarianten
+- konkret provider-/CDN-cache-, purge- og verifikasjonskontrakt
 - om første MVP tillater logisk same-tenant assetgjenbruk
 - retensjonsfrist for godkjente, aldri tilknyttede assets
 - om fallback-selection låser innholdssnapshot eller rendereroppskrift
 - teknisk leveringsmekanisme, TTL og audit for administrativ tilgang til privat original
 - auditretensjon og eventuell kontrollert anonymisering
 - scheduler-/workergrense for retensjon
-- om renditions sikkerhetskopieres eller regenereres ved restore
 
-Disse valgene endrer ikke hovedarkitekturen. Fase 3B.1R-, 3B.2- og øvrig fase 3B-evidens skal dokumenteres og relevante beslutninger godkjennes før fase 3C starter.
+Disse valgene endrer ikke hovedarkitekturen. Fase 3B.1R, provider-/driftsgaten og øvrig gjenstående fase 3B-evidens skal dokumenteres og relevante beslutninger godkjennes før fase 3C starter.
 
 ## Beslutninger som fortsatt krever eksplisitt godkjenning
 
-Fase 3B-resultatet må godkjennes før produksjonsrettet implementering av fase 3C. Godkjenningen skal minst omfatte:
+Gjenstående fase 3B-resultater må godkjennes før produksjonsrettet implementering av fase 3C. Godkjenningen skal minst omfatte:
 
-- konkret storageleverandør og backup-/restorekontrakt
+- konkret storage-/CDN-leverandør, region, IAM og providerverifisert purge-/restoreadferd
+- operasjonell backup-/restorekontrakt med verktøy, retention, regionredundans, RPO og RTO innenfor den godkjente hybridretningen
+- permanent deny-journal-, read-model- og cursorløsning innenfor de godkjente fail-closed-prinsippene
 - representative pixel-, dimensjons- og kvalitetsgrenser fra fase 3B.1R
 - eksplisitt sRGB-normaliseringskontrakt
-- purge-/takedownadferd
 - endelig API-schema og aliasmapping
 - sync/async-grense og cleanupmekanisme
 - same-tenant reuse- og orphan-retensjonsregel
 
-Den overordnede arkitekturen, rollene, approvalteksten, fallbacken, den additive API-overgangen, retensjonsprinsippene, Import 2.0-kontrakten og fase 3B.1 processing profile v1 er godkjent gjennom dette ADR-et og skal ikke åpnes på nytt uten ny evidens eller en eksplisitt endringsbeslutning.
+Den overordnede arkitekturen, rollene, approvalteksten, fallbacken, den additive API-overgangen, retensjonsprinsippene, Import 2.0-kontrakten, fase 3B.1 processing profile v1 og fase 3B.2 storage-/delivery-/takedown-/restoreprinsippene er godkjent gjennom dette ADR-et og skal ikke åpnes på nytt uten ny evidens eller en eksplisitt endringsbeslutning.
 
 ## Ferdigkriterium
 

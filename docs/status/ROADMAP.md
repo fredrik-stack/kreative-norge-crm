@@ -2,7 +2,7 @@
 
 **Status:** Godkjent strategisk arbeidsrekkefølge
 
-**Sist oppdatert:** 2026-07-31
+**Sist oppdatert:** 2026-08-01
 
 Roadmapen skiller mellom produktfaser og et parallelt infrastrukturløp. En fase beskriver prioritert rekkefølge, ikke at innholdet allerede er implementert. Større implementering krever fortsatt et godkjent ADR når arbeidet innebærer et vesentlig arkitekturvalg.
 
@@ -54,7 +54,7 @@ Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCH
 
 ## Fase 3 – Robust thumbnail-, bilde- og kortarkitektur
 
-**Status:** Fase 3A og fase 3B.1 gjennomført; fase 3B.2 er neste godkjente tekniske spike.
+**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; fase 3B.1- og 3B.2-beslutningene er godkjent; fase 3B fortsatt aktiv.
 
 Fase 3A kartla dagens legacy URL-, Open Graph-, kort-, import-, storage- og driftsflyt. [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag.
 
@@ -94,18 +94,35 @@ Dette er ikke en generell redesign. Øvrige kort og komponenter videreutvikles i
 
 ### Fase 3B – teknisk prototype og kontrakt
 
-**Status:** Fase 3B.1 er teknisk gjennomført og processing profile v1 er godkjent. Fase 3B.2 er neste godkjente leveranse. Fase 3B.1R er påkrevd før fase 3C.
+**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, og processing-, storage-, delivery-, takedown- og restoreprinsippene er godkjent. Fase 3B.1R, provider-/driftsgaten og senere fase 3B-gater gjenstår før fase 3C.
 
 - [fase 3B.1](PHASE_3B1_IMAGE_RENDITION_SPIKE.md) målte Pillow og pyvips/libvips, format, foreløpige terskler og ressursbruk på syntetiske fixtures
 - fase 3B.1 prototypet contain, cover, fokuspunkt, square/landscape/share, deterministisk fallback og statisk nødvariant uten CRM-runtimekobling
 - prosjekteier har godkjent Pillow bak intern adapter, statisk JPEG/PNG/WebP-input, outputmappingen WebP/PNG/JPEG, 512 × 512 `square`, 800 × 450 `landscape`, 1200 × 630 `share`, no-upscale, immutable key-invarianten og 15 MiB som konfigurerbar standard
 - endelig pixelgrense, dimensjonsregler og blur-/komprimeringsregler er ikke godkjent
 - fase 3B.1R skal teste representative, rettighetsavklarte ekte bilder og sRGB/fargeprofiler og fastsette kvalitetsreglene før fase 3C; delsteget blokkerer ikke 3B.2
-- fase 3B.2 skal spike separate private/public `STORAGES`-aliaser, lokal filesystemreferanse og én disponibel S3-kompatibel testbackend, immutable keys, absolutte allowlistede media-origins, origin-sletting, purge/takedown, deny-journal og backup/restore
-- fase 3B.2 skal ikke opprette CRM-modeller, migrasjoner, API/OpenAPI, Editor, PUBLIC, Import 2.0-integrasjon, bakgrunnskø eller stagingdeploy
+- [fase 3B.2](PHASE_3B2_STORAGE_RESTORE_SPIKE.md) har prototypet separate private/public `STORAGES`-aliaser, lokal filesystemreferanse, Moto 5.2.2, immutable artifact/release keys, absolutte allowlistede media-origins, origin-sletting, purge/takedown, separat deny-journal og backup/restore
+- prosjekteier har godkjent to-key-kontrakt, dedikert unversioned aktiv public rendition-store, privat/origin-begrenset public delivery bak `PUBLIC_MEDIA_ORIGIN`, betinget privat versioning, hybridbackup, fail-closed restore, varig deny-journal/read-model og idempotent purge
+- eksakt public key-struktur, provider, region, IAM, CDN, journalteknologi, backupverktøy, retention, RPO/RTO og konkrete driftstjenester er fortsatt åpne
+- fase 3B.2 har ikke opprettet CRM-modeller, migrasjoner, API/OpenAPI, Editor, PUBLIC, Import 2.0-integrasjon, bakgrunnskø eller stagingdeploy
 - senere fase 3B-gater skal fastsette API-schema, aliasmapping, concurrency, retentionmekanisme og sync/async-grense
 
-Processing profile v1 er arkitekturgrunnlag, ikke produksjonsimplementering. Dagens CRM-runtime og legacy URL-/faviconflyt gjelder fortsatt.
+Processing profile v1 og fase 3B.2-prinsippene er arkitekturgrunnlag, ikke produksjonsimplementering. Dagens CRM-runtime og legacy URL-/faviconflyt gjelder fortsatt. Fase 3B.1R og senere fase 3B-gater for faktisk provider/IAM/CDN, API-schema, aliasmapping, concurrency, retention og sync/async må fullføres før fase 3C kan åpnes.
+
+#### Neste planleggingsleveranse: provider- og driftsgate
+
+**Status:** Planlagt skrivebeskyttet sammenligning; ikke startet.
+
+Gaten skal sammenligne reelle alternativer mot:
+
+- EU/EØS-region, data residency og databehandleravtale
+- S3-kompatibilitet, private originaler og historiske versjoner
+- origin access, CDN, purge og IAM
+- kryptering, key management og lifecycle
+- backup, restore, WORM-/journalmuligheter, regionredundans og RPO/RTO
+- kostnad, egress, leverandørlåsing, drift og observability
+
+Gaten velger ikke leverandør på forhånd og implementerer ikke runtime. Fase 3B.1R står parallelt som obligatorisk kvalitetsgate før fase 3C.
 
 ### Fase 3C – additiv backend- og storagegrunnmur
 

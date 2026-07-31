@@ -1,0 +1,76 @@
+name: Image storage and restore spike
+
+on:
+  pull_request:
+    paths:
+      - "spikes/storage_pipeline/**"
+      - "spikes/image_pipeline/image_lab/core.py"
+      - "spikes/image_pipeline/static/emergency-fallback-*.png"
+      - "docs/status/PHASE_3B2_STORAGE_RESTORE_SPIKE.md"
+      - "docs/status/evidence/phase3b2-storage-restore-evidence.json"
+      - ".github/workflows/image-storage-spike.yml"
+  push:
+    branches: ["main"]
+    paths:
+      - "spikes/storage_pipeline/**"
+      - "spikes/image_pipeline/image_lab/core.py"
+      - "spikes/image_pipeline/static/emergency-fallback-*.png"
+      - "docs/status/PHASE_3B2_STORAGE_RESTORE_SPIKE.md"
+      - "docs/status/evidence/phase3b2-storage-restore-evidence.json"
+      - ".github/workflows/image-storage-spike.yml"
+  workflow_dispatch:
+
+jobs:
+  image-storage-spike:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: spikes/storage_pipeline/requirements.txt
+
+      - name: Install isolated storage-lab dependencies
+        run: pip install -r spikes/storage_pipeline/requirements.txt
+
+      - name: Start pinned Moto Server and wait for readiness
+        shell: bash
+        run: |
+          S3_IGNORE_SUBDOMAIN_BUCKETNAME=true moto_server -H localhost -p 5000 > /tmp/phase3b2-moto.log 2>&1 &
+          echo $! > /tmp/phase3b2-moto.pid
+          for attempt in {1..30}; do
+            if curl --fail --silent http://localhost:5000/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/phase3b2-moto.log
+          exit 1
+
+      - name: Run storage, robustness and T0-T5 tests
+        env:
+          PYTHONPATH: spikes/storage_pipeline:spikes/image_pipeline
+          DJANGO_SETTINGS_MODULE: test_settings
+          PHASE3B2_S3_ENDPOINT: http://localhost:5000
+        run: python -m unittest discover -s spikes/storage_pipeline/tests -v
+
+      - name: Regenerate textual evidence
+        env:
+          PYTHONPATH: spikes/storage_pipeline:spikes/image_pipeline
+          DJANGO_SETTINGS_MODULE: test_settings
+          PHASE3B2_S3_ENDPOINT: http://localhost:5000
+        run: >-
+          python spikes/storage_pipeline/run_lab.py
+          --output /tmp/phase3b2-storage-restore-evidence.json
+
+      - name: Stop disposable emulator
+        if: always()
+        shell: bash
+        run: |
+          if test -f /tmp/phase3b2-moto.pid; then
+            kill "$(cat /tmp/phase3b2-moto.pid)" || true
+          fi
+          test ! -f /tmp/phase3b2-moto.log || tail -n 50 /tmp/phase3b2-moto.log
