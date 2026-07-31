@@ -23,7 +23,11 @@ Dagens dokumentasjon beskriver manuell oppdatering med `git pull` og rebuild. M�
 - staging og produksjon bruker en S3-kompatibel objektlagring gjennom Djangos `STORAGES`
 - private originaler og offentlige renditions får separate navngitte storage-aliaser og tilgangspolicyer
 - eksisterende import-/eksportfiler på default storage skal ikke flyttes eller brytes uten en separat kompatibilitets- og migreringsplan
-- offentlige rendition-nøkler er immutable og cachevennlige, men storage/CDN må støtte takedown, origin-fjerning og cache-invalidering
-- database, private originaler, aktive renditionreferanser og en varig takedown-/deny-journal inngår i en verifisert backup-/restorekontrakt
+- intern processing artifact identity og public release identity er separate; ny offentlig publiseringsrevisjon bruker alltid ny immutable release key
+- aktiv public rendition-store er dedikert og unversioned eller har et likeverdig namespace uten offentlig tilgjengelige historiske versjoner
+- «public storage» betyr ikke anonym bucket: produksjonsstorage bør være privat eller origin-begrenset bak et kontrollert CDN-/media-originlag, og klientene bruker `PUBLIC_MEDIA_ORIGIN`
+- storage/CDN må støtte takedown, origin-fjerning, idempotent purge og verifikasjon uten å eksponere intern provider-endpoint eller credentials
+- hybridbackup omfatter private originaler, canonical metadata/profil, nødvendige referanser og audit, aktive public rendition-bytes og deny-journal i separat failure-domain
+- restore går gjennom karantene, deny-replay og fail-closed reconciliation før public serving kan åpnes
 
-Konkret leverandør og teknisk kontrakt skal velges i fase 3B. Dagens stagingoppsett har ikke denne media-/objektstoragearkitekturen.
+Konkret provider, region, IAM/private access, CDN, journalteknologi, backupverktøy, retention og RPO/RTO skal vurderes i en senere skrivebeskyttet provider-/driftsgate. Dagens stagingoppsett har ikke denne media-/objektstoragearkitekturen, og fase 3B.2 innførte ingen runtime- eller stagingkonfigurasjon.

@@ -2,6 +2,22 @@
 
 Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små kosmetiske justeringer trenger ikke registreres.
 
+## 2026-08-01
+
+### Fase 3B.2: storage-, delivery-, takedown- og restoreprinsipper godkjent
+
+- godkjent to-key-kontrakt med separat deterministisk processing artifact identity og immutable public release identity; ny offentlig revisjon bruker ny release key uten krav om ny encoding, mens eksakt key-struktur fortsatt er åpen
+- godkjent dedikert unversioned aktiv public rendition-store eller likeverdig namespace uten offentlig tilgjengelige historiske versjoner; suspended versioning behandles ikke automatisk som aldri-versioned
+- presisert at public delivery ikke krever anonym bucket: produksjonsstorage bør være privat/origin-begrenset bak kontrollert CDN/media-origin, klientene bruker `PUBLIC_MEDIA_ORIGIN`, og intern provider-endpoint eller credentials eksponeres ikke
+- godkjent private originaler med versioning eller likeverdig verifisert historikk/immutability, betinget av providerbevis for IAM/public-access-block også ved eksplisitt `versionId`
+- godkjent hybridbackup med private originaler, metadata/profil, nødvendige referanser og audit, aktive public rendition-bytes og deny-journal i separat failure-domain; deterministisk regenerering er sekundær reparasjonsvei
+- godkjent fail-closed restore-gate med ikke-offentlig karantene, nyeste deny-journal, replay/read-model, reconciliation og checksum-/referanseverifisering før public serving
+- godkjent append-only/WORM-orientert autoritativ deny-journal med idempotente events, separat backup/failure-domain og deny-first-rekkefølge før origin-delete og purge; permanent teknologi er fortsatt åpen
+- godkjent framtidige scopes for public release deny, tenant-checksum deny og særskilt global checksum deny; bare release deny er bevist, og checksum-deny er ikke implementert
+- godkjent idempotent purgekontrakt med retryklassifisering, request-/hendelses-ID og verifikasjon; Moto og recording-adapterne forblir kun prototypeevidens, ikke produksjonsleverandør eller IAM-/CDN-bevis
+- gjort skrivebeskyttet provider-/driftsgate til neste anbefalte planleggingsleveranse og beholdt fase 3B.1R og senere API-, concurrency-, retention- og sync/async-gater som påkrevd før fase 3C
+- ikke implementert storage, CDN, journal, read-model, checksum-deny, modeller, migrasjoner, API, Editor eller PUBLIC; runtime, data, staging og deploy er urørt og legacy URL-/faviconflyt gjelder fortsatt
+
 ## 2026-07-31
 
 ### Fase 3B.2: isolert storage-, takedown- og restoreprototype på PR-branch
@@ -12,7 +28,7 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 - gjennomført T0–T5 med nyere deny-journal utenfor gammelt app-snapshot, origin delete, stale-cache-simulering, idempotent purge, kontrollert reintroduksjon, reconciliation, fallback og autorisert R2 mens R1 forblir denied
 - sammenlignet direkte backup av aktive renditions med regenerering fra privat original + canonical metadata og anbefalt hybridmodell til prosjekteiers vurdering
 - dokumentert Moto-gap der unsigned `VersionId` kunne nå eldre privat versjon; recording private-access boundary håndhever ønsket domenekontrakt, men faktisk leverandør/IAM må verifiseres senere
-- anbefalt til vurdering to-key-kontrakt, unversioned aktiv public storage, hybridbackup og separat varig deny-journal; anbefalingene er ikke godkjente arkitekturvalg og ingen produksjonsleverandør er valgt
+- anbefalt til vurdering to-key-kontrakt, unversioned aktiv public storage, hybridbackup og separat varig deny-journal; ved prototypeleveransen var anbefalingene ennå ikke godkjent, og ingen produksjonsleverandør var valgt
 - lagt til separat path-filtrert spike-CI og tekstlig evidens uten secrets, eksterne data, staging eller produksjonskontakt
 - ikke implementert bildearkitekturen i CRM-runtime og ikke endret modeller, migrasjoner, API, Editor, PUBLIC, root requirements, produksjonscontainere, ordinære Compose-filer, staging eller deploy; legacy URL-/faviconflyt gjelder fortsatt, fase 3B.1R og senere fase 3B-gater gjenstår
 

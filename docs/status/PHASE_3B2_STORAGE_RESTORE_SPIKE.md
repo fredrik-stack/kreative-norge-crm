@@ -2,7 +2,7 @@
 
 **Dato:** 2026-07-31
 
-**Status:** Teknisk prototypeevidens på PR-branch. Anbefalingene er ikke godkjente arkitekturvalg. Ikke implementert i CRM-runtime.
+**Status:** Teknisk prototype gjennomført. Prosjekteier godkjente de leverandøruavhengige arkitekturprinsippene 2026-08-01. Ikke implementert i CRM-runtime.
 
 **Arkitekturgrunnlag:** [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md)
 
@@ -10,7 +10,7 @@
 
 **Tekstlig evidens:** [fase 3B.2-manifest](evidence/phase3b2-storage-restore-evidence.json)
 
-Rapporten skiller mellom målt prototypefakta, tekniske anbefalinger og valg som prosjekteier fortsatt må godkjenne. Ingen produksjonsleverandør er valgt.
+Rapporten skiller mellom målt prototypefakta, de opprinnelige tekniske anbefalingene, prosjekteiers senere beslutning og fortsatt åpne leverandørvalg. Ingen produksjonsleverandør er valgt.
 
 ## 1. Executive summary
 
@@ -300,7 +300,7 @@ Fase 3B.1R med representative, rettighetsavklarte bilder og eksplisitt sRGB er f
 
 ## 29. Anbefalinger til prosjekteier
 
-Følgende anbefales, men er ikke godkjent gjennom denne rapporten:
+Følgende var prototypens anbefalinger til prosjekteier. Deres senere beslutningsstatus er dokumentert i punkt 33:
 
 1. To-key-modell: intern artifact identity + separat public release identity.
 2. Unversioned aktiv public bucket med immutable release keys.
@@ -311,6 +311,8 @@ Følgende anbefales, men er ikke godkjent gjennom denne rapporten:
 7. Providergrense for purge og private access med obligatoriske kontrakttester.
 
 ## 30. Fortsatt åpne valg
+
+Ved avslutningen av selve prototypen var følgende valg åpne. Punkt 33 skiller prinsippene som senere ble godkjent fra leverandør- og implementeringsvalgene som fortsatt er åpne:
 
 - produksjonsleverandør og region
 - endelig private-access- og IAM-kontrakt
@@ -324,16 +326,38 @@ Følgende anbefales, men er ikke godkjent gjennom denne rapporten:
 
 ## 31. Anbefalt neste fase 3B-gate
 
-Prosjekteier bør først gjennomgå og eventuelt godkjenne eller avvise anbefalingene i punkt 29. Etterpå bør en eksplisitt leverandør-/driftsgate sammenligne aktuelle S3- og CDN-alternativer mot private versioner, purge, backup, data residency, kostnad og restore.
+Prosjekteier gjennomførte beslutningsgaten 2026-08-01. Neste anbefalte planleggingsleveranse er en eksplisitt, skrivebeskyttet provider-/driftsgate som sammenligner aktuelle S3- og CDN-alternativer mot private versioner, purge, backup, data residency, kostnad og restore.
 
 Dette åpner ikke fase 3C. Fase 3B.1R og senere fase 3B-gater for API, concurrency, retention og sync/async gjenstår.
 
 ## 32. Eksplisitt bekreftelse på at CRM-runtime er urørt
 
-Leveransen endrer bare:
+Den samlede PR-leveransen endrer bare:
 
 - `spikes/storage_pipeline/**`
 - en separat path-filtrert spike-workflow
-- denne rapporten, et lite evidensmanifest og statusdokumentene
+- denne rapporten, et lite evidensmanifest, ADR-007 og relevante status-/arkitekturdokumenter
 
 `crm/`, `config/`, modeller, migrasjoner, root `requirements.txt`, produksjons-Dockerfile, ordinære Compose-filer, staging-Compose, nginx, API, Editor, PUBLIC, database, staging og deploy er urørt. Bildearkitekturen er fortsatt ikke implementert i CRM-runtime.
+
+## 33. Prosjekteiers beslutning etter prototypeanbefalingene
+
+Prosjekteier godkjente 2026-08-01 følgende leverandøruavhengige arkitekturprinsipper i [ADR-007 punkt 24](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md):
+
+1. Intern processing artifact identity og public release identity er separate immutable identiteter. Ny offentlig revisjon bruker ny release key, også ved gjenbruk av samme artifact-bytes. Eksakt public key-struktur er åpen.
+2. Aktiv public rendition-store er dedikert og unversioned, eller har et likeverdig namespace uten tilgjengelige historiske public versjoner. En versioning-suspended bucket regnes ikke automatisk som aldri-versioned.
+3. Public delivery betyr ikke anonym public bucket. Produksjonsorigin skal helst være privat eller origin-begrenset bak et kontrollert CDN-/media-originlag. Klienter bruker `PUBLIC_MEDIA_ORIGIN`; intern provider-endpoint og credentials eksponeres ikke.
+4. Private originaler skal ha versioning eller likeverdig verifisert historikk/immutability, og alle historiske versjoner skal være private. Faktisk provider må bevise IAM/public-access-block også for eksplisitt `versionId`.
+5. Hybridbackup omfatter private originaler, canonical metadata, eksakt processingprofil, nødvendige referanser og audit, aktive public rendition-bytes og deny-journal i separat failure-domain. Regenerering er sekundær reparasjonsvei.
+6. Restore går gjennom ikke-offentlig karantene, nyeste deny-journal, replay, reconciliation, checksum-/referansekontroll og fail-closed fallback før public serving åpnes. En eldre snapshot vinner aldri over nyere deny.
+7. Varig deny-journal er append-only/WORM-orientert, separat fra app-/databasebackup, idempotent og fail-closed. Normal takedown er deny-first, deretter origin-delete og purge.
+8. Journalen er autoritativ, mens runtime kan bruke en materialisert deny-read-model med kjent cursor. Ukjent eller stale sikkerhetstilstand gir fallback.
+9. Senere produksjonsmodell skal støtte release deny, tenant-scopet checksum deny og særskilt global checksum deny. Fase 3B.2 beviste bare release deny; checksum-deny er ikke implementert.
+10. Origin-delete alene er utilstrekkelig. Purge skal være idempotent, skille retrybare/permanente feil og registrere request-/hendelses-ID og verifikasjon.
+11. Moto 5.2.2 forblir kun emulator. Det er ikke produksjonsleverandør eller IAM-bevis, og det observerte unsigned `VersionId`-gapet beholdes som eksplisitt provider-gate.
+
+Laben brukte anonym GET mot en Moto-bucket for å bevise S3-protokolladferd. Dette er ikke et produksjonskrav og skal ikke tolkes som valgt deliverymodell.
+
+Fortsatt åpne valg er provider, region, data residency/databehandleravtale, IAM/private access, CDN, permanent journalteknologi, WORM/tamper evidence, read-model/cursor, backupverktøy, frekvens, retention, regionredundans, RPO/RTO, eksakt public key-struktur og konkrete driftstjenester.
+
+Neste anbefalte planleggingsleveranse er den skrivebeskyttede provider-/driftsgaten. Den er ikke gjennomført i denne leveransen. Fase 3B.1R og senere API-, concurrency-, retention- og sync/async-gater gjenstår fortsatt før fase 3C.

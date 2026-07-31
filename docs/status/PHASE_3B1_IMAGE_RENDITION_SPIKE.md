@@ -289,7 +289,7 @@ Prosjekteier godkjente 2026-07-31 følgende som tekniske beslutninger i [ADR-007
 - Logo bruker `contain`; foto bruker `cover` og normalisert fokus med sentrum som standard. EXIF-orientering skjer før crop, og sensitive metadata fjernes fra offentlige renditions.
 - Ingen kildepiksler skaleres automatisk opp. For svak kilde håndteres med bedre kilde, annet bilde eller kontrollert Kreative Norge-komposisjon/fallback.
 - Maksimal kildefilstørrelse 15 MiB er godkjent som konfigurerbar standardverdi.
-- Fase 3B.2 er neste godkjente isolerte storage-, immutable-key-, purge-, deny- og restorelab og er ikke implementert.
+- Fase 3B.2 ble godkjent som neste isolerte storage-, immutable-key-, purge-, deny- og restorelab. Den ble senere teknisk gjennomført, og prosjekteier godkjente de leverandøruavhengige prinsippene 2026-08-01 som dokumentert i [fase 3B.2-rapporten](PHASE_3B2_STORAGE_RESTORE_SPIKE.md) og ADR-007.
 
 AVIF er ikke et MVP-krav. Rå SVG skal ikke serveres offentlig. En separat sikker rasterizerspike kan vurderes senere, og SVG-behovet skal vurderes på nytt før storstilt logoimport eller legacyovergang dersom mange offisielle logoer bare finnes som SVG.
 
@@ -323,9 +323,9 @@ Før fase 3C skal et lite, rettighetsavklart sett med ekte brede og høye logoer
 
 Fase 3B.1R skal brukes til å fastsette pixelgrense, dimensjonsregler per reelt renditionbehov, blur-/komprimeringsvarsler, lesbarhetsvarsler for logo og eventuell begrenset kvalitetsregel. Delsteget blokkerer ikke fase 3B.2, men må være gjennomført og godkjent før fase 3C.
 
-## 21. Hva fase 3B.2 skal teste
+## 21. Opprinnelig avgrensning for fase 3B.2
 
-Neste godkjente og avgrensede scope er en isolert **storage-, immutable-key-, purge-, deny- og restorelab**:
+Etter fase 3B.1 var neste godkjente og avgrensede scope en isolert **storage-, immutable-key-, purge-, deny- og restorelab**:
 
 1. separate navngitte private/public `STORAGES`-aliaser uten å endre default storage
 2. lokal filesystemreferanse og én disponibel S3-kompatibel testbackend
@@ -336,7 +336,7 @@ Neste godkjente og avgrensede scope er en isolert **storage-, immutable-key-, pu
 7. deterministisk regenerering versus direkte renditionbackup
 8. statisk fallback når storage eller dynamisk renderer feiler
 
-3B.2 skal ikke opprette CRM-bildemodeller, migrasjoner, aktive API-ruter, OpenAPI-schema, Editor, PUBLIC, selection-concurrency, Import 2.0-integrasjon, bakgrunnskø eller stagingdeploy. API-schema, aliasmapping, selection-concurrency og køgrense er senere fase 3B-gater etter storageevidensen.
+3B.2 skulle ikke opprette CRM-bildemodeller, migrasjoner, aktive API-ruter, OpenAPI-schema, Editor, PUBLIC, selection-concurrency, Import 2.0-integrasjon, bakgrunnskø eller stagingdeploy. Dette ble fulgt i den senere prototypen. API-schema, aliasmapping, selection-concurrency og køgrense er fortsatt senere fase 3B-gater etter storageevidensen.
 
 ## 22. Eksplisitt avgrensningsbekreftelse
 
@@ -351,4 +351,4 @@ Fase 3B.1 har ikke:
 - endret database, publiseringsflagg, staging eller produksjonsdata
 - deployet eller merget prototypekoden
 
-Spiken er reproduserbar teknisk evidens. Prosjekteier har godkjent bibliotekretningen, formatmappingen, processing profile v1 og fase 3B.2-scope. Fase 3B.1R, storage-/restorekontrakten og øvrige åpne fase 3B-gater må fortsatt godkjennes før fase 3C.
+Spiken er reproduserbar teknisk evidens. Prosjekteier har godkjent bibliotekretningen, formatmappingen, processing profile v1 og fase 3B.2-scope. Storage-/restoreprinsippene ble senere godkjent 2026-08-01. Fase 3B.1R, provider-/driftsgaten og øvrige åpne fase 3B-gater må fortsatt gjennomføres og godkjennes før fase 3C.
