@@ -181,7 +181,7 @@ raise SystemExit("unsupported fake command: " + name)
 class BackupFixture(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
-        self.root = Path(self.temporary.name)
+        self.root = Path(self.temporary.name).resolve()
         self.fake_bin = self.root / "bin"
         self.fake_bin.mkdir()
         dispatcher = self.fake_bin / "fake-command"
@@ -202,9 +202,11 @@ class BackupFixture(unittest.TestCase):
         for file_path in (self.secret, self.key, self.known_hosts):
             file_path.write_text("synthetic-test-only\n", encoding="utf-8")
             file_path.chmod(0o600)
-        self.work = self.root / "work"
-        self.status = self.root / "status.json"
-        self.lock = self.root / "backup.lock"
+        self.state_root = self.root / "state" / "kreative-norge-backup"
+        self.work = self.state_root / "work"
+        self.status = self.state_root / "status.json"
+        self.lock = self.root / "run" / "kreative-norge-backup.lock"
+        self.host_media_root = self.root / "kreative-norge" / "media"
         self.config = self.root / "backup.env"
         self.config.write_text(
             textwrap.dedent(
@@ -215,10 +217,11 @@ class BackupFixture(unittest.TestCase):
                 COMPOSE_ENV_FILE={self.compose_env}
                 DATABASE_SERVICE=db
                 API_SERVICE=api
+                BACKUP_STATE_ROOT={self.state_root}
                 WORK_ROOT={self.work}
                 STATUS_FILE={self.status}
                 LOCK_FILE={self.lock}
-                RESTORE_GATE_FILE={self.root / 'restore-smoke.ok'}
+                RESTORE_GATE_FILE={self.state_root / 'restore-smoke.ok'}
                 BORG_BIN=borg
                 BORG_REPOSITORY=ssh://u@box:23/./repo
                 BORG_REPOSITORY_ID={REPOSITORY_ID}
@@ -228,7 +231,8 @@ class BackupFixture(unittest.TestCase):
                 BORG_SSH_KEY={self.key}
                 BORG_KNOWN_HOSTS={self.known_hosts}
                 STORAGE_BOX_HOST=box
-                HOST_MEDIA_PATHS={self.root / 'missing-media'}
+                HOST_MEDIA_ROOT={self.host_media_root}
+                HOST_MEDIA_PATHS={self.host_media_root / 'missing-media'}
                 API_CONTAINER_MEDIA_PATHS=/app/imports:/app/exports
                 SERVER_CONFIG_PATHS={self.compose_env}:{self.compose}
                 MIN_FREE_BYTES=1024
@@ -244,6 +248,8 @@ class BackupFixture(unittest.TestCase):
         self.config.chmod(0o600)
         self.call_log = self.root / "calls.log"
         self.env = os.environ.copy()
+        for variable in ("BORG_CACHE_DIR", "BORG_CONFIG_DIR", "BORG_SECURITY_DIR"):
+            self.env.pop(variable, None)
         self.env.update(
             {
                 "PATH": f"{self.fake_bin}:{self.env['PATH']}",
@@ -288,6 +294,28 @@ class BackupFixture(unittest.TestCase):
             check=False,
         )
 
+    def set_config_value(self, name: str, value: str) -> None:
+        prefix = f"{name}="
+        lines = self.config.read_text(encoding="utf-8").splitlines()
+        self.config.write_text(
+            "\n".join(f"{prefix}{value}" if line.startswith(prefix) else line for line in lines) + "\n",
+            encoding="utf-8",
+        )
+
+    def assert_config_rejected_before_work(
+        self,
+        result: subprocess.CompletedProcess[str],
+        expected_error: str,
+    ) -> None:
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn(expected_error, result.stderr)
+        self.assertFalse(self.work.exists())
+        self.assertFalse(self.status.exists())
+        calls = self.call_log.read_text(encoding="utf-8") if self.call_log.exists() else ""
+        self.assertNotIn("borg info", calls)
+        self.assertNotIn("borg create", calls)
+        self.assertNotIn("docker ", calls)
+
     @staticmethod
     def restore_members() -> str:
         return "\n".join(
@@ -306,6 +334,170 @@ class BackupFixture(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.status_value()["last_error"]["stage"], stage)
         self.assertEqual(list(self.work.glob("run.*")), [])
+
+    def test_borg_versions_below_1_2_8_and_outside_1_2_are_rejected(self) -> None:
+        for version in ("1.2.0", "1.2.4", "1.2.7", "1.3.0", "2.0.0"):
+            with self.subTest(version=version):
+                result = self.run_script("backup.sh", "--preflight", FAKE_BORG_VERSION=version)
+                self.assert_config_rejected_before_work(result, "at least 1.2.8 and lower than 1.3.0")
+
+    def test_supported_borg_1_2_patch_versions_are_accepted(self) -> None:
+        for version in ("1.2.8", "1.2.9", "1.2.10"):
+            with self.subTest(version=version):
+                result = self.run_script("backup.sh", "--preflight", FAKE_BORG_VERSION=version)
+                self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_borg_prerelease_and_malformed_versions_are_rejected(self) -> None:
+        for version in ("1.2.8rc1", "1.2", "unknown", "1.2.8 extra", "01.2.8"):
+            with self.subTest(version=version):
+                result = self.run_script("backup.sh", "--preflight", FAKE_BORG_VERSION=version)
+                self.assert_config_rejected_before_work(result, "malformed or is a prerelease")
+
+    def test_every_repository_command_uses_the_same_borg_version_gate(self) -> None:
+        commands = (
+            ("script", ("backup.sh", "--preflight")),
+            ("script", ("verify.sh",)),
+            ("script", ("restore-smoke.sh",)),
+            ("install", ("export-recovery-key", str(self.root / "recovery-key-export"))),
+            ("install", ("inspect-repository",)),
+            ("install", ("init-repository",)),
+        )
+        for runner, arguments in commands:
+            with self.subTest(command=arguments[0]):
+                if self.call_log.exists():
+                    self.call_log.unlink()
+                if self.status.exists():
+                    self.status.unlink()
+                if runner == "script":
+                    result = self.run_script(*arguments, FAKE_BORG_VERSION="1.2.7")
+                else:
+                    result = self.run_install(*arguments, FAKE_BORG_VERSION="1.2.7")
+                self.assertNotEqual(result.returncode, 0, result.stderr)
+                self.assertIn("at least 1.2.8 and lower than 1.3.0", result.stderr)
+                calls = self.call_log.read_text(encoding="utf-8") if self.call_log.exists() else ""
+                self.assertIn("borg --version", calls)
+                self.assertNotIn("borg info", calls)
+                for operation in ("create", "key", "list", "check", "prune", "compact", "extract", "init"):
+                    self.assertNotIn(f"borg {operation} ", calls)
+                self.assertFalse(self.work.exists())
+
+    def test_root_paths_are_rejected_for_every_writable_host_path_family(self) -> None:
+        original = self.config.read_text(encoding="utf-8")
+        for variable in ("BACKUP_STATE_ROOT", "WORK_ROOT", "STATUS_FILE", "RESTORE_GATE_FILE", "LOCK_FILE"):
+            with self.subTest(variable=variable):
+                self.config.write_text(original, encoding="utf-8")
+                self.set_config_value(variable, "/")
+                result = self.run_script("backup.sh", "--preflight")
+                self.assert_config_rejected_before_work(result, "not a normalized non-root path")
+
+    def test_ambient_borg_directories_cannot_escape_the_work_root(self) -> None:
+        for variable in ("BORG_CACHE_DIR", "BORG_CONFIG_DIR", "BORG_SECURITY_DIR"):
+            with self.subTest(variable=variable):
+                result = self.run_script("backup.sh", "--preflight", **{variable: "/"})
+                self.assert_config_rejected_before_work(result, f"{variable} must use its dedicated backup work path")
+
+    def test_broad_or_overlapping_host_media_paths_are_rejected(self) -> None:
+        original = self.config.read_text(encoding="utf-8")
+        for path in ("/", "/etc", "/root", "/var", str(self.app), str(self.work)):
+            with self.subTest(path=path):
+                self.config.write_text(original, encoding="utf-8")
+                self.set_config_value("HOST_MEDIA_PATHS", path)
+                result = self.run_script("backup.sh", "--preflight")
+                expected = "not a normalized non-root path" if path == "/" else "below HOST_MEDIA_ROOT"
+                self.assert_config_rejected_before_work(result, expected)
+
+    def test_container_media_paths_must_be_explicit_app_subdirectories(self) -> None:
+        original = self.config.read_text(encoding="utf-8")
+        for path in ("/", "/app"):
+            with self.subTest(path=path):
+                self.config.write_text(original, encoding="utf-8")
+                self.set_config_value("API_CONTAINER_MEDIA_PATHS", path)
+                result = self.run_script("backup.sh", "--preflight")
+                expected = "not a normalized non-root path" if path == "/" else "explicit subdirectories below /app"
+                self.assert_config_rejected_before_work(result, expected)
+
+    def test_last_entry_in_each_colon_separated_path_list_is_validated(self) -> None:
+        original = self.config.read_text(encoding="utf-8")
+        cases = (
+            (
+                "HOST_MEDIA_PATHS",
+                f"{self.host_media_root / 'allowed'}:/etc",
+                "below HOST_MEDIA_ROOT",
+            ),
+            (
+                "API_CONTAINER_MEDIA_PATHS",
+                "/app/imports:/app",
+                "explicit subdirectories below /app",
+            ),
+            (
+                "SERVER_CONFIG_PATHS",
+                f"{self.compose_env}:/invalid//server-config",
+                "not a normalized non-root path",
+            ),
+        )
+        for variable, value, expected in cases:
+            with self.subTest(variable=variable):
+                self.config.write_text(original, encoding="utf-8")
+                self.set_config_value(variable, value)
+                result = self.run_script("backup.sh", "--preflight")
+                self.assert_config_rejected_before_work(result, expected)
+
+    def test_host_media_cannot_contain_secret_or_ssh_files(self) -> None:
+        original = self.config.read_text(encoding="utf-8")
+        for variable in ("BORG_PASSPHRASE_FILE", "BORG_SSH_KEY", "BORG_KNOWN_HOSTS"):
+            with self.subTest(variable=variable):
+                self.config.write_text(original, encoding="utf-8")
+                media_path = self.host_media_root / variable.lower()
+                media_path.mkdir(parents=True, exist_ok=True)
+                protected_file = media_path / "protected-file"
+                protected_file.write_text("synthetic-test-only\n", encoding="utf-8")
+                protected_file.chmod(0o600)
+                self.set_config_value("HOST_MEDIA_PATHS", str(media_path))
+                self.set_config_value(variable, str(protected_file))
+                result = self.run_script("backup.sh", "--preflight")
+                self.assert_config_rejected_before_work(result, "overlaps a protected path")
+
+    def test_host_media_cannot_contain_server_configuration(self) -> None:
+        media_path = self.host_media_root / "server-config-overlap"
+        media_path.mkdir(parents=True)
+        protected_file = media_path / "protected.conf"
+        protected_file.write_text("synthetic=true\n", encoding="utf-8")
+        self.set_config_value("HOST_MEDIA_PATHS", str(media_path))
+        self.set_config_value("SERVER_CONFIG_PATHS", str(protected_file))
+        result = self.run_script("backup.sh", "--preflight")
+        self.assert_config_rejected_before_work(result, "overlaps a protected path")
+
+    def test_work_root_symlink_to_root_is_rejected_before_mutation(self) -> None:
+        self.state_root.mkdir(parents=True)
+        self.work.symlink_to("/")
+        result = self.run_script("backup.sh", "--preflight")
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("must not contain symlink components", result.stderr)
+        self.assertFalse(self.status.exists())
+        calls = self.call_log.read_text(encoding="utf-8") if self.call_log.exists() else ""
+        self.assertNotIn("borg ", calls)
+        self.assertNotIn("docker ", calls)
+
+    def test_host_media_symlink_to_protected_path_is_rejected(self) -> None:
+        self.host_media_root.mkdir(parents=True)
+        media_path = self.host_media_root / "root-link"
+        media_path.symlink_to("/")
+        self.set_config_value("HOST_MEDIA_PATHS", str(media_path))
+        result = self.run_script("backup.sh", "--preflight")
+        self.assert_config_rejected_before_work(result, "must not contain symlink components")
+
+    def test_export_and_inspect_share_the_semantic_path_gate(self) -> None:
+        self.set_config_value("HOST_MEDIA_PATHS", "/")
+        destination = self.root / "recovery-key-export"
+        for arguments in (("export-recovery-key", str(destination)), ("inspect-repository",)):
+            with self.subTest(command=arguments[0]):
+                result = self.run_install(*arguments)
+                self.assert_config_rejected_before_work(result, "not a normalized non-root path")
+        self.assertFalse(destination.exists())
+
+    def test_current_approved_path_layout_passes_preflight(self) -> None:
+        result = self.run_script("backup.sh", "--preflight")
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_missing_configuration_is_rejected(self) -> None:
         result = self.run_script("backup.sh", BACKUP_ENV_FILE=str(self.root / "absent"))
@@ -353,6 +545,7 @@ class BackupFixture(unittest.TestCase):
 
     def test_weekly_verify_lock_contention_preserves_existing_status_bytes(self) -> None:
         original = b'{"format_version":1,"sentinel":"unchanged"}\n'
+        self.status.parent.mkdir(parents=True)
         self.status.write_bytes(original)
         result = self.run_script("verify.sh", FAKE_LOCKED="1")
         self.assertNotEqual(result.returncode, 0)
@@ -371,6 +564,7 @@ class BackupFixture(unittest.TestCase):
 
     def test_restore_lock_contention_preserves_existing_status_bytes_and_resources(self) -> None:
         original = b'{"format_version":1,"sentinel":"unchanged"}\n'
+        self.status.parent.mkdir(parents=True)
         self.status.write_bytes(original)
         result = self.run_script("restore-smoke.sh", FAKE_LOCKED="1")
         self.assertNotEqual(result.returncode, 0)
@@ -433,7 +627,7 @@ class BackupFixture(unittest.TestCase):
         value = self.status_value()
         self.assertIsNotNone(value["last_restore_success"])
         self.assertEqual(value["archive"], ARCHIVE)
-        self.assertIn(f"archive={ARCHIVE}\n", (self.root / "restore-smoke.ok").read_text(encoding="utf-8"))
+        self.assertIn(f"archive={ARCHIVE}\n", (self.state_root / "restore-smoke.ok").read_text(encoding="utf-8"))
         self.assertEqual(list(self.work.glob("restore.*")), [])
 
     def test_restore_failure_after_lock_records_status_and_cleans_resources(self) -> None:
@@ -522,6 +716,43 @@ class BackupFixture(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("parent-directory component", result.stderr)
 
+    def test_recovery_key_export_rejects_group_or_world_writable_parent(self) -> None:
+        destination_parent = self.root / "shared-export-parent"
+        destination_parent.mkdir()
+        destination_parent.chmod(0o777)
+        destination = destination_parent / "recovery-key-export"
+        result = self.run_install("export-recovery-key", str(destination))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("group- or world-writable", result.stderr)
+        self.assertFalse(destination.exists())
+
+    def test_recovery_key_export_rejects_directory_target(self) -> None:
+        destination = self.root / "recovery-key-export"
+        destination.mkdir()
+        result = self.run_install("export-recovery-key", str(destination))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("refusing to overwrite", result.stderr)
+        self.assertEqual(list(destination.iterdir()), [])
+
+    def test_recovery_key_export_rejects_broken_symlink_target(self) -> None:
+        destination = self.root / "recovery-key-export"
+        destination.symlink_to(self.root / "missing-target")
+        result = self.run_install("export-recovery-key", str(destination))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("must not contain symlink components", result.stderr)
+        self.assertTrue(destination.is_symlink())
+
+    def test_recovery_key_export_rejects_symlink_parent(self) -> None:
+        actual_parent = self.root / "actual-export-parent"
+        actual_parent.mkdir()
+        symlink_parent = self.root / "linked-export-parent"
+        symlink_parent.symlink_to(actual_parent, target_is_directory=True)
+        destination = symlink_parent / "recovery-key-export"
+        result = self.run_install("export-recovery-key", str(destination))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("must not contain symlink components", result.stderr)
+        self.assertFalse((actual_parent / "recovery-key-export").exists())
+
     def test_recovery_key_export_refuses_existing_destination(self) -> None:
         destination = self.root / "recovery-key-export"
         original = b"keep-existing-bytes\n"
@@ -539,7 +770,7 @@ class BackupFixture(unittest.TestCase):
         self.assertFalse(destination.exists())
 
     def test_recovery_key_export_rejects_backup_work_destination(self) -> None:
-        self.work.mkdir()
+        self.work.mkdir(parents=True)
         destination = self.work / "recovery-key-export"
         result = self.run_install("export-recovery-key", str(destination))
         self.assertNotEqual(result.returncode, 0)
@@ -668,6 +899,55 @@ class StatusTests(unittest.TestCase):
 
 
 class ParserSecurityTests(unittest.TestCase):
+    def test_atomic_link_no_clobber_rejects_directory_and_symlink_targets(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source-key"
+            source.write_bytes(b"synthetic-encrypted-key\n")
+
+            directory_target = root / "directory-target"
+            directory_target.mkdir()
+            directory_result = subprocess.run(
+                [
+                    "python3",
+                    str(MODULE_DIR / "status.py"),
+                    "link-no-clobber",
+                    "--source",
+                    str(source),
+                    "--destination",
+                    str(directory_target),
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+            self.assertNotEqual(directory_result.returncode, 0)
+            self.assertTrue(directory_target.is_dir())
+
+            victim = root / "victim"
+            victim.write_bytes(b"keep-victim-bytes\n")
+            symlink_target = root / "symlink-target"
+            symlink_target.symlink_to(victim)
+            symlink_result = subprocess.run(
+                [
+                    "python3",
+                    str(MODULE_DIR / "status.py"),
+                    "link-no-clobber",
+                    "--source",
+                    str(source),
+                    "--destination",
+                    str(symlink_target),
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+            self.assertNotEqual(symlink_result.returncode, 0)
+            self.assertTrue(symlink_target.is_symlink())
+            self.assertEqual(victim.read_bytes(), b"keep-victim-bytes\n")
+
     def test_restore_members_rejects_parent_traversal(self) -> None:
         result = subprocess.run(
             ["python3", str(MODULE_DIR / "status.py"), "restore-members"],
@@ -696,6 +976,11 @@ class ParserSecurityTests(unittest.TestCase):
 class DocumentationTests(unittest.TestCase):
     def test_staging_example_uses_verified_compose_environment_path(self) -> None:
         example = (MODULE_DIR / "backup.env.example").read_text(encoding="utf-8")
+        values = dict(
+            line.split("=", 1)
+            for line in example.splitlines()
+            if line and not line.startswith("#") and "=" in line
+        )
         verified_path = "/srv/kreative-norge-crm/.env.staging"
         self.assertIn(f"COMPOSE_ENV_FILE={verified_path}\n", example)
         server_paths = next(
@@ -703,6 +988,23 @@ class DocumentationTests(unittest.TestCase):
         )
         self.assertIn(verified_path, server_paths.split("=", 1)[1].split(":"))
         self.assertNotIn("/srv/kreative-norge-crm/.env", server_paths.split("=", 1)[1].split(":"))
+        self.assertEqual(values["BACKUP_STATE_ROOT"], "/var/lib/kreative-norge-backup")
+        self.assertEqual(values["WORK_ROOT"], f"{values['BACKUP_STATE_ROOT']}/work")
+        self.assertEqual(values["STATUS_FILE"], f"{values['BACKUP_STATE_ROOT']}/status.json")
+        self.assertEqual(values["RESTORE_GATE_FILE"], f"{values['BACKUP_STATE_ROOT']}/restore-smoke.ok")
+        self.assertEqual(values["HOST_MEDIA_ROOT"], "/srv/kreative-norge/media")
+        self.assertTrue(
+            all(
+                path.startswith(f"{values['HOST_MEDIA_ROOT']}/")
+                for path in values["HOST_MEDIA_PATHS"].split(":")
+            )
+        )
+        self.assertTrue(
+            all(
+                path.startswith("/app/")
+                for path in values["API_CONTAINER_MEDIA_PATHS"].split(":")
+            )
+        )
 
     def test_new_local_markdown_links_exist(self) -> None:
         import re

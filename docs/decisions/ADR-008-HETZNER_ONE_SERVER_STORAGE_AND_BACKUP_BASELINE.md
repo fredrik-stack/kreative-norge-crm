@@ -49,8 +49,9 @@ Hetzner Cloud Backups er **ENABLED AND FIRST BACKUP VERIFIED** etter prosjekteie
 
 ### Borg-kontrakt
 
-- Borg er pin-net til lokal major/minor `1.2.x` og eksplisitt Hetzner remote path `borg-1.2`.
-- Valget følger Hetzners dokumenterte Borg-støtte; installert patchversjon skal verifiseres på serveren før aktivering.
+- Lokal Borg-klient er pin-net til en stabil versjon `>=1.2.8` og `<1.3.0`, mens eksplisitt Hetzner remote path forblir `borg-1.2`.
+- Eldre `1.2.x`, `1.3.x`, `2.x`, prerelease og malformed eller ukjent versjonsoutput avvises før repository- eller backuparbeid. Repository-init, key export, inspect, backup, verify og restore bruker samme port uten en generell environment-bypass.
+- Valget følger Hetzners dokumenterte Borg-støtte og prosjektets sikkerhetsminimum; en eventuell eldre distrobackport krever en senere eksplisitt og sporbar beslutning.
 - Repository bruker `repokey-blake2`-kryptering og en recovery-hemmelighet i en root-only fil, aldri i Git eller repository-URL.
 - Etter repository-init og registrering av forventet repository-ID skal operatøren eksplisitt eksportere Borgs krypterte repositorynøkkel med `install.sh export-recovery-key <absolute-destination>`. Kommandoen verifiserer samme Borg-/SSH-/repository-ID-kontrakt, nekter overskriving, krever en sikker absolutt path utenfor repoets backupkilder og lager bare en root-eid `0600`-fil.
 - Eksporten inneholder ikke passfrasen og kopieres eller synkroniseres ikke automatisk. Både original passfrase og eksportert nøkkel må sikres off-server; den lokale overføringskopien fjernes etter manuelt verifisert custody uten løfte om sikker overskriving eller sikker sletting på SSD.
@@ -60,7 +61,15 @@ Hetzner Cloud Backups er **ENABLED AND FIRST BACKUP VERIFIED** etter prosjekteie
 - Første MVP bruker ikke et komplisert append-only/admin-key-regime. Append-only kan vurderes som senere hardening.
 - Original Borg-passfrase, eksportert kryptert repositorynøkkel og nødvendig Storage Box-identitet/repository-ID må ligge i godkjent off-server custody med tilgang for minst to ansvarlige. Kode kan ikke bevise passordmanageren eller menneskelig custody; dette forblir **MANUAL REQUIRED**, og før det er bekreftet er kjeden ikke fullt gjenopprettbar.
 
-Hetzner dokumenterer tilgjengelige Borg remote paths i [Storage Box: SSH/rsync/Borg](https://docs.hetzner.com/storage/storage-box/access/access-ssh-rsync-borg/). Borg dokumenterer `--remote-path` i [Borg usage](https://borgbackup.readthedocs.io/en/stable/usage/general.html#environment-variables).
+### Pathkontrakt
+
+- Alle konfigurerte paths valideres semantisk før muterende filsystem-, Docker- eller Borg-operasjoner.
+- Dedikert backup-state inneholder work, status, restore-gate og Borgs cache/config/security på faste paths. Ambient Borg-directoryvariabler kan ikke flytte disse til andre systemområder.
+- Host-media er en eksplisitt allowlist av underkataloger under `/srv/kreative-norge/media/`; API-containerens media er eksplisitte underkataloger under `/app`, aldri `/` eller hele `/app`.
+- Root, brede systemområder, parent traversal, ikke-normaliserte paths, symlinkkomponenter og mediaoverlapp med apprepo, backup-state, recovery-secret, SSH-key, `known_hosts` eller serverkonfigurasjon avvises fail-closed.
+- Recovery-key-export krever en operator-eid destinasjonsparent som ikke er group/world-writable og oppretter sluttfilen atomisk uten overskriving. Eksisterende filer, directories, symlinks og beskyttede destinasjoner avvises; sluttfilen forblir root-eid mode `0600`.
+
+Hetzner dokumenterer tilgjengelige Borg remote paths i [Storage Box: SSH/rsync/Borg](https://docs.hetzner.com/storage/storage-box/access/access-ssh-rsync-borg/). Borg dokumenterer `--remote-path` i [Borg usage](https://borgbackup.readthedocs.io/en/stable/usage/general.html#environment-variables) og sikkerhetsrettelser i [Borg 1.2 change log](https://borgbackup.readthedocs.io/en/1.2.8/changes.html).
 
 ### Nattlig backup
 
@@ -139,7 +148,7 @@ Denne løsningen beskytter dagens viktigste data uten å gjøre bildearkitekture
 
 ## Implementeringsstatus
 
-- **PREPARED:** repo-modul, felles lock-/status-eierskap, sikker recovery-key-export, skrivebeskyttet repository-inspeksjon, systemd-maler, syntetiske tester, ADR og runbook
+- **PREPARED:** repo-modul, felles lock-/status-eierskap, Borg `>=1.2.8`/`<1.3.0`-port, semantisk pathgate, herdet recovery-key-export, skrivebeskyttet repository-inspeksjon, systemd-maler, syntetiske tester, ADR og runbook
 - **MANUAL REQUIRED:** Storage Box/subaccount, SSH key registration, host-key pinning, original Borg-passfrase, eksportert repositorynøkkel og off-server custody for minst to ansvarlige, Storage Box-snapshots og første Borg-/restoreøvelse
 - **NOT IMPLEMENTED:** lokal media-runtime, host mounts, filflytting og bildearkitektur
 - **ACTIVE:** ingen deler av Borg-/Storage Box-kjeden er ennå verifisert aktive

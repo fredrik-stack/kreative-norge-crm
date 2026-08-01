@@ -27,7 +27,7 @@ Den nattlige jobben tar:
 - aktiv Compose-/environmentfil, Caddy-konfigurasjon, backupkonfigurasjon og backup-units når de finnes
 - et tekstmanifest og SHA-256-checksums
 
-Backupen tar ikke private SSH-nøkler, Borg recovery-secret, eksportert repositorynøkkel, hele `/etc`, home-kataloger, rått live PostgreSQL-volume, image layers, caches, staticfiles, `node_modules`, Python-cache eller store logger. `export-recovery-key` avviser destinasjoner i applikasjonsrepo, backup-workdir, beskyttede mediaområder og allowlistede serverkonfigurasjonsfiler.
+Backupen tar ikke private SSH-nøkler, Borg recovery-secret, eksportert repositorynøkkel, hele `/etc`, home-kataloger, rått live PostgreSQL-volume, image layers, caches, staticfiles, `node_modules`, Python-cache eller store logger. `export-recovery-key` avviser destinasjoner i applikasjonsrepo, backup-state, beskyttede mediaområder og allowlistede serverkonfigurasjonsfiler. Destinasjonsparent må være eid av operatøren og ikke group/world-writable, og sluttfilen opprettes atomisk uten overskriving; directory- og symlinktarget avvises.
 
 Verifisert kodekontrakt for dagens eneste `FileField`-familier er:
 
@@ -47,7 +47,9 @@ Root-only konfigurasjon: `/etc/kreative-norge-backup/`
 
 Root-only state og status: `/var/lib/kreative-norge-backup/`
 
-Aktiv staging-environmentfil: `/srv/kreative-norge-crm/.env.staging`. Standard retention: 14 daily, 8 weekly, 12 monthly. Borg er pin-net til lokal `1.2.x` og Storage Box remote path `borg-1.2`.
+Aktiv staging-environmentfil: `/srv/kreative-norge-crm/.env.staging`. Standard retention: 14 daily, 8 weekly, 12 monthly. Lokal Borg-klient må være en stabil versjon `>=1.2.8` og `<1.3.0`; Storage Box remote path er fortsatt `borg-1.2`. Eldre `1.2.x`, `1.3.x`, `2.x`, prerelease og malformed eller ukjent versjonsoutput avvises av samme port for repository-init, key export, inspect, backup, verify og restore før Borg- eller backuparbeid.
+
+`BACKUP_STATE_ROOT` er det dedikerte stateområdet. `WORK_ROOT`, statusfil, restore-gate og Borgs cache/config/security har faste plasseringer under dette området. Ambient `BORG_CACHE_DIR`, `BORG_CONFIG_DIR` og `BORG_SECURITY_DIR` godtas bare dersom de er identiske med de dedikerte work-pathene. `HOST_MEDIA_PATHS` må bestå av eksplisitte underkataloger under `HOST_MEDIA_ROOT=/srv/kreative-norge/media`, og `API_CONTAINER_MEDIA_PATHS` må bestå av eksplisitte underkataloger under `/app`. Root, hele `/app`, brede systemområder, parent traversal, ikke-normaliserte paths, symlinkkomponenter og mediaoverlapp med repo, backup-state, recovery-secret, SSH-key, `known_hosts` eller serverkonfigurasjon avvises før `mkdir`, `chmod`, tar, Docker eller Borg.
 
 `backup.sh`, `verify.sh` og `restore-smoke.sh` bruker samme `flock`. Bare prosessen som har ervervet låsen kan skrive operativ status. Lock contention feiler med `already running`; eksisterende statusfil forblir byte-for-byte uendret, og ingen ny statusfil, restore-workdir eller restore-container opprettes.
 
@@ -83,7 +85,7 @@ Kontroller i tillegg uten å skrive ut data eller environmentverdier:
 - faktiske `/app/imports`, `/app/exports`, rapportfiler, host media og Docker volumes
 - cron, Borg/restic/rsync/pg_dump-script, status/varsling og tidligere restorebevis
 - om serveren bruker Cloud Volume i tillegg til systemdisk
-- Borg `1.2.x`, dedikert key, pinned host og repository-ID uten å skrive ut credentials
+- stabil Borg `>=1.2.8` og `<1.3.0`, dedikert key, pinned host og repository-ID uten å skrive ut credentials
 
 Stopp dersom baseline viser en eksisterende backupmekanisme som kan kollidere, uklar database, utilstrekkelig disk eller uventet lagringspath.
 
@@ -150,7 +152,7 @@ Hent Storage Box host key for port 23 gjennom en separat, autentisert kanal og l
 
 ## 7. Initialiser repository
 
-Før initialisering skal Borg-versjon, Storage Box-host, subaccount, key, known host og recovery-secret være kontrollert. Repositorypath må være tom og dedikert.
+Før initialisering skal en stabil lokal Borg-versjon `>=1.2.8` og `<1.3.0`, Storage Box-host, subaccount, key, known host og recovery-secret være kontrollert. Repositorypath må være tom og dedikert.
 
 ```bash
 sudo /usr/local/lib/kreative-norge-backup/install.sh init-repository
@@ -164,7 +166,7 @@ Eksporter deretter den krypterte repositorynøkkelen til en eksplisitt, midlerti
 sudo /usr/local/lib/kreative-norge-backup/install.sh export-recovery-key /root/kreative-norge-borg-recovery-key.export
 ```
 
-Kommandoen krever root, root-only `backup.env`, den samme passfrase-/SSH-/known-hosts-/port-23-/`borg-1.2`-kontrakten som backupjobben og en matchende repository-ID. Den bruker Borgs offisielle `key export`, nekter relative eller utrygge paths og parent traversal, nekter å overskrive en eksisterende fil, avviser tom eksport og kontrollerer root-eierskap og mode `0600`. Nøkkelmaterialet sendes ikke til stdout eller stderr; bare suksess, repository-ID, destinasjon og SHA-256 rapporteres. Eksporten endrer ikke repositoryet og kopieres eller lastes ikke opp automatisk.
+Kommandoen krever root, root-only `backup.env`, den samme versjons-, passfrase-/SSH-/known-hosts-/port-23-/`borg-1.2`- og semantiske pathkontrakten som backupjobben og en matchende repository-ID. Den bruker Borgs offisielle `key export`, nekter relative eller utrygge paths og parent traversal, krever en operator-eid parent som ikke er group/world-writable, avviser directory- og symlinktarget og oppretter sluttfilen atomisk uten overskriving. Tom eksport avvises, og root-eierskap og mode `0600` kontrolleres. Nøkkelmaterialet sendes ikke til stdout eller stderr; bare suksess, repository-ID, destinasjon og SHA-256 rapporteres. Eksporten endrer ikke repositoryet og kopieres eller lastes ikke opp automatisk.
 
 Overfør den krypterte eksportfilen gjennom en separat godkjent kanal, verifiser off-server checksum og tilgang for minst to ansvarlige, og registrer custody manuelt. Fjern deretter den lokale overføringskopien. Dokumentasjonen lover ikke sikker overskriving eller sikker sletting på SSD. Eksportfilen inneholder ikke passfrasen; både eksportfilen og den opprinnelige passfrasen kreves for en uavhengig recoverypakke.
 
@@ -189,7 +191,7 @@ sudo journalctl -u kreative-norge-backup.service --since today --no-pager
 sudo /usr/local/lib/kreative-norge-backup/install.sh inspect-repository
 ```
 
-`inspect-repository` krever root og root-only `backup.env`, bruker samme Borg-passkommando, dedikerte SSH-nøkkel, dedikerte `known_hosts`, strenge SSH-flagg, port 23, `borg-1.2` og repository-ID-lås som backupjobben. Den viser bare at repositoryet er tilgjengelig, verifisert repository-ID, antall relevante arkiver og nyeste sikre arkivnavn. Den avviser tomt repository og utrygge arkivnavn, lister ikke arkivmedlemmer og kjører ikke prune, compact, delete, extract eller andre muterende Borg-kommandoer.
+`inspect-repository` krever root og root-only `backup.env`, bruker samme Borg-versjonsport, semantiske pathgate, Borg-passkommando, dedikerte SSH-nøkkel, dedikerte `known_hosts`, strenge SSH-flagg, port 23, `borg-1.2` og repository-ID-lås som backupjobben. Den viser bare at repositoryet er tilgjengelig, verifisert repository-ID, antall relevante arkiver og nyeste sikre arkivnavn. Den avviser tomt repository og utrygge arkivnavn, lister ikke arkivmedlemmer og kjører ikke prune, compact, delete, extract eller andre muterende Borg-kommandoer.
 
 Kontroller lokalt at manifestet finnes og at check var grønn. Ikke list arkivinnhold i delt output.
 

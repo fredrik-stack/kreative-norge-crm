@@ -2,7 +2,7 @@
 
 **Status:** Godkjent strategisk arbeidsrekkefølge
 
-**Sist oppdatert:** 2026-08-01
+**Sist oppdatert:** 2026-08-02
 
 Roadmapen skiller mellom produktfaser og et parallelt infrastrukturløp. En fase beskriver prioritert rekkefølge, ikke at innholdet allerede er implementert. Større implementering krever fortsatt et godkjent ADR når arbeidet innebærer et vesentlig arkitekturvalg.
 
@@ -103,8 +103,8 @@ Dette er ikke en generell redesign. Øvrige kort og komponenter videreutvikles i
 - fase 3B.1R skal teste representative, rettighetsavklarte ekte bilder og sRGB/fargeprofiler og fastsette kvalitetsreglene før fase 3C; delsteget blokkerer ikke 3B.2
 - [fase 3B.2](PHASE_3B2_STORAGE_RESTORE_SPIKE.md) har prototypet separate private/public `STORAGES`-aliaser, lokal filesystemreferanse, Moto 5.2.2, immutable artifact/release keys, absolutte allowlistede media-origins, origin-sletting, purge/takedown, separat deny-journal og backup/restore
 - prosjekteier har godkjent to-key-kontrakt, en aktiv public rendition-store uten tilgjengelige historiske public versjoner, kontrollert public delivery, private originaler, hybridbackup, fail-closed restore, varig deny-journal/read-model og idempotent purge; ADR-008 velger lokal host-persistent storage for første MVP og gjør providerkrav betingede
-- [ADR-008](../decisions/ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokale navngitte storagealiaser og Borg 1.2.x til separat Hetzner Storage Box med retention 14/8/12; S3/AWS/Backblaze/CDN utsettes
-- repoets backupmodul er PREPARED, NOT ACTIVE; felles lock-/status-eierskap, sikker eksport av kryptert Borg-repositorynøkkel og skrivebeskyttet repository-inspeksjon er forberedt, serverbaselinen er verifisert og Cloud Backups er ENABLED AND FIRST BACKUP VERIFIED, mens Storage Box, første Borg-backup/restore, recovery-secret, eksportert repositorynøkkel, off-server custody, Storage Box-snapshots og timere fortsatt ikke er opprettet eller aktive
+- [ADR-008](../decisions/ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokale navngitte storagealiaser og stabil lokal Borg `>=1.2.8`/`<1.3.0` med remote path `borg-1.2` til separat Hetzner Storage Box og retention 14/8/12; S3/AWS/Backblaze/CDN utsettes
+- repoets backupmodul er PREPARED, NOT ACTIVE; felles lock-/status-eierskap, felles Borg-versjonsport, semantisk pathgate, herdet eksport av kryptert Borg-repositorynøkkel og skrivebeskyttet repository-inspeksjon er forberedt, serverbaselinen er verifisert og Cloud Backups er ENABLED AND FIRST BACKUP VERIFIED, mens Storage Box, første Borg-backup/restore, recovery-secret, eksportert repositorynøkkel, off-server custody, Storage Box-snapshots og timere fortsatt ikke er opprettet eller aktive
 - eksakt public key-struktur, lokal serving/purge, permanent journalteknologi, faktisk RPO/RTO og konkrete bilde-runtimepaths er fortsatt åpne
 - fase 3B.2 har ikke opprettet CRM-modeller, migrasjoner, API/OpenAPI, Editor, PUBLIC, Import 2.0-integrasjon, bakgrunnskø eller stagingdeploy
 - senere fase 3B-gater skal fastsette lokal private/public-serving og cache/purge/verifikasjon, permanent deny-journal/read-model/cursor, API-schema, aliasmapping, public release key-struktur, concurrency/databaseconstraints, retentionmekanisme, sync/async-grense og observability; provider-/CDN-gater gjelder bare dersom ekstern storage senere tas opp igjen

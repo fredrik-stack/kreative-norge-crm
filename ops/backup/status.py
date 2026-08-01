@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import re
+import stat
 import tempfile
 from pathlib import Path, PurePosixPath
 
@@ -144,6 +145,27 @@ def repository_summary() -> None:
     print(f"latest_archive={max(names)}")
 
 
+def private_directory(path: Path) -> None:
+    if path.is_symlink() or not path.is_dir():
+        raise SystemExit("destination parent is not a real directory")
+    metadata = path.stat()
+    if metadata.st_uid != os.geteuid():
+        raise SystemExit("destination parent is not owned by the current operator")
+    if stat.S_IMODE(metadata.st_mode) & 0o022:
+        raise SystemExit("destination parent is group- or world-writable")
+
+
+def link_no_clobber(source: Path, destination: Path) -> None:
+    if source.is_symlink() or not source.is_file():
+        raise SystemExit("recovery key export source is not a regular file")
+    try:
+        os.link(source, destination, follow_symlinks=False)
+    except FileExistsError as error:
+        raise SystemExit("recovery key export destination already exists") from error
+    except OSError as error:
+        raise SystemExit("recovery key export destination could not be created atomically") from error
+
+
 def safe_member(value: str) -> bool:
     path = PurePosixPath(value)
     return bool(value) and not path.is_absolute() and ".." not in path.parts and "\\" not in value
@@ -228,6 +250,11 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("repository-id")
     subparsers.add_parser("latest-archive")
     subparsers.add_parser("repository-summary")
+    private_dir = subparsers.add_parser("private-directory")
+    private_dir.add_argument("--path", required=True)
+    link = subparsers.add_parser("link-no-clobber")
+    link.add_argument("--source", required=True)
+    link.add_argument("--destination", required=True)
     subparsers.add_parser("restore-members")
     checksums = subparsers.add_parser("validate-checksums")
     checksums.add_argument("--path", required=True)
@@ -246,6 +273,10 @@ def main() -> None:
         latest_archive()
     elif args.command == "repository-summary":
         repository_summary()
+    elif args.command == "private-directory":
+        private_directory(Path(args.path))
+    elif args.command == "link-no-clobber":
+        link_no_clobber(Path(args.source), Path(args.destination))
     elif args.command == "restore-members":
         restore_members()
     elif args.command == "validate-checksums":

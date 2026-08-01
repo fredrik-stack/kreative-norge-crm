@@ -2,6 +2,19 @@
 
 Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små kosmetiske justeringer trenger ikke registreres.
 
+## 2026-08-02
+
+### Sikkerhetsherding av forberedt backupgrunnmur
+
+- strammet den felles lokale Borg-porten til stabil versjon `>=1.2.8` og `<1.3.0`; eldre `1.2.x`, `1.3.x`, `2.x`, prerelease og malformed output avvises før repository- eller backuparbeid for init, key export, inspect, backup, verify og restore
+- lagt en semantisk pathgate før mutasjoner: root, brede systemområder, parent traversal, ikke-normaliserte paths, symlinkkomponenter og farlige mediaoverlapp avvises
+- bundet work, status, restore-gate og Borg cache/config/security til dedikert backup-state og hindret ambient Borg-directoryvariabler i å flytte skrivbare områder
+- avgrenset host-media til eksplisitte underkataloger under Kreative Norges media-root og API-media til eksplisitte underkataloger under `/app`
+- herdet recovery-key-export med operator-eid, ikke group/world-writable parent, directory-/symlinkavvisning og atomisk no-clobber med bevart mode `0600`
+- rettet den felles pathliste-parseren slik at også eneste og siste element i en kolonseparert allowlist alltid valideres
+- utvidet den syntetiske backup-testpakken til 68 tester for versjonsgrenser, felles kommandogate, pathfamilier og siste listeelement, overlapper, symlinks, validering før arbeid og atomisk recovery-destinasjon
+- beholdt backupgrunnmuren **PREPARED, NOT ACTIVE** og passphrase-/key-/Storage Box-custody **MANUAL REQUIRED**; ingen server, staging, runtime, database, tjeneste, container, deploy eller timer er endret
+
 ## 2026-08-01
 
 ### ADR-008 og Hetzner backupgrunnmur forberedt

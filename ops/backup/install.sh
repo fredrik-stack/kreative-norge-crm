@@ -49,50 +49,43 @@ require_root_private_file() {
   fi
 }
 
-require_safe_absolute_path() {
-  printf '%s' "$1" | grep -Eq '^/[A-Za-z0-9_./-]+$' || die "$2 contains unsafe path characters"
-  case "$1" in */../*|*/..) die "$2 contains a parent-directory component" ;; esac
+require_installer_layout() {
+  backup_require_host_path "installer directory" "$INSTALL_DIR"
+  backup_require_host_path "configuration directory" "$CONFIG_DIR"
+  backup_require_host_path "state directory" "$STATE_DIR"
+  backup_require_host_path "backup.env path" "$ENV_FILE"
+  case "$STATE_DIR" in
+    */kreative-norge-backup) ;;
+    *) die "state directory must be a dedicated kreative-norge-backup path" ;;
+  esac
+  backup_path_is_strictly_within "$ENV_FILE" "$CONFIG_DIR" || \
+    die "backup.env must be inside the configuration directory"
 }
 
 require_recovery_destination() {
   recovery_destination="$1"
-  backup_require_absolute_path "recovery key destination" "$recovery_destination" || exit 1
-  backup_require_safe_shell_path "recovery key destination" "$recovery_destination" || exit 1
-  case "$recovery_destination" in
-    /|*/|*//*|*/./*|*/.) die "recovery key destination is not a safe file path" ;;
-  esac
-  [ ! -e "$recovery_destination" ] || die "refusing to overwrite an existing recovery key export"
+  backup_require_host_path "recovery key destination" "$recovery_destination" || exit 1
+  [ ! -e "$recovery_destination" ] && [ ! -L "$recovery_destination" ] || \
+    die "refusing to overwrite an existing recovery key export"
 
-  local destination_parent canonical_parent
+  local destination_parent
   destination_parent="$(dirname "$recovery_destination")"
   [ -d "$destination_parent" ] || die "recovery key destination parent is missing"
-  if [ "$BACKUP_TEST_MODE" != "1" ]; then
-    canonical_parent="$(cd "$destination_parent" && pwd -P)"
-    [ "$canonical_parent" = "$destination_parent" ] || \
-      die "recovery key destination parent must be canonical and must not use symlinks"
-  fi
-}
-
-path_is_equal_or_within() {
-  local candidate="$1"
-  local protected_root="${2%/}"
-  case "$candidate" in
-    "$protected_root"|"$protected_root"/*) return 0 ;;
-    *) return 1 ;;
-  esac
+  "$PYTHON_BIN" "$SOURCE_DIR/status.py" private-directory --path "$destination_parent" || \
+    die "recovery key destination parent must be operator-owned and not group/world-writable"
 }
 
 reject_protected_recovery_destination() {
-  if path_is_equal_or_within "$recovery_destination" "$APP_ROOT"; then
+  if backup_path_is_equal_or_within "$recovery_destination" "$APP_ROOT"; then
     die "recovery key destination must be outside the application repository"
   fi
-  if path_is_equal_or_within "$recovery_destination" "$WORK_ROOT"; then
+  if backup_path_is_equal_or_within "$recovery_destination" "$BACKUP_STATE_ROOT"; then
     die "recovery key destination must be outside backup work paths"
   fi
 
   local protected_path
   while IFS= read -r protected_path; do
-    if path_is_equal_or_within "$recovery_destination" "$protected_path"; then
+    if backup_path_is_equal_or_within "$recovery_destination" "$protected_path"; then
       die "recovery key destination must be outside protected media paths"
     fi
   done < <(backup_split_paths "$HOST_MEDIA_PATHS")
@@ -112,6 +105,7 @@ load_repository_context() {
 
 prepare() {
   require_root
+  require_installer_layout
   install -d -m 0700 -o root -g root "$CONFIG_DIR" "$STATE_DIR" "$STATE_DIR/work"
   install -d -m 0755 -o root -g root "$INSTALL_DIR"
   install -m 0755 -o root -g root \
@@ -129,10 +123,7 @@ prepare() {
 generate_key() {
   require_root
   require_root_private_file "$ENV_FILE" "backup.env"
-  # shellcheck disable=SC1090
-  source "$ENV_FILE"
-  [ -n "${BORG_SSH_KEY:-}" ] || die "BORG_SSH_KEY is not configured"
-  require_safe_absolute_path "$BORG_SSH_KEY" "BORG_SSH_KEY"
+  backup_load_config repository-init
   [ ! -e "$BORG_SSH_KEY" ] || die "refusing to replace an existing SSH key"
   install -d -m 0700 -o root -g root "$(dirname "$BORG_SSH_KEY")"
   ssh-keygen -q -t ed25519 -N '' -C kreative-norge-storage-box-backup -f "$BORG_SSH_KEY"
@@ -146,41 +137,17 @@ generate_key() {
 initialize_repository() {
   require_root
   require_root_private_file "$ENV_FILE" "backup.env"
-  set -a
-  # shellcheck disable=SC1090
-  source "$ENV_FILE"
-  set +a
-  for name in BORG_REPOSITORY BORG_PASSPHRASE_FILE BORG_SSH_KEY BORG_KNOWN_HOSTS STORAGE_BOX_HOST; do
-    [ -n "${!name:-}" ] || die "missing required setting: $name"
-  done
-  [ "${BORG_REMOTE_PATH:-}" = "borg-1.2" ] || die "BORG_REMOTE_PATH must be borg-1.2"
-  case "$BORG_REPOSITORY" in ssh://*) ;; *) die "BORG_REPOSITORY must use ssh://" ;; esac
-  case "$BORG_REPOSITORY" in *[[:space:]]*) die "BORG_REPOSITORY contains whitespace" ;; esac
-  authority="${BORG_REPOSITORY#ssh://}"
-  authority="${authority%%/*}"
-  case "$authority" in *@*:23) ;; *) die "BORG_REPOSITORY must use a dedicated SSH user and port 23" ;; esac
-  repository_user="${authority%@*}"
-  repository_host="${authority##*@}"
-  repository_host="${repository_host%%:*}"
-  printf '%s' "$repository_user" | grep -Eq '^[A-Za-z0-9._-]+$' || die "BORG_REPOSITORY user is invalid"
-  [ "$repository_host" = "$STORAGE_BOX_HOST" ] || die "BORG_REPOSITORY host does not match STORAGE_BOX_HOST"
-  repository_path="${BORG_REPOSITORY#ssh://}"
-  repository_path="/${repository_path#*/}"
-  printf '%s' "$repository_path" | grep -Eq '^/\./[A-Za-z0-9_./-]+$' || die "BORG_REPOSITORY path must be safe and relative"
-  case "$repository_path" in */../*|*/..) die "BORG_REPOSITORY path contains a parent-directory component" ;; esac
-  require_safe_absolute_path "$BORG_PASSPHRASE_FILE" "BORG_PASSPHRASE_FILE"
-  require_safe_absolute_path "$BORG_SSH_KEY" "BORG_SSH_KEY"
-  require_safe_absolute_path "$BORG_KNOWN_HOSTS" "BORG_KNOWN_HOSTS"
-  require_root_private_file "$BORG_PASSPHRASE_FILE" "recovery-secret file"
-  require_root_private_file "$BORG_SSH_KEY" "dedicated SSH key"
-  require_root_private_file "$BORG_KNOWN_HOSTS" "dedicated known_hosts file"
-  ssh-keygen -F "[$STORAGE_BOX_HOST]:23" -f "$BORG_KNOWN_HOSTS" >/dev/null || die "Storage Box host and port are not pinned"
-  borg_version="$(borg --version | awk '{print $2}')"
-  case "$borg_version" in 1.2.*) ;; *) die "local Borg must be 1.2.x" ;; esac
-  export BORG_PASSCOMMAND="cat $BORG_PASSPHRASE_FILE"
-  export BORG_RSH="ssh -i $BORG_SSH_KEY -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$BORG_KNOWN_HOSTS -o ConnectTimeout=15"
-  borg init --remote-path "$BORG_REMOTE_PATH" --encryption=repokey-blake2 "$BORG_REPOSITORY"
-  repository_id="$(borg info --remote-path "$BORG_REMOTE_PATH" --json "$BORG_REPOSITORY" | python3 "$INSTALL_DIR/status.py" repository-id)"
+  backup_load_config repository-init
+  backup_require_command "$BORG_BIN"
+  backup_require_command "$PYTHON_BIN"
+  backup_require_command ssh-keygen
+  backup_validate_borg_version
+  backup_configure_borg
+  ssh-keygen -F "[$STORAGE_BOX_HOST]:23" -f "$BORG_KNOWN_HOSTS" >/dev/null || \
+    die "Storage Box host and port are not pinned"
+  "$BORG_BIN" init --remote-path "$BORG_REMOTE_PATH" --encryption=repokey-blake2 "$BORG_REPOSITORY"
+  repository_id="$("$BORG_BIN" info --remote-path "$BORG_REMOTE_PATH" --json "$BORG_REPOSITORY" | \
+    "$PYTHON_BIN" "$INSTALL_DIR/status.py" repository-id)"
   printf 'Repository initialized. Set BORG_REPOSITORY_ID=%s in %s.\n' "$repository_id" "$ENV_FILE"
   printf 'Next mandatory recovery step: export the encrypted repository key with export-recovery-key after setting BORG_REPOSITORY_ID.\n'
 }
@@ -190,12 +157,14 @@ export_recovery_key() {
   require_root
   require_root_private_file "$ENV_FILE" "backup.env"
   backup_load_config
+  backup_require_command dirname
+  backup_require_command "$PYTHON_BIN"
   require_recovery_destination "$1"
   reject_protected_recovery_destination
   backup_repository_preflight
 
   local command destination_parent exported_key repository_id export_sha256
-  for command in chmod chown dirname ln mktemp rm sha256sum; do
+  for command in chmod chown mktemp rm sha256sum; do
     backup_require_command "$command"
   done
   destination_parent="$(dirname "$recovery_destination")"
@@ -214,8 +183,11 @@ export_recovery_key() {
       die "temporary recovery key export must be root-owned with mode 0600"
   fi
 
-  [ ! -e "$recovery_destination" ] || die "refusing to overwrite an existing recovery key export"
-  ln "$exported_key" "$recovery_destination" || die "could not create recovery key export without overwriting"
+  [ ! -e "$recovery_destination" ] && [ ! -L "$recovery_destination" ] || \
+    die "refusing to overwrite an existing recovery key export"
+  "$PYTHON_BIN" "$SOURCE_DIR/status.py" link-no-clobber \
+    --source "$exported_key" --destination "$recovery_destination" || \
+    die "could not create recovery key export without overwriting"
   recovery_destination_created=1
   if [ "$BACKUP_TEST_MODE" != "1" ]; then
     [ "$(stat -c '%u:%a' "$recovery_destination")" = "0:600" ] || \
