@@ -754,7 +754,7 @@ Godkjent backupretning omfatter:
 - nødvendig audit- og approvalhistorikk
 - deny-journal i separat backup- og failure-domain
 
-Deterministisk regenerering beholdes som sekundær reparasjonsvei og er ikke eneste katastrofeplan. Byte-identisk regenerering kan avhenge av at gammel Pillow-, encoder-, wheel- og processingprofil fortsatt er tilgjengelig; aktive public bytes beholdes derfor for rask og eksakt restore. ADR-008 har valgt Borg 1.2.x til separat Hetzner Storage Box med 14 daglige, 8 ukentlige og 12 månedlige arkiver og obligatorisk restore-gate. Faktiske RPO-/RTO-målinger gjenstår; ekstra regionredundans er bare en senere behovsdrevet hardening.
+Deterministisk regenerering beholdes som sekundær reparasjonsvei og er ikke eneste katastrofeplan. Byte-identisk regenerering kan avhenge av at gammel Pillow-, encoder-, wheel- og processingprofil fortsatt er tilgjengelig; aktive public bytes beholdes derfor for rask og eksakt restore. ADR-008 har valgt stabil lokal Borg `>=1.2.8` og `<1.3.0` med remote path `borg-1.2` til separat Hetzner Storage Box, 14 daglige, 8 ukentlige og 12 månedlige arkiver og obligatorisk restore-gate. Faktiske RPO-/RTO-målinger gjenstår; ekstra regionredundans er bare en senere behovsdrevet hardening.
 
 #### Restore-gate
 
@@ -810,7 +810,7 @@ Det observerte gapet der unsigned GET med eksplisitt `versionId` nådde en eldre
 
 #### Godkjent MVP-drift og fortsatt åpne valg
 
-ADR-008 velger Hetzner one-server storage, Borg 1.2.x mot separat Storage Box, retention 14/8/12 og en obligatorisk restore-gate. Repo-grunnmuren er forberedt, men den eksterne kjeden må være ACTIVE før fase 3C kan skrive nye varige bildefiler.
+ADR-008 velger Hetzner one-server storage, stabil lokal Borg `>=1.2.8` og `<1.3.0` med remote path `borg-1.2` mot separat Storage Box, retention 14/8/12 og en obligatorisk restore-gate. Repo-grunnmuren er forberedt, men den eksterne kjeden må være ACTIVE før fase 3C kan skrive nye varige bildefiler.
 
 Før fase 3C gjenstår fase 3B.1R med representative ekte bilder, eksplisitt sRGB-/fargeprofiltesting, endelige pixel-/dimensjons-/kvalitetsgrenser, lokal private/public-storage og serving, lokal cache-/purge-/verifikasjonskontrakt, permanent deny-journal og materialisert read-model med journalcursor/fail-closed reconciliation, SVG-policy og eventuell sikker rasterisering, eventuell skadevarekontroll og bakgrunnskø, endelig public API-schema og aliasmapping, public release key-struktur, concurrency/databaseconstraints, retensjonsmekanisme, sync/async-grense, observability og målte RPO/RTO. S3-/CDN-provider, region, ekstern IAM, bucket-policy, KMS, Object Lock og provider-spesifikk purge/`versionId`-verifikasjon er utsatt og blir bare en betinget senere gate ved dokumentert behov.
 
