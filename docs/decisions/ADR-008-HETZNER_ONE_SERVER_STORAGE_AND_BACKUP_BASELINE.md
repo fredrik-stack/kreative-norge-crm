@@ -2,7 +2,7 @@
 
 ## Status
 
-Godkjent arkitekturretning. Repoets generiske backupmodul er **PREPARED, NOT ACTIVE**. Den skrivebeskyttede [stagingbaselinen](../status/STAGING_BACKUP_BASELINE_2026-08-01.md) er verifisert, og prosjekteier har kontrollert at Hetzner Cloud Backups er aktivert og at første backup er synlig. Ekstern Storage Box-tilgang, første Borg-backup, restore-smoke, off-server recovery-secret og Storage Box-snapshots er fortsatt ikke verifisert eller aktivert.
+Godkjent arkitekturretning. Repoets generiske backupmodul er **PREPARED, NOT ACTIVE**. Den skrivebeskyttede [stagingbaselinen](../status/STAGING_BACKUP_BASELINE_2026-08-01.md) er verifisert, og prosjekteier har kontrollert at Hetzner Cloud Backups er aktivert og at første backup er synlig. Ekstern Storage Box-tilgang, første Borg-backup, restore-smoke, off-server recovery-secret, eksportert Borg-repositorynøkkel og Storage Box-snapshots er fortsatt ikke verifisert eller aktivert.
 
 **Beslutningsdato:** 2026-08-01
 
@@ -10,7 +10,7 @@ Godkjent arkitekturretning. Repoets generiske backupmodul er **PREPARED, NOT ACT
 
 Operativ status skal alltid bruke disse begrepene:
 
-- **ACTIVE:** manuell backup og isolert restore er grønne, recovery-secret er bekreftet off-server, timerne kjører og de manuelle Hetzner-kontrollene er utført
+- **ACTIVE:** manuell backup og isolert restore er grønne, original Borg-passfrase og eksportert kryptert repositorynøkkel er bekreftet off-server sammen med nødvendig Storage Box-identitet/repository-ID for minst to ansvarlige, timerne kjører og de manuelle Hetzner-kontrollene er utført
 - **PREPARED:** kode, maler, tester og runbook finnes, men ekstern kjede er ikke aktivert
 - **MANUAL REQUIRED:** en kontroll i Hetzner Console eller organisasjonens passordlager må utføres av prosjekteier
 - **NOT IMPLEMENTED:** fremtidig lokal bilde-runtime og media-migrering finnes ikke
@@ -52,10 +52,13 @@ Hetzner Cloud Backups er **ENABLED AND FIRST BACKUP VERIFIED** etter prosjekteie
 - Borg er pin-net til lokal major/minor `1.2.x` og eksplisitt Hetzner remote path `borg-1.2`.
 - Valget følger Hetzners dokumenterte Borg-støtte; installert patchversjon skal verifiseres på serveren før aktivering.
 - Repository bruker `repokey-blake2`-kryptering og en recovery-hemmelighet i en root-only fil, aldri i Git eller repository-URL.
+- Etter repository-init og registrering av forventet repository-ID skal operatøren eksplisitt eksportere Borgs krypterte repositorynøkkel med `install.sh export-recovery-key <absolute-destination>`. Kommandoen verifiserer samme Borg-/SSH-/repository-ID-kontrakt, nekter overskriving, krever en sikker absolutt path utenfor repoets backupkilder og lager bare en root-eid `0600`-fil.
+- Eksporten inneholder ikke passfrasen og kopieres eller synkroniseres ikke automatisk. Både original passfrase og eksportert nøkkel må sikres off-server; den lokale overføringskopien fjernes etter manuelt verifisert custody uten løfte om sikker overskriving eller sikker sletting på SSD.
 - Tilgang bruker dedikert Storage Box-subaccount når tilgjengelig, dedikert SSH-nøkkel og en dedikert `known_hosts`-fil med `StrictHostKeyChecking=yes`.
 - Konfigurasjonen må inneholde forventet 64-tegns repository-ID. Backup, check, prune og restore stopper ved mismatch eller ukjent identitet.
+- `install.sh inspect-repository` er den skrivebeskyttede operatørkommandoen for repository-status. Den bruker samme preflight og viser bare verifisert repository-ID, antall relevante arkiver og nyeste sikre arkivnavn; den lister aldri arkivmedlemmer og kjører ingen muterende Borg-kommando.
 - Første MVP bruker ikke et komplisert append-only/admin-key-regime. Append-only kan vurderes som senere hardening.
-- Recovery-hemmeligheten må ligge i organisasjonens sikre passordlager med tilgang for minst to ansvarlige. Før dette er bekreftet er kjeden ikke fullt gjenopprettbar.
+- Original Borg-passfrase, eksportert kryptert repositorynøkkel og nødvendig Storage Box-identitet/repository-ID må ligge i godkjent off-server custody med tilgang for minst to ansvarlige. Kode kan ikke bevise passordmanageren eller menneskelig custody; dette forblir **MANUAL REQUIRED**, og før det er bekreftet er kjeden ikke fullt gjenopprettbar.
 
 Hetzner dokumenterer tilgjengelige Borg remote paths i [Storage Box: SSH/rsync/Borg](https://docs.hetzner.com/storage/storage-box/access/access-ssh-rsync-borg/). Borg dokumenterer `--remote-path` i [Borg usage](https://borgbackup.readthedocs.io/en/stable/usage/general.html#environment-variables).
 
@@ -70,7 +73,7 @@ Hver vellykkede kjøring inneholder:
 - eksplisitt allowlistet serverkonfigurasjon: aktiv Compose-/environmentfil, Caddy, backupkonfigurasjon uten innebygd secret og systemd-units
 - manifest uten persondata eller secretverdier, samt checksums av dump og stagingbundles
 
-Private SSH-nøkler, recovery-secret, hele `/etc`, home-kataloger, rått live databasevolume, Docker-lag, caches, staticfiles, `node_modules`, Python-cache og store applikasjonslogger ekskluderes.
+Private SSH-nøkler, recovery-secret, eksportert repositorynøkkel, hele `/etc`, home-kataloger, rått live databasevolume, Docker-lag, caches, staticfiles, `node_modules`, Python-cache og store applikasjonslogger ekskluderes. Export-kommandoen avviser destinasjoner i applikasjonsrepo, backup-workdir, beskyttede mediaområder og allowlistede serverkonfigurasjonsfiler.
 
 Arbeidskatalogen er root-only og må ha databaseomfang pluss minst 1 GiB ledig før dump. Midlertidige filer slettes ved både suksess og feil.
 
@@ -85,21 +88,21 @@ Daglig frekvens gir et foreløpig backup-RPO på inntil omtrent 24 timer, i till
 Timeraktivering krever i denne rekkefølgen:
 
 1. grønn preflight
-2. verifisert ledig disk og `pg_restore --list`
-3. første manuelle krypterte Borg-backup
-4. arkiv- og manifestkontroll
-5. grønn repository-check
-6. isolert restore til en PostgreSQL 16-container uten port og uten live databasetilknytning
-7. forventede CRM-tabeller og ufarlige tellinger uten datautskrift
-8. checksum av representativ mediafil når en finnes
-9. bekreftet off-server recovery-secret
+2. manuelt bekreftet off-server custody av original Borg-passfrase, eksportert kryptert repositorynøkkel, nødvendig Storage Box-identitet/repository-ID og tilgang for minst to ansvarlige
+3. verifisert ledig disk og `pg_restore --list`
+4. første manuelle krypterte Borg-backup
+5. skrivebeskyttet repository-inspeksjon, arkiv- og manifestkontroll
+6. grønn repository-check
+7. isolert restore til en PostgreSQL 16-container uten port og uten live databasetilknytning
+8. forventede CRM-tabeller og ufarlige tellinger uten datautskrift
+9. checksum av representativ mediafil når en finnes
 10. manuell kontroll av Storage Box-snapshots og Hetzner Cloud Backups
 
 `install.sh activate` håndhever de tekniske backup-/restoreportene. Prosedyren kan ikke teknisk bevise passordlager- eller Console-stegene; operatøren må dokumentere dem separat. Ingen CRM-container restartes eller gjenskapes av backupmodulen.
 
 ### Drift og varsling
 
-Backup kjører nattlig via systemd med `Persistent=true`, randomisert forsinkelse, felles `flock`, lav CPU-/I/O-prioritet og journalføring. En root-only JSON-statusfil registrerer siste start, suksess, feil, arkiv, dumpstatus, repositorystatus og restorestatus uten secrets.
+Backup kjører nattlig via systemd med `Persistent=true`, randomisert forsinkelse, felles `flock`, lav CPU-/I/O-prioritet og journalføring. Backup, verify og restore bruker samme lås. Bare prosessen som har ervervet låsen kan skrive operativ status; lock contention feiler med `already running` uten å opprette eller endre statusfilen. En root-only JSON-statusfil registrerer siste start, suksess, feil, arkiv, dumpstatus, repositorystatus og restorestatus uten secrets.
 
 Ingen ekstern varslingstjeneste innføres. Manglende proaktiv ekstern varsling er en åpen driftsrisiko inntil serveren eventuelt viser en allerede sikker, brukt kanal.
 
@@ -122,7 +125,7 @@ Denne løsningen beskytter dagens viktigste data uten å gjøre bildearkitekture
 - ingen eksisterende FileField-filer ble funnet i containerområdene 2026-08-01, men nye filer kan forsvinne ved container-recreate før host-persistent storage er etablert
 - Storage Box-snapshots bruker kapasitet på samme boks og er ikke uavhengig katastrofebackup; se [Hetzner Storage Box snapshots](https://docs.hetzner.com/storage/storage-box/snapshots/)
 - Cloud Backup-status må fortsatt kontrolleres i Console; første backup er verifisert 2026-08-01, men Cloud Backup er bare et ekstra helserverlag
-- recovery avhenger av en korrekt sikret off-server recovery-hemmelighet
+- recovery avhenger av både korrekt sikret original Borg-passfrase, eksportert kryptert repositorynøkkel og nødvendig Storage Box-identitet/repository-ID; custody er fortsatt manuelt uverifisert
 - ingen ekstern feilvarsling er etablert
 - faktisk Borg-RPO, RTO, diskvekst og restorevarighet må måles etter at Storage Box og den eksterne kjeden finnes
 
@@ -136,8 +139,8 @@ Denne løsningen beskytter dagens viktigste data uten å gjøre bildearkitekture
 
 ## Implementeringsstatus
 
-- **PREPARED:** repo-modul, systemd-maler, syntetiske tester, ADR og runbook
-- **MANUAL REQUIRED:** Storage Box/subaccount, SSH key registration, host-key pinning, recovery-secret, Storage Box-snapshots og første Borg-/restoreøvelse
+- **PREPARED:** repo-modul, felles lock-/status-eierskap, sikker recovery-key-export, skrivebeskyttet repository-inspeksjon, systemd-maler, syntetiske tester, ADR og runbook
+- **MANUAL REQUIRED:** Storage Box/subaccount, SSH key registration, host-key pinning, original Borg-passfrase, eksportert repositorynøkkel og off-server custody for minst to ansvarlige, Storage Box-snapshots og første Borg-/restoreøvelse
 - **NOT IMPLEMENTED:** lokal media-runtime, host mounts, filflytting og bildearkitektur
 - **ACTIVE:** ingen deler av Borg-/Storage Box-kjeden er ennå verifisert aktive
 

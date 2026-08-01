@@ -345,19 +345,19 @@ Den samlede PR-leveransen endrer bare:
 Prosjekteier godkjente 2026-08-01 følgende leverandøruavhengige arkitekturprinsipper i [ADR-007 punkt 24](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md):
 
 1. Intern processing artifact identity og public release identity er separate immutable identiteter. Ny offentlig revisjon bruker ny release key, også ved gjenbruk av samme artifact-bytes. Eksakt public key-struktur er åpen.
-2. Aktiv public rendition-store er dedikert og unversioned, eller har et likeverdig namespace uten tilgjengelige historiske public versjoner. En versioning-suspended bucket regnes ikke automatisk som aldri-versioned.
-3. Public delivery betyr ikke anonym public bucket. Produksjonsorigin skal helst være privat eller origin-begrenset bak et kontrollert CDN-/media-originlag. Klienter bruker `PUBLIC_MEDIA_ORIGIN`; intern provider-endpoint og credentials eksponeres ikke.
-4. Private originaler skal ha versioning eller likeverdig verifisert historikk/immutability, og alle historiske versjoner skal være private. Faktisk provider må bevise IAM/public-access-block også for eksplisitt `versionId`.
+2. Aktiv public rendition-store er dedikert og uten tilgjengelig historikk, med immutable release keys. [ADR-008](../decisions/ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) valgte senere host-persistent lokal storage for første MVP. Dersom objektlagring senere innføres, regnes ikke en versioning-suspended bucket automatisk som aldri-versioned.
+3. Public delivery betyr ikke anonym public bucket. Første MVP bruker kontrollert same-origin/lokal media-origin; intern filesystempath eksponeres ikke. Privat/origin-begrenset objektlager og CDN er bare betingede fremtidige krav.
+4. Private originaler bruker i første MVP separat host-persistent storage, permissions og rollebeskyttet tilgang. Provider-versioning, IAM/public-access-block og eksplisitt `versionId`-bevis kreves bare dersom objektlagring senere innføres.
 5. Hybridbackup omfatter private originaler, canonical metadata, eksakt processingprofil, nødvendige referanser og audit, aktive public rendition-bytes og deny-journal i separat failure-domain. Regenerering er sekundær reparasjonsvei.
 6. Restore går gjennom ikke-offentlig karantene, nyeste deny-journal, replay, reconciliation, checksum-/referansekontroll og fail-closed fallback før public serving åpnes. En eldre snapshot vinner aldri over nyere deny.
 7. Varig deny-journal er append-only/WORM-orientert, separat fra app-/databasebackup, idempotent og fail-closed. Normal takedown er deny-first, deretter origin-delete og purge.
 8. Journalen er autoritativ, mens runtime kan bruke en materialisert deny-read-model med kjent cursor. Ukjent eller stale sikkerhetstilstand gir fallback.
 9. Senere produksjonsmodell skal støtte release deny, tenant-scopet checksum deny og særskilt global checksum deny. Fase 3B.2 beviste bare release deny; checksum-deny er ikke implementert.
-10. Origin-delete alene er utilstrekkelig. Purge skal være idempotent, skille retrybare/permanente feil og registrere request-/hendelses-ID og verifikasjon.
-11. Moto 5.2.2 forblir kun emulator. Det er ikke produksjonsleverandør eller IAM-bevis, og det observerte unsigned `VersionId`-gapet beholdes som eksplisitt provider-gate.
+10. Origin-delete alene er utilstrekkelig. Lokal response-/media-cache-purge skal være idempotent, skille retrybare/permanente feil og registrere request-/hendelses-ID og verifikasjon; eventuell senere CDN-purge skal bevise samme kontrakt.
+11. Moto 5.2.2 forblir kun emulator. Det er ikke produksjonsleverandør eller IAM-bevis, og det observerte unsigned `VersionId`-gapet er bare en betinget provider-gate dersom objektlagring tas opp igjen.
 
 Laben brukte anonym GET mot en Moto-bucket for å bevise S3-protokolladferd. Dette er ikke et produksjonskrav og skal ikke tolkes som valgt deliverymodell.
 
-Fortsatt åpne valg er provider, region, data residency/databehandleravtale, IAM/private access, CDN, permanent journalteknologi, WORM/tamper evidence, read-model/cursor, backupverktøy, frekvens, retention, regionredundans, RPO/RTO, eksakt public key-struktur og konkrete driftstjenester.
+Fortsatt åpne MVP-valg er lokal private/public-storage og serving, lokal cache/purge/verifikasjon, permanent journalteknologi, WORM/tamper evidence, read-model/cursor, målte RPO/RTO, eksakt public key-struktur, concurrency/databaseconstraints, retensjonsmekanisme, sync/async-grense, observability og konkrete driftstjenester. ADR-008 har valgt Borg 1.2.x, separat Hetzner Storage Box og retention 14/8/12. Provider, region, ekstern IAM, CDN, KMS, Object Lock og provider-spesifikk `versionId`-verifikasjon gjenåpnes bare ved dokumentert behov for objektlagring.
 
-Neste anbefalte planleggingsleveranse er den skrivebeskyttede provider-/driftsgaten. Den er ikke gjennomført i denne leveransen. Fase 3B.1R og senere API-, concurrency-, retention- og sync/async-gater gjenstår fortsatt før fase 3C.
+Den daværende provider-/driftsgaten ble senere erstattet av ADR-008s lokale storage-/backup-MVP. Operativ aktivering av den backupkjeden, fase 3B.1R og senere lokale API-, serving-, journal-, concurrency-, retention- og sync/async-gater gjenstår fortsatt før fase 3C.

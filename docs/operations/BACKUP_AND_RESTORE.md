@@ -10,12 +10,12 @@ Denne runbooken er den autoritative driftsprosedyren for kryptert PostgreSQL-, f
 
 | Status | Betydning |
 | --- | --- |
-| ACTIVE | Første backup og isolert restore er grønne, recovery-secret er sikret off-server, Console-steg er kontrollert og timerne kjører |
+| ACTIVE | Første backup og isolert restore er grønne, original Borg-passfrase og eksportert kryptert repositorynøkkel er sikret off-server sammen med nødvendig Storage Box-identitet/repository-ID for minst to ansvarlige, Console-steg er kontrollert og timerne kjører |
 | PREPARED | Repoets kode, maler og dokumentasjon finnes, men ekstern kjede er ikke aktiv |
 | MANUAL REQUIRED | Prosjekteier må gjøre en kontroll i Hetzner Console eller organisasjonens passordlager |
 | NOT IMPLEMENTED | Fremtidig lokal bilde-runtime og mediaflytting finnes ikke |
 
-Nåstatus er PREPARED. Den skrivebeskyttede [stagingbaselinen 2026-08-01](../status/STAGING_BACKUP_BASELINE_2026-08-01.md) verifiserte serverdisk, datastørrelser, Compose, FileField-/mediapaths, eksisterende backupjobber og Borg-forutsetninger. Prosjekteier verifiserte samtidig i Hetzner Console at Cloud Backups er aktivert og at første helserverbackup er synlig. Storage Box, Borg, recovery-secret, første Borg-backup og restore-smoke er ikke konfigurert eller kjørt, og ingen backup-timere er installert eller aktivert.
+Nåstatus er PREPARED. Den skrivebeskyttede [stagingbaselinen 2026-08-01](../status/STAGING_BACKUP_BASELINE_2026-08-01.md) verifiserte serverdisk, datastørrelser, Compose, FileField-/mediapaths, eksisterende backupjobber og Borg-forutsetninger. Prosjekteier verifiserte samtidig i Hetzner Console at Cloud Backups er aktivert og at første helserverbackup er synlig. Storage Box, Borg, recovery-secret, eksportert repositorynøkkel, første Borg-backup og restore-smoke er ikke konfigurert eller kjørt, og ingen backup-timere er installert eller aktivert.
 
 ## 2. Beskyttet innhold
 
@@ -27,7 +27,7 @@ Den nattlige jobben tar:
 - aktiv Compose-/environmentfil, Caddy-konfigurasjon, backupkonfigurasjon og backup-units når de finnes
 - et tekstmanifest og SHA-256-checksums
 
-Backupen tar ikke private SSH-nøkler, Borg recovery-secret, hele `/etc`, home-kataloger, rått live PostgreSQL-volume, image layers, caches, staticfiles, `node_modules`, Python-cache eller store logger.
+Backupen tar ikke private SSH-nøkler, Borg recovery-secret, eksportert repositorynøkkel, hele `/etc`, home-kataloger, rått live PostgreSQL-volume, image layers, caches, staticfiles, `node_modules`, Python-cache eller store logger. `export-recovery-key` avviser destinasjoner i applikasjonsrepo, backup-workdir, beskyttede mediaområder og allowlistede serverkonfigurasjonsfiler.
 
 Verifisert kodekontrakt for dagens eneste `FileField`-familier er:
 
@@ -48,6 +48,8 @@ Root-only konfigurasjon: `/etc/kreative-norge-backup/`
 Root-only state og status: `/var/lib/kreative-norge-backup/`
 
 Aktiv staging-environmentfil: `/srv/kreative-norge-crm/.env.staging`. Standard retention: 14 daily, 8 weekly, 12 monthly. Borg er pin-net til lokal `1.2.x` og Storage Box remote path `borg-1.2`.
+
+`backup.sh`, `verify.sh` og `restore-smoke.sh` bruker samme `flock`. Bare prosessen som har ervervet låsen kan skrive operativ status. Lock contention feiler med `already running`; eksisterende statusfil forblir byte-for-byte uendret, og ingen ny statusfil, restore-workdir eller restore-container opprettes.
 
 ## 4. Skrivebeskyttet serverbaseline før installasjon
 
@@ -114,10 +116,14 @@ Storage Box-snapshots bruker boksens kapasitet og er ikke en erstatning for Borg
 
 ### Recovery
 
-1. Lagre Borg recovery-secret i organisasjonens sikre passordmanager.
-2. Gi minst to ansvarlige tilgang.
-3. Lagre Storage Box-host, subaccountidentitet og offentlig SSH-fingerprint.
-4. Lagre aldri privat servernøkkel i dokumentasjon.
+Før backupgrunnmuren kan kalles recovery-klar eller `ACTIVE`, skal prosjekteier manuelt bekrefte off-server custody av:
+
+1. original Borg-passfrase i organisasjonens sikre passordmanager
+2. eksportert og fortsatt kryptert Borg-repositorynøkkel
+3. nødvendig Storage Box-host/subaccountidentitet, offentlig SSH-fingerprint og forventet repository-ID
+4. tilgang for minst to ansvarlige
+
+Koden kan validere filer, repository-ID og tekniske porter, men kan ikke bevise passordmanageren, de to ansvarliges tilgang eller at en lokal overføringskopi faktisk er fjernet. Dette er **MANUAL REQUIRED**. Lagre aldri privat servernøkkel eller nøkkelmateriale i dokumentasjon, Git, PR, chat eller logger.
 
 ## 6. Forbered installasjon – fortsatt inaktiv
 
@@ -152,7 +158,18 @@ sudo /usr/local/lib/kreative-norge-backup/install.sh init-repository
 
 Kommandoen initialiserer `repokey-blake2`, bruker `borg-1.2` eksplisitt og skriver bare repository-ID. Sett denne ID-en som `BORG_REPOSITORY_ID` i root-only `backup.env`. Repo-ID-en er en identitetslås, ikke et passord.
 
+Eksporter deretter den krypterte repositorynøkkelen til en eksplisitt, midlertidig overføringspath utenfor applikasjonsrepoet og modulens backupkilder:
+
+```bash
+sudo /usr/local/lib/kreative-norge-backup/install.sh export-recovery-key /root/kreative-norge-borg-recovery-key.export
+```
+
+Kommandoen krever root, root-only `backup.env`, den samme passfrase-/SSH-/known-hosts-/port-23-/`borg-1.2`-kontrakten som backupjobben og en matchende repository-ID. Den bruker Borgs offisielle `key export`, nekter relative eller utrygge paths og parent traversal, nekter å overskrive en eksisterende fil, avviser tom eksport og kontrollerer root-eierskap og mode `0600`. Nøkkelmaterialet sendes ikke til stdout eller stderr; bare suksess, repository-ID, destinasjon og SHA-256 rapporteres. Eksporten endrer ikke repositoryet og kopieres eller lastes ikke opp automatisk.
+
+Overfør den krypterte eksportfilen gjennom en separat godkjent kanal, verifiser off-server checksum og tilgang for minst to ansvarlige, og registrer custody manuelt. Fjern deretter den lokale overføringskopien. Dokumentasjonen lover ikke sikker overskriving eller sikker sletting på SSD. Eksportfilen inneholder ikke passfrasen; både eksportfilen og den opprinnelige passfrasen kreves for en uavhengig recoverypakke.
+
 Hetzners Borg-oppsett og eksplisitte remote paths er dokumentert i [Storage Box SSH/rsync/Borg](https://docs.hetzner.com/storage/storage-box/access/access-ssh-rsync-borg/).
+Borgs eksport-/importkontrakt er dokumentert i [Borg 1.2 key management](https://borgbackup.readthedocs.io/en/1.2-maint/usage/key.html#borg-key-export).
 
 ## 8. Manuell førstebackup og restore-gate
 
@@ -169,10 +186,12 @@ Den siste kommandoen skal foreløpig feile fordi restore ikke er kjørt. Kontrol
 
 ```bash
 sudo journalctl -u kreative-norge-backup.service --since today --no-pager
-sudo borg list --remote-path borg-1.2 --json REPOSITORY_PLACEHOLDER
+sudo /usr/local/lib/kreative-norge-backup/install.sh inspect-repository
 ```
 
-Ikke list arkivinnhold i delt output. Kontroller lokalt at arkivet og manifestet finnes, at repo-ID matcher og at check var grønn.
+`inspect-repository` krever root og root-only `backup.env`, bruker samme Borg-passkommando, dedikerte SSH-nøkkel, dedikerte `known_hosts`, strenge SSH-flagg, port 23, `borg-1.2` og repository-ID-lås som backupjobben. Den viser bare at repositoryet er tilgjengelig, verifisert repository-ID, antall relevante arkiver og nyeste sikre arkivnavn. Den avviser tomt repository og utrygge arkivnavn, lister ikke arkivmedlemmer og kjører ikke prune, compact, delete, extract eller andre muterende Borg-kommandoer.
+
+Kontroller lokalt at manifestet finnes og at check var grønn. Ikke list arkivinnhold i delt output.
 
 Kjør deretter isolert restore direkte; restore-smoke har med vilje ingen timer:
 
@@ -182,7 +201,7 @@ sudo BACKUP_ENV_FILE=/etc/kreative-norge-backup/backup.env /usr/local/lib/kreati
 
 Den oppretter en tilfeldig PostgreSQL 16-container med `--network none`, ingen eksponert port og automatisk cleanup. Den gjenoppretter ikke live database og skriver ikke radinnhold. Etterpå skal statusfilen vise grønn restore og gatefilen matche siste arkiv.
 
-Aktiver først etter at recovery- og Console-stegene også er dokumentert:
+Aktiver først etter at recovery- og Console-stegene også er dokumentert manuelt. `install.sh activate` kan verifisere de tekniske backup-/restoreportene, men kan ikke bevise off-server custody:
 
 ```bash
 sudo /usr/local/lib/kreative-norge-backup/install.sh activate
@@ -205,15 +224,16 @@ Forvent grønn suksess innen ett døgn pluss randomisert forsinkelse. Ingen ekst
 Denne operasjonen krever eksplisitt hendelsesbeslutning og egen plan. Ikke bruk smoke-scriptet som automatisk produksjonsrestore.
 
 1. Bevar berørt server og logger; ikke overskriv bevis.
-2. Skaff recovery-secret fra organisasjonens sikre passordlager.
+2. Skaff original Borg-passfrase, eksportert kryptert repositorynøkkel og Storage Box-/repository-identiteten fra godkjent off-server custody.
 3. Bygg en ren, isolert recovery-host med pin-net Borg-versjon og verifisert Storage Box-host key.
-4. Verifiser repository-ID og kjør repository-check.
-5. Velg arkiv etter manifest, Git-commit og hendelsestid, ikke bare nyeste navn.
-6. Restore dump, FileField/media og eksplisitt konfigurasjon til karantene.
-7. Verifiser checksums og restore databasen isolert først.
-8. For fremtidig bildearkitektur: reconcile alltid deny-/takedown-journal fail-closed før public media kan åpnes, som krevd av ADR-007.
-9. Planlegg kontrollert applikasjonsrestore, DNS/proxy og verifikasjon separat.
-10. Dokumenter faktisk RPO, RTO og tap før normal drift gjenopptas.
+4. Verifiser repository-ID. Importer bare den eksporterte repositorynøkkelen dersom recovery-scenariet krever den, etter Borgs dokumenterte `key import`-prosedyre og en separat hendelsesplan; skriv aldri nøkkelmaterialet til terminal eller logger.
+5. Kjør repository-check.
+6. Velg arkiv etter manifest, Git-commit og hendelsestid, ikke bare nyeste navn.
+7. Restore dump, FileField/media og eksplisitt konfigurasjon til karantene.
+8. Verifiser checksums og restore databasen isolert først.
+9. For fremtidig bildearkitektur: reconcile alltid deny-/takedown-journal fail-closed før public media kan åpnes, som krevd av ADR-007.
+10. Planlegg kontrollert applikasjonsrestore, DNS/proxy og verifikasjon separat.
+11. Dokumenter faktisk RPO, RTO og tap før normal drift gjenopptas.
 
 ## 11. Rotasjon og hardening
 
@@ -226,10 +246,10 @@ Denne operasjonen krever eksplisitt hendelsesbeslutning og egen plan. Ikke bruk 
 
 - Ingen eksisterende FileField-filer ble funnet, men nye filer kan ligge i API-containerlaget og mangler host-persistent mount.
 - Storage Box og Storage Box-snapshots er ikke opprettet eller verifisert.
-- Recovery-secret er ikke bekreftet off-server.
+- Original Borg-passfrase, eksportert kryptert repositorynøkkel og off-server custody for minst to ansvarlige er ikke bekreftet.
 - Første Borg-backup og restore-smoke er ikke kjørt.
 - Ingen ekstern feilvarsling finnes.
 - RTO er ikke målt.
 - Serverrepoet var 11 commits bak autoritativ GitHub `main`; synkronisering skjer først gjennom separat godkjent merge/deploy.
 
-Cloud Backups er **ENABLED AND FIRST BACKUP VERIFIED**, men backupgrunnmuren kan ikke merkes `ACTIVE` før Storage Box-, Borg-, recovery-, backup-, restore- og timerkravene er oppfylt.
+Cloud Backups er **ENABLED AND FIRST BACKUP VERIFIED**, men backupgrunnmuren kan ikke merkes `ACTIVE` før Storage Box-, Borg-, recovery-key-/custody-, backup-, restore- og timerkravene er oppfylt.

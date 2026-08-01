@@ -30,6 +30,12 @@ backup_require_command() {
   command -v "$1" >/dev/null 2>&1 || backup_die "required command is unavailable: $1"
 }
 
+backup_require_root() {
+  if [ "$BACKUP_TEST_MODE" != "1" ]; then
+    [ "$(id -u)" = "0" ] || backup_die "backup commands must run as root"
+  fi
+}
+
 backup_validate_root_file() {
   local path="$1"
   local label="$2"
@@ -53,7 +59,10 @@ backup_require_absolute_path() {
 }
 
 backup_require_safe_shell_path() {
-  printf '%s' "$2" | grep -Eq '^/[A-Za-z0-9_./-]+$' || backup_die "$1 contains unsafe shell characters"
+  printf '%s' "$2" | grep -Eq '^/[A-Za-z0-9_./-]+$' || {
+    backup_die "$1 contains unsafe shell characters"
+    return 1
+  }
   case "$2" in
     */../*|*/..) backup_die "$1 contains a parent-directory component" ;;
   esac
@@ -212,6 +221,10 @@ backup_borg() {
   backup_run_low_priority "$BORG_BIN" "$subcommand" --remote-path "$BORG_REMOTE_PATH" "$@"
 }
 
+backup_borg_key_export() {
+  backup_run_low_priority "$BORG_BIN" key export --remote-path "$BORG_REMOTE_PATH" "$@"
+}
+
 backup_select_compose() {
   if docker compose version >/dev/null 2>&1; then
     BACKUP_COMPOSE=(docker compose -f "$COMPOSE_FILE" --env-file "$COMPOSE_ENV_FILE")
@@ -234,21 +247,16 @@ backup_repository_id() {
 backup_verify_repository_identity() {
   local actual expected
   expected="$(printf '%s' "$BORG_REPOSITORY_ID" | tr 'A-F' 'a-f')"
-  actual="$(backup_repository_id)" || backup_die "Borg repository is unavailable or authentication failed"
+  actual="$(backup_repository_id 2>/dev/null)" || backup_die "Borg repository is unavailable or authentication failed"
   [ "$actual" = "$expected" ] || backup_die "Borg repository identity does not match configuration"
 }
 
-backup_preflight() {
-  if [ "$BACKUP_TEST_MODE" != "1" ]; then
-    [ "$(id -u)" = "0" ] || backup_die "backup commands must run as root"
-  fi
+backup_repository_preflight() {
+  backup_require_root
   local command
-  for command in awk df docker find git grep head hostname mkdir mktemp sed sha256sum ssh-keygen stat tar tr wc flock "$BORG_BIN" "$PYTHON_BIN"; do
+  for command in awk chmod grep mkdir ssh-keygen stat tr "$BORG_BIN" "$PYTHON_BIN"; do
     backup_require_command "$command"
   done
-  [ -d "$APP_ROOT/.git" ] || backup_die "APP_ROOT is not a Git working tree"
-  [ -f "$COMPOSE_FILE" ] || backup_die "compose file is missing"
-  backup_validate_root_file "$COMPOSE_ENV_FILE" "compose environment file"
   mkdir -p "$WORK_ROOT"
   chmod 700 "$WORK_ROOT"
   backup_configure_borg
@@ -260,9 +268,21 @@ backup_preflight() {
   esac
   ssh-keygen -F "[$STORAGE_BOX_HOST]:23" -f "$BORG_KNOWN_HOSTS" >/dev/null 2>&1 || \
     backup_die "Storage Box host is absent from the dedicated known_hosts file"
+  backup_verify_repository_identity
+}
+
+backup_preflight() {
+  backup_require_root
+  local command
+  for command in awk chmod df docker find git grep head hostname mkdir mktemp sed sha256sum ssh-keygen stat tar tr wc flock "$BORG_BIN" "$PYTHON_BIN"; do
+    backup_require_command "$command"
+  done
+  [ -d "$APP_ROOT/.git" ] || backup_die "APP_ROOT is not a Git working tree"
+  [ -f "$COMPOSE_FILE" ] || backup_die "compose file is missing"
+  backup_validate_root_file "$COMPOSE_ENV_FILE" "compose environment file"
+  backup_repository_preflight
   backup_select_compose
   "${BACKUP_COMPOSE[@]}" ps -q "$DATABASE_SERVICE" | grep -q . || backup_die "database service is not running"
-  backup_verify_repository_identity
 }
 
 backup_status() {

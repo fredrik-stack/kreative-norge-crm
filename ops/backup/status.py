@@ -124,6 +124,26 @@ def latest_archive() -> None:
     print(max(names))
 
 
+def repository_summary() -> None:
+    value = json.load(os.sys.stdin)
+    if not isinstance(value, dict):
+        raise SystemExit("Borg repository metadata is invalid")
+    archives = value.get("archives")
+    if not isinstance(archives, list) or not archives:
+        raise SystemExit("no Borg archives found")
+    names: list[str] = []
+    for item in archives:
+        if not isinstance(item, dict):
+            raise SystemExit("Borg archive metadata is invalid")
+        name = item.get("name")
+        if not isinstance(name, str) or not SAFE_ARCHIVE.fullmatch(name):
+            raise SystemExit("Borg repository contains an unsafe archive name")
+        names.append(name)
+    print("repository_available=yes")
+    print(f"archive_count={len(names)}")
+    print(f"latest_archive={max(names)}")
+
+
 def safe_member(value: str) -> bool:
     path = PurePosixPath(value)
     return bool(value) and not path.is_absolute() and ".." not in path.parts and "\\" not in value
@@ -207,6 +227,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     subparsers.add_parser("repository-id")
     subparsers.add_parser("latest-archive")
+    subparsers.add_parser("repository-summary")
     subparsers.add_parser("restore-members")
     checksums = subparsers.add_parser("validate-checksums")
     checksums.add_argument("--path", required=True)
@@ -223,6 +244,8 @@ def main() -> None:
         repository_id()
     elif args.command == "latest-archive":
         latest_archive()
+    elif args.command == "repository-summary":
+        repository_summary()
     elif args.command == "restore-members":
         restore_members()
     elif args.command == "validate-checksums":

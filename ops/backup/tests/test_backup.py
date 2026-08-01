@@ -39,6 +39,20 @@ if name == "borg":
         print("borg " + os.environ.get("FAKE_BORG_VERSION", "1.2.8"))
         raise SystemExit(0)
     command = args[0] if args else ""
+    if os.environ.get("FAKE_REQUIRE_SECURE_BORG_ENV") == "1":
+        borg_rsh = os.environ.get("BORG_RSH", "")
+        required_rsh = (
+            " -i ",
+            "IdentitiesOnly=yes",
+            "BatchMode=yes",
+            "StrictHostKeyChecking=yes",
+            "UserKnownHostsFile=",
+            "ConnectTimeout=15",
+        )
+        if not os.environ.get("BORG_PASSCOMMAND", "").startswith("cat /") or any(
+            value not in f" {borg_rsh}" for value in required_rsh
+        ):
+            raise SystemExit(9)
     if command == "info":
         if os.environ.get("FAKE_BORG_AUTH_FAIL") == "1" or os.environ.get("FAKE_BORG_UNAVAILABLE") == "1":
             raise SystemExit(2)
@@ -46,10 +60,25 @@ if name == "borg":
         raise SystemExit(0)
     if command == "list":
         if "--json" in args:
-            archives = [] if os.environ.get("FAKE_NO_ARCHIVES") == "1" else [{"name": os.environ.get("FAKE_ARCHIVE", "kreative-norge-staging-20260801T023000Z")}]
+            archives = [] if os.environ.get("FAKE_NO_ARCHIVES") == "1" else [{
+                "name": os.environ.get("FAKE_ARCHIVE", "kreative-norge-staging-20260801T023000Z"),
+                "comment": os.environ.get("FAKE_BORG_SENSITIVE", ""),
+            }]
             print(json.dumps({"archives": archives}))
         else:
             print(os.environ.get("FAKE_MEMBER_LIST", ""), end="")
+        raise SystemExit(0)
+    if command == "key":
+        if "export" not in args or os.environ.get("FAKE_KEY_EXPORT_FAIL") == "1":
+            raise SystemExit(2)
+        destination = Path(args[-1])
+        if os.environ.get("FAKE_EMPTY_KEY_EXPORT") == "1":
+            destination.write_bytes(b"")
+        else:
+            destination.write_text(
+                os.environ.get("FAKE_KEY_MATERIAL", "synthetic-encrypted-repository-key\n"),
+                encoding="utf-8",
+            )
         raise SystemExit(0)
     if command == "extract" and "--stdout" not in args:
         staged = Path(args[-1])
@@ -113,7 +142,9 @@ if name == "docker":
         if "api-container test -d" in joined:
             # Current container-layer media is deliberately absent in the default fixture.
             raise SystemExit(1)
-        if "pg_isready" in joined or "pg_restore" in joined:
+        if "pg_restore" in joined:
+            raise SystemExit(1 if os.environ.get("FAKE_RESTORE_DB_FAIL") == "1" else 0)
+        if "pg_isready" in joined:
             raise SystemExit(0)
         if "to_regclass" in joined:
             print("t")
@@ -238,6 +269,36 @@ class BackupFixture(unittest.TestCase):
             check=False,
         )
 
+    def run_install(self, *arguments: str, **extra_env: str) -> subprocess.CompletedProcess[str]:
+        env = self.env.copy()
+        env.update(
+            {
+                "BACKUP_INSTALL_DIR": str(MODULE_DIR),
+                "BACKUP_ENV_FILE": str(self.config),
+            }
+        )
+        env.update(extra_env)
+        return subprocess.run(
+            ["bash", str(MODULE_DIR / "install.sh"), *arguments],
+            cwd=MODULE_DIR,
+            env=env,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+
+    @staticmethod
+    def restore_members() -> str:
+        return "\n".join(
+            (
+                "var/lib/kreative-norge-backup/work/run.test/database.dump",
+                "var/lib/kreative-norge-backup/work/run.test/manifest.txt",
+                "var/lib/kreative-norge-backup/work/run.test/checksums.sha256",
+                "",
+            )
+        )
+
     def status_value(self) -> dict[str, object]:
         return json.loads(self.status.read_text(encoding="utf-8"))
 
@@ -283,6 +344,42 @@ class BackupFixture(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("already running", result.stderr)
         self.assertFalse(self.status.exists())
+
+    def test_weekly_verify_lock_contention_does_not_create_status(self) -> None:
+        result = self.run_script("verify.sh", FAKE_LOCKED="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("already running", result.stderr)
+        self.assertFalse(self.status.exists())
+
+    def test_weekly_verify_lock_contention_preserves_existing_status_bytes(self) -> None:
+        original = b'{"format_version":1,"sentinel":"unchanged"}\n'
+        self.status.write_bytes(original)
+        result = self.run_script("verify.sh", FAKE_LOCKED="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("already running", result.stderr)
+        self.assertEqual(self.status.read_bytes(), original)
+
+    def test_restore_lock_contention_does_not_create_status_or_resources(self) -> None:
+        result = self.run_script("restore-smoke.sh", FAKE_LOCKED="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("already running", result.stderr)
+        self.assertFalse(self.status.exists())
+        self.assertEqual(list(self.work.glob("restore.*")), [])
+        calls = self.call_log.read_text(encoding="utf-8")
+        self.assertNotIn("docker run", calls)
+        self.assertNotIn("docker rm", calls)
+
+    def test_restore_lock_contention_preserves_existing_status_bytes_and_resources(self) -> None:
+        original = b'{"format_version":1,"sentinel":"unchanged"}\n'
+        self.status.write_bytes(original)
+        result = self.run_script("restore-smoke.sh", FAKE_LOCKED="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("already running", result.stderr)
+        self.assertEqual(self.status.read_bytes(), original)
+        self.assertEqual(list(self.work.glob("restore.*")), [])
+        calls = self.call_log.read_text(encoding="utf-8")
+        self.assertNotIn("docker run", calls)
+        self.assertNotIn("docker rm", calls)
 
     def test_insufficient_disk_is_recorded_and_cleaned(self) -> None:
         result = self.run_script("backup.sh", FAKE_AVAILABLE_BYTES="100")
@@ -331,21 +428,206 @@ class BackupFixture(unittest.TestCase):
         self.assert_failed_at(result, "restore")
 
     def test_restore_smoke_completes_in_isolated_fixture(self) -> None:
-        members = "\n".join(
-            (
-                "var/lib/kreative-norge-backup/work/run.test/database.dump",
-                "var/lib/kreative-norge-backup/work/run.test/manifest.txt",
-                "var/lib/kreative-norge-backup/work/run.test/checksums.sha256",
-                "",
-            )
-        )
-        result = self.run_script("restore-smoke.sh", FAKE_MEMBER_LIST=members)
+        result = self.run_script("restore-smoke.sh", FAKE_MEMBER_LIST=self.restore_members())
         self.assertEqual(result.returncode, 0, result.stderr)
         value = self.status_value()
         self.assertIsNotNone(value["last_restore_success"])
         self.assertEqual(value["archive"], ARCHIVE)
         self.assertIn(f"archive={ARCHIVE}\n", (self.root / "restore-smoke.ok").read_text(encoding="utf-8"))
         self.assertEqual(list(self.work.glob("restore.*")), [])
+
+    def test_restore_failure_after_lock_records_status_and_cleans_resources(self) -> None:
+        result = self.run_script(
+            "restore-smoke.sh",
+            FAKE_MEMBER_LIST=self.restore_members(),
+            FAKE_RESTORE_DB_FAIL="1",
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.status_value()["last_error"]["stage"], "restore")
+        self.assertEqual(list(self.work.glob("restore.*")), [])
+        calls = self.call_log.read_text(encoding="utf-8")
+        self.assertIn("docker rm -f kreative-norge-restore-", calls)
+
+    def test_recovery_key_export_succeeds_without_leaking_key_material(self) -> None:
+        destination = self.root / "recovery-key-export"
+        key_material = "synthetic-secret-key-material"
+        result = self.run_install(
+            "export-recovery-key",
+            str(destination),
+            FAKE_KEY_MATERIAL=key_material,
+            FAKE_REQUIRE_SECURE_BORG_ENV="1",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(destination.is_file())
+        self.assertGreater(destination.stat().st_size, 0)
+        self.assertNotIn(key_material, result.stdout)
+        self.assertNotIn(key_material, result.stderr)
+        self.assertIn(f"repository_id={REPOSITORY_ID}", result.stdout)
+        self.assertIn(f"destination={destination}", result.stdout)
+
+    def test_recovery_key_export_requires_backup_environment(self) -> None:
+        destination = self.root / "recovery-key-export"
+        result = self.run_install(
+            "export-recovery-key",
+            str(destination),
+            BACKUP_ENV_FILE=str(self.root / "absent.env"),
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("backup.env is missing", result.stderr)
+        self.assertFalse(destination.exists())
+
+    def test_recovery_key_export_rejects_missing_required_configuration(self) -> None:
+        configured = self.config.read_text(encoding="utf-8")
+        self.config.write_text(configured.replace(f"BORG_SSH_KEY={self.key}\n", "BORG_SSH_KEY=\n"), encoding="utf-8")
+        destination = self.root / "recovery-key-export"
+        result = self.run_install("export-recovery-key", str(destination))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("required configuration is missing: BORG_SSH_KEY", result.stderr)
+        self.assertFalse(destination.exists())
+
+    def test_recovery_key_export_rejects_repository_identity_mismatch(self) -> None:
+        destination = self.root / "recovery-key-export"
+        result = self.run_install(
+            "export-recovery-key",
+            str(destination),
+            FAKE_REPOSITORY_ID=OTHER_REPOSITORY_ID,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("identity does not match", result.stderr)
+        self.assertFalse(destination.exists())
+
+    def test_recovery_key_export_rejects_unavailable_repository(self) -> None:
+        destination = self.root / "recovery-key-export"
+        result = self.run_install(
+            "export-recovery-key",
+            str(destination),
+            FAKE_BORG_UNAVAILABLE="1",
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("repository is unavailable", result.stderr)
+        self.assertFalse(destination.exists())
+
+    def test_recovery_key_export_rejects_relative_destination(self) -> None:
+        result = self.run_install("export-recovery-key", "relative-key")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("must be an absolute path", result.stderr)
+
+    def test_recovery_key_export_rejects_unsafe_destination_characters(self) -> None:
+        result = self.run_install("export-recovery-key", str(self.root / "unsafe key"))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("unsafe shell characters", result.stderr)
+
+    def test_recovery_key_export_rejects_parent_traversal(self) -> None:
+        result = self.run_install("export-recovery-key", str(self.root / "subdir" / ".." / "recovery-key"))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("parent-directory component", result.stderr)
+
+    def test_recovery_key_export_refuses_existing_destination(self) -> None:
+        destination = self.root / "recovery-key-export"
+        original = b"keep-existing-bytes\n"
+        destination.write_bytes(original)
+        result = self.run_install("export-recovery-key", str(destination))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("refusing to overwrite", result.stderr)
+        self.assertEqual(destination.read_bytes(), original)
+
+    def test_recovery_key_export_rejects_application_repository_destination(self) -> None:
+        destination = self.app / "recovery-key-export"
+        result = self.run_install("export-recovery-key", str(destination))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("outside the application repository", result.stderr)
+        self.assertFalse(destination.exists())
+
+    def test_recovery_key_export_rejects_backup_work_destination(self) -> None:
+        self.work.mkdir()
+        destination = self.work / "recovery-key-export"
+        result = self.run_install("export-recovery-key", str(destination))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("outside backup work paths", result.stderr)
+        self.assertFalse(destination.exists())
+
+    def test_recovery_key_export_rejects_empty_export(self) -> None:
+        destination = self.root / "recovery-key-export"
+        result = self.run_install(
+            "export-recovery-key",
+            str(destination),
+            FAKE_EMPTY_KEY_EXPORT="1",
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("export is empty", result.stderr)
+        self.assertFalse(destination.exists())
+
+    def test_recovery_key_export_sets_mode_0600(self) -> None:
+        destination = self.root / "recovery-key-export"
+        result = self.run_install("export-recovery-key", str(destination))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(stat.S_IMODE(destination.stat().st_mode), 0o600)
+
+    def test_recovery_key_export_uses_expected_borg_contract_without_mutation(self) -> None:
+        destination = self.root / "recovery-key-export"
+        result = self.run_install("export-recovery-key", str(destination))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = self.call_log.read_text(encoding="utf-8")
+        self.assertIn(
+            "borg key export --remote-path borg-1.2 ssh://u@box:23/./repo ",
+            calls,
+        )
+        for command in ("create", "prune", "compact", "delete", "extract", "init"):
+            self.assertNotIn(f"borg {command} ", calls)
+
+    def test_initialize_repository_still_uses_repokey_blake2_contract(self) -> None:
+        result = self.run_install("init-repository")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = self.call_log.read_text(encoding="utf-8")
+        self.assertIn(
+            "borg init --remote-path borg-1.2 --encryption=repokey-blake2 ssh://u@box:23/./repo",
+            calls,
+        )
+        self.assertIn("Next mandatory recovery step", result.stdout)
+
+    def test_repository_inspection_reports_only_safe_summary(self) -> None:
+        sensitive = "synthetic-member-or-secret-value"
+        result = self.run_install(
+            "inspect-repository",
+            FAKE_BORG_SENSITIVE=sensitive,
+            FAKE_REQUIRE_SECURE_BORG_ENV="1",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Repository is available and identity is verified", result.stdout)
+        self.assertIn(f"repository_id={REPOSITORY_ID}", result.stdout)
+        self.assertIn("archive_count=1", result.stdout)
+        self.assertIn(f"latest_archive={ARCHIVE}", result.stdout)
+        self.assertNotIn(sensitive, result.stdout)
+        self.assertNotIn(sensitive, result.stderr)
+
+    def test_repository_inspection_rejects_identity_mismatch(self) -> None:
+        result = self.run_install("inspect-repository", FAKE_REPOSITORY_ID=OTHER_REPOSITORY_ID)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("identity does not match", result.stderr)
+
+    def test_repository_inspection_rejects_unavailable_repository(self) -> None:
+        result = self.run_install("inspect-repository", FAKE_BORG_UNAVAILABLE="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("repository is unavailable", result.stderr)
+
+    def test_repository_inspection_rejects_empty_repository(self) -> None:
+        result = self.run_install("inspect-repository", FAKE_NO_ARCHIVES="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("no Borg archives found", result.stderr)
+
+    def test_repository_inspection_rejects_unsafe_archive_name(self) -> None:
+        result = self.run_install("inspect-repository", FAKE_ARCHIVE="../unsafe-archive")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("unsafe archive name", result.stderr)
+
+    def test_repository_inspection_does_not_mutate_repository(self) -> None:
+        result = self.run_install("inspect-repository")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = self.call_log.read_text(encoding="utf-8")
+        self.assertIn("borg info --remote-path borg-1.2 --json ssh://u@box:23/./repo", calls)
+        self.assertIn("borg list --remote-path borg-1.2 --json", calls)
+        for command in ("key", "create", "prune", "compact", "delete", "extract", "init"):
+            self.assertNotIn(f"borg {command} ", calls)
 
 
 class StatusTests(unittest.TestCase):

@@ -31,8 +31,8 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 backup_load_config
-status_available=1
 backup_acquire_lock
+status_available=1
 backup_preflight
 
 latest_archive="$(backup_latest_archive)"

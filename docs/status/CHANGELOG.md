@@ -10,21 +10,25 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 - lagt en inaktiv backupmodul under `ops/backup/` med PostgreSQL custom-format dump, `pg_restore --list`, eksplisitte fil-/konfigurasjonspaths, sikkert manifest, kryptert Borg 1.2.x/`borg-1.2`, repo-ID-lås og retention 14/8/12
 - lagt nattlig backup- og ukentlig verify-unit med `flock`, root-only state, lav prioritet og statusfil, men ikke installert eller aktivert timerne
 - lagt isolert restore-smoke mot PostgreSQL 16 uten port eller live databaseinngrep og en hard aktiveringsport som krever grønn backup, dump, repository-check og restore av samme arkiv
+- rettet lock-/status-racet slik at verify og restore bare kan skrive operativ status etter at den felles låsen er ervervet; lock contention oppretter eller endrer ingen status-/restore-ressurser
+- lagt eksplisitt `export-recovery-key` for Borgs krypterte repositorynøkkel med felles Borg-/SSH-/repository-ID-preflight, sikker absolutt destinasjon, no-clobber, root/`0600`, tomfilkontroll og ingen nøkkelmateriale i output
+- lagt skrivebeskyttet `inspect-repository` som verifiserer repository-ID og viser bare arkivantall og nyeste sikre arkivnavn uten arkivmedlemmer eller muterende Borg-kommandoer
 - dokumentert eksisterende risiko for at import-/eksport-/rapportfiler kan ligge i API-containerlaget fordi dagens Compose mangler media-mount; ingen filer eller runtime ble flyttet
 - fullført en anonymisert, skrivebeskyttet stagingbaseline som verifiserte serverdisk, Compose, PostgreSQL, Docker-volumes, FileField-/mediapaths, eksisterende manuelle dumps, fravær av kolliderende automatisert backup og manglende Borg-/Storage Box-oppsett
 - bekreftet at `/app/imports` og `/app/exports` ikke finnes og at filantallet er null, men at nye FileField-filer fortsatt kan gå tapt i API-containerlaget før en separat host-persistent runtimeleveranse
 - korrigert backupmalens staging-environmentpath til `.env.staging` både for Compose og serverkonfigurasjons-allowlisten
 - registrert prosjekteiers Console-verifikasjon: Cloud Backups er ENABLED AND FIRST BACKUP VERIFIED med første synlige backup på 11,6 GB og 0 Cloud Volumes; dette er fortsatt bare et ekstra helserverlag
 - anbefalt, men ikke bestilt, BX11 med 1 TB i FSN1, kapasitetsreview ved 60–70 prosent bruk og minst 20–30 prosent ledig margin
-- beholdt leveransen PREPARED, NOT ACTIVE fordi Storage Box, Borg, recovery-secret, første Borg-backup, restore-smoke, Storage Box-snapshots og timere fortsatt ikke er opprettet eller aktivert
+- synkronisert ADR-007 mot ADR-008: første MVP bruker lokal host-persistent private/public-storage og kontrollert lokal serving; S3/CDN/IAM/KMS/Object Lock og provider-spesifikke purge-/`versionId`-porter er bare betingede senere krav
+- beholdt leveransen PREPARED, NOT ACTIVE fordi Storage Box, Borg, recovery-secret, eksportert repositorynøkkel, off-server custody, første Borg-backup, restore-smoke, Storage Box-snapshots og timere fortsatt ikke er opprettet eller aktivert
 - ikke endret CRM-runtime, Compose, database, data, publisering, modeller, API, Editor, PUBLIC, Import 2.0, containere, DNS eller Cloudflare
 
 ### Fase 3B.2: storage-, delivery-, takedown- og restoreprinsipper godkjent
 
 - godkjent to-key-kontrakt med separat deterministisk processing artifact identity og immutable public release identity; ny offentlig revisjon bruker ny release key uten krav om ny encoding, mens eksakt key-struktur fortsatt er åpen
 - godkjent dedikert unversioned aktiv public rendition-store eller likeverdig namespace uten offentlig tilgjengelige historiske versjoner; suspended versioning behandles ikke automatisk som aldri-versioned
-- presisert at public delivery ikke krever anonym bucket: produksjonsstorage bør være privat/origin-begrenset bak kontrollert CDN/media-origin, klientene bruker `PUBLIC_MEDIA_ORIGIN`, og intern provider-endpoint eller credentials eksponeres ikke
-- godkjent private originaler med versioning eller likeverdig verifisert historikk/immutability, betinget av providerbevis for IAM/public-access-block også ved eksplisitt `versionId`
+- presisert at public delivery ikke krever anonym bucket: første MVP bruker kontrollert same-origin/lokal media-origin fra host-persistent storage; ekstern provider-endpoint, origin-begrenset objektlager og CDN er bare betingede senere krav
+- godkjent private originaler med separat lokal host-persistent storage, permissions og rollebeskyttet tilgang; provider-versioning, IAM/public-access-block og eksplisitt `versionId`-bevis gjelder bare dersom objektlagring senere innføres
 - godkjent hybridbackup med private originaler, metadata/profil, nødvendige referanser og audit, aktive public rendition-bytes og deny-journal i separat failure-domain; deterministisk regenerering er sekundær reparasjonsvei
 - godkjent fail-closed restore-gate med ikke-offentlig karantene, nyeste deny-journal, replay/read-model, reconciliation og checksum-/referanseverifisering før public serving
 - godkjent append-only/WORM-orientert autoritativ deny-journal med idempotente events, separat backup/failure-domain og deny-first-rekkefølge før origin-delete og purge; permanent teknologi er fortsatt åpen
