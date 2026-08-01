@@ -1,0 +1,22 @@
+[Unit]
+Description=Kreative Norge weekly Borg repository verification
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/etc/kreative-norge-backup/backup.env
+
+[Service]
+Type=oneshot
+Environment=BACKUP_ENV_FILE=/etc/kreative-norge-backup/backup.env
+ExecStart=/usr/local/lib/kreative-norge-backup/verify.sh
+User=root
+Group=root
+UMask=0077
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=/var/lib/kreative-norge-backup /run/lock
+TimeoutStartSec=12h

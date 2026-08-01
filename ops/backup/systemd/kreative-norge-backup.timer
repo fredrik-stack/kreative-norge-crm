@@ -1,0 +1,11 @@
+[Unit]
+Description=Nightly Kreative Norge backup timer
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 Europe/Oslo
+RandomizedDelaySec=30m
+Persistent=true
+Unit=kreative-norge-backup.service
+
+[Install]
+WantedBy=timers.target

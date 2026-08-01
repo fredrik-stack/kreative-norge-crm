@@ -4,6 +4,16 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 
 ## 2026-08-01
 
+### ADR-008 og Hetzner backupgrunnmur forberedt
+
+- godkjent én-server-MVP med Django, PostgreSQL og aktiv media på dagens Hetzner Cloud-server, navngitte lokale Django-storagealiaser for fremtidig media og utsatt S3-/AWS-/Backblaze-/CDN-løp
+- lagt en inaktiv backupmodul under `ops/backup/` med PostgreSQL custom-format dump, `pg_restore --list`, eksplisitte fil-/konfigurasjonspaths, sikkert manifest, kryptert Borg 1.2.x/`borg-1.2`, repo-ID-lås og retention 14/8/12
+- lagt nattlig backup- og ukentlig verify-unit med `flock`, root-only state, lav prioritet og statusfil, men ikke installert eller aktivert timerne
+- lagt isolert restore-smoke mot PostgreSQL 16 uten port eller live databaseinngrep og en hard aktiveringsport som krever grønn backup, dump, repository-check og restore av samme arkiv
+- dokumentert eksisterende risiko for at import-/eksport-/rapportfiler kan ligge i API-containerlaget fordi dagens Compose mangler media-mount; ingen filer eller runtime ble flyttet
+- merket leveransen PREPARED, NOT ACTIVE fordi `kreative-staging` ikke kunne løses i arbeidsmiljøet; serverstørrelser, Storage Box, recovery-secret, første backup/restore, snapshots og Cloud Backups er ikke verifisert
+- ikke endret CRM-runtime, Compose, database, data, publisering, modeller, API, Editor, PUBLIC, Import 2.0, containere, DNS eller Cloudflare
+
 ### Fase 3B.2: storage-, delivery-, takedown- og restoreprinsipper godkjent
 
 - godkjent to-key-kontrakt med separat deterministisk processing artifact identity og immutable public release identity; ny offentlig revisjon bruker ny release key uten krav om ny encoding, mens eksakt key-struktur fortsatt er åpen

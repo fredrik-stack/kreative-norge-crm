@@ -13,6 +13,7 @@ ADR-er dokumenterer viktige valg som påvirker arkitektur, data eller arbeidsfly
 | [ADR-005](ADR-005-CONTACT_ARCHITECTURE.md) | Helhetlig kontaktarkitektur | Godkjent målarkitektur, delvis implementert |
 | [ADR-006](ADR-006-SESSION_WORKFLOW.md) | Sesjonsflyt og varig prosjektminne | Godkjent og implementert |
 | [ADR-007](ADR-007-IMAGE_ASSET_ARCHITECTURE.md) | Tenant-eid bildeassetarkitektur | Godkjent arkitekturgrunnlag; fase 3B og implementering gjenstår |
+| [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) | Hetzner one-server storage og backup | Godkjent; repo-grunnmur forberedt, ekstern aktivering gjenstår |
 
 Detaljstatusen i hvert ADR er autoritativ dersom kortstatusen her ikke har alle nyanser.
 

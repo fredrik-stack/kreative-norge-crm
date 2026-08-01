@@ -6,6 +6,23 @@ on:
   pull_request:
 
 jobs:
+  backup-foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        run: shellcheck ops/backup/*.sh
+
+      - name: Run synthetic backup tests
+        run: python3 -m unittest discover -s ops/backup/tests -v
+
+      - name: Verify systemd units
+        run: |
+          sudo install -d /usr/local/lib/kreative-norge-backup
+          sudo install -m 0755 ops/backup/backup.sh ops/backup/verify.sh /usr/local/lib/kreative-norge-backup/
+          systemd-analyze verify ops/backup/systemd/*.service ops/backup/systemd/*.timer
+
   backend:
     runs-on: ubuntu-latest
     services:
