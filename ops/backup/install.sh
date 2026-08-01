@@ -64,8 +64,8 @@ generate_key() {
 initialize_repository() {
   require_root
   require_root_private_file "$ENV_FILE" "backup.env"
-  # shellcheck disable=SC1090
   set -a
+  # shellcheck disable=SC1090
   source "$ENV_FILE"
   set +a
   for name in BORG_REPOSITORY BORG_PASSPHRASE_FILE BORG_SSH_KEY BORG_KNOWN_HOSTS STORAGE_BOX_HOST; do

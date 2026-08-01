@@ -12,7 +12,8 @@ restore_container=""
 status_available=0
 
 cleanup() {
-  # shellcheck disable=SC2155 -- capture the incoming trap status before any command changes it.
+  # Capture the incoming trap status before any command changes it.
+  # shellcheck disable=SC2155
   local rc="$?"
   if [ -n "$restore_container" ]; then
     docker rm -f "$restore_container" >/dev/null 2>&1 || true

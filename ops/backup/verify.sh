@@ -9,7 +9,8 @@ source "$BACKUP_MODULE_DIR/lib.sh"
 
 status_available=0
 cleanup() {
-  # shellcheck disable=SC2155 -- capture the incoming trap status before any command changes it.
+  # Capture the incoming trap status before any command changes it.
+  # shellcheck disable=SC2155
   local rc="$?"
   if [ "$rc" -ne 0 ] && [ "$status_available" -eq 1 ]; then
     backup_status --event error --timestamp "$(backup_now)" --stage weekly_verify || true

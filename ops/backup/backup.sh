@@ -22,7 +22,8 @@ job_dir=""
 status_started=0
 
 cleanup() {
-  # shellcheck disable=SC2155 -- capture the incoming trap status before any command changes it.
+  # Capture the incoming trap status before any command changes it.
+  # shellcheck disable=SC2155
   local rc="$?"
   if [ -n "$job_dir" ] && [ -d "$job_dir" ]; then
     rm -rf -- "$job_dir"

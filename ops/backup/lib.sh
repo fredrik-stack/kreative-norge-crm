@@ -3,9 +3,13 @@
 set -Eeuo pipefail
 umask 077
 
+# Used by backup.sh after this library is sourced.
+# shellcheck disable=SC2034
 BACKUP_MODULE_VERSION="1"
 BACKUP_MODULE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_ENV_FILE="${BACKUP_ENV_FILE:-/etc/kreative-norge-backup/backup.env}"
+# Used by backup.sh after this library is sourced.
+# shellcheck disable=SC2034
 BACKUP_FAILURE_STAGE="preflight"
 BACKUP_TEST_MODE="${BACKUP_TEST_MODE:-0}"
 
@@ -57,8 +61,8 @@ backup_require_safe_shell_path() {
 
 backup_load_config() {
   backup_validate_root_file "$BACKUP_ENV_FILE" "backup environment file"
-  # shellcheck disable=SC1090
   set -a
+  # shellcheck disable=SC1090
   source "$BACKUP_ENV_FILE"
   set +a
 
@@ -154,8 +158,9 @@ backup_load_config() {
   for numeric_value in "$MIN_FREE_BYTES" "$BORG_CHECK_MAX_DURATION" "$RETENTION_DAILY" "$RETENTION_WEEKLY" "$RETENTION_MONTHLY"; do
     printf '%s' "$numeric_value" | grep -Eq '^[0-9]+$' || backup_die "numeric backup configuration is invalid"
   done
-  [ "$RETENTION_DAILY" -gt 0 ] && [ "$RETENTION_WEEKLY" -gt 0 ] && [ "$RETENTION_MONTHLY" -gt 0 ] || \
+  if [ "$RETENTION_DAILY" -le 0 ] || [ "$RETENTION_WEEKLY" -le 0 ] || [ "$RETENTION_MONTHLY" -le 0 ]; then
     backup_die "retention values must be positive"
+  fi
   while IFS= read -r path_value; do
     backup_require_absolute_path configured_path "$path_value"
     backup_require_safe_shell_path configured_path "$path_value"
