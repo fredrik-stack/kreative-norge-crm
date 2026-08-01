@@ -59,6 +59,8 @@ manifest_path="$job_dir/manifest.txt"
 checksums_path="$job_dir/checksums.sha256"
 
 BACKUP_FAILURE_STAGE="disk"
+# The PostgreSQL variables intentionally expand inside the database container.
+# shellcheck disable=SC2016
 database_size_bytes="$(backup_compose_exec "$DATABASE_SERVICE" sh -ec 'psql --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --tuples-only --no-align --command="SELECT pg_database_size(current_database());"')"
 database_size_bytes="$(printf '%s' "$database_size_bytes" | tr -d '[:space:]')"
 printf '%s' "$database_size_bytes" | grep -Eq '^[0-9]+$' || backup_die "database size query returned an invalid value"
@@ -68,6 +70,8 @@ required_bytes=$((10#$database_size_bytes + 10#$MIN_FREE_BYTES))
 
 BACKUP_FAILURE_STAGE="dump"
 backup_log "creating consistent PostgreSQL custom-format dump"
+# The PostgreSQL variables intentionally expand inside the database container.
+# shellcheck disable=SC2016
 backup_compose_exec "$DATABASE_SERVICE" sh -ec 'exec pg_dump --format=custom --no-owner --no-acl --username="$POSTGRES_USER" --dbname="$POSTGRES_DB"' >"$dump_path"
 [ -s "$dump_path" ] || backup_die "pg_dump produced an empty dump"
 
