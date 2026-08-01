@@ -65,8 +65,9 @@ require_installer_layout() {
 require_recovery_destination() {
   recovery_destination="$1"
   backup_require_host_path "recovery key destination" "$recovery_destination" || exit 1
-  [ ! -e "$recovery_destination" ] && [ ! -L "$recovery_destination" ] || \
+  if [ -e "$recovery_destination" ] || [ -L "$recovery_destination" ]; then
     die "refusing to overwrite an existing recovery key export"
+  fi
 
   local destination_parent
   destination_parent="$(dirname "$recovery_destination")"
@@ -183,8 +184,9 @@ export_recovery_key() {
       die "temporary recovery key export must be root-owned with mode 0600"
   fi
 
-  [ ! -e "$recovery_destination" ] && [ ! -L "$recovery_destination" ] || \
+  if [ -e "$recovery_destination" ] || [ -L "$recovery_destination" ]; then
     die "refusing to overwrite an existing recovery key export"
+  fi
   "$PYTHON_BIN" "$SOURCE_DIR/status.py" link-no-clobber \
     --source "$exported_key" --destination "$recovery_destination" || \
     die "could not create recovery key export without overwriting"

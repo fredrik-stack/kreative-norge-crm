@@ -153,8 +153,8 @@ backup_validate_borg_directory_contract() {
       return 1
     fi
     printf -v "$variable" '%s' "$expected"
-    export "$variable"
   done
+  export BORG_CACHE_DIR BORG_CONFIG_DIR BORG_SECURITY_DIR
 }
 
 backup_validate_semantic_paths() {
