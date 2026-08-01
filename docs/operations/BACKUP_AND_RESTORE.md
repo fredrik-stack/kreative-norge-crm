@@ -15,7 +15,7 @@ Denne runbooken er den autoritative driftsprosedyren for kryptert PostgreSQL-, f
 | MANUAL REQUIRED | Prosjekteier må gjøre en kontroll i Hetzner Console eller organisasjonens passordlager |
 | NOT IMPLEMENTED | Fremtidig lokal bilde-runtime og mediaflytting finnes ikke |
 
-Nåstatus er PREPARED. SSH-målet `kreative-staging` kunne ikke løses i arbeidsmiljøet som bygget modulen. Serverdisk, datastørrelser, eksisterende backupjobber, Storage Box-tilgang og Cloud Backups er derfor ikke verifisert. Ingen timer er installert eller aktivert.
+Nåstatus er PREPARED. Den skrivebeskyttede [stagingbaselinen 2026-08-01](../status/STAGING_BACKUP_BASELINE_2026-08-01.md) verifiserte serverdisk, datastørrelser, Compose, FileField-/mediapaths, eksisterende backupjobber og Borg-forutsetninger. Prosjekteier verifiserte samtidig i Hetzner Console at Cloud Backups er aktivert og at første helserverbackup er synlig. Storage Box, Borg, recovery-secret, første Borg-backup og restore-smoke er ikke konfigurert eller kjørt, og ingen backup-timere er installert eller aktivert.
 
 ## 2. Beskyttet innhold
 
@@ -35,7 +35,7 @@ Verifisert kodekontrakt for dagens eneste `FileField`-familier er:
 - `preview_report_file` og `error_report_file`: `imports/tenant_<id>/job_<id>/reports/<filename>`
 - `ExportJob.file`: `exports/tenant_<id>/job_<id>/<filename>`
 
-Django settings har ingen eksplisitt `MEDIA_ROOT` eller media-`STORAGES`-backend, og staging Compose har ingen API-media-mount. Relativ default storage kan derfor ende som `/app/imports` og `/app/exports` i API-containerlaget. Dette må bekreftes på serveren. Modulen tar sikre tar-bundles av disse områdene når de finnes, men erstatter ikke den senere host-persistente migreringen.
+Django settings har ingen eksplisitt `MEDIA_ROOT` eller media-`STORAGES`-backend, og staging Compose har ingen API-media-mount. Baselinen fant ikke `/app/imports`, `/app/exports` eller eksisterende filer i disse områdene; ingen nåværende import-/eksportfiler er derfor identifisert som utsatt. Default storage har likevel location `/app`, så nye FileField-filer kan bli liggende i API-containerlaget og gå tapt ved recreate. Modulen tar sikre tar-bundles av områdene når de finnes, men erstatter ikke den senere host-persistente migreringen.
 
 Manifestet inneholder bare driftsmetadata: UTC, miljø, hostname, Git-commit og clean/dirty, PostgreSQL-versjon, dumpnavn/-størrelse/-checksum, inkluderte og manglende top-level paths, arkivnavn, modulversjon og verifikasjonsstatus. Representative mediafiles identifiseres bare med hash av arkivpath og innholdschecksum; rå path eller filinnhold logges ikke.
 
@@ -47,9 +47,13 @@ Root-only konfigurasjon: `/etc/kreative-norge-backup/`
 
 Root-only state og status: `/var/lib/kreative-norge-backup/`
 
-Standard retention: 14 daily, 8 weekly, 12 monthly. Borg er pin-net til lokal `1.2.x` og Storage Box remote path `borg-1.2`.
+Aktiv staging-environmentfil: `/srv/kreative-norge-crm/.env.staging`. Standard retention: 14 daily, 8 weekly, 12 monthly. Borg er pin-net til lokal `1.2.x` og Storage Box remote path `borg-1.2`.
 
 ## 4. Skrivebeskyttet serverbaseline før installasjon
+
+Baselinen ble gjennomført 2026-08-01 uten serverendringer. Serverrepoet var rent på fase 2-applikasjonscommiten og 11 commits bak autoritativ GitHub `main`. Systemdisken hadde omtrent 32 GiB ledig, PostgreSQL 16.13 var `READY`, aktiv database var omtrent 16,6 MiB, tre CRM-containere kjørte uten restarter, og ingen kolliderende automatisert CRM-/PostgreSQL-backup ble funnet. Borg og backupmodulen var ikke installert. Se den anonymiserte [evidensrapporten](../status/STAGING_BACKUP_BASELINE_2026-08-01.md).
+
+Kommandoene under beholdes for ny baseline før senere installasjon eller ved vesentlig serverendring.
 
 Kjør først kontroller som ikke viser secretverdier:
 
@@ -85,12 +89,18 @@ Stopp dersom baseline viser en eksisterende backupmekanisme som kan kollidere, u
 
 ### Cloud server Backups
 
+Status 2026-08-01: **ENABLED AND FIRST BACKUP VERIFIED**. Prosjekteier så første automatiske backup med størrelse 11,6 GB og bekreftet 0 Cloud Volumes. Cloud Backup er fortsatt bare et ekstra helserverlag og erstatter ikke logisk PostgreSQL-dump, Borg, Storage Box eller restore-smoke.
+
+Ved senere kontroll:
+
 1. Åpne Hetzner Console og velg CRM-serveren.
-2. Kontroller om Backups er aktivert; aktiver daglige Backups hvis de mangler.
+2. Kontroller at Backups fortsatt er aktivert og at nyere backup er synlig.
 3. Kontroller om kritiske data ligger på et Cloud Volume som ikke dekkes av serverbackupen.
-4. Registrer resultatet som VERIFIED. Inntil da er status UNVERIFIED.
+4. Registrer dato, status og størrelse uten å kopiere sensitiv Console-informasjon.
 
 ### Storage Box
+
+Anbefalt, men ikke bestilt, startplan er BX11 med 1 TB i FSN1. Applikasjonsserveren står i HEL1, og FSN1 gir fysisk lokasjonsseparasjon innen Hetzner. Dagens målte database-/filgrunnlag er svært lite. Gjør kapasitetsreview ved 60–70 prosent faktisk bruk og behold minst 20–30 prosent ledig for Borg-vekst og snapshots. Fremtidig bildevekst skal vurderes separat.
 
 1. Opprett eller velg en Storage Box med kapasitet basert på målt database, media, vekst og retention.
 2. Velg om mulig en annen Hetzner-lokasjon enn applikasjonsserveren.
@@ -214,12 +224,12 @@ Denne operasjonen krever eksplisitt hendelsesbeslutning og egen plan. Ikke bruk 
 
 ## 12. Kjente åpne risikoer
 
-- Serverbaseline og faktiske datastørrelser er ukjent fordi SSH-aliaset ikke var tilgjengelig.
-- Dagens FileField-filer kan ligge i API-containerlaget og mangler host-persistent mount.
-- Cloud Backups og Storage Box-snapshots er UNVERIFIED.
+- Ingen eksisterende FileField-filer ble funnet, men nye filer kan ligge i API-containerlaget og mangler host-persistent mount.
+- Storage Box og Storage Box-snapshots er ikke opprettet eller verifisert.
 - Recovery-secret er ikke bekreftet off-server.
 - Første Borg-backup og restore-smoke er ikke kjørt.
 - Ingen ekstern feilvarsling finnes.
 - RTO er ikke målt.
+- Serverrepoet var 11 commits bak autoritativ GitHub `main`; synkronisering skjer først gjennom separat godkjent merge/deploy.
 
-Ingen av disse punktene kan merkes ACTIVE før det finnes faktisk server- og restoreevidens.
+Cloud Backups er **ENABLED AND FIRST BACKUP VERIFIED**, men backupgrunnmuren kan ikke merkes `ACTIVE` før Storage Box-, Borg-, recovery-, backup-, restore- og timerkravene er oppfylt.

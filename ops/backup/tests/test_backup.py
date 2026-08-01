@@ -412,6 +412,16 @@ class ParserSecurityTests(unittest.TestCase):
 
 
 class DocumentationTests(unittest.TestCase):
+    def test_staging_example_uses_verified_compose_environment_path(self) -> None:
+        example = (MODULE_DIR / "backup.env.example").read_text(encoding="utf-8")
+        verified_path = "/srv/kreative-norge-crm/.env.staging"
+        self.assertIn(f"COMPOSE_ENV_FILE={verified_path}\n", example)
+        server_paths = next(
+            line for line in example.splitlines() if line.startswith("SERVER_CONFIG_PATHS=")
+        )
+        self.assertIn(verified_path, server_paths.split("=", 1)[1].split(":"))
+        self.assertNotIn("/srv/kreative-norge-crm/.env", server_paths.split("=", 1)[1].split(":"))
+
     def test_new_local_markdown_links_exist(self) -> None:
         import re
         from urllib.parse import unquote
@@ -428,6 +438,7 @@ class DocumentationTests(unittest.TestCase):
             repository_root / "docs/status/PROJECT_STATUS_CURRENT.md",
             repository_root / "docs/status/ROADMAP.md",
             repository_root / "docs/status/CHANGELOG.md",
+            repository_root / "docs/status/STAGING_BACKUP_BASELINE_2026-08-01.md",
         )
         for document in documents:
             for raw_target in re.findall(r"\[[^]]+\]\(([^)]+)\)", document.read_text(encoding="utf-8")):

@@ -11,7 +11,12 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 - lagt nattlig backup- og ukentlig verify-unit med `flock`, root-only state, lav prioritet og statusfil, men ikke installert eller aktivert timerne
 - lagt isolert restore-smoke mot PostgreSQL 16 uten port eller live databaseinngrep og en hard aktiveringsport som krever grønn backup, dump, repository-check og restore av samme arkiv
 - dokumentert eksisterende risiko for at import-/eksport-/rapportfiler kan ligge i API-containerlaget fordi dagens Compose mangler media-mount; ingen filer eller runtime ble flyttet
-- merket leveransen PREPARED, NOT ACTIVE fordi `kreative-staging` ikke kunne løses i arbeidsmiljøet; serverstørrelser, Storage Box, recovery-secret, første backup/restore, snapshots og Cloud Backups er ikke verifisert
+- fullført en anonymisert, skrivebeskyttet stagingbaseline som verifiserte serverdisk, Compose, PostgreSQL, Docker-volumes, FileField-/mediapaths, eksisterende manuelle dumps, fravær av kolliderende automatisert backup og manglende Borg-/Storage Box-oppsett
+- bekreftet at `/app/imports` og `/app/exports` ikke finnes og at filantallet er null, men at nye FileField-filer fortsatt kan gå tapt i API-containerlaget før en separat host-persistent runtimeleveranse
+- korrigert backupmalens staging-environmentpath til `.env.staging` både for Compose og serverkonfigurasjons-allowlisten
+- registrert prosjekteiers Console-verifikasjon: Cloud Backups er ENABLED AND FIRST BACKUP VERIFIED med første synlige backup på 11,6 GB og 0 Cloud Volumes; dette er fortsatt bare et ekstra helserverlag
+- anbefalt, men ikke bestilt, BX11 med 1 TB i FSN1, kapasitetsreview ved 60–70 prosent bruk og minst 20–30 prosent ledig margin
+- beholdt leveransen PREPARED, NOT ACTIVE fordi Storage Box, Borg, recovery-secret, første Borg-backup, restore-smoke, Storage Box-snapshots og timere fortsatt ikke er opprettet eller aktivert
 - ikke endret CRM-runtime, Compose, database, data, publisering, modeller, API, Editor, PUBLIC, Import 2.0, containere, DNS eller Cloudflare
 
 ### Fase 3B.2: storage-, delivery-, takedown- og restoreprinsipper godkjent

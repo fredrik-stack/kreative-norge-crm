@@ -2,7 +2,7 @@
 
 ## Status
 
-Godkjent arkitekturretning. Repoets generiske backupmodul er **PREPARED, NOT ACTIVE**. Ekstern Storage Box-tilgang, første backup, restore-smoke, off-server recovery-secret, Storage Box-snapshots og Hetzner Cloud Backups er ikke verifisert i denne leveransen.
+Godkjent arkitekturretning. Repoets generiske backupmodul er **PREPARED, NOT ACTIVE**. Den skrivebeskyttede [stagingbaselinen](../status/STAGING_BACKUP_BASELINE_2026-08-01.md) er verifisert, og prosjekteier har kontrollert at Hetzner Cloud Backups er aktivert og at første backup er synlig. Ekstern Storage Box-tilgang, første Borg-backup, restore-smoke, off-server recovery-secret og Storage Box-snapshots er fortsatt ikke verifisert eller aktivert.
 
 **Beslutningsdato:** 2026-08-01
 
@@ -17,7 +17,7 @@ Operativ status skal alltid bruke disse begrepene:
 
 ## Bakgrunn
 
-Kreative Norge CRM kjører Django, PostgreSQL og frontend på én Hetzner Cloud-server. GitHub beskytter kode og dokumentasjon, men er ikke backup av database, opplastede filer eller serverunik konfigurasjon. Dagens Compose-oppsett har et persistent PostgreSQL-volume, men ingen eksplisitt media-mount for API-containeren. Eksisterende `ImportJob.file`, preview-/feilrapporter og `ExportJob.file` kan derfor ligge under `/app/imports` og `/app/exports` i containerlaget. Det er en kjent driftsrisiko som skal verifiseres på serveren og senere løses med en separat, kontrollert filflytting.
+Kreative Norge CRM kjører Django, PostgreSQL og frontend på én Hetzner Cloud-server. GitHub beskytter kode og dokumentasjon, men er ikke backup av database, opplastede filer eller serverunik konfigurasjon. Dagens Compose-oppsett har et persistent PostgreSQL-volume, men ingen eksplisitt media-mount for API-containeren. Serverbaselinen 2026-08-01 fant verken `/app/imports`, `/app/exports` eller eksisterende filer i disse områdene. Django default storage peker likevel til `/app`; fremtidige `ImportJob.file`, preview-/feilrapporter og `ExportJob.file` kan derfor bli liggende i containerlaget og gå tapt ved recreate. Host-persistent default/media-storage krever en separat, kontrollert runtimeleveranse før slike filer tas i aktiv bruk.
 
 [ADR-007](ADR-007-IMAGE_ASSET_ARCHITECTURE.md) definerer fortsatt bildeasset-, processing-, delivery-, takedown- og restoreinvariantene. Det krevde tidligere S3-kompatibel staging-/produksjonsstorage før en faktisk provider var valgt. Prosjekteier har nå valgt en enklere MVP: aktiv media forblir på dagens server, mens verifisert off-server backup etableres før bildearkitekturen implementeres.
 
@@ -42,6 +42,10 @@ Kreative Norge CRM kjører Django, PostgreSQL og frontend på én Hetzner Cloud-
 5. GitHub er autoritativ kilde for kode og dokumentasjon, ikke database- eller mediabackup.
 
 Storage Box bør om mulig være i en annen Hetzner-lokasjon enn applikasjonsserveren. Dette er ett leverandørvalg med separate failure-domains, ikke en flerleverandørstrategi.
+
+Den verifiserte baselinen målte et svært lite database- og filgrunnlag. Anbefalt, men ikke bestilt, første plan er derfor BX11 med 1 TB i FSN1. Applikasjonsserveren står i HEL1, slik at FSN1 gir fysisk lokasjonsseparasjon innen Hetzner. Kapasiteten vurderes på nytt ved 60–70 prosent faktisk bruk, og minst 20–30 prosent holdes ledig for Borg-vekst og Storage Box-snapshots. Fremtidig bildevekst er ikke regnet som eksisterende data.
+
+Hetzner Cloud Backups er **ENABLED AND FIRST BACKUP VERIFIED** etter prosjekteiers manuelle Console-kontroll 2026-08-01. Første synlige helserverbackup var 11,6 GB, og Console viste 0 Cloud Volumes. Dette endrer ikke kravet om logisk PostgreSQL-dump, Borg, Storage Box eller restore-smoke.
 
 ### Borg-kontrakt
 
@@ -115,12 +119,12 @@ Denne løsningen beskytter dagens viktigste data uten å gjøre bildearkitekture
 ### Risiko og begrensninger
 
 - aktiv server er fortsatt et enkelt tilgjengelighetspunkt mellom backupene
-- dagens containerlagrede FileField-filer kan forsvinne ved container-recreate før de flyttes til host-persistent storage
+- ingen eksisterende FileField-filer ble funnet i containerområdene 2026-08-01, men nye filer kan forsvinne ved container-recreate før host-persistent storage er etablert
 - Storage Box-snapshots bruker kapasitet på samme boks og er ikke uavhengig katastrofebackup; se [Hetzner Storage Box snapshots](https://docs.hetzner.com/storage/storage-box/snapshots/)
-- Cloud Backup-status kan ikke antas fra serveren og må kontrolleres i Console
+- Cloud Backup-status må fortsatt kontrolleres i Console; første backup er verifisert 2026-08-01, men Cloud Backup er bare et ekstra helserverlag
 - recovery avhenger av en korrekt sikret off-server recovery-hemmelighet
 - ingen ekstern feilvarsling er etablert
-- faktisk RPO, RTO, datamengde, diskvekst og restorevarighet må måles etter at servertilgang og Storage Box finnes
+- faktisk Borg-RPO, RTO, diskvekst og restorevarighet må måles etter at Storage Box og den eksterne kjeden finnes
 
 ## Avviste eller utsatte alternativer
 
@@ -133,6 +137,8 @@ Denne løsningen beskytter dagens viktigste data uten å gjøre bildearkitekture
 ## Implementeringsstatus
 
 - **PREPARED:** repo-modul, systemd-maler, syntetiske tester, ADR og runbook
-- **MANUAL REQUIRED:** Storage Box/subaccount, SSH key registration, host-key pinning, recovery-secret, snapshots, Cloud Backups og første restoreøvelse
+- **MANUAL REQUIRED:** Storage Box/subaccount, SSH key registration, host-key pinning, recovery-secret, Storage Box-snapshots og første Borg-/restoreøvelse
 - **NOT IMPLEMENTED:** lokal media-runtime, host mounts, filflytting og bildearkitektur
-- **ACTIVE:** ingen deler av den eksterne backupkjeden er ennå verifisert aktive
+- **ACTIVE:** ingen deler av Borg-/Storage Box-kjeden er ennå verifisert aktive
+
+Cloud Backups er **ENABLED AND FIRST BACKUP VERIFIED**, men teller ikke alene som `ACTIVE` backupgrunnmur.

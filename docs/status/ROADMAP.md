@@ -104,7 +104,7 @@ Dette er ikke en generell redesign. Øvrige kort og komponenter videreutvikles i
 - [fase 3B.2](PHASE_3B2_STORAGE_RESTORE_SPIKE.md) har prototypet separate private/public `STORAGES`-aliaser, lokal filesystemreferanse, Moto 5.2.2, immutable artifact/release keys, absolutte allowlistede media-origins, origin-sletting, purge/takedown, separat deny-journal og backup/restore
 - prosjekteier har godkjent to-key-kontrakt, dedikert unversioned aktiv public rendition-store, privat/origin-begrenset public delivery bak `PUBLIC_MEDIA_ORIGIN`, betinget privat versioning, hybridbackup, fail-closed restore, varig deny-journal/read-model og idempotent purge
 - [ADR-008](../decisions/ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokale navngitte storagealiaser og Borg 1.2.x til separat Hetzner Storage Box med retention 14/8/12; S3/AWS/Backblaze/CDN utsettes
-- repoets backupmodul er PREPARED, NOT ACTIVE fordi server-SSH, Storage Box, første backup/restore, recovery-secret, snapshots og Cloud Backups ikke er verifisert
+- repoets backupmodul er PREPARED, NOT ACTIVE; serverbaselinen er verifisert og Cloud Backups er ENABLED AND FIRST BACKUP VERIFIED, mens Storage Box, første Borg-backup/restore, recovery-secret, Storage Box-snapshots og timere fortsatt ikke er opprettet eller aktive
 - eksakt public key-struktur, lokal serving/purge, permanent journalteknologi, faktisk RPO/RTO og konkrete bilde-runtimepaths er fortsatt åpne
 - fase 3B.2 har ikke opprettet CRM-modeller, migrasjoner, API/OpenAPI, Editor, PUBLIC, Import 2.0-integrasjon, bakgrunnskø eller stagingdeploy
 - senere fase 3B-gater skal fastsette API-schema, aliasmapping, concurrency, retentionmekanisme og sync/async-grense
@@ -123,7 +123,7 @@ MVP-en bruker:
 - Storage Box-snapshots og Hetzner Cloud Backups som ekstra lag
 - obligatorisk dump-, repository- og isolert restore-gate før timeraktivering
 
-Serverbaseline og ekstern kjede må fortsatt gjennomføres etter [runbooken](../operations/BACKUP_AND_RESTORE.md). S3-/CDN-sammenligning tas bare opp igjen ved dokumentert vekst- eller driftsbehov. Fase 3B.1R står parallelt som obligatorisk kvalitetsgate før fase 3C.
+Den skrivebeskyttede [serverbaselinen](STAGING_BACKUP_BASELINE_2026-08-01.md) er gjennomført. Den fant et lite database-/filgrunnlag, ingen eksisterende import-/eksportfiler og ingen kolliderende automatisert backup, men bekreftet at nye FileField-filer vil være containerlagret uten en senere host-mount. Anbefalt, men ikke bestilt, Storage Box er BX11 med 1 TB i FSN1. Ekstern Borg-kjede, recovery-secret, første backup, restore-smoke, Storage Box-snapshots og timere må fortsatt gjennomføres etter [runbooken](../operations/BACKUP_AND_RESTORE.md). S3-/CDN-sammenligning tas bare opp igjen ved dokumentert vekst- eller driftsbehov. Fase 3B.1R står parallelt som obligatorisk kvalitetsgate før fase 3C.
 
 ### Fase 3C – additiv backend- og storagegrunnmur
 
