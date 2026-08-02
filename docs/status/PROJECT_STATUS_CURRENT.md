@@ -1,12 +1,12 @@
 # Project Status Current
 
-**Status:** Fase 1 og 2 gjennomført; fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; fase 3B.1- og 3B.2-beslutningene er godkjent; fase 3B fortsatt aktiv
+**Status:** Fase 1 og 2 gjennomført; fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; lokal Hetzner storage-/backup-MVP godkjent; backupgrunnmur PREPARED, NOT ACTIVE; fase 3B fortsatt aktiv
 
-**Teknisk sist verifisert:** 2026-08-01
+**Teknisk sist verifisert:** 2026-08-02
 
-**Teknisk verifisert mot:** fase 2-applikasjonsversjonen i merge-commit `6768af8a3b48314aec028ec5972939c6ef0e38e8`, rent staging-repo på samme commit, kjørende API-/web-images, PostgreSQL, Django, migrasjoner, HTTPS, PUBLIC API/HTML, Editor-API og kontrollert tenant-avgrenset telefonreparasjon etter verifisert backup; fase 3B.1 og fase 3B.2 er i tillegg verifisert som isolerte lokale/Linux-prototyper uten staging- eller CRM-runtimekobling.
+**Teknisk verifisert mot:** fase 2-applikasjonsversjonen i merge-commit `6768af8a3b48314aec028ec5972939c6ef0e38e8`, rent staging-repo på samme commit, kjørende API-/web-images, PostgreSQL, Django, migrasjoner, HTTPS, PUBLIC API/HTML, Editor-API og kontrollert tenant-avgrenset telefonreparasjon etter verifisert backup; fase 3B.1 og fase 3B.2 er i tillegg verifisert som isolerte lokale/Linux-prototyper uten staging- eller CRM-runtimekobling. Den skrivebeskyttede backupbaselinen verifiserte server, disk, Compose, PostgreSQL, FileField-/mediapaths, eksisterende backupjobber og Borg-forutsetninger. Backupmodulen er fortsatt bare lokalt/syntetisk verifisert; Storage Box- og Borg-kjeden er ikke aktiv.
 
-**Produkt-roadmap sist oppdatert:** 2026-08-01
+**Produkt-roadmap sist oppdatert:** 2026-08-02
 
 **Arbeidsflyt sist kontrollert:** 2026-07-28
 
@@ -22,9 +22,13 @@ Fase 3A kartla deretter dagens thumbnail-, bilde-, storage-, import- og kortflyt
 
 [Fase 3B.1](PHASE_3B1_IMAGE_RENDITION_SPIKE.md) har gjennomført en isolert bildebehandlings- og renditionprototype med syntetiske fixtures. Pillow og pyvips/libvips, sikker dekoding, contain/cover, fokus, formater, determinisme, fallback og ressursbruk er målt. Prosjekteier har godkjent Pillow bak intern adapter, statisk JPEG/PNG/WebP-input, processing profile v1, no-upscale, immutable key-invarianten og 15 MiB som konfigurerbar standard. Endelig pixelgrense, dimensjons- og blur-/komprimeringsregler er fortsatt åpne.
 
-[Fase 3B.2](PHASE_3B2_STORAGE_RESTORE_SPIKE.md) er teknisk gjennomført som isolert prototype. Den målte separate Django-storagealiaser, gjenbrukt processing artifact key, separat public release key, private/public Moto-buckets, versioning, purge/cache, deny-journal, T0–T5 restore-reconciliation, backupstrategier og statisk fallback. Prosjekteier godkjente 2026-08-01 de leverandøruavhengige prinsippene om to-key-kontrakt, unversioned aktiv public rendition-store, privat/origin-begrenset public delivery, betinget privat versioning, hybridbackup, fail-closed restore, varig deny-journal/read-model og idempotent purge. Ingen produksjonsleverandør er valgt.
+[Fase 3B.2](PHASE_3B2_STORAGE_RESTORE_SPIKE.md) er teknisk gjennomført som isolert prototype. Den målte separate Django-storagealiaser, gjenbrukt processing artifact key, separat public release key, private/public Moto-buckets, versioning, purge/cache, deny-journal, T0–T5 restore-reconciliation, backupstrategier og statisk fallback. Prosjekteier godkjente 2026-08-01 de leverandøruavhengige prinsippene om to-key-kontrakt, en aktiv public rendition-store uten tilgjengelige historiske public versjoner, kontrollert public delivery, private originaler, hybridbackup, fail-closed restore, varig deny-journal/read-model og idempotent purge. ADR-008 har senere valgt lokal host-persistent storage for første MVP; providerkravene fra prototypen er derfor betingede dersom objektlagring senere tas opp igjen.
 
-Fase 3B er fortsatt aktiv. Fase 3B.1R er påkrevd før fase 3C. Neste anbefalte planleggingsleveranse er en skrivebeskyttet provider-/driftsgate; senere gater for API-schema, concurrency, retention og sync/async gjenstår også.
+[ADR-008](../decisions/ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger en enklere operasjonell MVP: app, database og aktiv media på dagens Hetzner Cloud-server, lokale navngitte Django-storagealiaser og kryptert Borg-backup til separat Hetzner Storage Box. S3/AWS/Backblaze/CDN utsettes. Repoets scripts, systemd-maler, tester og runbook er PREPARED. Den felles preflighten krever nå stabil lokal Borg `>=1.2.8` og `<1.3.0` for init, key export, inspect, backup, verify og restore. En semantisk pathgate binder skrivbare state-/Borgområder til dedikert backup-state, avgrenser host- og container-media, avviser brede, overlappende og symlinkbaserte paths før mutasjon og herder recovery-key-destinasjonen med privat parent og atomisk no-clobber. Den [skrivebeskyttede serverbaselinen](STAGING_BACKUP_BASELINE_2026-08-01.md) er gjennomført, og Cloud Backups er **ENABLED AND FIRST BACKUP VERIFIED** med første synlige backup på 11,6 GB. Storage Box, første Borg-backup, restore-smoke, recovery-secret, eksportert repositorynøkkel og Storage Box-snapshots er fortsatt ikke opprettet eller verifisert; systemd-timerne er ikke installert eller aktivert.
+
+Baselinen fant ingen eksisterende `/app/imports`-, `/app/exports`- eller host-mediafiler. API-containeren mangler fortsatt persistent import-/eksport-/media-mount, og Django default storage peker til `/app`; nye FileField-filer kan derfor gå tapt ved recreate. Host-persistent storage og runtimekobling er en separat senere leveranse. Anbefalt, men ikke bestilt, Storage Box er BX11 med 1 TB i FSN1, med kapasitetsreview ved 60–70 prosent faktisk bruk og 20–30 prosent ledig margin.
+
+Fase 3B er fortsatt aktiv. Fase 3B.1R, operativ aktivering av ADR-008-backupen og senere gater for API-schema, concurrency, retention og sync/async gjenstår før fase 3C.
 
 Bildearkitekturen er ikke implementert. Det er ikke opprettet modeller eller migrasjoner, konfigurert media-/objektstorage, endret API eller frontend eller gjennomført deploy. Dagens eksterne `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- og faviconflyt gjelder fortsatt.
 
@@ -54,13 +58,15 @@ Godkjente hovedprinsipper:
 - formell takedown fjerner offentlig bruk, går til fallback og beholder privat karantene og historikk
 - deterministic Kreative Norge-fallback finnes som square, landscape og 1200 × 630 share
 - public API utvides additivt med strukturert bildeobjekt og midlertidige deprecated URL-aliaser
-- lokal utvikling bruker filsystemstorage, mens staging og produksjon skal bruke S3-kompatibel objektlagring gjennom Djangos `STORAGES`
+- lokal utvikling, staging og første produksjons-MVP bruker navngitte filesystemaliaser gjennom Djangos `STORAGES`; aktiv media forblir på dagens server og objektlagring vurderes bare på nytt ved dokumentert behov
 - Import 2.0 skal senere bruke `KEEP_LOCKED_IMAGE`, `SET_APPROVED_IMAGE` og `USE_APPROVED_FALLBACK` uten nettverk eller bildebehandling i commit
 - ingen bildehandling endrer aktør-, person- eller kontaktpublisering
 
-Godkjent processing profile v1 bruker `square` 512 × 512 og `landscape` 800 × 450 som WebP quality 82 for foto, `share` 1200 × 630 som ikke-progressiv JPEG quality 85, PNG for logo med alpha og WebP/JPEG for fallback. Format, encoderinnstillinger, source checksum, fit, fokus, variant og processing-version inngår i immutable key. Før fase 3C skal fase 3B.1R teste representative ekte bilder og eksplisitt sRGB-normalisering. Fase 3B skal fortsatt fastsette kvalitetsgrenser, velge objektlagrings-/CDN-leverandør, verifisere provider-spesifikk purge/restore, avklare SVG-rasterisering ved behov, eventuelt kø-/skadevareoppsett, endelig API-schema og øvrige åpne detaljer i ADR-007.
+Godkjent processing profile v1 bruker `square` 512 × 512 og `landscape` 800 × 450 som WebP quality 82 for foto, `share` 1200 × 630 som ikke-progressiv JPEG quality 85, PNG for logo med alpha og WebP/JPEG for fallback. Format, encoderinnstillinger, source checksum, fit, fokus, variant og processing-version inngår i immutable key.
 
-Godkjent fase 3B.2-kontrakt skiller intern artifact identity fra public release identity. Aktiv public rendition-store er unversioned eller likeverdig uten tilgjengelige historiske public versjoner; produksjonsdelivery går gjennom `PUBLIC_MEDIA_ORIGIN` og et kontrollert CDN-/media-originlag foran privat eller origin-begrenset storage. Private originalversjoner skal forbli private. Hybridbackup inkluderer aktive rendition-bytes, mens deny-journalen har separat failure-domain og alltid avstemmes fail-closed før public serving etter restore. Eksakte provider-, IAM-, CDN-, journal-, backup- og driftsvalg er fortsatt åpne.
+Før fase 3C gjenstår de faktiske lokale MVP-gatene: fase 3B.1R med representative, rettighetsavklarte ekte bilder; eksplisitt sRGB-normalisering og fargeprofiltesting; endelige pixel-, dimensjons- og kvalitetsgrenser; lokal private/public-storage og same-origin/media-origin-serving; lokal cache-, purge- og verifikasjonskontrakt; permanent deny-journal og materialisert read-model med journalcursor og fail-closed reconciliation; SVG-policy og eventuell sikker rasterisering; eventuell skadevarekontroll og bakgrunnskø; endelig public API-schema og alias-til-variant-mapping; public release key-struktur innenfor godkjente invarianter; concurrency og databaseconstraints; retensjonsmekanisme; sync/async-grense; observability; samt målte RPO- og RTO-verdier. S3, CDN, ekstern IAM, bucket-policy, KMS, Object Lock og provider-spesifikk `versionId`-/purgeverifikasjon er bare en betinget senere gate dersom objektlagring tas opp igjen på grunn av dokumentert behov.
+
+Godkjent fase 3B.2-kontrakt skiller intern artifact identity fra public release identity. Aktiv public rendition-store er unversioned eller likeverdig uten tilgjengelige historiske public versjoner; første MVP leverer senere gjennom en kontrollert same-origin/media-origin fra lokal host-persistent storage. Private originaler skal forbli private. Hybridbackup inkluderer aktive rendition-bytes, mens deny-journalen har separat failure-domain og alltid avstemmes fail-closed før public serving etter restore. Lokal serving/purge, permanent journal og målte RPO/RTO er fortsatt åpne; ekstern S3/CDN er utsatt.
 
 ## Verifisert fase 1-baseline
 
@@ -174,7 +180,7 @@ Den avgrensede mellomleveransen sporer offentlig telefon gjennom Editor, API og 
 
 ### 3. Thumbnail-, bilde- og kortarkitektur – fase 3B.2 gjennomført og besluttet
 
-Fase 3A-kartleggingen, ADR-007 og de isolerte prototypene i fase 3B.1 og fase 3B.2 er gjennomført. Prosjekteier har godkjent tilhørende processing-, storage-, delivery-, takedown- og restoreprinsipper i ADR-007. Bildearkitekturen er fortsatt ikke implementert. Neste anbefalte planleggingsleveranse er en skrivebeskyttet provider-/driftsgate. Fase 3B.1R med representative bilder og fargeprofiler og øvrige fase 3B-gater må fullføres før fase 3C.
+Fase 3A-kartleggingen, ADR-007 og de isolerte prototypene i fase 3B.1 og fase 3B.2 er gjennomført. Prosjekteier har godkjent tilhørende processing-, storage-, delivery-, takedown- og restoreprinsipper og ADR-008s lokale Hetzner-MVP. Bildearkitekturen er fortsatt ikke implementert. Backupgrunnmuren må aktiveres og restore-verifiseres, og fase 3B.1R med representative bilder/fargeprofiler og øvrige fase 3B-gater må fullføres før fase 3C.
 
 Deretter skal Import 2.0 gjennom en egen produkt- og UX-designfase før større kodeendringer. Dagens importmotor skal gjenbrukes der den er solid, men skal ikke låse den nye brukeropplevelsen.
 
@@ -287,8 +293,8 @@ Sikker automatisk staging-deploy er planlagt utenfor produktfasene og blokkerer 
 - valgt mekanisme for automatisk staging-deploy
 - obligatoriske tester og CI-gates før deploy
 - endelig kontrakt mellom CRM-public og Musikkontoret.no
-- konkret S3-/CDN-leverandør, region, IAM, private access, journalteknologi/read-model, backupverktøy og RPO/RTO innenfor den godkjente fase 3B.2-kontrakten
-- representative pixel-/dimensjons-/kvalitetsgrenser, sRGB-kontrakt, eventuelt SVG-verktøy, API-schema og sync/async-grense i fase 3B
+- lokal private/public-storage, same-origin/media-origin-serving, cache/purge/verifikasjon, permanent journalteknologi/read-model/cursor, aktivert ADR-008-backup og målte RPO/RTO; S3/CDN og provider-spesifikke gater tas bare opp igjen ved dokumentert behov
+- representative pixel-/dimensjons-/kvalitetsgrenser, sRGB-/fargeprofilkontrakt, SVG-policy, eventuell sikker rasterisering/skadevarekontroll/bakgrunnskø, API-schema, aliasmapping, public release key-struktur, concurrency/databaseconstraints, retensjonsmekanisme, sync/async-grense og observability i fase 3B
 - eksplisitt publiseringsfelt for organisasjonens e-post
 - roller for kontaktpublisering, bulkpublisering og full kontakt-eksport
 - behandlingsgrunnlag og retensjon for kontakt-, import-, eksport- og auditdata

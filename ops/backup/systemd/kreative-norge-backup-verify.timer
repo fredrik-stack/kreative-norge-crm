@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly Kreative Norge backup verification timer
+
+[Timer]
+OnCalendar=Sun *-*-* 04:30:00 Europe/Oslo
+RandomizedDelaySec=30m
+Persistent=true
+Unit=kreative-norge-backup-verify.service
+
+[Install]
+WantedBy=timers.target

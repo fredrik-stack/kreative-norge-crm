@@ -9,8 +9,9 @@ Denne mappen er prosjektets levende dokumentasjonskilde.
 3. relevant dokument under `architecture/` – hvordan systemet faktisk er bygget
 4. relevant dokument under `features/` – produktkrav og ønsket brukeropplevelse
 5. `decisions/` – viktige arkitekturvalg
-6. `development/FREDRIK_DEVELOPMENT_SYSTEM.md` – prosjektets utviklingsplattform
-7. `development/` – arbeidsflyt, Skill Pack, eksempler, testing og deploy
+6. `operations/` – aktive og forberedte driftsprosedyrer
+7. `development/FREDRIK_DEVELOPMENT_SYSTEM.md` – prosjektets utviklingsplattform
+8. `development/` – arbeidsflyt, Skill Pack, eksempler, testing og deploy
 
 ## Grunnregel
 
