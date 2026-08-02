@@ -1,6 +1,6 @@
 # Backup og restore
 
-**Status:** PREPARED, NOT ACTIVE
+**Status:** ACTIVE
 
 **Arkitektur:** [ADR-008](../decisions/ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md)
 
@@ -15,7 +15,9 @@ Denne runbooken er den autoritative driftsprosedyren for kryptert PostgreSQL-, f
 | MANUAL REQUIRED | Prosjekteier må gjøre en kontroll i Hetzner Console eller organisasjonens passordlager |
 | NOT IMPLEMENTED | Fremtidig lokal bilde-runtime og mediaflytting finnes ikke |
 
-Nåstatus er PREPARED. Den skrivebeskyttede [stagingbaselinen 2026-08-01](../status/STAGING_BACKUP_BASELINE_2026-08-01.md) verifiserte serverdisk, datastørrelser, Compose, FileField-/mediapaths, eksisterende backupjobber og Borg-forutsetninger. Prosjekteier verifiserte samtidig i Hetzner Console at Cloud Backups er aktivert og at første helserverbackup er synlig. Storage Box, Borg, recovery-secret, eksportert repositorynøkkel, første Borg-backup og restore-smoke er ikke konfigurert eller kjørt, og ingen backup-timere er installert eller aktivert.
+Nåstatus er **ACTIVE**. Den skrivebeskyttede [stagingbaselinen 2026-08-01](../status/STAGING_BACKUP_BASELINE_2026-08-01.md) ble fulgt av kontrollert [aktivering 2026-08-02](../status/STAGING_BACKUP_ACTIVATION_2026-08-02.md). Separat Storage Box, kryptert Borg-repository, recovery-custody for minst to ansvarlige, første backup, full repository-check, isolert restore av samme arkiv, Console-gatene og timeraktiveringen er verifisert grønne.
+
+Første backup brukte 8 sekunder, og isolert restore-smoke brukte 8,7 sekunder. Foreløpig RPO er inntil omtrent 24 timer pluss randomisert timerforsinkelse og eventuell operativ forsinkelse. Restore-smoke-tiden er ikke et løfte om full katastrofe-RTO.
 
 ## 2. Beskyttet innhold
 
@@ -93,7 +95,7 @@ Stopp dersom baseline viser en eksisterende backupmekanisme som kan kollidere, u
 
 ### Cloud server Backups
 
-Status 2026-08-01: **ENABLED AND FIRST BACKUP VERIFIED**. Prosjekteier så første automatiske backup med størrelse 11,6 GB og bekreftet 0 Cloud Volumes. Cloud Backup er fortsatt bare et ekstra helserverlag og erstatter ikke logisk PostgreSQL-dump, Borg, Storage Box eller restore-smoke.
+Status 2026-08-02: **ENABLED, NEWER BACKUP VISIBLE**. Prosjekteier har kontrollert at Cloud Backups fortsatt er aktivert og at en nyere backup er synlig. Console viste tidligere 0 Cloud Volumes. Cloud Backup er fortsatt bare et ekstra helserverlag og erstatter ikke logisk PostgreSQL-dump, Borg, Storage Box eller restore-smoke.
 
 Ved senere kontroll:
 
@@ -104,7 +106,7 @@ Ved senere kontroll:
 
 ### Storage Box
 
-Anbefalt, men ikke bestilt, startplan er BX11 med 1 TB i FSN1. Applikasjonsserveren står i HEL1, og FSN1 gir fysisk lokasjonsseparasjon innen Hetzner. Dagens målte database-/filgrunnlag er svært lite. Gjør kapasitetsreview ved 60–70 prosent faktisk bruk og behold minst 20–30 prosent ledig for Borg-vekst og snapshots. Fremtidig bildevekst skal vurderes separat.
+Aktiv startplan er BX11 med 1 TB i FSN1. Applikasjonsserveren står i HEL1, og FSN1 gir fysisk lokasjonsseparasjon innen Hetzner. Første Storage Box-snapshot er aktivert og synlig. Dagens målte database-/filgrunnlag er svært lite. Gjør kapasitetsreview ved 60–70 prosent faktisk bruk og behold minst 20–30 prosent ledig for Borg-vekst og snapshots. Fremtidig bildevekst skal vurderes separat.
 
 1. Opprett eller velg en Storage Box med kapasitet basert på målt database, media, vekst og retention.
 2. Velg om mulig en annen Hetzner-lokasjon enn applikasjonsserveren.
@@ -126,6 +128,8 @@ Før backupgrunnmuren kan kalles recovery-klar eller `ACTIVE`, skal prosjekteier
 4. tilgang for minst to ansvarlige
 
 Koden kan validere filer, repository-ID og tekniske porter, men kan ikke bevise passordmanageren, de to ansvarliges tilgang eller at en lokal overføringskopi faktisk er fjernet. Dette er **MANUAL REQUIRED**. Lagre aldri privat servernøkkel eller nøkkelmateriale i dokumentasjon, Git, PR, chat eller logger.
+
+Første custody-gate ble bekreftet 2026-08-02: passfrase og kryptert repositorynøkkel er lagret separat off-server, checksum er verifisert, recovery-metadata er lagret sikkert, minst to ansvarlige har verifisert tilgang, og den midlertidige serverkopien er fjernet. Dette er et datert manuelt bevis, ikke automatisk garanti for senere custody.
 
 ## 6. Forbered installasjon – fortsatt inaktiv
 
@@ -175,6 +179,8 @@ Borgs eksport-/importkontrakt er dokumentert i [Borg 1.2 key management](https:/
 
 ## 8. Manuell førstebackup og restore-gate
 
+Førstegaten ble fullført 2026-08-02 og beholdes her som prosedyre for ny repositoryetablering, rotasjon eller full revalidering.
+
 Kjør i denne rekkefølgen:
 
 ```bash
@@ -219,7 +225,7 @@ sudo python3 -m json.tool /var/lib/kreative-norge-backup/status.json
 sudo journalctl -u kreative-norge-backup.service -u kreative-norge-backup-verify.service --since '-2 days' --no-pager
 ```
 
-Forvent grønn suksess innen ett døgn pluss randomisert forsinkelse. Ingen ekstern varsling er etablert; noen må eie denne kontrollen. Stopp dataendringer dersom siste backup, dumpverifikasjon eller repository-verifikasjon er rød eller foreldet.
+Nattlig backup er planlagt 02:30 Europe/Oslo og ukentlig verify søndag 04:30 Europe/Oslo, begge med inntil 30 minutters randomisert forsinkelse. Ved aktivering var første observerte neste kjøring 2026-08-03 02:33:49 Europe/Oslo for backup og 2026-08-09 04:59:04 Europe/Oslo for verify. Forvent grønn suksess innen ett døgn pluss forsinkelse. Ingen ekstern varsling er etablert; noen må eie denne kontrollen. Stopp dataendringer dersom siste backup, dumpverifikasjon eller repository-verifikasjon er rød eller foreldet.
 
 ## 10. Full restore ved hendelse
 
@@ -247,11 +253,9 @@ Denne operasjonen krever eksplisitt hendelsesbeslutning og egen plan. Ikke bruk 
 ## 12. Kjente åpne risikoer
 
 - Ingen eksisterende FileField-filer ble funnet, men nye filer kan ligge i API-containerlaget og mangler host-persistent mount.
-- Storage Box og Storage Box-snapshots er ikke opprettet eller verifisert.
-- Original Borg-passfrase, eksportert kryptert repositorynøkkel og off-server custody for minst to ansvarlige er ikke bekreftet.
-- Første Borg-backup og restore-smoke er ikke kjørt.
 - Ingen ekstern feilvarsling finnes.
-- RTO er ikke målt.
-- Serverrepoet var 11 commits bak autoritativ GitHub `main`; synkronisering skjer først gjennom separat godkjent merge/deploy.
+- Første restore-smoke er målt til 8,7 sekunder, men full katastrofe-RTO er ikke målt eller lovet.
+- Custody, Storage Box-snapshots og Cloud Backup-status krever fortsatt løpende manuell kontroll.
+- Serverrepoet er synkronisert til backupmodulens godkjente `main`-commit uten applikasjonsdeploy; kjørende CRM-images er ikke rebuildet eller restartet.
 
-Cloud Backups er **ENABLED AND FIRST BACKUP VERIFIED**, men backupgrunnmuren kan ikke merkes `ACTIVE` før Storage Box-, Borg-, recovery-key-/custody-, backup-, restore- og timerkravene er oppfylt.
+Backupgrunnmuren er **ACTIVE** fordi Storage Box-, Borg-, recovery-key-/custody-, backup-, restore-, Console- og timerkravene er oppfylt. Cloud Backups og Storage Box-snapshots er fortsatt tilleggslag.
