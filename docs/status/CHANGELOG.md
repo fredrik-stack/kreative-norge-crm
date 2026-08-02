@@ -4,6 +4,18 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 
 ## 2026-08-02
 
+### ADR-008 backupgrunnmur aktivert
+
+- etablert separat BX11 Storage Box med 1 TB i FSN1, dedikert skrivbar subaccount, verifisert host key og dedikert nøkkelinnlogging uten å lagre identifikatorer eller nøkkeldata i repoet
+- initialisert kryptert `repokey-blake2`-repository med Borg 1.2.8 og bekreftet separat off-server custody av passfrase, kryptert repositorynøkkel og nødvendig recovery-metadata for minst to ansvarlige
+- kjørt første manuelle systemd-backup med grønn PostgreSQL custom-format dump, `pg_restore --list`, manifest, checksums, repository-ID, arkivstatus og skrivebeskyttet repository-inspeksjon
+- kjørt full repository- og dataverifikasjon og isolert PostgreSQL 16 restore-smoke av samme arkiv med `--network none`, ingen publisert port, ufarlige tellinger og full cleanup
+- målt første backup til 8 sekunder og restore-smoke til 8,7 sekunder; registrert foreløpig RPO som inntil omtrent 24 timer pluss timerforsinkelse, uten å love full katastrofe-RTO
+- bekreftet første Storage Box-snapshot og nyere synlig Hetzner Cloud Backup
+- aktivert nattlig backup- og ukentlig verify-timer etter grønn teknisk, recovery- og Console-gate; begge er enabled/active uten failed units
+- beholdt CRM-runtime, database, data, publiseringsflagg, DNS og Cloudflare uendret; ingen applikasjonsdeploy eller containerrestart/recreate ble utført
+- satt backupgrunnmuren til **ACTIVE**; host-persistent media-runtime og ekstern feilvarsling gjenstår som separate leveranser
+
 ### Sikkerhetsherding av forberedt backupgrunnmur
 
 - strammet den felles lokale Borg-porten til stabil versjon `>=1.2.8` og `<1.3.0`; eldre `1.2.x`, `1.3.x`, `2.x`, prerelease og malformed output avvises før repository- eller backuparbeid for init, key export, inspect, backup, verify og restore

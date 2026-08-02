@@ -1,6 +1,6 @@
 # Deployment
 
-**Status:** staging dokumentert; backupgrunnmur forberedt, ikke aktiv; deployautomatisering planlagt
+**Status:** staging dokumentert; backupgrunnmur ACTIVE; deployautomatisering planlagt
 
 Staging bruker Caddy foran Docker Compose:
 
@@ -47,14 +47,14 @@ Repoet har en generisk modul under `ops/backup/` for nattlig, kryptert Borg-back
 - felles lokal Borg-port for stabil versjon `>=1.2.8` og `<1.3.0`, med remote path fortsatt `borg-1.2`
 - semantisk pathgate som binder skrivbare Borg-/stateområder til dedikert backup-state og avgrenser media til godkjente host-/container-røtter før mutasjon
 
-Status er **PREPARED, NOT ACTIVE**. Den skrivebeskyttede [stagingbaselinen 2026-08-01](../status/STAGING_BACKUP_BASELINE_2026-08-01.md) verifiserte serverdisk, Compose, PostgreSQL, Docker-volumes, FileField-/mediapaths og fravær av kolliderende automatisert backup. Prosjekteier verifiserte Hetzner Cloud Backups som **ENABLED AND FIRST BACKUP VERIFIED** med første synlige helserverbackup på 11,6 GB og 0 Cloud Volumes. Storage Box, Borg, original passfrase, eksportert repositorynøkkel, off-server custody, første Borg-backup, restore-smoke og Storage Box-snapshots mangler fortsatt. Timerne installeres ikke automatisk og kan ikke aktiveres av installasjonsscriptet før de tekniske backup-/restoreportene er grønne og de manuelle recovery-/Console-stegene er dokumentert. Se [Backup og restore](../operations/BACKUP_AND_RESTORE.md).
+Status er **ACTIVE**. Den skrivebeskyttede [stagingbaselinen 2026-08-01](../status/STAGING_BACKUP_BASELINE_2026-08-01.md) ble fulgt av kontrollert [aktivering 2026-08-02](../status/STAGING_BACKUP_ACTIVATION_2026-08-02.md). Storage Box, kryptert Borg-repository, separat recovery-custody, første backup, full repository-check, isolert restore av samme arkiv, Storage Box-snapshot, nyere synlig Cloud Backup og begge systemd-timerne er verifisert grønne. Første backup brukte 8 sekunder og restore-smoke 8,7 sekunder. Se [Backup og restore](../operations/BACKUP_AND_RESTORE.md).
 
-Backup, verify og restore deler én `flock`; bare låseieren kan skrive operativ status. Recovery-key-export krever en privat, operator-eid parent, avviser directory-/symlinktarget og oppretter sluttfilen atomisk uten overskriving eller beskyttede backup-/repo-destinasjoner. Repository-inspeksjon viser bare ufarlig sammendrag uten muterende Borg-operasjoner. Faktisk passphrase-/key-custody kan ikke bevises av kode og forblir **MANUAL REQUIRED**.
+Backup, verify og restore deler én `flock`; bare låseieren kan skrive operativ status. Recovery-key-export krever en privat, operator-eid parent, avviser directory-/symlinktarget og oppretter sluttfilen atomisk uten overskriving eller beskyttede backup-/repo-destinasjoner. Repository-inspeksjon viser bare ufarlig sammendrag uten muterende Borg-operasjoner. Første passphrase-/key-custody er manuelt bekreftet for minst to ansvarlige; løpende custody kan fortsatt ikke bevises av kode og forblir **MANUAL REQUIRED**.
 
 Det eksisterende `postgres_data`-volumet er persistent. API-containeren har derimot ingen import-, eksport- eller media-mount i dagens Compose-fil, og Django default storage har location `/app`. Baselinen fant ikke `/app/imports`, `/app/exports` eller eksisterende filer i disse områdene; ingen nåværende filer er identifisert som utsatt. Nye `ImportJob.file`-, rapport- eller `ExportJob.file`-filer kan likevel havne i containerlaget og gå tapt ved recreate. Backupmodulen kan ta områdene med mens containeren finnes; en separat leveranse må etablere host-persistent default/media-storage før filfunksjonene tas i aktiv bruk.
 
-Den faktiske staging-environmentfilen er `/srv/kreative-norge-crm/.env.staging`, mens aktiv Compose-fil er `/srv/kreative-norge-crm/docker-compose.staging.yml`. Serverrepoet var rent på fase 2-applikasjonscommiten og 11 commits bak autoritativ GitHub `main`; synkronisering og installasjon skjer først etter separat merge- og deploygodkjenning.
+Den faktiske staging-environmentfilen er `/srv/kreative-norge-crm/.env.staging`, mens aktiv Compose-fil er `/srv/kreative-norge-crm/docker-compose.staging.yml`. Serverrepoet er rent og synkronisert til backupmodulens godkjente `main`-commit. Dette var ingen applikasjonsdeploy: kjørende CRM-images ble ikke rebuildet, restartet eller gjenskapt.
 
-Anbefalt, men ikke bestilt, Storage Box er BX11 med 1 TB i FSN1. Applikasjonsserveren står i HEL1, og FSN1 gir fysisk lokasjonsseparasjon innen Hetzner. Kapasiteten vurderes på nytt ved 60–70 prosent faktisk bruk, med minst 20–30 prosent ledig for Borg-vekst og Storage Box-snapshots.
+Aktiv Storage Box er BX11 med 1 TB i FSN1. Applikasjonsserveren står i HEL1, og FSN1 gir fysisk lokasjonsseparasjon innen Hetzner. Kapasiteten vurderes på nytt ved 60–70 prosent faktisk bruk, med minst 20–30 prosent ledig for Borg-vekst og Storage Box-snapshots.
 
 Hetzner Cloud Backups og Storage Box-snapshots er ekstra lag. De erstatter ikke den applikasjonsbevisste Borg-backupen eller logisk database-restore.

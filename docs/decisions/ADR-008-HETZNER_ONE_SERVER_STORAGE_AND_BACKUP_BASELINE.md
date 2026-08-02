@@ -2,11 +2,11 @@
 
 ## Status
 
-Godkjent arkitekturretning. Repoets generiske backupmodul er **PREPARED, NOT ACTIVE**. Den skrivebeskyttede [stagingbaselinen](../status/STAGING_BACKUP_BASELINE_2026-08-01.md) er verifisert, og prosjekteier har kontrollert at Hetzner Cloud Backups er aktivert og at første backup er synlig. Ekstern Storage Box-tilgang, første Borg-backup, restore-smoke, off-server recovery-secret, eksportert Borg-repositorynøkkel og Storage Box-snapshots er fortsatt ikke verifisert eller aktivert.
+Godkjent arkitekturretning og **ACTIVE** operativ backupgrunnmur. Den skrivebeskyttede [stagingbaselinen](../status/STAGING_BACKUP_BASELINE_2026-08-01.md) er fulgt av en kontrollert [aktivering 2026-08-02](../status/STAGING_BACKUP_ACTIVATION_2026-08-02.md). Storage Box-/Borg-kjeden, recovery-custody, første backup, full repository-check, isolert restore av samme arkiv, Storage Box-snapshot, nyere synlig Cloud Backup og begge systemd-timerne er verifisert grønne.
 
 **Beslutningsdato:** 2026-08-01
 
-**Dokumentert i repo:** 2026-08-01
+**Dokumentert i repo:** 2026-08-02
 
 Operativ status skal alltid bruke disse begrepene:
 
@@ -43,9 +43,9 @@ Kreative Norge CRM kjører Django, PostgreSQL og frontend på én Hetzner Cloud-
 
 Storage Box bør om mulig være i en annen Hetzner-lokasjon enn applikasjonsserveren. Dette er ett leverandørvalg med separate failure-domains, ikke en flerleverandørstrategi.
 
-Den verifiserte baselinen målte et svært lite database- og filgrunnlag. Anbefalt, men ikke bestilt, første plan er derfor BX11 med 1 TB i FSN1. Applikasjonsserveren står i HEL1, slik at FSN1 gir fysisk lokasjonsseparasjon innen Hetzner. Kapasiteten vurderes på nytt ved 60–70 prosent faktisk bruk, og minst 20–30 prosent holdes ledig for Borg-vekst og Storage Box-snapshots. Fremtidig bildevekst er ikke regnet som eksisterende data.
+Den verifiserte baselinen målte et svært lite database- og filgrunnlag. Aktiv startplan er BX11 med 1 TB i FSN1. Applikasjonsserveren står i HEL1, slik at FSN1 gir fysisk lokasjonsseparasjon innen Hetzner. Kapasiteten vurderes på nytt ved 60–70 prosent faktisk bruk, og minst 20–30 prosent holdes ledig for Borg-vekst og Storage Box-snapshots. Fremtidig bildevekst er ikke regnet som eksisterende data.
 
-Hetzner Cloud Backups er **ENABLED AND FIRST BACKUP VERIFIED** etter prosjekteiers manuelle Console-kontroll 2026-08-01. Første synlige helserverbackup var 11,6 GB, og Console viste 0 Cloud Volumes. Dette endrer ikke kravet om logisk PostgreSQL-dump, Borg, Storage Box eller restore-smoke.
+Hetzner Cloud Backups er fortsatt aktivert etter prosjekteiers manuelle Console-kontroll 2026-08-02, og en nyere helserverbackup er synlig. Console viste tidligere 0 Cloud Volumes. Dette endrer ikke kravet om logisk PostgreSQL-dump, Borg, Storage Box eller restore-smoke.
 
 ### Borg-kontrakt
 
@@ -90,7 +90,7 @@ Arbeidskatalogen er root-only og må ha databaseomfang pluss minst 1 GiB ledig f
 
 Standard retention er konfigurerbar til 14 daglige, 8 ukentlige og 12 månedlige arkiver. Prune og compact kjører bare etter vellykket ny backup og en avgrenset repository-check. En ukentlig separat timer verifiserer repository, arkiver og data.
 
-Daglig frekvens gir et foreløpig backup-RPO på inntil omtrent 24 timer, i tillegg til randomisert timerforsinkelse. Risikofylte dataoperasjoner krever fortsatt en fersk manuell backup. RTO er ikke lovet før første representative restore er tidmålt og dokumentert.
+Daglig frekvens gir et foreløpig backup-RPO på inntil omtrent 24 timer, i tillegg til randomisert timerforsinkelse og eventuell operativ forsinkelse. Risikofylte dataoperasjoner krever fortsatt en fersk manuell backup. Første manuelle backup brukte 8 sekunder. Isolert restore-smoke av samme arkiv brukte 8,7 sekunder, men dette er bare teknisk restore-evidens for dagens lille datagrunnlag og ikke et løfte om full katastrofe-RTO.
 
 ### Restore- og aktiveringsgate
 
@@ -133,10 +133,10 @@ Denne løsningen beskytter dagens viktigste data uten å gjøre bildearkitekture
 - aktiv server er fortsatt et enkelt tilgjengelighetspunkt mellom backupene
 - ingen eksisterende FileField-filer ble funnet i containerområdene 2026-08-01, men nye filer kan forsvinne ved container-recreate før host-persistent storage er etablert
 - Storage Box-snapshots bruker kapasitet på samme boks og er ikke uavhengig katastrofebackup; se [Hetzner Storage Box snapshots](https://docs.hetzner.com/storage/storage-box/snapshots/)
-- Cloud Backup-status må fortsatt kontrolleres i Console; første backup er verifisert 2026-08-01, men Cloud Backup er bare et ekstra helserverlag
-- recovery avhenger av både korrekt sikret original Borg-passfrase, eksportert kryptert repositorynøkkel og nødvendig Storage Box-identitet/repository-ID; custody er fortsatt manuelt uverifisert
+- Cloud Backup-status må fortsatt kontrolleres i Console; en nyere backup ble verifisert 2026-08-02, men Cloud Backup er bare et ekstra helserverlag
+- recovery avhenger av både korrekt sikret original Borg-passfrase, eksportert kryptert repositorynøkkel og nødvendig Storage Box-identitet/repository-ID; custody er bekreftet for minst to ansvarlige, men forblir en manuell organisatorisk kontroll
 - ingen ekstern feilvarsling er etablert
-- faktisk Borg-RPO, RTO, diskvekst og restorevarighet må måles etter at Storage Box og den eksterne kjeden finnes
+- foreløpig RPO og restore-smoke-varighet er målt, men full katastrofe-RTO, diskvekst og senere representative restoreforløp må fortsatt måles
 
 ## Avviste eller utsatte alternativer
 
@@ -148,9 +148,8 @@ Denne løsningen beskytter dagens viktigste data uten å gjøre bildearkitekture
 
 ## Implementeringsstatus
 
-- **PREPARED:** repo-modul, felles lock-/status-eierskap, Borg `>=1.2.8`/`<1.3.0`-port, semantisk pathgate, herdet recovery-key-export, skrivebeskyttet repository-inspeksjon, systemd-maler, syntetiske tester, ADR og runbook
-- **MANUAL REQUIRED:** Storage Box/subaccount, SSH key registration, host-key pinning, original Borg-passfrase, eksportert repositorynøkkel og off-server custody for minst to ansvarlige, Storage Box-snapshots og første Borg-/restoreøvelse
+- **ACTIVE:** separat Storage Box, kryptert Borg-repository, dedikert nøkkel og pin-net host key, off-server recovery-custody for minst to ansvarlige, første backup, full repository-check, isolert restore av samme arkiv, Storage Box-snapshot, nyere synlig Cloud Backup og aktive nattlige/ukentlige timere
+- **MANUAL REQUIRED:** løpende custody-, snapshot- og Cloud Backup-kontroll kan ikke bevises av kode og må fortsatt eies av operatør
 - **NOT IMPLEMENTED:** lokal media-runtime, host mounts, filflytting og bildearkitektur
-- **ACTIVE:** ingen deler av Borg-/Storage Box-kjeden er ennå verifisert aktive
 
-Cloud Backups er **ENABLED AND FIRST BACKUP VERIFIED**, men teller ikke alene som `ACTIVE` backupgrunnmur.
+Cloud Backups og Storage Box-snapshots teller fortsatt ikke alene som `ACTIVE`; statusen bygger på hele den verifiserte backup-, recovery- og restorekjeden.

@@ -54,7 +54,7 @@ Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCH
 
 ## Fase 3 – Robust thumbnail-, bilde- og kortarkitektur
 
-**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; ADR-008s lokale Hetzner storage-/backup-MVP er godkjent og repo-grunnmuren er forberedt, men ikke aktiv; fase 3B fortsatt aktiv.
+**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; ADR-008s lokale Hetzner storage-/backup-MVP er ACTIVE; fase 3C er neste leveranse etter uavhengig kontroll og merge av dokumentasjons-PR-en.
 
 Fase 3A kartla dagens legacy URL-, Open Graph-, kort-, import-, storage- og driftsflyt. [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag.
 
@@ -94,26 +94,26 @@ Dette er ikke en generell redesign. Øvrige kort og komponenter videreutvikles i
 
 ### Fase 3B – teknisk prototype og kontrakt
 
-**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, og processing-, storage-, delivery-, takedown- og restoreprinsippene er godkjent. Lokal Hetzner storage-/backup-MVP er valgt. Fase 3B.1R, aktiv backup/restore og senere fase 3B-gater gjenstår før fase 3C.
+**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, processing-, storage-, delivery-, takedown- og restoreprinsippene er godkjent, og lokal Hetzner storage-/backup-MVP er ACTIVE. Fase 3C kan starte additivt bak avslått feature etter dokumentasjons-PR-en; fase 3B.1R forblir en kvalitetsgate før reell bildebehandling kan godkjennes.
 
 - [fase 3B.1](PHASE_3B1_IMAGE_RENDITION_SPIKE.md) målte Pillow og pyvips/libvips, format, foreløpige terskler og ressursbruk på syntetiske fixtures
 - fase 3B.1 prototypet contain, cover, fokuspunkt, square/landscape/share, deterministisk fallback og statisk nødvariant uten CRM-runtimekobling
 - prosjekteier har godkjent Pillow bak intern adapter, statisk JPEG/PNG/WebP-input, outputmappingen WebP/PNG/JPEG, 512 × 512 `square`, 800 × 450 `landscape`, 1200 × 630 `share`, no-upscale, immutable key-invarianten og 15 MiB som konfigurerbar standard
 - endelig pixelgrense, dimensjonsregler og blur-/komprimeringsregler er ikke godkjent
-- fase 3B.1R skal teste representative, rettighetsavklarte ekte bilder og sRGB/fargeprofiler og fastsette kvalitetsreglene før fase 3C; delsteget blokkerer ikke 3B.2
+- fase 3B.1R skal teste representative, rettighetsavklarte ekte bilder og sRGB/fargeprofiler og fastsette kvalitetsreglene før reell bildebehandling kan godkjennes; delsteget blokkerer ikke additivt fase 3C-grunnarbeid bak avslått feature
 - [fase 3B.2](PHASE_3B2_STORAGE_RESTORE_SPIKE.md) har prototypet separate private/public `STORAGES`-aliaser, lokal filesystemreferanse, Moto 5.2.2, immutable artifact/release keys, absolutte allowlistede media-origins, origin-sletting, purge/takedown, separat deny-journal og backup/restore
 - prosjekteier har godkjent to-key-kontrakt, en aktiv public rendition-store uten tilgjengelige historiske public versjoner, kontrollert public delivery, private originaler, hybridbackup, fail-closed restore, varig deny-journal/read-model og idempotent purge; ADR-008 velger lokal host-persistent storage for første MVP og gjør providerkrav betingede
 - [ADR-008](../decisions/ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokale navngitte storagealiaser og stabil lokal Borg `>=1.2.8`/`<1.3.0` med remote path `borg-1.2` til separat Hetzner Storage Box og retention 14/8/12; S3/AWS/Backblaze/CDN utsettes
-- repoets backupmodul er PREPARED, NOT ACTIVE; felles lock-/status-eierskap, felles Borg-versjonsport, semantisk pathgate, herdet eksport av kryptert Borg-repositorynøkkel og skrivebeskyttet repository-inspeksjon er forberedt, serverbaselinen er verifisert og Cloud Backups er ENABLED AND FIRST BACKUP VERIFIED, mens Storage Box, første Borg-backup/restore, recovery-secret, eksportert repositorynøkkel, off-server custody, Storage Box-snapshots og timere fortsatt ikke er opprettet eller aktive
-- eksakt public key-struktur, lokal serving/purge, permanent journalteknologi, faktisk RPO/RTO og konkrete bilde-runtimepaths er fortsatt åpne
+- repoets backupmodul er ACTIVE etter verifisert Storage Box, kryptert repository, recovery-custody for minst to ansvarlige, første backup, full repository-check, isolert restore av samme arkiv, Storage Box-snapshot, nyere synlig Cloud Backup og aktive timere; detaljert evidens finnes i [aktiveringsrapporten](STAGING_BACKUP_ACTIVATION_2026-08-02.md)
+- eksakt public key-struktur, lokal serving/purge, permanent journalteknologi, full katastrofe-RTO og konkrete bilde-runtimepaths er fortsatt åpne; nattlig RPO og restore-smoke har foreløpige målinger
 - fase 3B.2 har ikke opprettet CRM-modeller, migrasjoner, API/OpenAPI, Editor, PUBLIC, Import 2.0-integrasjon, bakgrunnskø eller stagingdeploy
 - senere fase 3B-gater skal fastsette lokal private/public-serving og cache/purge/verifikasjon, permanent deny-journal/read-model/cursor, API-schema, aliasmapping, public release key-struktur, concurrency/databaseconstraints, retentionmekanisme, sync/async-grense og observability; provider-/CDN-gater gjelder bare dersom ekstern storage senere tas opp igjen
 
-Processing profile v1 og fase 3B.2-prinsippene er arkitekturgrunnlag, ikke produksjonsimplementering. Dagens CRM-runtime og legacy URL-/faviconflyt gjelder fortsatt. Fase 3B.1R, aktivert og restore-verifisert ADR-008-backup og senere fase 3B-gater for lokal serving/purge, API-schema, aliasmapping, concurrency, retention og sync/async må fullføres før fase 3C kan åpnes.
+Processing profile v1 og fase 3B.2-prinsippene er arkitekturgrunnlag, ikke produksjonsimplementering. Dagens CRM-runtime og legacy URL-/faviconflyt gjelder fortsatt. ADR-008-backupen er aktivert og restore-verifisert. Etter dokumentasjons-PR-en åpnes fase 3C additivt bak avslått feature; fase 3B.1R og gater for lokal serving/purge, API-schema, aliasmapping, concurrency, retention og sync/async må være grønne før reell bildebruk kan aktiveres.
 
 #### Godkjent operasjonell MVP: lokal Hetzner-storage og backup
 
-**Status:** Arkitektur godkjent; repo-grunnmur PREPARED, NOT ACTIVE.
+**Status:** ACTIVE fra 2026-08-02.
 
 MVP-en bruker:
 
@@ -123,11 +123,11 @@ MVP-en bruker:
 - Storage Box-snapshots og Hetzner Cloud Backups som ekstra lag
 - obligatorisk dump-, repository- og isolert restore-gate før timeraktivering
 
-Den skrivebeskyttede [serverbaselinen](STAGING_BACKUP_BASELINE_2026-08-01.md) er gjennomført. Den fant et lite database-/filgrunnlag, ingen eksisterende import-/eksportfiler og ingen kolliderende automatisert backup, men bekreftet at nye FileField-filer vil være containerlagret uten en senere host-mount. Anbefalt, men ikke bestilt, Storage Box er BX11 med 1 TB i FSN1. Ekstern Borg-kjede, original passfrase, eksportert kryptert repositorynøkkel, manuelt bekreftet off-server custody for minst to ansvarlige, første backup, restore-smoke, Storage Box-snapshots og timere må fortsatt gjennomføres etter [runbooken](../operations/BACKUP_AND_RESTORE.md). S3-/CDN-sammenligning tas bare opp igjen ved dokumentert vekst- eller driftsbehov. Fase 3B.1R står parallelt som obligatorisk kvalitetsgate før fase 3C.
+Den skrivebeskyttede [serverbaselinen](STAGING_BACKUP_BASELINE_2026-08-01.md) fant et lite database-/filgrunnlag, ingen eksisterende import-/eksportfiler og ingen kolliderende automatisert backup, men bekreftet at nye FileField-filer vil være containerlagret uten en senere host-mount. [Aktiveringen 2026-08-02](STAGING_BACKUP_ACTIVATION_2026-08-02.md) etablerte BX11 med 1 TB i FSN1, kryptert Borg-kjede, separat recovery-custody, første backup, full repository-check, isolert restore, snapshots og aktive timere. S3-/CDN-sammenligning tas bare opp igjen ved dokumentert vekst- eller driftsbehov. Fase 3B.1R står parallelt som obligatorisk kvalitetsgate før reell bildebehandling godkjennes.
 
 ### Fase 3C – additiv backend- og storagegrunnmur
 
-**Status:** Planlagt etter godkjent fase 3B.
+**Status:** Neste planlagte leveranse etter kontroll og merge av backupens dokumentasjons-PR; implementeres additivt bak avslått feature.
 
 - additive modeller, constraints og migrasjoner
 - kontrollert ingest, private originaler og renditions gjennom lokale navngitte storagealiaser
