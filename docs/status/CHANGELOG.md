@@ -4,6 +4,15 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 
 ## 2026-08-03
 
+### Fase 3C: additiv Organization-selection uten runtimebruk
+
+- lagt til `OrganizationImageSelection`, der hver rad representerer én låst aktiv eller arkivert revisjon for én organisasjon
+- håndhevet unik revisjon, positiv revisjon, maksimalt én aktiv selection, ikke-tom alt-tekst og eksklusivt valg mellom immutable rendition-sett og systemfallback i databasen
+- gjort låsebruker, låsetidspunkt og alt-tekst obligatoriske; bruker og rendition-sett beskyttes med `PROTECT`, mens organisasjon bruker `CASCADE`
+- beholdt asset, fit, fokus og prosesseringsversjon normalisert gjennom det eksakte rendition-settet uten dupliserte selection-felt
+- dokumentert at `clean()` avviser tenant-mismatch, men at senere domenetjeneste fortsatt må håndheve tenant, capability, atomisk revisjon/concurrency, arkivering, ny aktiv rad og append-only event
+- beholdt featureflagget avslått, legacybildeflyten uendret og backupgrunnmuren **ACTIVE**; ingen domenekommando, eventmodell, filer, storage-I/O, API, frontend eller deploy inngår
+
 ### Fase 3C: additiv bildedomenemodell uten runtimebruk
 
 - lagt til tenant-eide `ImageAsset`, `ImageRenditionSet` og `ImageRendition` med vanlige heltallsnøkler og én reverserbar schema-migrasjon

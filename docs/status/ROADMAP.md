@@ -54,11 +54,11 @@ Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCH
 
 ## Fase 3 – Robust thumbnail-, bilde- og kortarkitektur
 
-**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; ADR-008s lokale Hetzner storage-/backup-MVP er ACTIVE; fase 3C har en avslått konfigurasjonsgrunnmur og en additiv bildedomenemodell uten runtimebruk.
+**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; ADR-008s lokale Hetzner storage-/backup-MVP er ACTIVE; fase 3C har avslått konfigurasjon og additive asset-, rendition- og selection-modeller uten runtimebruk.
 
 Fase 3A kartla dagens legacy URL-, Open Graph-, kort-, import-, storage- og driftsflyt. [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag.
 
-`ImageAsset`, `ImageRenditionSet` og `ImageRendition` er implementert additivt med constraints og migrasjon, men bilde-runtime er ikke implementert. Fase 3C-grunnmuren endrer ikke dagens `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- eller faviconflyt; disse gjelder fortsatt frem til en kontrollert overgang er levert og verifisert.
+`ImageAsset`, `ImageRenditionSet`, `ImageRendition` og den typed `OrganizationImageSelection` er implementert additivt med constraints og migrasjoner, men bilde-runtime er ikke implementert. Selection-rader opprettes ikke av noen applikasjonsflyt. Fase 3C-grunnmuren endrer ikke dagens `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- eller faviconflyt; disse gjelder fortsatt frem til en kontrollert overgang er levert og verifisert.
 
 Bildeløsningen skal gå fra ustabile eksterne treff til en varig, redaksjonelt kontrollerbar ressurs:
 
@@ -127,18 +127,20 @@ Den skrivebeskyttede [serverbaselinen](STAGING_BACKUP_BASELINE_2026-08-01.md) fa
 
 ### Fase 3C – additiv backend- og storagegrunnmur
 
-**Status:** Startet med en merget konfigurasjonsleveranse bak avslått feature; andre additive leveranse etablerer tre ubrukte domenemodeller og migrasjon, med uavhengig gjennomgang og merge som neste gate.
+**Status:** Konfigurasjonsleveransen og PR #19s asset-/renditiongrunnmur er merget; tredje additive leveranse etablerer en ubrukt Organization-selection-modell, med uavhengig gjennomgang og merge som neste gate.
 
 Første leveranse har innført `IMAGE_ASSET_FEATURE_ENABLED=False` som standard og lokale `image_originals_private`-/`image_renditions_public`-aliaser med separate, validerte roots. Eksisterende `default` og `staticfiles` er bevart. Aliasene brukes ikke av runtime, og settings-load eller system check oppretter ingen mapper eller filer.
 
 Andre leveranse legger til `ImageAsset`, `ImageRenditionSet` og `ImageRendition` med provider-nøytrale logiske keys, teknisk metadata, tenant-avgrenset unikhet, numeriske constraints og `PROTECT` mellom asset, sett og rendition. Modellene er ikke koblet til `Organization`, storage, API eller runtime, og featureflagget forblir avslått.
+
+Tredje leveranse legger til `OrganizationImageSelection` som én låst revisjon per rad. Databasen håndhever unik revisjon, positiv revisjon, maksimalt én aktiv selection og eksklusivt asset-/fallbackvalg. Asset-selection peker til nøyaktig ett immutable rendition-sett; fit, fokus og prosesseringsversjon dupliseres ikke. Det finnes ennå ingen domenekommando, eventmodell eller applikasjonsflyt som oppretter radene.
 
 - additive modeller, constraints og migrasjoner
 - kontrollert ingest, private originaler og renditions gjennom lokale navngitte storagealiaser
 - capability-permissions, approval, locking, audit, retention, karantene og takedown
 - feature av frem til test- og datagrunnlaget er godkjent
 - ingen varige bildefiler før ADR-008-backupen er ACTIVE og restore-verifisert
-- ingen bildefiler skrives eller serveres av de to grunnleveransene; legacybildeflyten er uendret
+- ingen bildefiler skrives, leses eller serveres av de tre grunnleveransene; legacybildeflyten er uendret
 - neste fase 3C-leveranse krever separat godkjenning
 
 ### Fase 3D – Editor-flyt for aktørbilde
