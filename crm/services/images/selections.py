@@ -42,10 +42,32 @@ ALLOWED_SELECTION_ROLES = frozenset(
         TenantMembership.Role.REDIGERER,
     }
 )
-SENSITIVE_QUERY_KEY_PARTS = (
-    "credential",
-    "signature",
-    "token",
+SENSITIVE_QUERY_KEYS = frozenset(
+    {
+        "credential",
+        "credentials",
+        "signature",
+        "sig",
+        "token",
+        "access_token",
+        "id_token",
+        "refresh_token",
+        "auth",
+        "authorization",
+        "api_key",
+        "apikey",
+        "access_key",
+        "secret",
+        "secret_key",
+        "password",
+        "passwd",
+        "sv",
+        "se",
+        "sp",
+        "sr",
+    }
+)
+SENSITIVE_QUERY_KEY_PREFIXES = (
     "x-amz-",
     "x-goog-",
 )
@@ -140,12 +162,30 @@ def _validate_actor_capability(actor, tenant_id: int) -> None:
 def _validate_snapshot_url(value: str, field_name: str) -> None:
     if not value:
         return
-    parsed = urlsplit(value)
-    if parsed.username or parsed.password:
+    try:
+        parsed = urlsplit(value)
+    except ValueError as error:
+        raise InvalidImageSelectionError(
+            f"{field_name} must be a valid HTTP(S) URL."
+        ) from error
+    if parsed.scheme.casefold() not in {"http", "https"}:
+        raise InvalidImageSelectionError(f"{field_name} must use HTTP or HTTPS.")
+    if parsed.username is not None or parsed.password is not None:
         raise InvalidImageSelectionError(f"{field_name} cannot contain credentials.")
-    query_keys = {key.lower() for key, _ in parse_qsl(parsed.query, keep_blank_values=True)}
-    if any(part in key for key in query_keys for part in SENSITIVE_QUERY_KEY_PARTS):
-        raise InvalidImageSelectionError(f"{field_name} cannot contain signed or tokenized URLs.")
+    if parsed.fragment:
+        raise InvalidImageSelectionError(f"{field_name} cannot contain a fragment.")
+    query_keys = {
+        key.strip().casefold()
+        for key, _ in parse_qsl(parsed.query, keep_blank_values=True)
+    }
+    if any(
+        key in SENSITIVE_QUERY_KEYS
+        or key.startswith(SENSITIVE_QUERY_KEY_PREFIXES)
+        for key in query_keys
+    ):
+        raise InvalidImageSelectionError(
+            f"{field_name} cannot contain signed or tokenized URLs."
+        )
 
 
 def _validate_asset_evidence(evidence: AssetApprovalEvidence) -> list[str]:

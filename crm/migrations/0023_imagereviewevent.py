@@ -3,7 +3,6 @@
 import crm.models
 import django.core.validators
 import django.db.models.deletion
-import django.db.models.manager
 from django.conf import settings
 from django.db import migrations, models
 
@@ -67,7 +66,7 @@ class Migration(migrations.Migration):
                 ],
             },
             managers=[
-                ("_base_objects", django.db.models.manager.Manager()),
+                ("_base_objects", crm.models.ImageReviewEventBaseManager()),
                 ("objects", crm.models.ImageReviewEventManager()),
             ],
         ),

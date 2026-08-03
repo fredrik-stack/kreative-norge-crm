@@ -4197,6 +4197,86 @@ class OrganizationImageSelectionCommandTests(TestCase):
         self.assertEqual(OrganizationImageSelection.objects.count(), 0)
         self.assertEqual(ImageReviewEvent.objects.count(), 0)
 
+    def test_snapshot_urls_reject_unsafe_schemes_credentials_and_fragments(self):
+        _, rendition_set = self.create_image_domain()
+        unsafe_urls = (
+            "ftp://example.com/image.jpg",
+            "//example.com/image.jpg",
+            "https://user@example.com/image.jpg",
+            "https://:password@example.com/image.jpg",
+            "https://example.com/image.jpg#private",
+        )
+
+        for field_name in ("source_url", "source_page_url"):
+            for unsafe_url in unsafe_urls:
+                with self.subTest(field_name=field_name, unsafe_url=unsafe_url):
+                    with self.assertRaises(InvalidImageSelectionError):
+                        self.lock_asset(
+                            rendition_set,
+                            asset_evidence=self.evidence(**{field_name: unsafe_url}),
+                        )
+
+        self.assertEqual(OrganizationImageSelection.objects.count(), 0)
+        self.assertEqual(ImageReviewEvent.objects.count(), 0)
+
+    def test_snapshot_urls_reject_sensitive_query_keys_case_insensitively(self):
+        _, rendition_set = self.create_image_domain()
+        sensitive_keys = (
+            "credential",
+            "credentials",
+            "signature",
+            "sig",
+            "token",
+            "access_token",
+            "id_token",
+            "refresh_token",
+            "auth",
+            "authorization",
+            "api_key",
+            "apikey",
+            "access_key",
+            "secret",
+            "secret_key",
+            "password",
+            "passwd",
+            "sv",
+            "se",
+            "sp",
+            "sr",
+            "x-amz-credential",
+            "x-goog-signature",
+        )
+
+        for field_name in ("source_url", "source_page_url"):
+            for index, sensitive_key in enumerate(sensitive_keys):
+                query_key = sensitive_key.upper() if index % 2 else sensitive_key
+                unsafe_url = f"https://example.com/image.jpg?{query_key}=private"
+                with self.subTest(field_name=field_name, query_key=query_key):
+                    with self.assertRaises(InvalidImageSelectionError):
+                        self.lock_asset(
+                            rendition_set,
+                            asset_evidence=self.evidence(**{field_name: unsafe_url}),
+                        )
+
+        self.assertEqual(OrganizationImageSelection.objects.count(), 0)
+        self.assertEqual(ImageReviewEvent.objects.count(), 0)
+
+    def test_snapshot_urls_allow_benign_http_query_parameters_without_rewriting(self):
+        _, rendition_set = self.create_image_domain()
+        source_url = "http://example.com/image.jpg?width=512&format=webp"
+        source_page_url = "https://example.com/gallery?page=2&layout=grid"
+
+        result = self.lock_asset(
+            rendition_set,
+            asset_evidence=self.evidence(
+                source_url=source_url,
+                source_page_url=source_page_url,
+            ),
+        )
+
+        self.assertEqual(result.event.source_url_snapshot, source_url)
+        self.assertEqual(result.event.source_page_url_snapshot, source_page_url)
+
     def test_asset_requires_evidence_and_upload_may_have_blank_source_url(self):
         _, rendition_set = self.create_image_domain()
 
@@ -4395,26 +4475,90 @@ class OrganizationImageSelectionCommandTests(TestCase):
         event.refresh_from_db()
         self.assertEqual(event.alt_text_snapshot, "Kreative Norge standardbilde")
 
-    def test_event_snapshots_survive_live_organization_selection_and_actor_deletion(self):
+    def test_base_manager_allows_reads_and_only_null_live_reference_updates(self):
         event = self.lock_fallback().event
-        snapshot = {
-            "organization_id": event.organization_id_snapshot,
-            "selection_id": event.selection_id_snapshot,
-            "actor_id": event.actor_user_id_snapshot,
-            "actor_username": event.actor_username_snapshot,
-        }
+        before = ImageReviewEvent._base_objects.filter(pk=event.pk).values().get()
+
+        updated = ImageReviewEvent._base_objects.filter(pk=event.pk).update(
+            organization=None,
+        )
+        after = ImageReviewEvent._base_objects.filter(pk=event.pk).values().get()
+
+        self.assertEqual(updated, 1)
+        self.assertEqual(after, {**before, "organization_id": None})
+        with self.assertRaises(AppendOnlyEventError):
+            ImageReviewEvent._base_objects.filter(pk=event.pk).update(
+                organization=self.organization,
+            )
+
+    def test_base_manager_blocks_general_mutation_paths(self):
+        event = self.lock_fallback().event
+        event.alt_text_snapshot = "Changed"
+
+        with self.assertRaises(AppendOnlyEventError):
+            ImageReviewEvent._base_objects.filter(pk=event.pk).update(
+                alt_text_snapshot="Changed",
+            )
+        with self.assertRaises(AppendOnlyEventError):
+            ImageReviewEvent._base_objects.filter(pk=event.pk).delete()
+        with self.assertRaises(AppendOnlyEventError):
+            ImageReviewEvent._base_objects.bulk_update([event], ["alt_text_snapshot"])
+        with self.assertRaises(AppendOnlyEventError):
+            ImageReviewEvent._base_objects.filter(pk=event.pk)._update(
+                [
+                    (
+                        ImageReviewEvent._meta.get_field("alt_text_snapshot"),
+                        None,
+                        "Changed",
+                    )
+                ]
+            )
+        with self.assertRaises(AppendOnlyEventError):
+            ImageReviewEvent._base_objects.update_or_create(
+                pk=event.pk,
+                defaults={"alt_text_snapshot": "Changed"},
+            )
+        with self.assertRaises(AppendOnlyEventError):
+            ImageReviewEvent._base_objects.bulk_create(
+                [event],
+                update_conflicts=True,
+                update_fields=["alt_text_snapshot"],
+                unique_fields=["id"],
+            )
+
+        event.refresh_from_db()
+        self.assertEqual(event.alt_text_snapshot, "Kreative Norge standardbilde")
+
+    def test_set_null_and_actor_deletion_change_only_live_event_references(self):
+        asset, rendition_set = self.create_image_domain()
+        self.lock_asset(rendition_set)
+        event = self.lock_asset(rendition_set, expected_revision=1).event
+        before = ImageReviewEvent._base_objects.filter(pk=event.pk).values().get()
 
         self.organization.delete()
         self.actor.delete()
-        event.refresh_from_db()
+        ImageRendition.objects.filter(rendition_set=rendition_set).delete()
+        rendition_set.delete()
+        asset.delete()
+        after = ImageReviewEvent._base_objects.filter(pk=event.pk).values().get()
 
-        self.assertIsNone(event.organization_id)
-        self.assertIsNone(event.selection_id)
-        self.assertIsNone(event.actor_user_id)
-        self.assertEqual(event.organization_id_snapshot, snapshot["organization_id"])
-        self.assertEqual(event.selection_id_snapshot, snapshot["selection_id"])
-        self.assertEqual(event.actor_user_id_snapshot, snapshot["actor_id"])
-        self.assertEqual(event.actor_username_snapshot, snapshot["actor_username"])
+        expected = {
+            **before,
+            "organization_id": None,
+            "selection_id": None,
+            "rendition_set_id": None,
+            "asset_id": None,
+            "previous_selection_id": None,
+            "actor_user_id": None,
+        }
+        self.assertEqual(after, expected)
+
+    def test_tenant_cascade_deletes_events_despite_base_queryset_delete_guard(self):
+        event_id = self.lock_fallback().event.pk
+
+        self.tenant.delete()
+
+        self.assertFalse(ImageReviewEvent._base_objects.filter(pk=event_id).exists())
 
     def test_database_constraints_use_snapshots_not_live_foreign_keys(self):
         event = self.lock_fallback().event

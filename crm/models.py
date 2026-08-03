@@ -12,6 +12,24 @@ class AppendOnlyEventError(Exception):
     """Raised when an image review event mutation is attempted through the ORM."""
 
 
+IMAGE_REVIEW_EVENT_NULLABLE_LIVE_REFERENCE_FIELDS = frozenset(
+    {
+        "organization",
+        "organization_id",
+        "selection",
+        "selection_id",
+        "rendition_set",
+        "rendition_set_id",
+        "asset",
+        "asset_id",
+        "previous_selection",
+        "previous_selection_id",
+        "actor_user",
+        "actor_user_id",
+    }
+)
+
+
 def validate_technical_warnings(value) -> None:
     if not isinstance(value, list):
         raise ValidationError("Technical warnings must be a list.")
@@ -30,15 +48,66 @@ def validate_technical_warnings(value) -> None:
             )
 
 
-class ImageReviewEventQuerySet(models.QuerySet):
+class ImageReviewEventBaseQuerySet(models.QuerySet):
     def update(self, **kwargs):
-        raise AppendOnlyEventError("Image review events cannot be updated.")
+        if not kwargs or any(
+            field_name not in IMAGE_REVIEW_EVENT_NULLABLE_LIVE_REFERENCE_FIELDS
+            or value is not None
+            for field_name, value in kwargs.items()
+        ):
+            raise AppendOnlyEventError(
+                "Image review events only permit nulling live references."
+            )
+        return super().update(**kwargs)
 
     def delete(self):
         raise AppendOnlyEventError("Image review events cannot be deleted.")
 
     def bulk_update(self, objs, fields, batch_size=None):
         raise AppendOnlyEventError("Image review events cannot be bulk-updated.")
+
+    def _update(self, values):
+        raise AppendOnlyEventError("Image review events cannot be privately updated.")
+
+    _update.queryset_only = False
+
+    def update_or_create(self, defaults=None, create_defaults=None, **kwargs):
+        raise AppendOnlyEventError(
+            "Image review events cannot be updated or created by upsert."
+        )
+
+    def bulk_create(
+        self,
+        objs,
+        batch_size=None,
+        ignore_conflicts=False,
+        update_conflicts=False,
+        update_fields=None,
+        unique_fields=None,
+    ):
+        if update_conflicts:
+            raise AppendOnlyEventError(
+                "Image review events cannot be updated by upsert."
+            )
+        return super().bulk_create(
+            objs,
+            batch_size=batch_size,
+            ignore_conflicts=ignore_conflicts,
+            update_conflicts=update_conflicts,
+            update_fields=update_fields,
+            unique_fields=unique_fields,
+        )
+
+
+class ImageReviewEventQuerySet(ImageReviewEventBaseQuerySet):
+    def update(self, **kwargs):
+        raise AppendOnlyEventError("Image review events cannot be updated.")
+
+
+class ImageReviewEventBaseManager(
+    models.Manager.from_queryset(ImageReviewEventBaseQuerySet)
+):
+    use_in_migrations = True
 
 
 class ImageReviewEventManager(models.Manager.from_queryset(ImageReviewEventQuerySet)):
@@ -645,7 +714,7 @@ class ImageReviewEvent(models.Model):
     approval_text_snapshot = models.TextField(blank=True, default="")
     created_at = models.DateTimeField()
 
-    _base_objects = models.Manager()
+    _base_objects = ImageReviewEventBaseManager()
     objects = ImageReviewEventManager()
 
     class Meta:

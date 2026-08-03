@@ -12,6 +12,8 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 - brukt target-`Organization` som concurrency-lås og `expected_revision` som eksplisitt konfliktgate; eventfeil ruller tilbake arkivering og ny selection
 - håndhevet egen-tenant-scope for redigerer, gruppeadmin og tenant-superadmin, mens plattform-superadmin må angi target tenant
 - lagret begrenset provenance, validerte warnings og intern `image-approval-v1`-tekst som event-snapshot for asset-selection; fallback lagrer ingen falsk rettighetsgodkjenning
+- begrenset eventets base manager til lesing, inserts og nødvendig `SET_NULL`; ordinære mutasjons-/upsertveier blokkeres uten å bryte actor-sletting eller tenant-cascade
+- gjort begge URL-snapshotfeltene fail-closed for andre schemes, URL-credentials, fragmenter og kjente credentials-, signatur-, token-, AWS-, Google- og Azure SAS-parametere uten nettverk eller omskriving
 - beholdt `IMAGE_ASSET_FEATURE_ENABLED=False`, legacybildeflyten og backupgrunnmuren **ACTIVE**; ingen API-, Editor-, PUBLIC-, storage-, fil-, bildebehandlings-, runtime- eller stagingendring inngår
 
 ### Fase 3C: additiv Organization-selection uten runtimebruk
