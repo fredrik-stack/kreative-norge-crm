@@ -8,6 +8,43 @@ from django.conf import settings
 from .validators import validate_sha256, validate_storage_key
 
 
+class AppendOnlyEventError(Exception):
+    """Raised when an image review event mutation is attempted through the ORM."""
+
+
+def validate_technical_warnings(value) -> None:
+    if not isinstance(value, list):
+        raise ValidationError("Technical warnings must be a list.")
+    if len(value) > 20:
+        raise ValidationError("Technical warnings cannot contain more than 20 values.")
+    for warning in value:
+        if (
+            not isinstance(warning, str)
+            or not warning.strip()
+            or len(warning) > 255
+            or "\n" in warning
+            or "\r" in warning
+        ):
+            raise ValidationError(
+                "Each technical warning must be non-empty text of at most 255 characters."
+            )
+
+
+class ImageReviewEventQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        raise AppendOnlyEventError("Image review events cannot be updated.")
+
+    def delete(self):
+        raise AppendOnlyEventError("Image review events cannot be deleted.")
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise AppendOnlyEventError("Image review events cannot be bulk-updated.")
+
+
+class ImageReviewEventManager(models.Manager.from_queryset(ImageReviewEventQuerySet)):
+    use_in_migrations = True
+
+
 def import_job_upload_to(instance, filename: str) -> str:
     return f"imports/tenant_{instance.tenant_id}/job_{instance.id or 'new'}/{filename}"
 
@@ -502,6 +539,225 @@ class OrganizationImageSelection(models.Model):
             f"OrganizationImageSelection #{self.pk or 'new'} "
             f"(organization {self.organization_id}, revision {self.revision})"
         )
+
+
+class ImageReviewEvent(models.Model):
+    class EventType(models.TextChoices):
+        SELECTION_LOCKED = "selection_locked", "Selection locked"
+        SELECTION_REPLACED = "selection_replaced", "Selection replaced"
+
+    class SourceType(models.TextChoices):
+        OFFICIAL_WEBSITE = "official_website", "Official website"
+        OPEN_GRAPH = "open_graph", "Open Graph"
+        WEBSITE_IMAGE = "website_image", "Website image"
+        BRAVE_IMAGE_SEARCH = "brave_image_search", "Brave image search"
+        UPLOAD = "upload", "Upload"
+        PASTED_URL = "pasted_url", "Pasted URL"
+
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name="image_review_events",
+    )
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="image_review_events",
+    )
+    selection = models.ForeignKey(
+        OrganizationImageSelection,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="review_events",
+    )
+    rendition_set = models.ForeignKey(
+        ImageRenditionSet,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="review_events",
+    )
+    asset = models.ForeignKey(
+        ImageAsset,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="review_events",
+    )
+    previous_selection = models.ForeignKey(
+        OrganizationImageSelection,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="replacement_events",
+    )
+    actor_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="image_review_events",
+    )
+
+    event_type = models.CharField(max_length=24, choices=EventType.choices)
+    organization_id_snapshot = models.PositiveBigIntegerField()
+    organization_name_snapshot = models.CharField(max_length=255)
+    organization_org_number_snapshot = models.CharField(max_length=32, blank=True, default="")
+    selection_id_snapshot = models.PositiveBigIntegerField()
+    selection_revision_snapshot = models.PositiveIntegerField()
+    selection_kind_snapshot = models.CharField(
+        max_length=20,
+        choices=OrganizationImageSelection.SelectionKind.choices,
+    )
+    rendition_set_id_snapshot = models.PositiveBigIntegerField(null=True, blank=True)
+    asset_id_snapshot = models.PositiveBigIntegerField(null=True, blank=True)
+    asset_checksum_sha256_snapshot = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        validators=[validate_sha256],
+    )
+    asset_validation_version_snapshot = models.CharField(max_length=64, blank=True, default="")
+    previous_selection_id_snapshot = models.PositiveBigIntegerField(null=True, blank=True)
+    previous_selection_revision_snapshot = models.PositiveIntegerField(null=True, blank=True)
+    actor_user_id_snapshot = models.PositiveBigIntegerField()
+    actor_username_snapshot = models.CharField(max_length=255)
+    alt_text_snapshot = models.CharField(max_length=500)
+    public_credit_snapshot = models.CharField(max_length=500, blank=True, default="")
+    source_type_snapshot = models.CharField(
+        max_length=32,
+        choices=SourceType.choices,
+        blank=True,
+        default="",
+    )
+    source_url_snapshot = models.URLField(max_length=2048, blank=True, default="")
+    source_page_url_snapshot = models.URLField(max_length=2048, blank=True, default="")
+    provider_snapshot = models.CharField(max_length=255, blank=True, default="")
+    technical_warnings_snapshot = models.JSONField(
+        blank=True,
+        default=list,
+        validators=[validate_technical_warnings],
+    )
+    approval_text_version_snapshot = models.CharField(max_length=64, blank=True, default="")
+    approval_text_snapshot = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField()
+
+    _base_objects = models.Manager()
+    objects = ImageReviewEventManager()
+
+    class Meta:
+        base_manager_name = "_base_objects"
+        default_manager_name = "objects"
+        indexes = [
+            models.Index(
+                fields=["tenant", "organization_id_snapshot", "created_at"],
+                name="img_evt_tenant_org_time_idx",
+            ),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(
+                    organization_id_snapshot__gt=0,
+                    selection_id_snapshot__gt=0,
+                    selection_revision_snapshot__gt=0,
+                    actor_user_id_snapshot__gt=0,
+                ),
+                name="img_evt_required_ids_gt_0",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        event_type="selection_locked",
+                        previous_selection_id_snapshot__isnull=True,
+                        previous_selection_revision_snapshot__isnull=True,
+                    )
+                    | models.Q(
+                        event_type="selection_replaced",
+                        previous_selection_id_snapshot__isnull=False,
+                        previous_selection_id_snapshot__gt=0,
+                        previous_selection_revision_snapshot__isnull=False,
+                        previous_selection_revision_snapshot__gt=0,
+                    )
+                ),
+                name="img_evt_previous_contract",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        selection_kind_snapshot="asset",
+                        rendition_set_id_snapshot__isnull=False,
+                        rendition_set_id_snapshot__gt=0,
+                        asset_id_snapshot__isnull=False,
+                        asset_id_snapshot__gt=0,
+                    )
+                    & ~models.Q(asset_checksum_sha256_snapshot="")
+                    & ~models.Q(asset_validation_version_snapshot="")
+                    & ~models.Q(source_type_snapshot="")
+                    & ~models.Q(approval_text_version_snapshot="")
+                    & ~models.Q(approval_text_snapshot="")
+                    | models.Q(
+                        selection_kind_snapshot="system_fallback",
+                        rendition_set_id_snapshot__isnull=True,
+                        asset_id_snapshot__isnull=True,
+                        asset_checksum_sha256_snapshot="",
+                        asset_validation_version_snapshot="",
+                        source_type_snapshot="",
+                        source_url_snapshot="",
+                        source_page_url_snapshot="",
+                        provider_snapshot="",
+                        technical_warnings_snapshot=[],
+                        approval_text_version_snapshot="",
+                        approval_text_snapshot="",
+                    )
+                ),
+                name="img_evt_selection_kind_contract",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(source_type_snapshot="")
+                | models.Q(
+                    source_type_snapshot__in=[
+                        "official_website",
+                        "open_graph",
+                        "website_image",
+                        "brave_image_search",
+                        "upload",
+                        "pasted_url",
+                    ]
+                ),
+                name="img_evt_source_type_valid",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(source_type_snapshot="", source_url_snapshot="")
+                    | models.Q(source_type_snapshot="upload")
+                    | ~models.Q(source_url_snapshot="")
+                ),
+                name="img_evt_source_url_contract",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    ~models.Q(organization_name_snapshot="")
+                    & ~models.Q(actor_username_snapshot="")
+                    & ~models.Q(alt_text_snapshot="")
+                ),
+                name="img_evt_required_text_not_empty",
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None and self.__class__._base_objects.filter(pk=self.pk).exists():
+            raise AppendOnlyEventError("Image review events cannot be updated.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise AppendOnlyEventError("Image review events cannot be deleted.")
+
+    def __str__(self) -> str:
+        return f"ImageReviewEvent #{self.pk or 'new'} ({self.event_type})"
+
 
 class Person(models.Model):
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="persons")

@@ -1,20 +1,23 @@
 import json
 import os
+import inspect
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import threading
 import zipfile
 import importlib
 from io import BytesIO
 from io import StringIO
 from xml.sax.saxutils import escape
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import AnonymousUser, Group
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.management import call_command, CommandError
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.db import IntegrityError, connection, transaction
+from django.db import IntegrityError, close_old_connections, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
 from django.db.models.deletion import ProtectedError
 from django.test import SimpleTestCase, TestCase, TransactionTestCase, override_settings
@@ -41,10 +44,25 @@ from .models import (
     ImageAsset,
     ImageRendition,
     ImageRenditionSet,
+    ImageReviewEvent,
     OrganizationImageSelection,
+    AppendOnlyEventError,
 )
 from .validators import validate_storage_key
 from .services.open_graph import ImageCandidate, choose_best_thumbnail, fallback_preview_image, fetch_open_graph
+from .services.images.selections import (
+    IMAGE_APPROVAL_TEXT,
+    IMAGE_APPROVAL_TEXT_VERSION,
+    AssetApprovalEvidence,
+    ExpectedRevisionConflictError,
+    ImageFeatureDisabledError,
+    ImageSelectionConcurrencyError,
+    ImageSelectionNotFoundError,
+    ImageSelectionPermissionDenied,
+    IncompleteRenditionSetError,
+    InvalidImageSelectionError,
+    lock_organization_image_selection,
+)
 from .serializers import PersonSerializer
 import_commit_module = importlib.import_module("crm.services.import.commit")
 import_matchers_module = importlib.import_module("crm.services.import.matchers")
@@ -3913,6 +3931,751 @@ class OrganizationImageSelectionMigrationTests(TransactionTestCase):
         )
         self.assertTrue(
             restored_apps.get_model("crm", "ImageRendition").objects.filter(pk=existing_ids["rendition"]).exists()
+        )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+
+
+@override_settings(IMAGE_ASSET_FEATURE_ENABLED=True)
+class OrganizationImageSelectionCommandTests(TestCase):
+    def setUp(self):
+        self.tenant = Tenant.objects.create(name="Image command tenant", slug="image-command")
+        self.other_tenant = Tenant.objects.create(name="Other image tenant", slug="other-image")
+        self.organization = Organization.objects.create(
+            tenant=self.tenant,
+            name="Command organization",
+            org_number="123456789",
+            is_published=True,
+            publish_phone=True,
+            thumbnail_image_url="https://example.com/thumbnail.jpg",
+            auto_thumbnail_url="https://example.com/automatic.jpg",
+            og_image_url="https://example.com/open-graph.jpg",
+        )
+        self.actor = get_user_model().objects.create_user(
+            username="image-editor",
+            password="test-password",
+        )
+        TenantMembership.objects.create(
+            tenant=self.tenant,
+            user=self.actor,
+            role=TenantMembership.Role.REDIGERER,
+        )
+        self.image_counter = 0
+
+    def create_image_domain(self, *, tenant=None, variants=None):
+        tenant = tenant or self.tenant
+        variants = variants or (
+            ImageRendition.Variant.SQUARE,
+            ImageRendition.Variant.LANDSCAPE,
+            ImageRendition.Variant.SHARE,
+        )
+        self.image_counter += 1
+        counter = self.image_counter
+        asset = ImageAsset.objects.create(
+            tenant=tenant,
+            private_storage_key=f"assets/{tenant.pk}-{counter}.jpeg",
+            checksum_sha256=f"{counter:x}"[-1] * 64,
+            original_format=ImageAsset.OriginalFormat.JPEG,
+            mime_type="image/jpeg",
+            width=1600,
+            height=900,
+            file_size_bytes=123456,
+            validation_version="validation-v1",
+        )
+        rendition_set = ImageRenditionSet.objects.create(
+            tenant=tenant,
+            asset=asset,
+            fit_mode=ImageRenditionSet.FitMode.COVER,
+            processing_version="processing-v1",
+            render_config_hash_sha256=f"{counter + 8:x}"[-1] * 64,
+        )
+        for index, variant in enumerate(variants, start=1):
+            ImageRendition.objects.create(
+                tenant=tenant,
+                rendition_set=rendition_set,
+                variant=variant,
+                output_format=ImageRendition.OutputFormat.WEBP,
+                width=512 + index,
+                height=512 + index,
+                file_size_bytes=20000 + index,
+                checksum_sha256=f"{counter + index:x}"[-1] * 64,
+                artifact_storage_key=f"renditions/{tenant.pk}-{counter}-{variant}.webp",
+            )
+        return asset, rendition_set
+
+    def evidence(self, **overrides):
+        values = {
+            "source_type": ImageReviewEvent.SourceType.OFFICIAL_WEBSITE,
+            "source_url": "https://example.com/image.jpg",
+            "source_page_url": "https://example.com/about",
+            "provider": "official-site",
+            "technical_warnings": ("low contrast",),
+        }
+        values.update(overrides)
+        return AssetApprovalEvidence(**values)
+
+    def lock_fallback(self, **overrides):
+        values = {
+            "actor": self.actor,
+            "tenant_id": self.tenant.pk,
+            "organization_id": self.organization.pk,
+            "expected_revision": 0,
+            "selection_kind": OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
+            "alt_text": "Kreative Norge standardbilde",
+        }
+        values.update(overrides)
+        return lock_organization_image_selection(**values)
+
+    def lock_asset(self, rendition_set, **overrides):
+        values = {
+            "actor": self.actor,
+            "tenant_id": self.tenant.pk,
+            "organization_id": self.organization.pk,
+            "expected_revision": 0,
+            "selection_kind": OrganizationImageSelection.SelectionKind.ASSET,
+            "rendition_set_id": rendition_set.pk,
+            "alt_text": "Godkjent aktørbilde",
+            "public_credit": "Fotograf",
+            "asset_evidence": self.evidence(),
+        }
+        values.update(overrides)
+        return lock_organization_image_selection(**values)
+
+    @override_settings(IMAGE_ASSET_FEATURE_ENABLED=False)
+    def test_disabled_feature_fails_before_any_write_or_existing_change(self):
+        existing = OrganizationImageSelection.objects.create(
+            tenant=self.tenant,
+            organization=self.organization,
+            selection_kind=OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
+            rendition_set=None,
+            alt_text="Existing fallback",
+            revision=1,
+            status=OrganizationImageSelection.Status.ACTIVE,
+            locked_by=self.actor,
+            locked_at=timezone.now(),
+        )
+        before = OrganizationImageSelection.objects.filter(pk=existing.pk).values().get()
+
+        with self.assertRaises(ImageFeatureDisabledError):
+            self.lock_fallback(expected_revision=1)
+
+        self.assertEqual(
+            OrganizationImageSelection.objects.filter(pk=existing.pk).values().get(),
+            before,
+        )
+        self.assertEqual(ImageReviewEvent.objects.count(), 0)
+
+    def test_allowed_capability_matrix_is_tenant_scoped(self):
+        cases = (
+            ("platform-admin", None, True),
+            ("tenant-admin", TenantMembership.Role.SUPERADMIN, False),
+            ("group-admin", TenantMembership.Role.GRUPPEADMIN, False),
+            ("editor", TenantMembership.Role.REDIGERER, False),
+        )
+        for index, (username, role, is_superuser) in enumerate(cases, start=1):
+            organization = Organization.objects.create(
+                tenant=self.tenant,
+                name=f"Capability organization {index}",
+            )
+            user = get_user_model().objects.create_user(
+                username=username,
+                password="test-password",
+                is_superuser=is_superuser,
+                is_staff=is_superuser,
+            )
+            if role:
+                TenantMembership.objects.create(tenant=self.tenant, user=user, role=role)
+
+            with self.subTest(role=role, is_superuser=is_superuser):
+                result = self.lock_fallback(actor=user, organization_id=organization.pk)
+                self.assertEqual(result.selection.tenant_id, self.tenant.pk)
+
+    def test_reader_missing_wrong_tenant_inactive_and_anonymous_are_denied(self):
+        reader = get_user_model().objects.create_user(username="reader", password="test-password")
+        TenantMembership.objects.create(
+            tenant=self.tenant,
+            user=reader,
+            role=TenantMembership.Role.LESER,
+        )
+        no_membership = get_user_model().objects.create_user(
+            username="no-membership",
+            password="test-password",
+        )
+        wrong_tenant = get_user_model().objects.create_user(
+            username="wrong-tenant",
+            password="test-password",
+        )
+        TenantMembership.objects.create(
+            tenant=self.other_tenant,
+            user=wrong_tenant,
+            role=TenantMembership.Role.REDIGERER,
+        )
+        inactive = get_user_model().objects.create_user(
+            username="inactive-editor",
+            password="test-password",
+            is_active=False,
+        )
+        TenantMembership.objects.create(
+            tenant=self.tenant,
+            user=inactive,
+            role=TenantMembership.Role.REDIGERER,
+        )
+
+        for actor in (reader, no_membership, wrong_tenant, inactive, AnonymousUser()):
+            with self.subTest(actor=str(actor)):
+                with self.assertRaises(ImageSelectionPermissionDenied):
+                    self.lock_fallback(actor=actor)
+
+        self.assertEqual(OrganizationImageSelection.objects.count(), 0)
+        self.assertEqual(ImageReviewEvent.objects.count(), 0)
+
+    def test_first_fallback_is_revision_one_and_has_no_false_approval(self):
+        result = self.lock_fallback()
+
+        self.assertEqual(result.selection.revision, 1)
+        self.assertEqual(result.selection.status, OrganizationImageSelection.Status.ACTIVE)
+        self.assertEqual(result.selection.locked_by, self.actor)
+        self.assertIsNone(result.previous_selection)
+        self.assertEqual(result.event.event_type, ImageReviewEvent.EventType.SELECTION_LOCKED)
+        self.assertEqual(result.event.created_at, result.selection.locked_at)
+        self.assertEqual(result.event.actor_user, self.actor)
+        self.assertIsNone(result.event.previous_selection_id_snapshot)
+        self.assertIsNone(result.event.rendition_set_id_snapshot)
+        self.assertIsNone(result.event.asset_id_snapshot)
+        self.assertEqual(result.event.asset_checksum_sha256_snapshot, "")
+        self.assertEqual(result.event.source_type_snapshot, "")
+        self.assertEqual(result.event.technical_warnings_snapshot, [])
+        self.assertEqual(result.event.approval_text_version_snapshot, "")
+        self.assertEqual(result.event.approval_text_snapshot, "")
+
+    def test_asset_event_uses_internal_approval_and_validated_provenance(self):
+        asset, rendition_set = self.create_image_domain()
+        evidence = self.evidence(
+            source_type=ImageReviewEvent.SourceType.BRAVE_IMAGE_SEARCH,
+            provider="brave",
+            technical_warnings=("small source", "manual crop reviewed"),
+        )
+
+        result = self.lock_asset(rendition_set, asset_evidence=evidence)
+
+        self.assertEqual(result.event.rendition_set_id_snapshot, rendition_set.pk)
+        self.assertEqual(result.event.asset_id_snapshot, asset.pk)
+        self.assertEqual(result.event.asset_checksum_sha256_snapshot, asset.checksum_sha256)
+        self.assertEqual(
+            result.event.asset_validation_version_snapshot,
+            asset.validation_version,
+        )
+        self.assertEqual(result.event.source_type_snapshot, evidence.source_type)
+        self.assertEqual(result.event.source_url_snapshot, evidence.source_url)
+        self.assertEqual(result.event.source_page_url_snapshot, evidence.source_page_url)
+        self.assertEqual(result.event.provider_snapshot, evidence.provider)
+        self.assertEqual(
+            result.event.technical_warnings_snapshot,
+            list(evidence.technical_warnings),
+        )
+        self.assertEqual(result.event.approval_text_version_snapshot, IMAGE_APPROVAL_TEXT_VERSION)
+        self.assertEqual(result.event.approval_text_snapshot, IMAGE_APPROVAL_TEXT)
+        self.assertNotIn(
+            "approval_text",
+            inspect.signature(lock_organization_image_selection).parameters,
+        )
+
+    def test_invalid_warning_and_sensitive_url_evidence_are_rejected_without_writes(self):
+        _, rendition_set = self.create_image_domain()
+        invalid_evidence = (
+            self.evidence(technical_warnings=("x" * 256,)),
+            self.evidence(technical_warnings="not-a-list"),
+            self.evidence(source_url="https://example.com/image.jpg?token=secret"),
+        )
+
+        for evidence in invalid_evidence:
+            with self.subTest(evidence=evidence):
+                with self.assertRaises(InvalidImageSelectionError):
+                    self.lock_asset(rendition_set, asset_evidence=evidence)
+
+        self.assertEqual(OrganizationImageSelection.objects.count(), 0)
+        self.assertEqual(ImageReviewEvent.objects.count(), 0)
+
+    def test_asset_requires_evidence_and_upload_may_have_blank_source_url(self):
+        _, rendition_set = self.create_image_domain()
+
+        with self.assertRaises(InvalidImageSelectionError):
+            self.lock_asset(rendition_set, asset_evidence=None)
+
+        result = self.lock_asset(
+            rendition_set,
+            asset_evidence=self.evidence(
+                source_type=ImageReviewEvent.SourceType.UPLOAD,
+                source_url="",
+            ),
+        )
+        self.assertEqual(result.event.source_type_snapshot, ImageReviewEvent.SourceType.UPLOAD)
+        self.assertEqual(result.event.source_url_snapshot, "")
+
+    def test_replacement_archives_only_status_and_writes_previous_snapshot(self):
+        _, rendition_set = self.create_image_domain()
+        first = self.lock_asset(rendition_set)
+        previous_before = OrganizationImageSelection.objects.filter(
+            pk=first.selection.pk
+        ).values().get()
+
+        replacement = self.lock_fallback(expected_revision=1)
+
+        previous_after = OrganizationImageSelection.objects.filter(
+            pk=first.selection.pk
+        ).values().get()
+        expected_previous = {**previous_before, "status": OrganizationImageSelection.Status.ARCHIVED}
+        self.assertEqual(previous_after, expected_previous)
+        self.assertEqual(replacement.selection.revision, 2)
+        self.assertEqual(replacement.event.event_type, ImageReviewEvent.EventType.SELECTION_REPLACED)
+        self.assertEqual(replacement.event.previous_selection_id_snapshot, first.selection.pk)
+        self.assertEqual(replacement.event.previous_selection_revision_snapshot, 1)
+        self.assertEqual(
+            OrganizationImageSelection.objects.filter(status="active").count(),
+            1,
+        )
+
+    def test_fallback_can_be_replaced_by_asset_and_old_set_reselected_as_new_revision(self):
+        _, rendition_set = self.create_image_domain()
+        first = self.lock_asset(rendition_set)
+        fallback = self.lock_fallback(expected_revision=1)
+        third = self.lock_asset(rendition_set, expected_revision=2)
+
+        first.selection.refresh_from_db()
+        fallback.selection.refresh_from_db()
+        self.assertEqual(first.selection.status, OrganizationImageSelection.Status.ARCHIVED)
+        self.assertEqual(fallback.selection.status, OrganizationImageSelection.Status.ARCHIVED)
+        self.assertEqual(third.selection.revision, 3)
+        self.assertNotEqual(third.selection.pk, first.selection.pk)
+        self.assertEqual(third.selection.rendition_set_id, first.selection.rendition_set_id)
+        self.assertEqual(
+            list(
+                OrganizationImageSelection.objects.filter(organization=self.organization)
+                .order_by("revision")
+                .values_list("revision", flat=True)
+            ),
+            [1, 2, 3],
+        )
+
+    def test_expected_revision_conflict_has_zero_writes(self):
+        first = self.lock_fallback()
+        before = OrganizationImageSelection.objects.filter(pk=first.selection.pk).values().get()
+
+        with self.assertRaises(ExpectedRevisionConflictError):
+            self.lock_fallback(expected_revision=0, alt_text="Conflicting fallback")
+
+        self.assertEqual(
+            OrganizationImageSelection.objects.filter(pk=first.selection.pk).values().get(),
+            before,
+        )
+        self.assertEqual(OrganizationImageSelection.objects.count(), 1)
+        self.assertEqual(ImageReviewEvent.objects.count(), 1)
+
+    def test_rendition_gate_rejects_missing_and_cross_tenant_data(self):
+        _, incomplete_set = self.create_image_domain(
+            variants=(ImageRendition.Variant.SQUARE, ImageRendition.Variant.LANDSCAPE)
+        )
+        with self.assertRaises(IncompleteRenditionSetError):
+            self.lock_asset(incomplete_set)
+
+        _, other_set = self.create_image_domain(tenant=self.other_tenant)
+        with self.assertRaises(ImageSelectionNotFoundError):
+            self.lock_asset(other_set)
+
+        foreign_asset, _ = self.create_image_domain(tenant=self.other_tenant)
+        mismatched_set = ImageRenditionSet.objects.create(
+            tenant=self.tenant,
+            asset=foreign_asset,
+            fit_mode=ImageRenditionSet.FitMode.COVER,
+            processing_version="processing-v1",
+            render_config_hash_sha256="f" * 64,
+        )
+        with self.assertRaises(ImageSelectionNotFoundError):
+            self.lock_asset(mismatched_set)
+
+        self.assertEqual(OrganizationImageSelection.objects.count(), 0)
+        self.assertEqual(ImageReviewEvent.objects.count(), 0)
+
+    def test_rendition_gate_rejects_cross_tenant_rendition(self):
+        _, rendition_set = self.create_image_domain()
+        ImageRendition.objects.create(
+            tenant=self.other_tenant,
+            rendition_set=rendition_set,
+            variant=ImageRendition.Variant.SQUARE,
+            output_format=ImageRendition.OutputFormat.WEBP,
+            width=512,
+            height=512,
+            file_size_bytes=12345,
+            checksum_sha256="e" * 64,
+            artifact_storage_key="renditions/foreign-square.webp",
+        )
+
+        with self.assertRaises(ImageSelectionNotFoundError):
+            self.lock_asset(rendition_set)
+
+        self.assertEqual(OrganizationImageSelection.objects.count(), 0)
+
+    def test_database_prevents_duplicate_required_variant(self):
+        _, rendition_set = self.create_image_domain()
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                ImageRendition.objects.create(
+                    tenant=self.tenant,
+                    rendition_set=rendition_set,
+                    variant=ImageRendition.Variant.SQUARE,
+                    output_format=ImageRendition.OutputFormat.WEBP,
+                    width=512,
+                    height=512,
+                    file_size_bytes=12345,
+                    checksum_sha256="d" * 64,
+                    artifact_storage_key="renditions/duplicate-square.webp",
+                )
+
+    def test_fallback_rejects_rendition_and_asset_evidence(self):
+        _, rendition_set = self.create_image_domain()
+        invalid_values = (
+            {"rendition_set_id": rendition_set.pk},
+            {"asset_evidence": self.evidence()},
+        )
+        for values in invalid_values:
+            with self.subTest(values=values):
+                with self.assertRaises(InvalidImageSelectionError):
+                    self.lock_fallback(**values)
+
+        self.assertEqual(OrganizationImageSelection.objects.count(), 0)
+
+    def test_selection_text_validation_is_translated_to_domain_error(self):
+        invalid_values = (
+            {"alt_text": ""},
+            {"alt_text": "   "},
+            {"public_credit": "   "},
+        )
+        for values in invalid_values:
+            with self.subTest(values=values):
+                with self.assertRaises(InvalidImageSelectionError):
+                    self.lock_fallback(**values)
+        self.assertEqual(OrganizationImageSelection.objects.count(), 0)
+
+    def test_event_failure_rolls_back_first_selection(self):
+        with patch.object(ImageReviewEvent, "save", side_effect=RuntimeError("event failure")):
+            with self.assertRaisesRegex(RuntimeError, "event failure"):
+                self.lock_fallback()
+
+        self.assertEqual(OrganizationImageSelection.objects.count(), 0)
+        self.assertEqual(ImageReviewEvent.objects.count(), 0)
+
+    def test_event_failure_rolls_back_replacement_and_keeps_old_active(self):
+        first = self.lock_fallback()
+
+        with patch.object(ImageReviewEvent, "save", side_effect=RuntimeError("event failure")):
+            with self.assertRaisesRegex(RuntimeError, "event failure"):
+                self.lock_fallback(expected_revision=1, alt_text="Replacement")
+
+        first.selection.refresh_from_db()
+        self.assertEqual(first.selection.status, OrganizationImageSelection.Status.ACTIVE)
+        self.assertEqual(OrganizationImageSelection.objects.count(), 1)
+        self.assertEqual(ImageReviewEvent.objects.count(), 1)
+
+    def test_event_is_append_only_through_supported_orm_paths(self):
+        event = self.lock_fallback().event
+
+        event.alt_text_snapshot = "Changed"
+        with self.assertRaises(AppendOnlyEventError):
+            event.save()
+        with self.assertRaises(AppendOnlyEventError):
+            event.delete()
+        with self.assertRaises(AppendOnlyEventError):
+            ImageReviewEvent.objects.filter(pk=event.pk).update(alt_text_snapshot="Changed")
+        with self.assertRaises(AppendOnlyEventError):
+            ImageReviewEvent.objects.filter(pk=event.pk).delete()
+        with self.assertRaises(AppendOnlyEventError):
+            ImageReviewEvent.objects.bulk_update([event], ["alt_text_snapshot"])
+
+        event.refresh_from_db()
+        self.assertEqual(event.alt_text_snapshot, "Kreative Norge standardbilde")
+
+    def test_event_snapshots_survive_live_organization_selection_and_actor_deletion(self):
+        event = self.lock_fallback().event
+        snapshot = {
+            "organization_id": event.organization_id_snapshot,
+            "selection_id": event.selection_id_snapshot,
+            "actor_id": event.actor_user_id_snapshot,
+            "actor_username": event.actor_username_snapshot,
+        }
+
+        self.organization.delete()
+        self.actor.delete()
+        event.refresh_from_db()
+
+        self.assertIsNone(event.organization_id)
+        self.assertIsNone(event.selection_id)
+        self.assertIsNone(event.actor_user_id)
+        self.assertEqual(event.organization_id_snapshot, snapshot["organization_id"])
+        self.assertEqual(event.selection_id_snapshot, snapshot["selection_id"])
+        self.assertEqual(event.actor_user_id_snapshot, snapshot["actor_id"])
+        self.assertEqual(event.actor_username_snapshot, snapshot["actor_username"])
+
+    def test_database_constraints_use_snapshots_not_live_foreign_keys(self):
+        event = self.lock_fallback().event
+        values = ImageReviewEvent._base_objects.filter(pk=event.pk).values().get()
+        values.pop("id")
+        values["event_type"] = ImageReviewEvent.EventType.SELECTION_REPLACED
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                ImageReviewEvent.objects.create(**values)
+
+        values["event_type"] = ImageReviewEvent.EventType.SELECTION_LOCKED
+        values["asset_id_snapshot"] = 99
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                ImageReviewEvent.objects.create(**values)
+
+    def test_command_preserves_publication_people_contacts_and_legacy_images(self):
+        person = Person.objects.create(
+            tenant=self.tenant,
+            full_name="Public person",
+            email="person@example.com",
+            phone="12345678",
+        )
+        link = OrganizationPerson.objects.create(
+            tenant=self.tenant,
+            organization=self.organization,
+            person=person,
+            publish_person=True,
+        )
+        contact = PersonContact.objects.create(
+            tenant=self.tenant,
+            person=person,
+            type="EMAIL",
+            value="person@example.com",
+            is_primary=True,
+            is_public=True,
+        )
+        organization_before = Organization.objects.filter(pk=self.organization.pk).values().get()
+        person_before = Person.objects.filter(pk=person.pk).values().get()
+        link_before = OrganizationPerson.objects.filter(pk=link.pk).values().get()
+        contact_before = PersonContact.objects.filter(pk=contact.pk).values().get()
+
+        self.lock_fallback()
+
+        self.assertEqual(
+            Organization.objects.filter(pk=self.organization.pk).values().get(),
+            organization_before,
+        )
+        self.assertEqual(Person.objects.filter(pk=person.pk).values().get(), person_before)
+        self.assertEqual(
+            OrganizationPerson.objects.filter(pk=link.pk).values().get(),
+            link_before,
+        )
+        self.assertEqual(
+            PersonContact.objects.filter(pk=contact.pk).values().get(),
+            contact_before,
+        )
+
+    def test_command_and_event_model_do_not_use_storage_or_create_files(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private_root = Path(temporary_directory) / "private"
+            public_root = Path(temporary_directory) / "public"
+            with override_settings(
+                IMAGE_ORIGINALS_ROOT=private_root,
+                IMAGE_RENDITIONS_ROOT=public_root,
+            ):
+                self.lock_fallback()
+
+            self.assertFalse(private_root.exists())
+            self.assertFalse(public_root.exists())
+            self.assertEqual(list(Path(temporary_directory).iterdir()), [])
+
+        self.assertFalse(
+            any(
+                field.get_internal_type() == "FileField"
+                for field in ImageReviewEvent._meta.fields
+            )
+        )
+
+
+@override_settings(IMAGE_ASSET_FEATURE_ENABLED=True)
+class OrganizationImageSelectionConcurrencyTests(TransactionTestCase):
+    reset_sequences = True
+
+    def setUp(self):
+        self.tenant = Tenant.objects.create(name="Concurrency tenant", slug="concurrency")
+        self.organization = Organization.objects.create(
+            tenant=self.tenant,
+            name="Concurrency organization",
+        )
+        self.actors = []
+        for index in range(2):
+            actor = get_user_model().objects.create_user(
+                username=f"concurrency-editor-{index}",
+                password="test-password",
+            )
+            TenantMembership.objects.create(
+                tenant=self.tenant,
+                user=actor,
+                role=TenantMembership.Role.REDIGERER,
+            )
+            self.actors.append(actor)
+
+    def test_same_expected_revision_is_serialized_by_organization_lock(self):
+        barrier = threading.Barrier(2)
+        outcomes = []
+        outcome_lock = threading.Lock()
+
+        def run_command(actor_id):
+            close_old_connections()
+            actor = get_user_model().objects.get(pk=actor_id)
+            barrier.wait(timeout=10)
+            try:
+                result = lock_organization_image_selection(
+                    actor=actor,
+                    tenant_id=self.tenant.pk,
+                    organization_id=self.organization.pk,
+                    expected_revision=0,
+                    selection_kind=OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
+                    alt_text="Concurrent fallback",
+                )
+                outcome = ("success", result.selection.revision)
+            except (ExpectedRevisionConflictError, ImageSelectionConcurrencyError) as error:
+                outcome = ("conflict", type(error).__name__)
+            finally:
+                close_old_connections()
+            with outcome_lock:
+                outcomes.append(outcome)
+
+        threads = [
+            threading.Thread(target=run_command, args=(actor.pk,))
+            for actor in self.actors
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=20)
+
+        self.assertTrue(all(not thread.is_alive() for thread in threads))
+        self.assertEqual([outcome[0] for outcome in outcomes].count("success"), 1)
+        self.assertEqual([outcome[0] for outcome in outcomes].count("conflict"), 1)
+        self.assertEqual(OrganizationImageSelection.objects.count(), 1)
+        self.assertEqual(ImageReviewEvent.objects.count(), 1)
+        self.assertEqual(
+            OrganizationImageSelection.objects.filter(status="active").count(),
+            1,
+        )
+        self.assertEqual(
+            list(OrganizationImageSelection.objects.values_list("revision", flat=True)),
+            [1],
+        )
+
+
+class ImageReviewEventMigrationTests(TransactionTestCase):
+    migrate_from = ("crm", "0022_organization_image_selection")
+    migrate_to = ("crm", "0023_imagereviewevent")
+
+    def test_additive_event_migration_preserves_existing_image_data_and_reverses(self):
+        migration_module = importlib.import_module("crm.migrations.0023_imagereviewevent")
+        self.assertEqual(len(migration_module.Migration.operations), 1)
+        self.assertEqual(
+            migration_module.Migration.operations[0].__class__.__name__,
+            "CreateModel",
+        )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from])
+        old_apps = executor.loader.project_state([self.migrate_from]).apps
+        OldTenant = old_apps.get_model("crm", "Tenant")
+        OldOrganization = old_apps.get_model("crm", "Organization")
+        OldImageAsset = old_apps.get_model("crm", "ImageAsset")
+        OldImageRenditionSet = old_apps.get_model("crm", "ImageRenditionSet")
+        OldImageRendition = old_apps.get_model("crm", "ImageRendition")
+        OldSelection = old_apps.get_model("crm", "OrganizationImageSelection")
+        OldUser = old_apps.get_model(*settings.AUTH_USER_MODEL.split("."))
+
+        tenant = OldTenant.objects.create(name="Event migration", slug="event-migration")
+        organization = OldOrganization.objects.create(
+            tenant=tenant,
+            name="Existing event organization",
+        )
+        user = OldUser.objects.create(username="event-migration-user")
+        asset = OldImageAsset.objects.create(
+            tenant=tenant,
+            private_storage_key="assets/event-existing.jpeg",
+            checksum_sha256="a" * 64,
+            original_format="jpeg",
+            mime_type="image/jpeg",
+            width=1600,
+            height=900,
+            file_size_bytes=123456,
+            validation_version="validation-v1",
+        )
+        rendition_set = OldImageRenditionSet.objects.create(
+            tenant=tenant,
+            asset=asset,
+            fit_mode="cover",
+            processing_version="processing-v1",
+            render_config_hash_sha256="b" * 64,
+        )
+        rendition = OldImageRendition.objects.create(
+            tenant=tenant,
+            rendition_set=rendition_set,
+            variant="square",
+            output_format="webp",
+            width=512,
+            height=512,
+            file_size_bytes=12345,
+            checksum_sha256="c" * 64,
+            artifact_storage_key="renditions/event-existing-square.webp",
+        )
+        selection = OldSelection.objects.create(
+            tenant=tenant,
+            organization=organization,
+            selection_kind="asset",
+            rendition_set=rendition_set,
+            alt_text="Existing selection",
+            public_credit="",
+            revision=1,
+            status="active",
+            locked_by=user,
+            locked_at=timezone.now(),
+        )
+        model_ids = {
+            "Tenant": tenant.pk,
+            "Organization": organization.pk,
+            "ImageAsset": asset.pk,
+            "ImageRenditionSet": rendition_set.pk,
+            "ImageRendition": rendition.pk,
+            "OrganizationImageSelection": selection.pk,
+        }
+        snapshots = {
+            model_name: old_apps.get_model("crm", model_name)
+            .objects.filter(pk=model_id)
+            .values()
+            .get()
+            for model_name, model_id in model_ids.items()
+        }
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_to])
+        new_apps = executor.loader.project_state([self.migrate_to]).apps
+        for model_name, expected in snapshots.items():
+            with self.subTest(model_name=model_name):
+                actual = (
+                    new_apps.get_model("crm", model_name)
+                    .objects.filter(pk=model_ids[model_name])
+                    .values()
+                    .get()
+                )
+                self.assertEqual(actual, expected)
+        self.assertEqual(new_apps.get_model("crm", "ImageReviewEvent").objects.count(), 0)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from])
+        restored_apps = executor.loader.project_state([self.migrate_from]).apps
+        self.assertTrue(
+            restored_apps.get_model("crm", "OrganizationImageSelection")
+            .objects.filter(pk=selection.pk)
+            .exists()
         )
 
         executor = MigrationExecutor(connection)

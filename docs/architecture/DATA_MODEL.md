@@ -81,14 +81,17 @@ Dagens modeller og migrasjoner følger fortsatt den todelte legacy-modellen, men
 - `ImageRenditionSet` eies av én tenant, beskytter referansen til ett asset og lagrer cover/contain, normalisert fokuspunkt, prosesseringsversjon og render-config-hash
 - `ImageRendition` eies av én tenant, beskytter referansen til ett rendition-sett og lagrer square/landscape/share, outputformat, dimensjoner, filstørrelse, SHA-256 og provider-nøytral artifact key
 - `OrganizationImageSelection` representerer én låst historisk revisjon for én organisasjon og peker enten til nøyaktig ett immutable rendition-sett eller til systemfallback
+- `ImageReviewEvent` lagrer append-only snapshots av første selection-låsing eller eksplisitt replacement, med nullable `SET_NULL`-referanser til levende domeneobjekter
 
 Databaseconstraints håndhever positive dimensjoner og filstørrelser, fokus i intervallet 0–1 og tenant-avgrenset unikhet for storage keys, rendition-sett og varianter. Checksum er bevisst ikke globalt unik. `clean()` avviser tenant-mismatch mellom asset og rendition-sett og mellom rendition-sett og rendition, men dette er ikke alene en full databasegaranti; en senere domenetjeneste skal håndheve samme invariant før runtime kan skrive.
 
 For selection håndhever databasen unik revisjon per tenant/organisasjon, maksimalt én `active`-rad, positiv revisjon, ikke-tom alt-tekst og eksklusivt valg mellom asset/rendition-sett og systemfallback. `locked_by` og `locked_at` er obligatoriske, og bruker samt rendition-sett er beskyttet med `PROTECT`. Selection dupliserer ikke asset, fit, fokus eller prosesseringsversjon; asset og presentasjonsoppskrift nås gjennom det eksakte rendition-settet.
 
-`clean()` avviser også tenant-mismatch mot organisasjon/rendition-sett og whitespace-only tekst. Vanlige ForeignKeys gir fortsatt ikke en komplett cross-tenant-databasegaranti. En senere domenetjeneste må håndheve tenant, capability, atomisk revisjonsnummer, concurrency, arkivering av forrige aktive rad, opprettelse av ny aktiv rad og append-only godkjenningshendelse.
+`clean()` avviser også tenant-mismatch mot organisasjon/rendition-sett og whitespace-only tekst. Vanlige ForeignKeys gir fortsatt ikke en komplett cross-tenant-databasegaranti. `lock_organization_image_selection` er derfor eneste godkjente skriverute: den er feature-gated, håndhever tenant og capability, låser `Organization` som serialiseringspunkt, kontrollerer `expected_revision`, arkiverer bare statusen på forrige aktive rad og oppretter ny aktiv selection og event i én transaksjon.
 
-Modellene bruker bare `CharField` for logiske keys. De har ingen `FileField`, oppretter ingen mapper eller filer og er ikke koblet til storagealiaser eller featureflagget. Ingen domenekommando, review/audit-event, offentlig release key eller public projection inngår i schema-grunnmuren, og ingen applikasjonsflyt oppretter selection-rader.
+`ImageReviewEvent` bruker snapshots som autoritativ historisk identitet, slik at constraints ikke avhenger av at nullable live-referanser fortsatt finnes. Asset-events lagrer intern, versjonert godkjenningstekst og begrenset proveniens; fallback-events lagrer ingen falsk rettighetsgodkjenning. Eventet blokkerer `save()` av eksisterende rad, instance-/queryset-delete, queryset-update og bulk-update på applikasjons-/ORM-nivå. Dette er ikke kryptografisk WORM eller en absolutt databasegaranti.
+
+Modellene bruker bare `CharField` for logiske keys. De har ingen `FileField`, oppretter ingen mapper eller filer og bruker ingen storagealiaser. Kommandoen kontrollerer featureflagget, men flagget er avslått og ingen API-, Editor-, PUBLIC-, import- eller annen runtimeflyt kaller den. Offentlig release key og public projection inngår ikke, og legacybildeflyten er uendret.
 
 Konseptuell målmodell:
 
@@ -98,6 +101,9 @@ ImageCandidate
     → typed OrganizationImageSelection
     → ImageRendition
     → én felles public image projection
+
+OrganizationImageSelection
+    → append-only ImageReviewEvent for locking/replacement
 ```
 
-Viktige overganger skal senere ha append-only bildehistorikk. Assetet eies av tenant og kan finnes før en aktør. Den implementerte typed selection-modellen gjelder bare `Organization`, uten `GenericForeignKey` eller en generell selection for andre objekttyper.
+Første låsing og replacement har append-only bildehistorikk. Kandidat-, takedown-, restore- og retentionevents kommer i separate leveranser. Assetet eies av tenant og kan finnes før en aktør. Den implementerte typed selection-modellen gjelder bare `Organization`, uten `GenericForeignKey` eller en generell selection for andre objekttyper.
