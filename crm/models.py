@@ -389,6 +389,120 @@ class Organization(models.Model):
             return candidate
         return None
 
+
+class OrganizationImageSelection(models.Model):
+    class SelectionKind(models.TextChoices):
+        ASSET = "asset", "Asset"
+        SYSTEM_FALLBACK = "system_fallback", "System fallback"
+
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        ARCHIVED = "archived", "Archived"
+
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name="organization_image_selections",
+    )
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="image_selections",
+    )
+    selection_kind = models.CharField(max_length=20, choices=SelectionKind.choices)
+    rendition_set = models.ForeignKey(
+        ImageRenditionSet,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="organization_selections",
+    )
+    alt_text = models.CharField(max_length=500)
+    public_credit = models.CharField(max_length=500, blank=True, default="")
+    revision = models.PositiveIntegerField()
+    status = models.CharField(max_length=8, choices=Status.choices)
+    locked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="locked_organization_image_selections",
+    )
+    locked_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "organization", "revision"],
+                name="img_sel_tenant_org_rev_uniq",
+            ),
+            models.UniqueConstraint(
+                fields=["tenant", "organization"],
+                condition=models.Q(status="active"),
+                name="img_sel_one_active_per_org",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(revision__gt=0),
+                name="img_sel_revision_gt_0",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        selection_kind="asset",
+                        rendition_set__isnull=False,
+                    )
+                    | models.Q(
+                        selection_kind="system_fallback",
+                        rendition_set__isnull=True,
+                    )
+                ),
+                name="img_sel_kind_rset_xor",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(alt_text=""),
+                name="img_sel_alt_text_not_empty",
+            ),
+        ]
+
+    def clean(self) -> None:
+        super().clean()
+        errors = {}
+
+        if (
+            self.tenant_id
+            and self.organization_id
+            and self.tenant_id != self.organization.tenant_id
+        ):
+            errors["organization"] = "Organization must belong to the selection tenant."
+
+        if (
+            self.tenant_id
+            and self.rendition_set_id
+            and self.tenant_id != self.rendition_set.tenant_id
+        ):
+            errors["rendition_set"] = "Rendition set must belong to the selection tenant."
+
+        if self.selection_kind == self.SelectionKind.ASSET and not self.rendition_set_id:
+            errors["rendition_set"] = "Asset selections require a rendition set."
+        elif (
+            self.selection_kind == self.SelectionKind.SYSTEM_FALLBACK
+            and self.rendition_set_id
+        ):
+            errors["rendition_set"] = "System fallback selections cannot have a rendition set."
+
+        if not self.alt_text or not self.alt_text.strip():
+            errors["alt_text"] = "Alt text cannot be empty or whitespace only."
+        if self.public_credit and not self.public_credit.strip():
+            errors["public_credit"] = "Public credit cannot contain only whitespace."
+
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self) -> str:
+        return (
+            f"OrganizationImageSelection #{self.pk or 'new'} "
+            f"(organization {self.organization_id}, revision {self.revision})"
+        )
+
 class Person(models.Model):
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="persons")
 

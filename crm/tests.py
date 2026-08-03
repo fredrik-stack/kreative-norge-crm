@@ -19,6 +19,7 @@ from django.db.migrations.executor import MigrationExecutor
 from django.db.models.deletion import ProtectedError
 from django.test import SimpleTestCase, TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from unittest.mock import patch
 from rest_framework.test import APIClient
 
@@ -40,6 +41,7 @@ from .models import (
     ImageAsset,
     ImageRendition,
     ImageRenditionSet,
+    OrganizationImageSelection,
 )
 from .validators import validate_storage_key
 from .services.open_graph import ImageCandidate, choose_best_thumbnail, fallback_preview_image, fetch_open_graph
@@ -3407,6 +3409,511 @@ class ImageDomainMigrationTests(TransactionTestCase):
         RestoredOrganization = restored_apps.get_model("crm", "Organization")
         self.assertTrue(RestoredTenant.objects.filter(pk=tenant.pk).exists())
         self.assertTrue(RestoredOrganization.objects.filter(pk=organization.pk).exists())
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+
+
+class OrganizationImageSelectionModelTests(TestCase):
+    checksum_a = "a" * 64
+    checksum_b = "b" * 64
+
+    def setUp(self):
+        self.tenant = Tenant.objects.create(name="Selection tenant", slug="selection-tenant")
+        self.other_tenant = Tenant.objects.create(
+            name="Other selection tenant",
+            slug="other-selection-tenant",
+        )
+        self.organization = Organization.objects.create(
+            tenant=self.tenant,
+            name="Selection organization",
+        )
+        self.other_organization = Organization.objects.create(
+            tenant=self.other_tenant,
+            name="Other selection organization",
+        )
+        self.user = get_user_model().objects.create_user(
+            username="selection-locker",
+            password="test-password",
+        )
+
+    def create_asset(self, *, tenant=None, storage_key="assets/selection.jpeg", checksum=None):
+        return ImageAsset.objects.create(
+            tenant=tenant or self.tenant,
+            private_storage_key=storage_key,
+            checksum_sha256=checksum or self.checksum_a,
+            original_format=ImageAsset.OriginalFormat.JPEG,
+            mime_type="image/jpeg",
+            width=1600,
+            height=900,
+            file_size_bytes=123456,
+            validation_version="validation-v1",
+        )
+
+    def create_rendition_set(
+        self,
+        *,
+        tenant=None,
+        asset=None,
+        storage_key="assets/selection.jpeg",
+        checksum=None,
+        render_hash=None,
+    ):
+        tenant = tenant or self.tenant
+        asset = asset or self.create_asset(
+            tenant=tenant,
+            storage_key=storage_key,
+            checksum=checksum,
+        )
+        return ImageRenditionSet.objects.create(
+            tenant=tenant,
+            asset=asset,
+            fit_mode=ImageRenditionSet.FitMode.COVER,
+            processing_version="processing-v1",
+            render_config_hash_sha256=render_hash or self.checksum_b,
+        )
+
+    def create_selection(self, **overrides):
+        values = {
+            "tenant": self.tenant,
+            "organization": self.organization,
+            "selection_kind": OrganizationImageSelection.SelectionKind.ASSET,
+            "alt_text": "Organization image",
+            "public_credit": "",
+            "revision": 1,
+            "status": OrganizationImageSelection.Status.ACTIVE,
+            "locked_by": self.user,
+            "locked_at": timezone.now(),
+        }
+        values.update(overrides)
+        if "rendition_set" not in overrides:
+            values["rendition_set"] = self.create_rendition_set()
+        return OrganizationImageSelection.objects.create(**values)
+
+    def test_valid_active_asset_selection_references_exact_set_and_asset(self):
+        rendition_set = self.create_rendition_set()
+        selection = OrganizationImageSelection(
+            tenant=self.tenant,
+            organization=self.organization,
+            selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+            rendition_set=rendition_set,
+            alt_text="Organization image",
+            public_credit="",
+            revision=1,
+            status=OrganizationImageSelection.Status.ACTIVE,
+            locked_by=self.user,
+            locked_at=timezone.now(),
+        )
+
+        selection.full_clean()
+        selection.save()
+
+        self.assertEqual(selection.rendition_set, rendition_set)
+        self.assertEqual(selection.rendition_set.asset, rendition_set.asset)
+        self.assertEqual(selection.public_credit, "")
+
+    def test_valid_active_system_fallback_selection_can_be_created(self):
+        selection = OrganizationImageSelection(
+            tenant=self.tenant,
+            organization=self.organization,
+            selection_kind=OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
+            rendition_set=None,
+            alt_text="Kreative Norge standardbilde",
+            public_credit="",
+            revision=1,
+            status=OrganizationImageSelection.Status.ACTIVE,
+            locked_by=self.user,
+            locked_at=timezone.now(),
+        )
+
+        selection.full_clean()
+        selection.save()
+
+        self.assertIsNone(selection.rendition_set)
+
+    def test_clean_rejects_invalid_asset_and_fallback_combinations(self):
+        rendition_set = self.create_rendition_set()
+        invalid_selections = (
+            OrganizationImageSelection(
+                tenant=self.tenant,
+                organization=self.organization,
+                selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+                rendition_set=None,
+                alt_text="Missing rendition set",
+                revision=1,
+                status=OrganizationImageSelection.Status.ACTIVE,
+                locked_by=self.user,
+                locked_at=timezone.now(),
+            ),
+            OrganizationImageSelection(
+                tenant=self.tenant,
+                organization=self.organization,
+                selection_kind=OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
+                rendition_set=rendition_set,
+                alt_text="Unexpected rendition set",
+                revision=1,
+                status=OrganizationImageSelection.Status.ACTIVE,
+                locked_by=self.user,
+                locked_at=timezone.now(),
+            ),
+        )
+
+        for selection in invalid_selections:
+            with self.subTest(selection_kind=selection.selection_kind):
+                with self.assertRaises(ValidationError) as error:
+                    selection.full_clean()
+                self.assertIn("rendition_set", error.exception.message_dict)
+
+    def test_database_rejects_invalid_asset_and_fallback_combinations(self):
+        rendition_set = self.create_rendition_set()
+        invalid_values = (
+            {
+                "selection_kind": OrganizationImageSelection.SelectionKind.ASSET,
+                "rendition_set": None,
+            },
+            {
+                "selection_kind": OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
+                "rendition_set": rendition_set,
+            },
+        )
+
+        for index, invalid_value in enumerate(invalid_values, start=1):
+            with self.subTest(invalid_value=invalid_value):
+                with self.assertRaises(IntegrityError):
+                    with transaction.atomic():
+                        OrganizationImageSelection.objects.create(
+                            tenant=self.tenant,
+                            organization=self.organization,
+                            alt_text="Invalid selection",
+                            revision=index,
+                            status=OrganizationImageSelection.Status.ARCHIVED,
+                            locked_by=self.user,
+                            locked_at=timezone.now(),
+                            **invalid_value,
+                        )
+
+    def test_clean_rejects_cross_tenant_organization_and_rendition_set(self):
+        local_set = self.create_rendition_set()
+        other_set = self.create_rendition_set(
+            tenant=self.other_tenant,
+            storage_key="assets/other-selection.jpeg",
+        )
+        invalid_selections = (
+            OrganizationImageSelection(
+                tenant=self.tenant,
+                organization=self.other_organization,
+                selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+                rendition_set=local_set,
+                alt_text="Wrong organization tenant",
+                revision=1,
+                status=OrganizationImageSelection.Status.ACTIVE,
+                locked_by=self.user,
+                locked_at=timezone.now(),
+            ),
+            OrganizationImageSelection(
+                tenant=self.tenant,
+                organization=self.organization,
+                selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+                rendition_set=other_set,
+                alt_text="Wrong rendition tenant",
+                revision=1,
+                status=OrganizationImageSelection.Status.ACTIVE,
+                locked_by=self.user,
+                locked_at=timezone.now(),
+            ),
+        )
+
+        for selection in invalid_selections:
+            with self.subTest(organization_id=selection.organization_id):
+                with self.assertRaises(ValidationError) as error:
+                    selection.full_clean()
+                self.assertTrue(
+                    {"organization", "rendition_set"}.intersection(error.exception.message_dict)
+                )
+
+    def test_database_foreign_keys_alone_do_not_guarantee_cross_tenant_match(self):
+        local_set = self.create_rendition_set()
+        other_set = self.create_rendition_set(
+            tenant=self.other_tenant,
+            storage_key="assets/other-database-selection.jpeg",
+        )
+
+        wrong_organization = OrganizationImageSelection.objects.create(
+            tenant=self.tenant,
+            organization=self.other_organization,
+            selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+            rendition_set=local_set,
+            alt_text="Database boundary evidence",
+            revision=1,
+            status=OrganizationImageSelection.Status.ARCHIVED,
+            locked_by=self.user,
+            locked_at=timezone.now(),
+        )
+        wrong_rendition_set = OrganizationImageSelection.objects.create(
+            tenant=self.tenant,
+            organization=self.organization,
+            selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+            rendition_set=other_set,
+            alt_text="Database boundary evidence",
+            revision=2,
+            status=OrganizationImageSelection.Status.ARCHIVED,
+            locked_by=self.user,
+            locked_at=timezone.now(),
+        )
+
+        self.assertNotEqual(wrong_organization.tenant_id, wrong_organization.organization.tenant_id)
+        self.assertNotEqual(wrong_rendition_set.tenant_id, wrong_rendition_set.rendition_set.tenant_id)
+
+    def test_database_allows_only_one_active_selection_per_organization(self):
+        self.create_selection()
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self.create_selection(
+                    selection_kind=OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
+                    rendition_set=None,
+                    revision=2,
+                )
+
+    def test_active_selections_for_different_organizations_are_allowed(self):
+        second_organization = Organization.objects.create(
+            tenant=self.tenant,
+            name="Second selection organization",
+        )
+        self.create_selection()
+        self.create_selection(
+            organization=second_organization,
+            selection_kind=OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
+            rendition_set=None,
+        )
+
+        self.assertEqual(
+            OrganizationImageSelection.objects.filter(status="active").count(),
+            2,
+        )
+
+    def test_revision_must_be_positive_and_unique_per_tenant_organization(self):
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self.create_selection(revision=0)
+
+        self.create_selection(status=OrganizationImageSelection.Status.ARCHIVED)
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self.create_selection(
+                    selection_kind=OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
+                    rendition_set=None,
+                    revision=1,
+                    status=OrganizationImageSelection.Status.ACTIVE,
+                )
+
+    def test_multiple_archived_revisions_and_one_active_revision_are_allowed(self):
+        rendition_set = self.create_rendition_set()
+        self.create_selection(
+            rendition_set=rendition_set,
+            revision=1,
+            status=OrganizationImageSelection.Status.ARCHIVED,
+        )
+        self.create_selection(
+            selection_kind=OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
+            rendition_set=None,
+            revision=2,
+            status=OrganizationImageSelection.Status.ACTIVE,
+        )
+        self.create_selection(
+            rendition_set=rendition_set,
+            revision=3,
+            status=OrganizationImageSelection.Status.ARCHIVED,
+        )
+
+        self.assertEqual(OrganizationImageSelection.objects.count(), 3)
+        self.assertEqual(
+            OrganizationImageSelection.objects.filter(status="archived").count(),
+            2,
+        )
+
+    def test_locked_by_and_locked_at_are_required(self):
+        for field_name in ("locked_by", "locked_at"):
+            with self.subTest(field_name=field_name):
+                with self.assertRaises(IntegrityError):
+                    with transaction.atomic():
+                        self.create_selection(**{field_name: None})
+
+    def test_locked_by_user_is_protected(self):
+        self.create_selection()
+
+        with self.assertRaises(ProtectedError):
+            self.user.delete()
+
+    def test_clean_rejects_empty_alt_text_and_whitespace_only_credit(self):
+        invalid_values = (
+            {"alt_text": ""},
+            {"alt_text": "   "},
+            {"public_credit": "   "},
+        )
+
+        for invalid_value in invalid_values:
+            selection = OrganizationImageSelection(
+                tenant=self.tenant,
+                organization=self.organization,
+                selection_kind=OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
+                rendition_set=None,
+                alt_text="Valid alt text",
+                public_credit="",
+                revision=1,
+                status=OrganizationImageSelection.Status.ACTIVE,
+                locked_by=self.user,
+                locked_at=timezone.now(),
+            )
+            for field_name, value in invalid_value.items():
+                setattr(selection, field_name, value)
+
+            with self.subTest(invalid_value=invalid_value):
+                with self.assertRaises(ValidationError):
+                    selection.full_clean()
+
+    def test_database_rejects_empty_alt_text_when_clean_is_bypassed(self):
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self.create_selection(alt_text="")
+
+    def test_text_is_not_normalized_or_rewritten_on_save(self):
+        selection = self.create_selection(
+            alt_text="  Organization image  ",
+            public_credit="  Photographer  ",
+        )
+        selection.refresh_from_db()
+
+        self.assertEqual(selection.alt_text, "  Organization image  ")
+        self.assertEqual(selection.public_credit, "  Photographer  ")
+
+    def test_rendition_set_is_protected_and_organization_cascades(self):
+        rendition_set = self.create_rendition_set()
+        selection = self.create_selection(rendition_set=rendition_set)
+
+        with self.assertRaises(ProtectedError):
+            rendition_set.delete()
+
+        self.organization.delete()
+        self.assertFalse(OrganizationImageSelection.objects.filter(pk=selection.pk).exists())
+
+    def test_selection_does_not_duplicate_asset_or_rendition_recipe_fields(self):
+        field_names = {field.name for field in OrganizationImageSelection._meta.fields}
+
+        self.assertFalse({"asset", "fit_mode", "focus_x", "focus_y", "processing_version"} & field_names)
+        self.assertFalse(
+            any(
+                field.get_internal_type() == "FileField"
+                for field in OrganizationImageSelection._meta.fields
+            )
+        )
+        self.assertFalse({"storage_key", "is_published", "publish_phone"} & field_names)
+
+    def test_selection_model_operations_do_not_create_storage_directories_or_files(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private_root = Path(temporary_directory) / "private"
+            public_root = Path(temporary_directory) / "public"
+            with override_settings(
+                IMAGE_ORIGINALS_ROOT=private_root,
+                IMAGE_RENDITIONS_ROOT=public_root,
+            ):
+                self.create_selection()
+
+            self.assertFalse(private_root.exists())
+            self.assertFalse(public_root.exists())
+            self.assertEqual(list(Path(temporary_directory).iterdir()), [])
+
+
+class OrganizationImageSelectionMigrationTests(TransactionTestCase):
+    migrate_from = ("crm", "0021_image_domain_foundation")
+    migrate_to = ("crm", "0022_organization_image_selection")
+
+    def test_migration_preserves_existing_image_domain_data_and_is_reversible(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from])
+        old_apps = executor.loader.project_state([self.migrate_from]).apps
+        OldTenant = old_apps.get_model("crm", "Tenant")
+        OldOrganization = old_apps.get_model("crm", "Organization")
+        OldImageAsset = old_apps.get_model("crm", "ImageAsset")
+        OldImageRenditionSet = old_apps.get_model("crm", "ImageRenditionSet")
+        OldImageRendition = old_apps.get_model("crm", "ImageRendition")
+
+        tenant = OldTenant.objects.create(name="Selection migration", slug="selection-migration")
+        organization = OldOrganization.objects.create(tenant=tenant, name="Existing organization")
+        asset = OldImageAsset.objects.create(
+            tenant=tenant,
+            private_storage_key="assets/existing.jpeg",
+            checksum_sha256="a" * 64,
+            original_format="jpeg",
+            mime_type="image/jpeg",
+            width=1600,
+            height=900,
+            file_size_bytes=123456,
+            validation_version="validation-v1",
+        )
+        rendition_set = OldImageRenditionSet.objects.create(
+            tenant=tenant,
+            asset=asset,
+            fit_mode="cover",
+            processing_version="processing-v1",
+            render_config_hash_sha256="b" * 64,
+        )
+        rendition = OldImageRendition.objects.create(
+            tenant=tenant,
+            rendition_set=rendition_set,
+            variant="square",
+            output_format="webp",
+            width=512,
+            height=512,
+            file_size_bytes=45678,
+            checksum_sha256="c" * 64,
+            artifact_storage_key="renditions/existing-square.webp",
+        )
+        existing_ids = {
+            "tenant": tenant.pk,
+            "organization": organization.pk,
+            "asset": asset.pk,
+            "rendition_set": rendition_set.pk,
+            "rendition": rendition.pk,
+        }
+        existing_snapshots = {
+            "Tenant": OldTenant.objects.filter(pk=tenant.pk).values().get(),
+            "Organization": OldOrganization.objects.filter(pk=organization.pk).values().get(),
+            "ImageAsset": OldImageAsset.objects.filter(pk=asset.pk).values().get(),
+            "ImageRenditionSet": OldImageRenditionSet.objects.filter(pk=rendition_set.pk).values().get(),
+            "ImageRendition": OldImageRendition.objects.filter(pk=rendition.pk).values().get(),
+        }
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_to])
+        new_apps = executor.loader.project_state([self.migrate_to]).apps
+        snapshot_ids = {
+            "Tenant": existing_ids["tenant"],
+            "Organization": existing_ids["organization"],
+            "ImageAsset": existing_ids["asset"],
+            "ImageRenditionSet": existing_ids["rendition_set"],
+            "ImageRendition": existing_ids["rendition"],
+        }
+        for model_name, expected_snapshot in existing_snapshots.items():
+            with self.subTest(model_name=model_name):
+                actual_snapshot = (
+                    new_apps.get_model("crm", model_name)
+                    .objects.filter(pk=snapshot_ids[model_name])
+                    .values()
+                    .get()
+                )
+                self.assertEqual(actual_snapshot, expected_snapshot)
+        self.assertEqual(new_apps.get_model("crm", "OrganizationImageSelection").objects.count(), 0)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from])
+        restored_apps = executor.loader.project_state([self.migrate_from]).apps
+        self.assertTrue(
+            restored_apps.get_model("crm", "Organization").objects.filter(pk=existing_ids["organization"]).exists()
+        )
+        self.assertTrue(
+            restored_apps.get_model("crm", "ImageRendition").objects.filter(pk=existing_ids["rendition"]).exists()
+        )
 
         executor = MigrationExecutor(connection)
         executor.migrate(executor.loader.graph.leaf_nodes())

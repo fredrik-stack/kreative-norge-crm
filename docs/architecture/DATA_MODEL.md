@@ -75,15 +75,20 @@ Dagens modeller og migrasjoner følger fortsatt den todelte legacy-modellen, men
 
 ## Additiv bildedomenemodell og planlagt bildearkitektur
 
-[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag. Første additive schema-del er implementert i `crm` med vanlige heltallsnøkler:
+[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag. Den additive schema-grunnmuren er implementert i `crm` med vanlige heltallsnøkler:
 
 - `ImageAsset` eies av én tenant og lagrer en provider-nøytral privat storage key, SHA-256, faktisk JPEG-/PNG-/WebP-format og MIME-type, dimensjoner, filstørrelse og valideringsversjon
 - `ImageRenditionSet` eies av én tenant, beskytter referansen til ett asset og lagrer cover/contain, normalisert fokuspunkt, prosesseringsversjon og render-config-hash
 - `ImageRendition` eies av én tenant, beskytter referansen til ett rendition-sett og lagrer square/landscape/share, outputformat, dimensjoner, filstørrelse, SHA-256 og provider-nøytral artifact key
+- `OrganizationImageSelection` representerer én låst historisk revisjon for én organisasjon og peker enten til nøyaktig ett immutable rendition-sett eller til systemfallback
 
 Databaseconstraints håndhever positive dimensjoner og filstørrelser, fokus i intervallet 0–1 og tenant-avgrenset unikhet for storage keys, rendition-sett og varianter. Checksum er bevisst ikke globalt unik. `clean()` avviser tenant-mismatch mellom asset og rendition-sett og mellom rendition-sett og rendition, men dette er ikke alene en full databasegaranti; en senere domenetjeneste skal håndheve samme invariant før runtime kan skrive.
 
-Modellene bruker bare `CharField` for logiske keys. De har ingen `FileField`, oppretter ingen mapper eller filer og er ikke koblet til storagealiaser eller featureflagget. `Organization`, selection, review/audit, offentlig release key og public projection inngår ikke i denne schema-leveransen.
+For selection håndhever databasen unik revisjon per tenant/organisasjon, maksimalt én `active`-rad, positiv revisjon, ikke-tom alt-tekst og eksklusivt valg mellom asset/rendition-sett og systemfallback. `locked_by` og `locked_at` er obligatoriske, og bruker samt rendition-sett er beskyttet med `PROTECT`. Selection dupliserer ikke asset, fit, fokus eller prosesseringsversjon; asset og presentasjonsoppskrift nås gjennom det eksakte rendition-settet.
+
+`clean()` avviser også tenant-mismatch mot organisasjon/rendition-sett og whitespace-only tekst. Vanlige ForeignKeys gir fortsatt ikke en komplett cross-tenant-databasegaranti. En senere domenetjeneste må håndheve tenant, capability, atomisk revisjonsnummer, concurrency, arkivering av forrige aktive rad, opprettelse av ny aktiv rad og append-only godkjenningshendelse.
+
+Modellene bruker bare `CharField` for logiske keys. De har ingen `FileField`, oppretter ingen mapper eller filer og er ikke koblet til storagealiaser eller featureflagget. Ingen domenekommando, review/audit-event, offentlig release key eller public projection inngår i schema-grunnmuren, og ingen applikasjonsflyt oppretter selection-rader.
 
 Konseptuell målmodell:
 
@@ -95,4 +100,4 @@ ImageCandidate
     → én felles public image projection
 ```
 
-Viktige overganger skal senere ha append-only bildehistorikk. Assetet eies av tenant og kan finnes før en aktør; bare ett selection skal være aktivt per aktør. Den senere selection-implementeringen gjelder `Organization`, uten `GenericForeignKey` eller en generell selection for andre objekttyper.
+Viktige overganger skal senere ha append-only bildehistorikk. Assetet eies av tenant og kan finnes før en aktør. Den implementerte typed selection-modellen gjelder bare `Organization`, uten `GenericForeignKey` eller en generell selection for andre objekttyper.

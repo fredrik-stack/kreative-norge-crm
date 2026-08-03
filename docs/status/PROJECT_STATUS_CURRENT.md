@@ -1,10 +1,10 @@
 # Project Status Current
 
-**Status:** Fase 1 og 2 gjennomført; fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; lokal Hetzner storage-/backup-MVP ACTIVE; fase 3C har en avslått konfigurasjonsgrunnmur og en additiv bildedomenemodell uten runtimebruk
+**Status:** Fase 1 og 2 gjennomført; fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; lokal Hetzner storage-/backup-MVP ACTIVE; fase 3C har avslått konfigurasjon og additive asset-, rendition- og selection-modeller uten runtimebruk
 
 **Teknisk sist verifisert:** 2026-08-03
 
-**Teknisk verifisert mot:** fase 2-applikasjonsversjonen i merge-commit `6768af8a3b48314aec028ec5972939c6ef0e38e8`, fortsatt kjørende API-/web-images, PostgreSQL, Django, migrasjoner, HTTPS, PUBLIC API/HTML, Editor-API og kontrollert tenant-avgrenset telefonreparasjon etter verifisert backup; fase 3B.1 og fase 3B.2 er i tillegg verifisert som isolerte lokale/Linux-prototyper uten CRM-runtimekobling. Første fase 3C-konfigurasjonsgrunnmur er verifisert med 18 avgrensede settings-tester. Andre fase 3C-leveranse legger additivt til `ImageAsset`, `ImageRenditionSet` og `ImageRendition` med migrasjon `0021`, constraints, 19 målrettede modell-/migrasjonstester og en grønn backendpakke på 171 tester. Featureflagget er fortsatt avslått; modellene har ingen fil-, storage-, API- eller runtimekobling. Staging-repoet er separat fast-forwardet og rent på backupmodulens godkjente `main`-commit uten deploy eller containerrestart. [Backupaktiveringen 2026-08-02](STAGING_BACKUP_ACTIVATION_2026-08-02.md) verifiserte hele Storage Box-/Borg-kjeden, recovery-custody, første backup, full repository-check, isolert restore og aktive timere.
+**Teknisk verifisert mot:** fase 2-applikasjonsversjonen i merge-commit `6768af8a3b48314aec028ec5972939c6ef0e38e8`, fortsatt kjørende API-/web-images, PostgreSQL, Django, migrasjoner, HTTPS, PUBLIC API/HTML, Editor-API og kontrollert tenant-avgrenset telefonreparasjon etter verifisert backup; fase 3B.1 og fase 3B.2 er i tillegg verifisert som isolerte lokale/Linux-prototyper uten CRM-runtimekobling. Første fase 3C-konfigurasjonsgrunnmur er verifisert med 18 avgrensede settings-tester. Andre fase 3C-leveranse legger additivt til `ImageAsset`, `ImageRenditionSet` og `ImageRendition` med migrasjon `0021`. Tredje leveranse legger til `OrganizationImageSelection` med migrasjon `0022`, 19 målrettede selection-/migrasjonstester og en grønn backendpakke på 190 tester. Featureflagget er fortsatt avslått; modellene har ingen fil-, storage-, API- eller runtimekobling. Staging-repoet er separat fast-forwardet og rent på backupmodulens godkjente `main`-commit uten deploy eller containerrestart. [Backupaktiveringen 2026-08-02](STAGING_BACKUP_ACTIVATION_2026-08-02.md) verifiserte hele Storage Box-/Borg-kjeden, recovery-custody, første backup, full repository-check, isolert restore og aktive timere.
 
 **Produkt-roadmap sist oppdatert:** 2026-08-02
 
@@ -30,7 +30,7 @@ Baselinen fant ingen eksisterende `/app/imports`-, `/app/exports`- eller host-me
 
 Det separate infrastrukturløpet for ADR-008 er fullført. Første fase 3C-leveranse innfører nå `IMAGE_ASSET_FEATURE_ENABLED=False` som standard og separate lokale `FileSystemStorage`-aliaser for private originaler og offentlige renditions. Aliasene er bare konfigurasjonsgrunnmur: ingen runtime henter dem, ingen bildefiler skrives eller serveres, og legacybildeflyten er uendret. Fase 3B.1R med representative bilder og fargeprofiler forblir en kvalitetsgate før reell bildebehandling kan godkjennes, men blokkerer ikke dette additive grunnarbeidet.
 
-Den første tekniske bildedomenekjernen er additivt implementert som tre ubrukte modeller og én schema-migrasjon. Det er ikke opprettet host-mediaområder, filer, serving, selection-/review-/public-modeller, API- eller frontendendringer, og ingen deploy er gjennomført. Eksisterende default-storage for import-/eksportfiler og dagens eksterne `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- og faviconflyt gjelder fortsatt. Neste fase 3C-leveranse krever separat godkjenning.
+Asset-/renditiongrunnmuren fra PR #19 er merget. `OrganizationImageSelection` er deretter additivt implementert som et ubrukt schema der hver rad representerer én låst revisjon, maksimalt én rad kan være aktiv per organisasjon, og asset-valg peker til ett eksakt immutable rendition-sett. Det finnes fortsatt ingen domenekommando, append-only event, host-mediaområder, filer, serving, API- eller frontendendringer, og ingen deploy er gjennomført. Ingen applikasjonsflyt oppretter selection-rader. Eksisterende default-storage for import-/eksportfiler og dagens eksterne `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- og faviconflyt gjelder fortsatt. Neste fase 3C-leveranse krever separat godkjenning.
 
 Den langsiktige relasjonsspesifikke kontaktmodellen fra [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md) kommer fortsatt senere. Internasjonal telefonmodell skal spesifiseres i et eget ADR ved overgangen fra fase 3 til fase 4 og implementeres tidlig i fase 5; dette blokkerer ikke fase 3.
 
@@ -51,7 +51,7 @@ Godkjente hovedprinsipper:
 
 - assetet eies av tenant, kan finnes før en aktør og kobles gjennom en typed aktør-selection
 - bare ett bildevalg er aktivt per aktør; et låst bilde erstattes bare gjennom eksplisitt approval og replacement
-- fit og ett fokuspunkt lagres på selection i første MVP
+- selection peker til ett eksakt immutable rendition-sett som bærer fit, fokus og prosesseringsversjon
 - viktige overganger registreres i append-only bildehistorikk
 - én rask og versjonert godkjenning brukes uten obligatoriske juridiske detaljfelt
 - kreditering er valgfri uten konkret krav
@@ -180,7 +180,7 @@ Den avgrensede mellomleveransen sporer offentlig telefon gjennom Editor, API og 
 
 ### 3. Thumbnail-, bilde- og kortarkitektur – fase 3B.2 gjennomført og besluttet
 
-Fase 3A-kartleggingen, ADR-007 og de isolerte prototypene i fase 3B.1 og fase 3B.2 er gjennomført. Prosjekteier har godkjent tilhørende processing-, storage-, delivery-, takedown- og restoreprinsipper, og ADR-008s lokale Hetzner-MVP er ACTIVE. Fase 3C er startet med en avslått featureflag og separate, ubrukte lokale image-storagealiaser. Modeller, filskriving, serving og offentlig bildebruk er fortsatt ikke implementert; fase 3B.1R og øvrige kvalitetsgater må være grønne før reell bildebruk kan aktiveres.
+Fase 3A-kartleggingen, ADR-007 og de isolerte prototypene i fase 3B.1 og fase 3B.2 er gjennomført. Prosjekteier har godkjent tilhørende processing-, storage-, delivery-, takedown- og restoreprinsipper, og ADR-008s lokale Hetzner-MVP er ACTIVE. Fase 3C har avslått featureflag, ubrukte lokale image-storagealiaser og additive, ubrukte asset-, rendition- og selection-modeller. Filskriving, domenekommando, eventhistorikk, serving og offentlig bildebruk er fortsatt ikke implementert; fase 3B.1R og øvrige kvalitetsgater må være grønne før reell bildebruk kan aktiveres.
 
 Deretter skal Import 2.0 gjennom en egen produkt- og UX-designfase før større kodeendringer. Dagens importmotor skal gjenbrukes der den er solid, men skal ikke låse den nye brukeropplevelsen.
 
