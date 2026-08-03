@@ -1,6 +1,11 @@
+from decimal import Decimal
+
 from django.db import models
+from django.core.exceptions import ValidationError
 from django.utils.text import slugify
 from django.conf import settings
+
+from .validators import validate_sha256, validate_storage_key
 
 
 def import_job_upload_to(instance, filename: str) -> str:
@@ -47,6 +52,165 @@ class TenantMembership(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user} @ {self.tenant} ({self.get_role_display()})"
+
+
+class ImageAsset(models.Model):
+    class OriginalFormat(models.TextChoices):
+        JPEG = "jpeg", "JPEG"
+        PNG = "png", "PNG"
+        WEBP = "webp", "WebP"
+
+    FORMAT_MIME_TYPES = {
+        OriginalFormat.JPEG: "image/jpeg",
+        OriginalFormat.PNG: "image/png",
+        OriginalFormat.WEBP: "image/webp",
+    }
+
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="image_assets")
+    private_storage_key = models.CharField(max_length=1024, validators=[validate_storage_key])
+    checksum_sha256 = models.CharField(max_length=64, validators=[validate_sha256])
+    original_format = models.CharField(max_length=8, choices=OriginalFormat.choices)
+    mime_type = models.CharField(max_length=100)
+    width = models.PositiveIntegerField()
+    height = models.PositiveIntegerField()
+    file_size_bytes = models.PositiveBigIntegerField()
+    validation_version = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "private_storage_key"],
+                name="image_asset_tenant_private_key_uniq",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(width__gt=0),
+                name="image_asset_width_gt_0",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(height__gt=0),
+                name="image_asset_height_gt_0",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(file_size_bytes__gt=0),
+                name="image_asset_size_gt_0",
+            ),
+        ]
+
+    def clean(self) -> None:
+        super().clean()
+        expected_mime_type = self.FORMAT_MIME_TYPES.get(self.original_format)
+        if expected_mime_type and self.mime_type != expected_mime_type:
+            raise ValidationError(
+                {"mime_type": f"MIME type must be {expected_mime_type} for {self.original_format}."}
+            )
+
+    def __str__(self) -> str:
+        return f"ImageAsset #{self.pk or 'new'}"
+
+
+class ImageRenditionSet(models.Model):
+    class FitMode(models.TextChoices):
+        COVER = "cover", "Cover"
+        CONTAIN = "contain", "Contain"
+
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="image_rendition_sets")
+    asset = models.ForeignKey(ImageAsset, on_delete=models.PROTECT, related_name="rendition_sets")
+    fit_mode = models.CharField(max_length=8, choices=FitMode.choices)
+    focus_x = models.DecimalField(max_digits=5, decimal_places=4, default=Decimal("0.5000"))
+    focus_y = models.DecimalField(max_digits=5, decimal_places=4, default=Decimal("0.5000"))
+    processing_version = models.CharField(max_length=64)
+    render_config_hash_sha256 = models.CharField(max_length=64, validators=[validate_sha256])
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "asset", "render_config_hash_sha256"],
+                name="image_rset_tenant_asset_hash_uniq",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(focus_x__gte=0, focus_x__lte=1),
+                name="image_rset_focus_x_range",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(focus_y__gte=0, focus_y__lte=1),
+                name="image_rset_focus_y_range",
+            ),
+        ]
+
+    def clean(self) -> None:
+        super().clean()
+        if self.tenant_id and self.asset_id and self.tenant_id != self.asset.tenant_id:
+            raise ValidationError({"asset": "Asset must belong to the same tenant as the rendition set."})
+
+    def __str__(self) -> str:
+        return f"ImageRenditionSet #{self.pk or 'new'}"
+
+
+class ImageRendition(models.Model):
+    class Variant(models.TextChoices):
+        SQUARE = "square", "Square"
+        LANDSCAPE = "landscape", "Landscape"
+        SHARE = "share", "Share"
+
+    class OutputFormat(models.TextChoices):
+        JPEG = "jpeg", "JPEG"
+        PNG = "png", "PNG"
+        WEBP = "webp", "WebP"
+
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="image_renditions")
+    rendition_set = models.ForeignKey(
+        ImageRenditionSet,
+        on_delete=models.PROTECT,
+        related_name="renditions",
+    )
+    variant = models.CharField(max_length=12, choices=Variant.choices)
+    output_format = models.CharField(max_length=8, choices=OutputFormat.choices)
+    width = models.PositiveIntegerField()
+    height = models.PositiveIntegerField()
+    file_size_bytes = models.PositiveBigIntegerField()
+    checksum_sha256 = models.CharField(max_length=64, validators=[validate_sha256])
+    artifact_storage_key = models.CharField(max_length=1024, validators=[validate_storage_key])
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "rendition_set", "variant"],
+                name="image_rend_tenant_set_variant_uniq",
+            ),
+            models.UniqueConstraint(
+                fields=["tenant", "artifact_storage_key"],
+                name="image_rend_tenant_artifact_key_uniq",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(width__gt=0),
+                name="image_rend_width_gt_0",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(height__gt=0),
+                name="image_rend_height_gt_0",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(file_size_bytes__gt=0),
+                name="image_rend_size_gt_0",
+            ),
+        ]
+
+    def clean(self) -> None:
+        super().clean()
+        if (
+            self.tenant_id
+            and self.rendition_set_id
+            and self.tenant_id != self.rendition_set.tenant_id
+        ):
+            raise ValidationError(
+                {"rendition_set": "Rendition set must belong to the same tenant as the rendition."}
+            )
+
+    def __str__(self) -> str:
+        return f"ImageRendition #{self.pk or 'new'} ({self.variant})"
 
 
 class Tag(models.Model):

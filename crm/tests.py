@@ -11,9 +11,13 @@ from io import StringIO
 from xml.sax.saxutils import escape
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.exceptions import ValidationError
 from django.core.management import call_command, CommandError
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.db import IntegrityError, connection, transaction
+from django.db.migrations.executor import MigrationExecutor
+from django.db.models.deletion import ProtectedError
+from django.test import SimpleTestCase, TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 from unittest.mock import patch
 from rest_framework.test import APIClient
@@ -33,7 +37,11 @@ from .models import (
     ImportDecision,
     ImportCommitLog,
     ExportJob,
+    ImageAsset,
+    ImageRendition,
+    ImageRenditionSet,
 )
+from .validators import validate_storage_key
 from .services.open_graph import ImageCandidate, choose_best_thumbnail, fallback_preview_image, fetch_open_graph
 from .serializers import PersonSerializer
 import_commit_module = importlib.import_module("crm.services.import.commit")
@@ -2920,3 +2928,485 @@ class OrganizationPersonViewSetValidationTests(AuthenticatedAPITestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertIn("person", response.json())
+
+
+class ImageStorageKeyValidatorTests(SimpleTestCase):
+    def test_accepts_provider_neutral_relative_key(self):
+        validate_storage_key("tenants/42/assets/ab/cd/original.webp")
+
+    def test_rejects_unsafe_storage_keys(self):
+        invalid_keys = (
+            "",
+            "/absolute/key.webp",
+            "C:/absolute/key.webp",
+            "tenant\\asset.webp",
+            "./asset.webp",
+            "tenant/../asset.webp",
+            "tenant//asset.webp",
+            "tenant/asset\n.webp",
+        )
+
+        for storage_key in invalid_keys:
+            with self.subTest(storage_key=repr(storage_key)):
+                with self.assertRaises(ValidationError):
+                    validate_storage_key(storage_key)
+
+
+class ImageDomainModelTests(TestCase):
+    checksum_a = "a" * 64
+    checksum_b = "b" * 64
+    checksum_c = "c" * 64
+
+    def setUp(self):
+        self.tenant = Tenant.objects.create(name="Image tenant", slug="image-tenant")
+        self.other_tenant = Tenant.objects.create(name="Other image tenant", slug="other-image-tenant")
+
+    def create_asset(self, *, tenant=None, storage_key="assets/original.jpeg", checksum=None, **overrides):
+        values = {
+            "tenant": tenant or self.tenant,
+            "private_storage_key": storage_key,
+            "checksum_sha256": checksum or self.checksum_a,
+            "original_format": ImageAsset.OriginalFormat.JPEG,
+            "mime_type": "image/jpeg",
+            "width": 1600,
+            "height": 900,
+            "file_size_bytes": 123456,
+            "validation_version": "validation-v1",
+        }
+        values.update(overrides)
+        return ImageAsset.objects.create(**values)
+
+    def create_rendition_set(self, *, asset=None, tenant=None, render_hash=None, **overrides):
+        asset = asset or self.create_asset()
+        values = {
+            "tenant": tenant or self.tenant,
+            "asset": asset,
+            "fit_mode": ImageRenditionSet.FitMode.COVER,
+            "processing_version": "processing-v1",
+            "render_config_hash_sha256": render_hash or self.checksum_b,
+        }
+        values.update(overrides)
+        return ImageRenditionSet.objects.create(**values)
+
+    def create_rendition(
+        self,
+        *,
+        rendition_set=None,
+        tenant=None,
+        variant=ImageRendition.Variant.SQUARE,
+        storage_key="renditions/square.webp",
+        checksum=None,
+        **overrides,
+    ):
+        rendition_set = rendition_set or self.create_rendition_set()
+        values = {
+            "tenant": tenant or self.tenant,
+            "rendition_set": rendition_set,
+            "variant": variant,
+            "output_format": ImageRendition.OutputFormat.WEBP,
+            "width": 512,
+            "height": 512,
+            "file_size_bytes": 45678,
+            "checksum_sha256": checksum or self.checksum_c,
+            "artifact_storage_key": storage_key,
+        }
+        values.update(overrides)
+        return ImageRendition.objects.create(**values)
+
+    def test_models_use_integer_primary_keys_and_no_file_fields_or_organization_relation(self):
+        for model in (ImageAsset, ImageRenditionSet, ImageRendition):
+            with self.subTest(model=model.__name__):
+                self.assertEqual(model._meta.pk.get_internal_type(), "BigAutoField")
+                self.assertNotIn("organization", {field.name for field in model._meta.fields})
+                self.assertFalse(
+                    any(field.get_internal_type() == "FileField" for field in model._meta.fields)
+                )
+
+    def test_contract_fields_are_required_and_non_null(self):
+        required_fields = {
+            ImageAsset: {
+                "tenant",
+                "private_storage_key",
+                "checksum_sha256",
+                "original_format",
+                "mime_type",
+                "width",
+                "height",
+                "file_size_bytes",
+                "validation_version",
+            },
+            ImageRenditionSet: {
+                "tenant",
+                "asset",
+                "fit_mode",
+                "focus_x",
+                "focus_y",
+                "processing_version",
+                "render_config_hash_sha256",
+            },
+            ImageRendition: {
+                "tenant",
+                "rendition_set",
+                "variant",
+                "output_format",
+                "width",
+                "height",
+                "file_size_bytes",
+                "checksum_sha256",
+                "artifact_storage_key",
+            },
+        }
+
+        for model, field_names in required_fields.items():
+            for field_name in field_names:
+                with self.subTest(model=model.__name__, field_name=field_name):
+                    field = model._meta.get_field(field_name)
+                    self.assertFalse(field.null)
+                    self.assertFalse(field.blank)
+
+    def test_model_choice_fields_reject_values_outside_the_contract(self):
+        asset = ImageAsset(
+            tenant=self.tenant,
+            private_storage_key="assets/invalid-format.gif",
+            checksum_sha256=self.checksum_a,
+            original_format="gif",
+            mime_type="image/gif",
+            width=100,
+            height=100,
+            file_size_bytes=100,
+            validation_version="validation-v1",
+        )
+        with self.assertRaises(ValidationError) as asset_error:
+            asset.full_clean()
+        self.assertIn("original_format", asset_error.exception.message_dict)
+
+        valid_asset = self.create_asset()
+        rendition_set = ImageRenditionSet(
+            tenant=self.tenant,
+            asset=valid_asset,
+            fit_mode="stretch",
+            processing_version="processing-v1",
+            render_config_hash_sha256=self.checksum_b,
+        )
+        with self.assertRaises(ValidationError) as set_error:
+            rendition_set.full_clean()
+        self.assertIn("fit_mode", set_error.exception.message_dict)
+
+        valid_set = self.create_rendition_set(asset=valid_asset)
+        rendition = ImageRendition(
+            tenant=self.tenant,
+            rendition_set=valid_set,
+            variant="portrait",
+            output_format="gif",
+            width=100,
+            height=100,
+            file_size_bytes=100,
+            checksum_sha256=self.checksum_c,
+            artifact_storage_key="renditions/invalid.gif",
+        )
+        with self.assertRaises(ValidationError) as rendition_error:
+            rendition.full_clean()
+        self.assertIn("variant", rendition_error.exception.message_dict)
+        self.assertIn("output_format", rendition_error.exception.message_dict)
+
+    def test_image_asset_accepts_all_formats_with_matching_mime_types(self):
+        format_mime_pairs = (
+            (ImageAsset.OriginalFormat.JPEG, "image/jpeg"),
+            (ImageAsset.OriginalFormat.PNG, "image/png"),
+            (ImageAsset.OriginalFormat.WEBP, "image/webp"),
+        )
+
+        for index, (original_format, mime_type) in enumerate(format_mime_pairs):
+            with self.subTest(original_format=original_format):
+                asset = ImageAsset(
+                    tenant=self.tenant,
+                    private_storage_key=f"assets/original-{index}.{original_format}",
+                    checksum_sha256=chr(ord("a") + index) * 64,
+                    original_format=original_format,
+                    mime_type=mime_type,
+                    width=1,
+                    height=1,
+                    file_size_bytes=1,
+                    validation_version="validation-v1",
+                )
+                asset.full_clean()
+
+    def test_image_asset_rejects_mime_mismatch_and_invalid_checksum(self):
+        mismatch = ImageAsset(
+            tenant=self.tenant,
+            private_storage_key="assets/mismatch.png",
+            checksum_sha256=self.checksum_a,
+            original_format=ImageAsset.OriginalFormat.PNG,
+            mime_type="image/jpeg",
+            width=100,
+            height=100,
+            file_size_bytes=100,
+            validation_version="validation-v1",
+        )
+        with self.assertRaises(ValidationError) as mismatch_error:
+            mismatch.full_clean()
+        self.assertIn("mime_type", mismatch_error.exception.message_dict)
+
+        invalid_checksum = ImageAsset(
+            tenant=self.tenant,
+            private_storage_key="assets/uppercase.jpeg",
+            checksum_sha256="A" * 64,
+            original_format=ImageAsset.OriginalFormat.JPEG,
+            mime_type="image/jpeg",
+            width=100,
+            height=100,
+            file_size_bytes=100,
+            validation_version="validation-v1",
+        )
+        with self.assertRaises(ValidationError) as checksum_error:
+            invalid_checksum.full_clean()
+        self.assertIn("checksum_sha256", checksum_error.exception.message_dict)
+
+    def test_image_asset_storage_key_is_unique_per_tenant_but_checksum_is_not(self):
+        self.create_asset()
+        self.create_asset(storage_key="assets/copy.jpeg", checksum=self.checksum_a)
+        self.create_asset(tenant=self.other_tenant, storage_key="assets/original.jpeg")
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self.create_asset(storage_key="assets/original.jpeg", checksum=self.checksum_b)
+
+    def test_image_asset_dimensions_and_size_must_be_positive(self):
+        for field_name, invalid_value in (
+            ("width", 0),
+            ("width", -1),
+            ("height", 0),
+            ("height", -1),
+            ("file_size_bytes", 0),
+            ("file_size_bytes", -1),
+        ):
+            with self.subTest(field_name=field_name, invalid_value=invalid_value):
+                with self.assertRaises(IntegrityError):
+                    with transaction.atomic():
+                        self.create_asset(
+                            storage_key=f"assets/{field_name}-{invalid_value}.jpeg",
+                            **{field_name: invalid_value},
+                        )
+
+    def test_rendition_set_defaults_choices_uniqueness_and_asset_protection(self):
+        asset = self.create_asset()
+        rendition_set = self.create_rendition_set(asset=asset)
+        self.assertEqual(rendition_set.focus_x, 0.5)
+        self.assertEqual(rendition_set.focus_y, 0.5)
+        self.assertEqual(
+            set(ImageRenditionSet.FitMode.values),
+            {"cover", "contain"},
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self.create_rendition_set(asset=asset, render_hash=self.checksum_b)
+        with self.assertRaises(ProtectedError):
+            asset.delete()
+
+    def test_rendition_set_allows_same_hash_for_different_asset(self):
+        first_asset = self.create_asset()
+        second_asset = self.create_asset(storage_key="assets/second.jpeg", checksum=self.checksum_b)
+        self.create_rendition_set(asset=first_asset, render_hash=self.checksum_c)
+        self.create_rendition_set(asset=second_asset, render_hash=self.checksum_c)
+
+    def test_rendition_set_rejects_cross_tenant_asset_in_clean(self):
+        asset = self.create_asset(tenant=self.other_tenant)
+        rendition_set = ImageRenditionSet(
+            tenant=self.tenant,
+            asset=asset,
+            fit_mode=ImageRenditionSet.FitMode.CONTAIN,
+            processing_version="processing-v1",
+            render_config_hash_sha256=self.checksum_b,
+        )
+
+        with self.assertRaises(ValidationError) as error:
+            rendition_set.full_clean()
+        self.assertIn("asset", error.exception.message_dict)
+
+    def test_rendition_set_focus_is_inclusive_and_database_constrained(self):
+        lower = self.create_rendition_set(focus_x=0, focus_y=0)
+        upper_asset = self.create_asset(storage_key="assets/upper.jpeg", checksum=self.checksum_b)
+        upper = self.create_rendition_set(
+            asset=upper_asset,
+            render_hash=self.checksum_c,
+            focus_x=1,
+            focus_y=1,
+        )
+        self.assertEqual(lower.focus_x, 0)
+        self.assertEqual(upper.focus_y, 1)
+
+        for field_name, invalid_value in (("focus_x", -0.0001), ("focus_x", 1.0001), ("focus_y", -0.0001), ("focus_y", 1.0001)):
+            with self.subTest(field_name=field_name, invalid_value=invalid_value):
+                asset = self.create_asset(
+                    storage_key=f"assets/{field_name}-{str(invalid_value).replace('.', '_')}.jpeg",
+                    checksum=self.checksum_c,
+                )
+                with self.assertRaises(IntegrityError):
+                    with transaction.atomic():
+                        self.create_rendition_set(
+                            asset=asset,
+                            render_hash=self.checksum_a,
+                            **{field_name: invalid_value},
+                        )
+
+    def test_rendition_choices_uniqueness_and_rendition_set_protection(self):
+        rendition_set = self.create_rendition_set()
+        self.create_rendition(rendition_set=rendition_set)
+        self.assertEqual(
+            set(ImageRendition.Variant.values),
+            {"square", "landscape", "share"},
+        )
+        self.assertEqual(
+            set(ImageRendition.OutputFormat.values),
+            {"jpeg", "png", "webp"},
+        )
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self.create_rendition(
+                    rendition_set=rendition_set,
+                    variant=ImageRendition.Variant.SQUARE,
+                    storage_key="renditions/other-square.webp",
+                )
+        with self.assertRaises(ProtectedError):
+            rendition_set.delete()
+
+    def test_rendition_artifact_key_is_unique_per_tenant_but_checksum_is_not(self):
+        first_set = self.create_rendition_set()
+        second_asset = self.create_asset(storage_key="assets/second.jpeg", checksum=self.checksum_b)
+        second_set = self.create_rendition_set(asset=second_asset, render_hash=self.checksum_c)
+        self.create_rendition(rendition_set=first_set, checksum=self.checksum_a)
+        self.create_rendition(
+            rendition_set=second_set,
+            variant=ImageRendition.Variant.LANDSCAPE,
+            storage_key="renditions/landscape.webp",
+            checksum=self.checksum_a,
+        )
+
+        third_asset = self.create_asset(storage_key="assets/third.jpeg", checksum=self.checksum_c)
+        third_set = self.create_rendition_set(asset=third_asset, render_hash=self.checksum_a)
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self.create_rendition(
+                    rendition_set=third_set,
+                    variant=ImageRendition.Variant.SHARE,
+                    storage_key="renditions/square.webp",
+                )
+
+        other_asset = self.create_asset(
+            tenant=self.other_tenant,
+            storage_key="assets/other.jpeg",
+        )
+        other_set = self.create_rendition_set(
+            tenant=self.other_tenant,
+            asset=other_asset,
+            render_hash=self.checksum_b,
+        )
+        self.create_rendition(
+            tenant=self.other_tenant,
+            rendition_set=other_set,
+            storage_key="renditions/square.webp",
+        )
+
+    def test_rendition_rejects_cross_tenant_set_and_invalid_checksum_in_clean(self):
+        other_asset = self.create_asset(tenant=self.other_tenant)
+        other_set = self.create_rendition_set(
+            tenant=self.other_tenant,
+            asset=other_asset,
+        )
+        rendition = ImageRendition(
+            tenant=self.tenant,
+            rendition_set=other_set,
+            variant=ImageRendition.Variant.SHARE,
+            output_format=ImageRendition.OutputFormat.JPEG,
+            width=1200,
+            height=630,
+            file_size_bytes=100,
+            checksum_sha256="C" * 64,
+            artifact_storage_key="renditions/share.jpeg",
+        )
+
+        with self.assertRaises(ValidationError) as error:
+            rendition.full_clean()
+        self.assertIn("rendition_set", error.exception.message_dict)
+        self.assertIn("checksum_sha256", error.exception.message_dict)
+
+    def test_rendition_dimensions_and_size_must_be_positive(self):
+        rendition_set = self.create_rendition_set()
+        for index, (field_name, invalid_value) in enumerate(
+            (
+                ("width", 0),
+                ("width", -1),
+                ("height", 0),
+                ("height", -1),
+                ("file_size_bytes", 0),
+                ("file_size_bytes", -1),
+            )
+        ):
+            with self.subTest(field_name=field_name, invalid_value=invalid_value):
+                with self.assertRaises(IntegrityError):
+                    with transaction.atomic():
+                        self.create_rendition(
+                            rendition_set=rendition_set,
+                            variant=(
+                                ImageRendition.Variant.SQUARE,
+                                ImageRendition.Variant.LANDSCAPE,
+                                ImageRendition.Variant.SHARE,
+                            )[index % 3],
+                            storage_key=f"renditions/{field_name}-{index}.webp",
+                            **{field_name: invalid_value},
+                        )
+
+    def test_model_operations_do_not_create_storage_directories_or_files(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private_root = Path(temporary_directory) / "private"
+            public_root = Path(temporary_directory) / "public"
+            with override_settings(
+                IMAGE_ORIGINALS_ROOT=private_root,
+                IMAGE_RENDITIONS_ROOT=public_root,
+            ):
+                asset = self.create_asset()
+                rendition_set = self.create_rendition_set(asset=asset)
+                self.create_rendition(rendition_set=rendition_set)
+
+            self.assertFalse(private_root.exists())
+            self.assertFalse(public_root.exists())
+            self.assertEqual(list(Path(temporary_directory).iterdir()), [])
+
+
+class ImageDomainMigrationTests(TransactionTestCase):
+    migrate_from = ("crm", "0020_tenantmembership")
+    migrate_to = ("crm", "0021_image_domain_foundation")
+
+    def test_migration_preserves_existing_tenant_and_organization_data_and_is_reversible(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from])
+        old_apps = executor.loader.project_state([self.migrate_from]).apps
+        OldTenant = old_apps.get_model("crm", "Tenant")
+        OldOrganization = old_apps.get_model("crm", "Organization")
+        tenant = OldTenant.objects.create(name="Migration tenant", slug="migration-tenant")
+        organization = OldOrganization.objects.create(tenant=tenant, name="Existing organization")
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_to])
+        new_apps = executor.loader.project_state([self.migrate_to]).apps
+        NewTenant = new_apps.get_model("crm", "Tenant")
+        NewOrganization = new_apps.get_model("crm", "Organization")
+        self.assertTrue(NewTenant.objects.filter(pk=tenant.pk, slug="migration-tenant").exists())
+        self.assertTrue(
+            NewOrganization.objects.filter(pk=organization.pk, name="Existing organization").exists()
+        )
+        for model_name in ("ImageAsset", "ImageRenditionSet", "ImageRendition"):
+            self.assertIsNotNone(new_apps.get_model("crm", model_name))
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from])
+        restored_apps = executor.loader.project_state([self.migrate_from]).apps
+        RestoredTenant = restored_apps.get_model("crm", "Tenant")
+        RestoredOrganization = restored_apps.get_model("crm", "Organization")
+        self.assertTrue(RestoredTenant.objects.filter(pk=tenant.pk).exists())
+        self.assertTrue(RestoredOrganization.objects.filter(pk=organization.pk).exists())
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())

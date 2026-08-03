@@ -73,9 +73,17 @@ Planlagt retning:
 
 Dagens modeller og migrasjoner følger fortsatt den todelte legacy-modellen, men nye skriveruter holder primære kompatibilitetsfelt og `PersonContact` synkronisert.
 
-## Godkjent planlagt bildearkitektur
+## Additiv bildedomenemodell og planlagt bildearkitektur
 
-[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag, men ingen av bildemodellene eller migrasjonene er implementert.
+[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag. Første additive schema-del er implementert i `crm` med vanlige heltallsnøkler:
+
+- `ImageAsset` eies av én tenant og lagrer en provider-nøytral privat storage key, SHA-256, faktisk JPEG-/PNG-/WebP-format og MIME-type, dimensjoner, filstørrelse og valideringsversjon
+- `ImageRenditionSet` eies av én tenant, beskytter referansen til ett asset og lagrer cover/contain, normalisert fokuspunkt, prosesseringsversjon og render-config-hash
+- `ImageRendition` eies av én tenant, beskytter referansen til ett rendition-sett og lagrer square/landscape/share, outputformat, dimensjoner, filstørrelse, SHA-256 og provider-nøytral artifact key
+
+Databaseconstraints håndhever positive dimensjoner og filstørrelser, fokus i intervallet 0–1 og tenant-avgrenset unikhet for storage keys, rendition-sett og varianter. Checksum er bevisst ikke globalt unik. `clean()` avviser tenant-mismatch mellom asset og rendition-sett og mellom rendition-sett og rendition, men dette er ikke alene en full databasegaranti; en senere domenetjeneste skal håndheve samme invariant før runtime kan skrive.
+
+Modellene bruker bare `CharField` for logiske keys. De har ingen `FileField`, oppretter ingen mapper eller filer og er ikke koblet til storagealiaser eller featureflagget. `Organization`, selection, review/audit, offentlig release key og public projection inngår ikke i denne schema-leveransen.
 
 Konseptuell målmodell:
 
@@ -87,6 +95,4 @@ ImageCandidate
     → én felles public image projection
 ```
 
-Viktige overganger skal ha append-only bildehistorikk. Assetet eies av tenant og kan finnes før en aktør; bare ett selection er aktivt per aktør. Første implementering gjelder `Organization`, uten `GenericForeignKey` eller en generell selection for andre objekttyper.
-
-Denne filen skal i neste dokumentasjonsfase utvides med felter, constraints og relasjoner direkte fra `crm/models.py` og migrasjonene.
+Viktige overganger skal senere ha append-only bildehistorikk. Assetet eies av tenant og kan finnes før en aktør; bare ett selection skal være aktivt per aktør. Den senere selection-implementeringen gjelder `Organization`, uten `GenericForeignKey` eller en generell selection for andre objekttyper.
