@@ -202,6 +202,101 @@ print(json.dumps({
             IMAGE_RENDITIONS_ROOT="/var/tmp/kreative-images-public",
         )
 
+    def test_non_debug_enabled_feature_rejects_both_missing_roots(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            local_default_root = (
+                Path(temporary_directory) / "kreative-norge-crm-media"
+            )
+
+            self.assert_settings_rejected(
+                "IMAGE_ORIGINALS_ROOT must be set when image assets are enabled outside debug",
+                DJANGO_DEBUG="False",
+                IMAGE_ASSET_FEATURE_ENABLED="true",
+                TMPDIR=temporary_directory,
+            )
+            self.assertFalse(local_default_root.exists())
+
+    def test_non_debug_enabled_feature_rejects_missing_private_root(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            public_root = Path(temporary_directory) / "public"
+
+            self.assert_settings_rejected(
+                "IMAGE_ORIGINALS_ROOT must be set when image assets are enabled outside debug",
+                DJANGO_DEBUG="False",
+                IMAGE_ASSET_FEATURE_ENABLED="true",
+                IMAGE_RENDITIONS_ROOT=public_root,
+                TMPDIR=temporary_directory,
+            )
+            self.assertFalse(public_root.exists())
+
+    def test_non_debug_enabled_feature_rejects_missing_public_root(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private_root = Path(temporary_directory) / "private"
+
+            self.assert_settings_rejected(
+                "IMAGE_RENDITIONS_ROOT must be set when image assets are enabled outside debug",
+                DJANGO_DEBUG="False",
+                IMAGE_ASSET_FEATURE_ENABLED="true",
+                IMAGE_ORIGINALS_ROOT=private_root,
+                TMPDIR=temporary_directory,
+            )
+            self.assertFalse(private_root.exists())
+
+    def test_non_debug_enabled_feature_accepts_explicit_separate_roots(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private_root = Path(temporary_directory) / "private"
+            public_root = Path(temporary_directory) / "public"
+
+            snapshot = self.settings_snapshot(
+                DJANGO_DEBUG="False",
+                IMAGE_ASSET_FEATURE_ENABLED="true",
+                IMAGE_ORIGINALS_ROOT=private_root,
+                IMAGE_RENDITIONS_ROOT=public_root,
+                TMPDIR=temporary_directory,
+            )
+
+            self.assertIs(snapshot["feature_enabled"], True)
+            self.assertEqual(
+                Path(snapshot["private_location"]),
+                private_root.resolve(strict=False),
+            )
+            self.assertEqual(
+                Path(snapshot["public_location"]),
+                public_root.resolve(strict=False),
+            )
+            self.assertFalse(private_root.exists())
+            self.assertFalse(public_root.exists())
+
+    def test_non_debug_disabled_feature_accepts_missing_roots(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            local_default_root = (
+                Path(temporary_directory) / "kreative-norge-crm-media"
+            )
+
+            snapshot = self.settings_snapshot(
+                DJANGO_DEBUG="False",
+                IMAGE_ASSET_FEATURE_ENABLED="false",
+                TMPDIR=temporary_directory,
+            )
+
+            self.assertIs(snapshot["feature_enabled"], False)
+            self.assertFalse(local_default_root.exists())
+
+    def test_debug_accepts_missing_roots_for_enabled_feature(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            local_default_root = (
+                Path(temporary_directory) / "kreative-norge-crm-media"
+            )
+
+            snapshot = self.settings_snapshot(
+                DJANGO_DEBUG="True",
+                IMAGE_ASSET_FEATURE_ENABLED="true",
+                TMPDIR=temporary_directory,
+            )
+
+            self.assertIs(snapshot["feature_enabled"], True)
+            self.assertFalse(local_default_root.exists())
+
     def test_settings_load_and_system_check_do_not_create_storage_paths(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             private_root = Path(temporary_directory) / "private" / "originals"

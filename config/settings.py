@@ -42,9 +42,18 @@ def _paths_overlap(first: Path, second: Path) -> bool:
     )
 
 
-def _read_image_storage_root(name: str, *, default: Path) -> Path:
+def _read_image_storage_root(
+    name: str,
+    *,
+    default: Path,
+    required: bool = False,
+) -> Path:
     raw_value = os.getenv(name)
     if raw_value is None:
+        if required:
+            raise ImproperlyConfigured(
+                f"{name} must be set when image assets are enabled outside debug"
+            )
         candidate = default
     else:
         if not raw_value.strip():
@@ -210,10 +219,12 @@ _LOCAL_IMAGE_STORAGE_ROOT = (
 IMAGE_ORIGINALS_ROOT = _read_image_storage_root(
     "IMAGE_ORIGINALS_ROOT",
     default=_LOCAL_IMAGE_STORAGE_ROOT / "originals-private",
+    required=not DEBUG and IMAGE_ASSET_FEATURE_ENABLED,
 )
 IMAGE_RENDITIONS_ROOT = _read_image_storage_root(
     "IMAGE_RENDITIONS_ROOT",
     default=_LOCAL_IMAGE_STORAGE_ROOT / "renditions-public",
+    required=not DEBUG and IMAGE_ASSET_FEATURE_ENABLED,
 )
 
 _NORMALIZED_BASE_DIR = BASE_DIR.resolve(strict=False)

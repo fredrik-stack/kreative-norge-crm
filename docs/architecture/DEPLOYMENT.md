@@ -30,7 +30,7 @@ Dagens dokumentasjon beskriver manuell oppdatering med `git pull` og rebuild. M�
 - hybridbackup omfatter private originaler, canonical metadata/profil, nødvendige referanser og audit, aktive public rendition-bytes og deny-journal i separat failure-domain
 - restore går gjennom karantene, deny-replay og fail-closed reconciliation før public serving kan åpnes
 
-S3, AWS, Backblaze, CDN og flerleverandørløsning er utsatt til dokumentert vekst- eller driftsbehov. Første fase 3C-leveranse konfigurerer `IMAGE_ASSET_FEATURE_ENABLED=False` som standard, bevarer `default` og `staticfiles` og legger til separate lokale `image_originals_private`-/`image_renditions_public`-aliaser. Roots valideres uten å opprette mapper. Aliasene brukes ikke til lesing, skriving, sletting eller serving, og legacybildeflyten er uendret.
+S3, AWS, Backblaze, CDN og flerleverandørløsning er utsatt til dokumentert vekst- eller driftsbehov. Første fase 3C-leveranse konfigurerer `IMAGE_ASSET_FEATURE_ENABLED=False` som standard, bevarer `default` og `staticfiles` og legger til separate lokale `image_originals_private`-/`image_renditions_public`-aliaser. Roots valideres uten å opprette mapper. Når feature aktiveres utenfor debug, må begge roots være eksplisitt konfigurert; lokale temp-standarder er bare en ubenyttet fallback i debug eller mens feature er avslått. Aliasene brukes ikke til lesing, skriving, sletting eller serving, og legacybildeflyten er uendret.
 
 Dagens stagingoppsett har fortsatt ingen host-persistent media-runtime. Compose, staging-environment, containere og deploy er ikke endret; reelle runtimepaths, host-mounts og aktivering krever en separat godkjent leveranse. Backupgrunnmuren forblir **ACTIVE**.
 
