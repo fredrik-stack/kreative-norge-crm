@@ -54,11 +54,11 @@ Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCH
 
 ## Fase 3 – Robust thumbnail-, bilde- og kortarkitektur
 
-**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; ADR-008s lokale Hetzner storage-/backup-MVP er ACTIVE; fase 3C har avslått konfigurasjon og additive asset-, rendition- og selection-modeller uten runtimebruk.
+**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; ADR-008s lokale Hetzner storage-/backup-MVP er ACTIVE; fase 3C har avslått konfigurasjon og additiv bilde-, selection- og event-/kommandogrunnmur uten runtimebruk.
 
 Fase 3A kartla dagens legacy URL-, Open Graph-, kort-, import-, storage- og driftsflyt. [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag.
 
-`ImageAsset`, `ImageRenditionSet`, `ImageRendition` og den typed `OrganizationImageSelection` er implementert additivt med constraints og migrasjoner, men bilde-runtime er ikke implementert. Selection-rader opprettes ikke av noen applikasjonsflyt. Fase 3C-grunnmuren endrer ikke dagens `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- eller faviconflyt; disse gjelder fortsatt frem til en kontrollert overgang er levert og verifisert.
+`ImageAsset`, `ImageRenditionSet`, `ImageRendition` og den typed `OrganizationImageSelection` er implementert additivt med constraints og migrasjoner. `ImageReviewEvent` og den feature-gated selection-kommandoen dekker atomisk første låsing og replacement, men ingen applikasjonsflyt kaller kommandoen og bilde-runtime er ikke implementert. Fase 3C-grunnmuren endrer ikke dagens `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- eller faviconflyt; disse gjelder fortsatt frem til en kontrollert overgang er levert og verifisert.
 
 Bildeløsningen skal gå fra ustabile eksterne treff til en varig, redaksjonelt kontrollerbar ressurs:
 
@@ -127,20 +127,22 @@ Den skrivebeskyttede [serverbaselinen](STAGING_BACKUP_BASELINE_2026-08-01.md) fa
 
 ### Fase 3C – additiv backend- og storagegrunnmur
 
-**Status:** Konfigurasjonsleveransen og PR #19s asset-/renditiongrunnmur er merget; tredje additive leveranse etablerer en ubrukt Organization-selection-modell, med uavhengig gjennomgang og merge som neste gate.
+**Status:** De tre første additive leveransene er merget, inkludert PR #20s Organization-selection-skjema. Fjerde leveranse etablerer append-only locking-/replacement-event og en ubrukt, atomisk selection-kommando, med uavhengig gjennomgang og merge som neste gate.
 
 Første leveranse har innført `IMAGE_ASSET_FEATURE_ENABLED=False` som standard og lokale `image_originals_private`-/`image_renditions_public`-aliaser med separate, validerte roots. Eksisterende `default` og `staticfiles` er bevart. Aliasene brukes ikke av runtime, og settings-load eller system check oppretter ingen mapper eller filer.
 
 Andre leveranse legger til `ImageAsset`, `ImageRenditionSet` og `ImageRendition` med provider-nøytrale logiske keys, teknisk metadata, tenant-avgrenset unikhet, numeriske constraints og `PROTECT` mellom asset, sett og rendition. Modellene er ikke koblet til `Organization`, storage, API eller runtime, og featureflagget forblir avslått.
 
-Tredje leveranse legger til `OrganizationImageSelection` som én låst revisjon per rad. Databasen håndhever unik revisjon, positiv revisjon, maksimalt én aktiv selection og eksklusivt asset-/fallbackvalg. Asset-selection peker til nøyaktig ett immutable rendition-sett; fit, fokus og prosesseringsversjon dupliseres ikke. Det finnes ennå ingen domenekommando, eventmodell eller applikasjonsflyt som oppretter radene.
+Tredje leveranse legger til `OrganizationImageSelection` som én låst revisjon per rad. Databasen håndhever unik revisjon, positiv revisjon, maksimalt én aktiv selection og eksklusivt asset-/fallbackvalg. Asset-selection peker til nøyaktig ett immutable rendition-sett; fit, fokus og prosesseringsversjon dupliseres ikke. PR #20 med dette skjemaet er merget.
+
+Fjerde leveranse legger til `ImageReviewEvent` og `lock_organization_image_selection`. Eventet beholder snapshots og er append-only gjennom støttede applikasjons-/ORM-veier, men er ikke database-WORM. Kommandoen er eneste godkjente selection-skriverute, er blokkert når featureflagget er avslått og skriver første låsing eller replacement atomisk med eventet. `expected_revision` oppdager konflikter, mens den tenant-scopede `Organization`-raden er concurrency-lås. Redigerer, gruppeadmin og tenant-superadmin kan arbeide i egen tenant; plattform-superadmin må alltid angi target tenant. Proveniens lagres som event-snapshot, men full kandidat-/ingestmodell er ikke implementert.
 
 - additive modeller, constraints og migrasjoner
 - kontrollert ingest, private originaler og renditions gjennom lokale navngitte storagealiaser
 - capability-permissions, approval, locking, audit, retention, karantene og takedown
 - feature av frem til test- og datagrunnlaget er godkjent
 - ingen varige bildefiler før ADR-008-backupen er ACTIVE og restore-verifisert
-- ingen bildefiler skrives, leses eller serveres av de tre grunnleveransene; legacybildeflyten er uendret
+- ingen bildefiler skrives, leses eller serveres av de fire grunnleveransene; ingen API- eller brukerflyt kaller kommandoen, og legacybildeflyten er uendret
 - neste fase 3C-leveranse krever separat godkjenning
 
 ### Fase 3D – Editor-flyt for aktørbilde

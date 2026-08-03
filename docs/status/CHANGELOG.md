@@ -4,6 +4,18 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 
 ## 2026-08-03
 
+### Fase 3C: atomisk selection-kommando og append-only locking-/replacement-event
+
+- bekreftet at PR #20s `OrganizationImageSelection`-skjema er merget, og lagt additiv migrasjon `0023` som bare oppretter `ImageReviewEvent` med nullable live-referanser og varige snapshots
+- gjort eventet append-only gjennom støttede applikasjons-/ORM-veier uten å omtale løsningen som database-WORM
+- lagt én feature-gated og tenant-scopet `lock_organization_image_selection` som eneste godkjente skriverute for atomisk første låsing og replacement med event
+- brukt target-`Organization` som concurrency-lås og `expected_revision` som eksplisitt konfliktgate; eventfeil ruller tilbake arkivering og ny selection
+- håndhevet egen-tenant-scope for redigerer, gruppeadmin og tenant-superadmin, mens plattform-superadmin må angi target tenant
+- lagret begrenset provenance, validerte warnings og intern `image-approval-v1`-tekst som event-snapshot for asset-selection; fallback lagrer ingen falsk rettighetsgodkjenning
+- begrenset eventets base manager til lesing, inserts og nødvendig `SET_NULL`; ordinære mutasjons-/upsertveier blokkeres uten å bryte actor-sletting eller tenant-cascade
+- gjort begge URL-snapshotfeltene fail-closed for andre schemes, URL-credentials, fragmenter og kjente credentials-, signatur-, token-, AWS-, Google- og Azure SAS-parametere uten nettverk eller omskriving
+- beholdt `IMAGE_ASSET_FEATURE_ENABLED=False`, legacybildeflyten og backupgrunnmuren **ACTIVE**; ingen API-, Editor-, PUBLIC-, storage-, fil-, bildebehandlings-, runtime- eller stagingendring inngår
+
 ### Fase 3C: additiv Organization-selection uten runtimebruk
 
 - lagt til `OrganizationImageSelection`, der hver rad representerer én låst aktiv eller arkivert revisjon for én organisasjon
