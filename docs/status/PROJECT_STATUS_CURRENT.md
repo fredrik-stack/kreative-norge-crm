@@ -1,10 +1,10 @@
 # Project Status Current
 
-**Status:** Fase 1 og 2 gjennomført; fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; lokal Hetzner storage-/backup-MVP ACTIVE; fase 3C er startet med en avslått konfigurasjonsgrunnmur for lokale image-storagealiaser
+**Status:** Fase 1 og 2 gjennomført; fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; lokal Hetzner storage-/backup-MVP ACTIVE; fase 3C har en avslått konfigurasjonsgrunnmur og en additiv bildedomenemodell uten runtimebruk
 
 **Teknisk sist verifisert:** 2026-08-03
 
-**Teknisk verifisert mot:** fase 2-applikasjonsversjonen i merge-commit `6768af8a3b48314aec028ec5972939c6ef0e38e8`, fortsatt kjørende API-/web-images, PostgreSQL, Django, migrasjoner, HTTPS, PUBLIC API/HTML, Editor-API og kontrollert tenant-avgrenset telefonreparasjon etter verifisert backup; fase 3B.1 og fase 3B.2 er i tillegg verifisert som isolerte lokale/Linux-prototyper uten CRM-runtimekobling. Første fase 3C-konfigurasjonsgrunnmur er lokalt verifisert med 18 avgrensede settings-tester, inkludert krav om eksplisitte roots ved aktivert feature utenfor debug, Django system check, uendret migrasjonsstatus og hele backendpakken på 152 tester. Staging-repoet er separat fast-forwardet og rent på backupmodulens godkjente `main`-commit uten deploy eller containerrestart. [Backupaktiveringen 2026-08-02](STAGING_BACKUP_ACTIVATION_2026-08-02.md) verifiserte hele Storage Box-/Borg-kjeden, recovery-custody, første backup, full repository-check, isolert restore og aktive timere.
+**Teknisk verifisert mot:** fase 2-applikasjonsversjonen i merge-commit `6768af8a3b48314aec028ec5972939c6ef0e38e8`, fortsatt kjørende API-/web-images, PostgreSQL, Django, migrasjoner, HTTPS, PUBLIC API/HTML, Editor-API og kontrollert tenant-avgrenset telefonreparasjon etter verifisert backup; fase 3B.1 og fase 3B.2 er i tillegg verifisert som isolerte lokale/Linux-prototyper uten CRM-runtimekobling. Første fase 3C-konfigurasjonsgrunnmur er verifisert med 18 avgrensede settings-tester. Andre fase 3C-leveranse legger additivt til `ImageAsset`, `ImageRenditionSet` og `ImageRendition` med migrasjon `0021`, constraints, 19 målrettede modell-/migrasjonstester og en grønn backendpakke på 171 tester. Featureflagget er fortsatt avslått; modellene har ingen fil-, storage-, API- eller runtimekobling. Staging-repoet er separat fast-forwardet og rent på backupmodulens godkjente `main`-commit uten deploy eller containerrestart. [Backupaktiveringen 2026-08-02](STAGING_BACKUP_ACTIVATION_2026-08-02.md) verifiserte hele Storage Box-/Borg-kjeden, recovery-custody, første backup, full repository-check, isolert restore og aktive timere.
 
 **Produkt-roadmap sist oppdatert:** 2026-08-02
 
@@ -30,11 +30,11 @@ Baselinen fant ingen eksisterende `/app/imports`-, `/app/exports`- eller host-me
 
 Det separate infrastrukturløpet for ADR-008 er fullført. Første fase 3C-leveranse innfører nå `IMAGE_ASSET_FEATURE_ENABLED=False` som standard og separate lokale `FileSystemStorage`-aliaser for private originaler og offentlige renditions. Aliasene er bare konfigurasjonsgrunnmur: ingen runtime henter dem, ingen bildefiler skrives eller serveres, og legacybildeflyten er uendret. Fase 3B.1R med representative bilder og fargeprofiler forblir en kvalitetsgate før reell bildebehandling kan godkjennes, men blokkerer ikke dette additive grunnarbeidet.
 
-Bildearkitekturens modeller og runtime er ikke implementert. Det er ikke opprettet modeller eller migrasjoner, host-mediaområder, filskriving, serving, API- eller frontendendringer eller gjennomført deploy. Eksisterende default-storage for import-/eksportfiler og dagens eksterne `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- og faviconflyt gjelder fortsatt. Neste fase 3C-leveranse krever separat godkjenning.
+Den første tekniske bildedomenekjernen er additivt implementert som tre ubrukte modeller og én schema-migrasjon. Det er ikke opprettet host-mediaområder, filer, serving, selection-/review-/public-modeller, API- eller frontendendringer, og ingen deploy er gjennomført. Eksisterende default-storage for import-/eksportfiler og dagens eksterne `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- og faviconflyt gjelder fortsatt. Neste fase 3C-leveranse krever separat godkjenning.
 
 Den langsiktige relasjonsspesifikke kontaktmodellen fra [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md) kommer fortsatt senere. Internasjonal telefonmodell skal spesifiseres i et eget ADR ved overgangen fra fase 3 til fase 4 og implementeres tidlig i fase 5; dette blokkerer ikke fase 3.
 
-## Godkjent bildearkitektur – første konfigurasjonsgrunnmur implementert
+## Godkjent bildearkitektur – konfigurasjons- og domenemodellgrunnmur implementert
 
 ADR-007 beslutter følgende konseptuelle flyt:
 

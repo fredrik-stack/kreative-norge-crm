@@ -4,6 +4,15 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 
 ## 2026-08-03
 
+### Fase 3C: additiv bildedomenemodell uten runtimebruk
+
+- lagt til tenant-eide `ImageAsset`, `ImageRenditionSet` og `ImageRendition` med vanlige heltallsnøkler og én reverserbar schema-migrasjon
+- lagt provider-nøytral validering på private/artifact storage keys og lowercase SHA-256, format-/MIME-kontroll og positive dimensjons-/filstørrelsesconstraints
+- håndhevet tenant-avgrenset unikhet, fokuspunkt i intervallet 0–1 og `PROTECT` fra rendition-sett til asset og rendition til sett
+- dokumentert at `clean()` avviser cross-tenant-relasjoner, mens en senere domenetjeneste må håndheve samme invariant før runtimebruk
+- beholdt `IMAGE_ASSET_FEATURE_ENABLED=False`; ingen filer, mapper, storagekall, `Organization`-kobling, selection, review/audit, API, frontend, legacyendring eller deploy inngår
+- beholdt backupgrunnmuren **ACTIVE** og krever separat godkjenning før neste fase 3C-leveranse
+
 ### Fase 3C: avslått image-storage-konfigurasjonsgrunnmur
 
 - lagt `IMAGE_ASSET_FEATURE_ENABLED` inn fail-closed og avslått som standard uten kobling til runtimeflyt
