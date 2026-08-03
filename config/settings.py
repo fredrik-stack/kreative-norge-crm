@@ -11,10 +11,63 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 import os
+import tempfile
 from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def _read_fail_closed_bool(name: str, *, default: bool = False) -> bool:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+
+    normalized_value = raw_value.strip().casefold()
+    if normalized_value in {"1", "true", "yes", "on"}:
+        return True
+    if normalized_value in {"0", "false", "no", "off"}:
+        return False
+
+    return False
+
+
+def _paths_overlap(first: Path, second: Path) -> bool:
+    return (
+        first == second
+        or first.is_relative_to(second)
+        or second.is_relative_to(first)
+    )
+
+
+def _read_image_storage_root(
+    name: str,
+    *,
+    default: Path,
+    required: bool = False,
+) -> Path:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        if required:
+            raise ImproperlyConfigured(
+                f"{name} must be set when image assets are enabled outside debug"
+            )
+        candidate = default
+    else:
+        if not raw_value.strip():
+            raise ImproperlyConfigured(f"{name} cannot be empty")
+        candidate = Path(raw_value).expanduser()
+
+    if not candidate.is_absolute():
+        raise ImproperlyConfigured(f"{name} must be an absolute path")
+
+    normalized_candidate = candidate.resolve(strict=False)
+    if normalized_candidate == Path(normalized_candidate.anchor):
+        raise ImproperlyConfigured(f"{name} cannot be the filesystem root")
+
+    return normalized_candidate
 
 
 # Quick-start development settings - unsuitable for production
@@ -26,6 +79,11 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-change-me")
 # SECURITY WARNING: don't run with debug turned on in production!
 
 DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() == "true"
+
+IMAGE_ASSET_FEATURE_ENABLED = _read_fail_closed_bool(
+    "IMAGE_ASSET_FEATURE_ENABLED",
+    default=False,
+)
 
 # --- Production security settings ---
 if not DEBUG:
@@ -154,6 +212,64 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+_LOCAL_IMAGE_STORAGE_ROOT = (
+    Path(tempfile.gettempdir()).resolve(strict=False) / "kreative-norge-crm-media"
+)
+IMAGE_ORIGINALS_ROOT = _read_image_storage_root(
+    "IMAGE_ORIGINALS_ROOT",
+    default=_LOCAL_IMAGE_STORAGE_ROOT / "originals-private",
+    required=not DEBUG and IMAGE_ASSET_FEATURE_ENABLED,
+)
+IMAGE_RENDITIONS_ROOT = _read_image_storage_root(
+    "IMAGE_RENDITIONS_ROOT",
+    default=_LOCAL_IMAGE_STORAGE_ROOT / "renditions-public",
+    required=not DEBUG and IMAGE_ASSET_FEATURE_ENABLED,
+)
+
+_NORMALIZED_BASE_DIR = BASE_DIR.resolve(strict=False)
+_NORMALIZED_STATIC_ROOT = STATIC_ROOT.resolve(strict=False)
+
+for _setting_name, _storage_root in (
+    ("IMAGE_ORIGINALS_ROOT", IMAGE_ORIGINALS_ROOT),
+    ("IMAGE_RENDITIONS_ROOT", IMAGE_RENDITIONS_ROOT),
+):
+    if _paths_overlap(_storage_root, _NORMALIZED_STATIC_ROOT):
+        raise ImproperlyConfigured(
+            f"{_setting_name} cannot overlap STATIC_ROOT"
+        )
+    if _paths_overlap(_storage_root, _NORMALIZED_BASE_DIR):
+        raise ImproperlyConfigured(
+            f"{_setting_name} must be outside the application repository"
+        )
+
+if _paths_overlap(IMAGE_ORIGINALS_ROOT, IMAGE_RENDITIONS_ROOT):
+    raise ImproperlyConfigured(
+        "IMAGE_ORIGINALS_ROOT and IMAGE_RENDITIONS_ROOT cannot overlap"
+    )
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+    "image_originals_private": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {
+            "location": IMAGE_ORIGINALS_ROOT,
+            "base_url": None,
+        },
+    },
+    "image_renditions_public": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {
+            "location": IMAGE_RENDITIONS_ROOT,
+            "base_url": None,
+        },
+    },
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field

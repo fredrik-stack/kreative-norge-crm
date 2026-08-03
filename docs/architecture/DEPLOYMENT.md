@@ -15,7 +15,7 @@ Caddy terminerer HTTPS for `staging.northernsound.no` og proxyer videre til `127
 
 Dagens dokumentasjon beskriver manuell oppdatering med `git pull` og rebuild. Målet er automatisk deploy til staging ved push, men mekanisme og sikkerhetsregler er ikke besluttet eller implementert som dokumentert standard.
 
-## Godkjent lokal storage-MVP – runtime ikke implementert
+## Godkjent lokal storage-MVP – konfigurasjonsgrunnmur implementert
 
 [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) og [ADR-008](../decisions/ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) beslutter følgende MVP-retning:
 
@@ -30,7 +30,9 @@ Dagens dokumentasjon beskriver manuell oppdatering med `git pull` og rebuild. M�
 - hybridbackup omfatter private originaler, canonical metadata/profil, nødvendige referanser og audit, aktive public rendition-bytes og deny-journal i separat failure-domain
 - restore går gjennom karantene, deny-replay og fail-closed reconciliation før public serving kan åpnes
 
-S3, AWS, Backblaze, CDN og flerleverandørløsning er utsatt til dokumentert vekst- eller driftsbehov. Dagens stagingoppsett har ingen host-persistent media-runtime, og denne backupleveransen endrer ikke Compose, Django settings eller aktive containere.
+S3, AWS, Backblaze, CDN og flerleverandørløsning er utsatt til dokumentert vekst- eller driftsbehov. Første fase 3C-leveranse konfigurerer `IMAGE_ASSET_FEATURE_ENABLED=False` som standard, bevarer `default` og `staticfiles` og legger til separate lokale `image_originals_private`-/`image_renditions_public`-aliaser. Roots valideres uten å opprette mapper. Når feature aktiveres utenfor debug, må begge roots være eksplisitt konfigurert; lokale temp-standarder er bare en ubenyttet fallback i debug eller mens feature er avslått. Aliasene brukes ikke til lesing, skriving, sletting eller serving, og legacybildeflyten er uendret.
+
+Dagens stagingoppsett har fortsatt ingen host-persistent media-runtime. Compose, staging-environment, containere og deploy er ikke endret; reelle runtimepaths, host-mounts og aktivering krever en separat godkjent leveranse. Backupgrunnmuren forblir **ACTIVE**.
 
 ## Backupgrunnmur
 

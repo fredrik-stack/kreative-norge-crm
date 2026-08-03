@@ -2,6 +2,16 @@
 
 Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små kosmetiske justeringer trenger ikke registreres.
 
+## 2026-08-03
+
+### Fase 3C: avslått image-storage-konfigurasjonsgrunnmur
+
+- lagt `IMAGE_ASSET_FEATURE_ENABLED` inn fail-closed og avslått som standard uten kobling til runtimeflyt
+- bevart eksisterende `default`- og `staticfiles`-backends og lagt separate lokale `FileSystemStorage`-aliaser for private originaler og offentlige renditions
+- validert tomme, relative, root-, overlappende, staticfiles- og repo-overlappende paths uten å opprette mapper eller filer ved settings-load eller system check
+- beholdt modeller, migrasjoner, API, frontend, legacybildeflyt, ImportJob-/ExportJob-storage, Compose, stagingmiljø og deploy uendret
+- beholdt backupgrunnmuren **ACTIVE**; aliasene brukes ikke til filskriving eller serving, og neste fase 3C-leveranse krever separat godkjenning
+
 ## 2026-08-02
 
 ### ADR-008 backupgrunnmur aktivert
