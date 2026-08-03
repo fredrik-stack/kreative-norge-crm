@@ -1,10 +1,10 @@
 # Project Status Current
 
-**Status:** Fase 1 og 2 gjennomført; fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; lokal Hetzner storage-/backup-MVP ACTIVE; neste leveranse er fase 3C etter kontroll og merge av dokumentasjons-PR-en
+**Status:** Fase 1 og 2 gjennomført; fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; lokal Hetzner storage-/backup-MVP ACTIVE; fase 3C er startet med en avslått konfigurasjonsgrunnmur for lokale image-storagealiaser
 
-**Teknisk sist verifisert:** 2026-08-02
+**Teknisk sist verifisert:** 2026-08-03
 
-**Teknisk verifisert mot:** fase 2-applikasjonsversjonen i merge-commit `6768af8a3b48314aec028ec5972939c6ef0e38e8`, fortsatt kjørende API-/web-images, PostgreSQL, Django, migrasjoner, HTTPS, PUBLIC API/HTML, Editor-API og kontrollert tenant-avgrenset telefonreparasjon etter verifisert backup; fase 3B.1 og fase 3B.2 er i tillegg verifisert som isolerte lokale/Linux-prototyper uten CRM-runtimekobling. Staging-repoet er separat fast-forwardet og rent på backupmodulens godkjente `main`-commit uten deploy eller containerrestart. [Backupaktiveringen 2026-08-02](STAGING_BACKUP_ACTIVATION_2026-08-02.md) verifiserte hele Storage Box-/Borg-kjeden, recovery-custody, første backup, full repository-check, isolert restore og aktive timere.
+**Teknisk verifisert mot:** fase 2-applikasjonsversjonen i merge-commit `6768af8a3b48314aec028ec5972939c6ef0e38e8`, fortsatt kjørende API-/web-images, PostgreSQL, Django, migrasjoner, HTTPS, PUBLIC API/HTML, Editor-API og kontrollert tenant-avgrenset telefonreparasjon etter verifisert backup; fase 3B.1 og fase 3B.2 er i tillegg verifisert som isolerte lokale/Linux-prototyper uten CRM-runtimekobling. Første fase 3C-konfigurasjonsgrunnmur er lokalt verifisert med 12 avgrensede settings-tester, Django system check, uendret migrasjonsstatus og hele backendpakken på 146 tester. Staging-repoet er separat fast-forwardet og rent på backupmodulens godkjente `main`-commit uten deploy eller containerrestart. [Backupaktiveringen 2026-08-02](STAGING_BACKUP_ACTIVATION_2026-08-02.md) verifiserte hele Storage Box-/Borg-kjeden, recovery-custody, første backup, full repository-check, isolert restore og aktive timere.
 
 **Produkt-roadmap sist oppdatert:** 2026-08-02
 
@@ -28,13 +28,13 @@ Fase 3A kartla deretter dagens thumbnail-, bilde-, storage-, import- og kortflyt
 
 Baselinen fant ingen eksisterende `/app/imports`-, `/app/exports`- eller host-mediafiler. API-containeren mangler fortsatt persistent import-/eksport-/media-mount, og Django default storage peker til `/app`; nye FileField-filer kan derfor gå tapt ved recreate. Host-persistent storage og runtimekobling er en separat senere leveranse. Aktiv Storage Box er BX11 med 1 TB i FSN1, med kapasitetsreview ved 60–70 prosent faktisk bruk og 20–30 prosent ledig margin.
 
-Det separate infrastrukturløpet for ADR-008 er fullført. Etter uavhengig kontroll og merge av dokumentasjons-PR-en går arbeidet tilbake til fase 3C. Fase 3B.1R med representative bilder og fargeprofiler forblir en kvalitetsgate før reell bildebehandling kan godkjennes, men blokkerer ikke additivt fase 3C-grunnarbeid bak avslått feature.
+Det separate infrastrukturløpet for ADR-008 er fullført. Første fase 3C-leveranse innfører nå `IMAGE_ASSET_FEATURE_ENABLED=False` som standard og separate lokale `FileSystemStorage`-aliaser for private originaler og offentlige renditions. Aliasene er bare konfigurasjonsgrunnmur: ingen runtime henter dem, ingen bildefiler skrives eller serveres, og legacybildeflyten er uendret. Fase 3B.1R med representative bilder og fargeprofiler forblir en kvalitetsgate før reell bildebehandling kan godkjennes, men blokkerer ikke dette additive grunnarbeidet.
 
-Bildearkitekturen er ikke implementert. Det er ikke opprettet modeller eller migrasjoner, konfigurert media-/objektstorage, endret API eller frontend eller gjennomført deploy. Dagens eksterne `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- og faviconflyt gjelder fortsatt.
+Bildearkitekturens modeller og runtime er ikke implementert. Det er ikke opprettet modeller eller migrasjoner, host-mediaområder, filskriving, serving, API- eller frontendendringer eller gjennomført deploy. Eksisterende default-storage for import-/eksportfiler og dagens eksterne `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- og faviconflyt gjelder fortsatt. Neste fase 3C-leveranse krever separat godkjenning.
 
 Den langsiktige relasjonsspesifikke kontaktmodellen fra [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md) kommer fortsatt senere. Internasjonal telefonmodell skal spesifiseres i et eget ADR ved overgangen fra fase 3 til fase 4 og implementeres tidlig i fase 5; dette blokkerer ikke fase 3.
 
-## Godkjent bildearkitektur – ikke implementert
+## Godkjent bildearkitektur – første konfigurasjonsgrunnmur implementert
 
 ADR-007 beslutter følgende konseptuelle flyt:
 
@@ -180,7 +180,7 @@ Den avgrensede mellomleveransen sporer offentlig telefon gjennom Editor, API og 
 
 ### 3. Thumbnail-, bilde- og kortarkitektur – fase 3B.2 gjennomført og besluttet
 
-Fase 3A-kartleggingen, ADR-007 og de isolerte prototypene i fase 3B.1 og fase 3B.2 er gjennomført. Prosjekteier har godkjent tilhørende processing-, storage-, delivery-, takedown- og restoreprinsipper, og ADR-008s lokale Hetzner-MVP er ACTIVE. Bildearkitekturen er fortsatt ikke implementert. Etter dokumentasjons-PR-en er fase 3C neste additive leveranse bak avslått feature; fase 3B.1R og øvrige kvalitetsgater må være grønne før reell bildebruk kan aktiveres.
+Fase 3A-kartleggingen, ADR-007 og de isolerte prototypene i fase 3B.1 og fase 3B.2 er gjennomført. Prosjekteier har godkjent tilhørende processing-, storage-, delivery-, takedown- og restoreprinsipper, og ADR-008s lokale Hetzner-MVP er ACTIVE. Fase 3C er startet med en avslått featureflag og separate, ubrukte lokale image-storagealiaser. Modeller, filskriving, serving og offentlig bildebruk er fortsatt ikke implementert; fase 3B.1R og øvrige kvalitetsgater må være grønne før reell bildebruk kan aktiveres.
 
 Deretter skal Import 2.0 gjennom en egen produkt- og UX-designfase før større kodeendringer. Dagens importmotor skal gjenbrukes der den er solid, men skal ikke låse den nye brukeropplevelsen.
 

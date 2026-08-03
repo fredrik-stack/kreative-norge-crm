@@ -1,3 +1,8 @@
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import zipfile
 import importlib
@@ -8,7 +13,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.management import call_command, CommandError
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from unittest.mock import patch
 from rest_framework.test import APIClient
@@ -40,6 +45,207 @@ match_row_entities = import_matchers_module.match_row_entities
 normalize_import_row = import_normalizers_module.normalize_import_row
 build_import_template_config = import_normalizers_module.build_import_template_config
 generate_ai_suggestions = import_ai_suggestions_module.generate_ai_suggestions
+
+
+class ImageStorageSettingsTests(SimpleTestCase):
+    settings_environment_names = (
+        "IMAGE_ASSET_FEATURE_ENABLED",
+        "IMAGE_ORIGINALS_ROOT",
+        "IMAGE_RENDITIONS_ROOT",
+    )
+
+    def run_settings_process(self, source, **environment_overrides):
+        environment = os.environ.copy()
+        for name in self.settings_environment_names:
+            environment.pop(name, None)
+        environment.update(
+            {
+                "DJANGO_DEBUG": "True",
+                "DJANGO_SETTINGS_MODULE": "config.settings",
+            }
+        )
+        for name, value in environment_overrides.items():
+            if value is None:
+                environment.pop(name, None)
+            else:
+                environment[name] = str(value)
+
+        return subprocess.run(
+            [sys.executable, "-c", source],
+            cwd=Path(__file__).resolve().parents[1],
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    def settings_snapshot(self, **environment_overrides):
+        result = self.run_settings_process(
+            """
+import json
+from django.conf import settings
+from django.core.files.storage import storages
+
+private_storage = storages["image_originals_private"]
+public_storage = storages["image_renditions_public"]
+print(json.dumps({
+    "feature_enabled": settings.IMAGE_ASSET_FEATURE_ENABLED,
+    "aliases": sorted(settings.STORAGES),
+    "default_backend": settings.STORAGES["default"]["BACKEND"],
+    "default_options": settings.STORAGES["default"].get("OPTIONS"),
+    "staticfiles_backend": settings.STORAGES["staticfiles"]["BACKEND"],
+    "private_class": private_storage.__class__.__name__,
+    "public_class": public_storage.__class__.__name__,
+    "private_location": private_storage.location,
+    "public_location": public_storage.location,
+    "same_instance": private_storage is public_storage,
+}))
+""",
+            **environment_overrides,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return json.loads(result.stdout)
+
+    def assert_settings_rejected(self, expected_message, **environment_overrides):
+        result = self.run_settings_process(
+            "from django.conf import settings; print(settings.IMAGE_ORIGINALS_ROOT)",
+            **environment_overrides,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(expected_message, result.stderr)
+
+    def test_image_asset_feature_flag_defaults_to_false(self):
+        self.assertIs(self.settings_snapshot()["feature_enabled"], False)
+
+    def test_image_asset_feature_flag_accepts_explicit_true(self):
+        snapshot = self.settings_snapshot(IMAGE_ASSET_FEATURE_ENABLED="true")
+
+        self.assertIs(snapshot["feature_enabled"], True)
+
+    def test_image_asset_feature_flag_accepts_explicit_false(self):
+        snapshot = self.settings_snapshot(IMAGE_ASSET_FEATURE_ENABLED="false")
+
+        self.assertIs(snapshot["feature_enabled"], False)
+
+    def test_image_asset_feature_flag_rejects_unknown_value_fail_closed(self):
+        snapshot = self.settings_snapshot(IMAGE_ASSET_FEATURE_ENABLED="enable-maybe")
+
+        self.assertIs(snapshot["feature_enabled"], False)
+
+    def test_storage_aliases_preserve_defaults_and_separate_image_storages(self):
+        snapshot = self.settings_snapshot()
+
+        self.assertEqual(
+            snapshot["aliases"],
+            [
+                "default",
+                "image_originals_private",
+                "image_renditions_public",
+                "staticfiles",
+            ],
+        )
+        self.assertEqual(
+            snapshot["default_backend"],
+            "django.core.files.storage.FileSystemStorage",
+        )
+        self.assertIsNone(snapshot["default_options"])
+        self.assertEqual(
+            snapshot["staticfiles_backend"],
+            "django.contrib.staticfiles.storage.StaticFilesStorage",
+        )
+        self.assertEqual(snapshot["private_class"], "FileSystemStorage")
+        self.assertEqual(snapshot["public_class"], "FileSystemStorage")
+        self.assertFalse(snapshot["same_instance"])
+        self.assertNotEqual(
+            snapshot["private_location"],
+            snapshot["public_location"],
+        )
+
+    def test_relative_image_storage_root_is_rejected(self):
+        self.assert_settings_rejected(
+            "IMAGE_ORIGINALS_ROOT must be an absolute path",
+            IMAGE_ORIGINALS_ROOT="relative/private",
+        )
+
+    def test_empty_explicit_image_storage_root_is_rejected(self):
+        self.assert_settings_rejected(
+            "IMAGE_ORIGINALS_ROOT cannot be empty",
+            IMAGE_ORIGINALS_ROOT="",
+        )
+
+    def test_identical_image_storage_roots_are_rejected(self):
+        self.assert_settings_rejected(
+            "IMAGE_ORIGINALS_ROOT and IMAGE_RENDITIONS_ROOT cannot overlap",
+            IMAGE_ORIGINALS_ROOT="/var/tmp/kreative-images",
+            IMAGE_RENDITIONS_ROOT="/var/tmp/kreative-images",
+        )
+
+    def test_filesystem_root_is_rejected(self):
+        self.assert_settings_rejected(
+            "IMAGE_ORIGINALS_ROOT cannot be the filesystem root",
+            IMAGE_ORIGINALS_ROOT="/",
+        )
+
+    def test_staticfiles_overlap_is_rejected(self):
+        repository_root = Path(__file__).resolve().parents[1]
+        self.assert_settings_rejected(
+            "IMAGE_ORIGINALS_ROOT cannot overlap STATIC_ROOT",
+            IMAGE_ORIGINALS_ROOT=repository_root / "staticfiles" / "images",
+        )
+
+    def test_application_repository_overlap_is_rejected(self):
+        repository_root = Path(__file__).resolve().parents[1]
+        self.assert_settings_rejected(
+            "IMAGE_ORIGINALS_ROOT must be outside the application repository",
+            DJANGO_DEBUG="False",
+            IMAGE_ORIGINALS_ROOT=repository_root / "media-private",
+            IMAGE_RENDITIONS_ROOT="/var/tmp/kreative-images-public",
+        )
+
+    def test_settings_load_and_system_check_do_not_create_storage_paths(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private_root = Path(temporary_directory) / "private" / "originals"
+            public_root = Path(temporary_directory) / "public" / "renditions"
+            environment_overrides = {
+                "IMAGE_ORIGINALS_ROOT": private_root,
+                "IMAGE_RENDITIONS_ROOT": public_root,
+            }
+
+            snapshot = self.settings_snapshot(**environment_overrides)
+            self.assertEqual(
+                Path(snapshot["private_location"]),
+                private_root.resolve(strict=False),
+            )
+            self.assertEqual(
+                Path(snapshot["public_location"]),
+                public_root.resolve(strict=False),
+            )
+            self.assertFalse(private_root.exists())
+            self.assertFalse(public_root.exists())
+
+            environment = os.environ.copy()
+            for name in self.settings_environment_names:
+                environment.pop(name, None)
+            environment.update(
+                {
+                    "DJANGO_DEBUG": "True",
+                    "DJANGO_SETTINGS_MODULE": "config.settings",
+                    "IMAGE_ORIGINALS_ROOT": str(private_root),
+                    "IMAGE_RENDITIONS_ROOT": str(public_root),
+                }
+            )
+            result = subprocess.run(
+                [sys.executable, "manage.py", "check"],
+                cwd=Path(__file__).resolve().parents[1],
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse(private_root.exists())
+            self.assertFalse(public_root.exists())
 
 
 def grant_membership(user, tenant, role=TenantMembership.Role.REDIGERER):
