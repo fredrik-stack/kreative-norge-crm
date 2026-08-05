@@ -267,8 +267,10 @@ def _build_event(
     technical_warnings: list[str],
     timestamp,
     event_type: str,
+    restored_from_selection: OrganizationImageSelection | None = None,
 ) -> ImageReviewEvent:
     is_asset = selection.selection_kind == OrganizationImageSelection.SelectionKind.ASSET
+    is_restore = event_type == ImageReviewEvent.EventType.SELECTION_RESTORED
     event = ImageReviewEvent(
         tenant_id=tenant_id,
         organization=organization,
@@ -276,6 +278,7 @@ def _build_event(
         rendition_set=selection.rendition_set if is_asset else None,
         asset=asset if is_asset else None,
         previous_selection=previous_selection,
+        restored_from_selection=restored_from_selection,
         actor_user=actor,
         event_type=event_type,
         organization_id_snapshot=organization.pk,
@@ -292,6 +295,12 @@ def _build_event(
         previous_selection_revision_snapshot=(
             previous_selection.revision if previous_selection else None
         ),
+        restored_from_selection_id_snapshot=(
+            restored_from_selection.pk if restored_from_selection else None
+        ),
+        restored_from_selection_revision_snapshot=(
+            restored_from_selection.revision if restored_from_selection else None
+        ),
         actor_user_id_snapshot=actor.pk,
         actor_username_snapshot=actor.get_username(),
         alt_text_snapshot=selection.alt_text,
@@ -301,8 +310,10 @@ def _build_event(
         source_page_url_snapshot=evidence.source_page_url if evidence else "",
         provider_snapshot=evidence.provider if evidence else "",
         technical_warnings_snapshot=technical_warnings,
-        approval_text_version_snapshot=IMAGE_APPROVAL_TEXT_VERSION if is_asset else "",
-        approval_text_snapshot=IMAGE_APPROVAL_TEXT if is_asset else "",
+        approval_text_version_snapshot=(
+            IMAGE_APPROVAL_TEXT_VERSION if is_asset and not is_restore else ""
+        ),
+        approval_text_snapshot=IMAGE_APPROVAL_TEXT if is_asset and not is_restore else "",
         created_at=timestamp,
     )
     try:
@@ -352,6 +363,7 @@ def _create_selection_revision(
     evidence: AssetApprovalEvidence | None,
     technical_warnings: list[str],
     event_type: str,
+    restored_from_selection: OrganizationImageSelection | None = None,
 ) -> OrganizationImageSelectionResult:
     highest_revision = (
         OrganizationImageSelection.objects.filter(
@@ -395,6 +407,7 @@ def _create_selection_revision(
         technical_warnings=technical_warnings,
         timestamp=timestamp,
         event_type=event_type,
+        restored_from_selection=restored_from_selection,
     )
     return OrganizationImageSelectionResult(
         selection=selection,
@@ -547,6 +560,97 @@ def remove_organization_image_to_fallback(
                 evidence=None,
                 technical_warnings=[],
                 event_type=ImageReviewEvent.EventType.SELECTION_REMOVED_TO_FALLBACK,
+            )
+    except IntegrityError as error:
+        raise ImageSelectionConcurrencyError(
+            "The image selection changed concurrently; reload before retrying."
+        ) from error
+
+
+def restore_archived_organization_image_selection(
+    *,
+    actor,
+    tenant_id: int,
+    organization_id: int,
+    expected_revision: int,
+    source_selection_id: int,
+) -> OrganizationImageSelectionResult:
+    if not settings.IMAGE_ASSET_FEATURE_ENABLED:
+        raise ImageFeatureDisabledError("Image asset selection is disabled.")
+
+    _validate_identifier(tenant_id, "tenant_id")
+    _validate_identifier(organization_id, "organization_id")
+    _validate_identifier(expected_revision, "expected_revision", allow_zero=True)
+    _validate_identifier(source_selection_id, "source_selection_id")
+
+    try:
+        with transaction.atomic():
+            organization, active_selection = _locked_selection_context(
+                actor=actor,
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+            )
+            if active_selection is None:
+                raise InvalidImageSelectionTransitionError(
+                    "An active selection is required before restoring an archived asset."
+                )
+            if expected_revision != active_selection.revision:
+                raise ExpectedRevisionConflictError(
+                    f"Expected active revision {expected_revision}, found {active_selection.revision}."
+                )
+
+            source_selection = (
+                OrganizationImageSelection.objects.select_for_update()
+                .filter(
+                    pk=source_selection_id,
+                    tenant_id=tenant_id,
+                    organization_id=organization_id,
+                )
+                .first()
+            )
+            if source_selection is None:
+                raise ImageSelectionNotFoundError(
+                    "The restore source selection was not found in the target organization."
+                )
+            if source_selection.status != OrganizationImageSelection.Status.ARCHIVED:
+                raise InvalidImageSelectionTransitionError(
+                    "The restore source selection must be archived."
+                )
+            if source_selection.selection_kind != OrganizationImageSelection.SelectionKind.ASSET:
+                raise InvalidImageSelectionTransitionError(
+                    "Only archived asset selections can be restored."
+                )
+            if source_selection.pk == active_selection.pk:
+                raise InvalidImageSelectionTransitionError(
+                    "The active selection cannot be used as a restore source."
+                )
+            if source_selection.revision >= active_selection.revision:
+                raise InvalidImageSelectionTransitionError(
+                    "The restore source revision must be older than the active revision."
+                )
+            if source_selection.rendition_set_id is None:
+                raise InvalidImageSelectionTransitionError(
+                    "The restore source must reference a rendition set."
+                )
+
+            rendition_set, asset = _locked_asset_context(
+                tenant_id,
+                source_selection.rendition_set_id,
+            )
+            return _create_selection_revision(
+                actor=actor,
+                tenant_id=tenant_id,
+                organization=organization,
+                active_selection=active_selection,
+                selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+                rendition_set=rendition_set,
+                alt_text=source_selection.alt_text,
+                public_credit=source_selection.public_credit,
+                asset=asset,
+                evidence=None,
+                technical_warnings=[],
+                event_type=ImageReviewEvent.EventType.SELECTION_RESTORED,
+                restored_from_selection=source_selection,
             )
     except IntegrityError as error:
         raise ImageSelectionConcurrencyError(

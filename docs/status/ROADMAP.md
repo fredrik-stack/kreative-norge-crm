@@ -58,7 +58,7 @@ Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCH
 
 Fase 3A kartla dagens legacy URL-, Open Graph-, kort-, import-, storage- og driftsflyt. [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag.
 
-`ImageAsset`, `ImageRenditionSet`, `ImageRendition` og den typed `OrganizationImageSelection` er implementert additivt med constraints og migrasjoner. `ImageReviewEvent` og de feature-gated selection-kommandoene dekker atomisk første låsing, replacement og ordinær fjerning fra aktivt asset til systemfallback, men ingen applikasjonsflyt kaller kommandoene og bilde-runtime er ikke implementert. Fase 3C-grunnmuren endrer ikke dagens `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- eller faviconflyt; disse gjelder fortsatt frem til en kontrollert overgang er levert og verifisert.
+`ImageAsset`, `ImageRenditionSet`, `ImageRendition` og den typed `OrganizationImageSelection` er implementert additivt med constraints og migrasjoner. `ImageReviewEvent` og de feature-gated selection-kommandoene dekker atomisk første låsing, replacement, ordinær fjerning fra aktivt asset til systemfallback og restore av en eksplisitt arkivert asset-selection som ny revisjon, men ingen applikasjonsflyt kaller kommandoene og bilde-runtime er ikke implementert. Fase 3C-grunnmuren endrer ikke dagens `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- eller faviconflyt; disse gjelder fortsatt frem til en kontrollert overgang er levert og verifisert.
 
 Bildeløsningen skal gå fra ustabile eksterne treff til en varig, redaksjonelt kontrollerbar ressurs:
 
@@ -127,7 +127,7 @@ Den skrivebeskyttede [serverbaselinen](STAGING_BACKUP_BASELINE_2026-08-01.md) fa
 
 ### Fase 3C – additiv backend- og storagegrunnmur
 
-**Status:** De fire første additive leveransene er merget. PR #21 etablerte append-only locking-/replacement-event og den atomiske selection-kjernen på `main`. Fase 3C.5 implementerer ordinær fjerning fra aktivt asset til systemfallback som en avgrenset femte leveranse; uavhengig gjennomgang og merge er neste gate.
+**Status:** De fem første additive leveransene er merget; PR #22 fullførte ordinær fjerning fra aktivt asset til systemfallback på `main`. Fase 3C.6 implementerer restore av en eksplisitt arkivert asset-selection som ny revisjon og er siste planlagte selection-livssyklusleveranse før fase 3B.1R prioriteres.
 
 Første leveranse har innført `IMAGE_ASSET_FEATURE_ENABLED=False` som standard og lokale `image_originals_private`-/`image_renditions_public`-aliaser med separate, validerte roots. Eksisterende `default` og `staticfiles` er bevart. Aliasene brukes ikke av runtime, og settings-load eller system check oppretter ingen mapper eller filer.
 
@@ -137,7 +137,9 @@ Tredje leveranse legger til `OrganizationImageSelection` som én låst revisjon 
 
 Fjerde leveranse legger til `ImageReviewEvent` og `lock_organization_image_selection`. Eventet beholder snapshots og er append-only gjennom støttede applikasjons-/ORM-veier, men er ikke database-WORM. Kommandoen er den godkjente skriveruten for første låsing og vanlig replacement, er blokkert når featureflagget er avslått og skriver selection og event atomisk. `expected_revision` oppdager konflikter, mens den tenant-scopede `Organization`-raden er concurrency-lås. Redigerer, gruppeadmin og tenant-superadmin kan arbeide i egen tenant; plattform-superadmin må alltid angi target tenant. Proveniens lagres som event-snapshot, men full kandidat-/ingestmodell er ikke implementert.
 
-Fase 3C.5 legger til `selection_removed_to_fallback` og `remove_organization_image_to_fallback`. Den nye kommandoen er eneste godkjente vei fra aktiv asset-selection til systemfallback, arkiverer bare statusen på forrige selection og oppretter ny fallback-revisjon og event atomisk. Den generiske lock-kommandoen kan fortsatt opprette første fallback og erstatte fallback med asset eller asset med annet asset, men avviser asset → fallback og fallback → fallback. Restore er fortsatt utsatt og krever en separat produkt- og auditbeslutning.
+Fase 3C.5 legger til `selection_removed_to_fallback` og `remove_organization_image_to_fallback`. Kommandoen er eneste godkjente vei fra aktiv asset-selection til systemfallback, arkiverer bare statusen på forrige selection og oppretter ny fallback-revisjon og event atomisk. Den generiske lock-kommandoen kan fortsatt opprette første fallback og erstatte fallback med asset eller asset med annet asset, men avviser asset → fallback og fallback → fallback. PR #22 og fase 3C.5 er merget.
+
+Fase 3C.6 legger til `selection_restored` og `restore_archived_organization_image_selection`. Kommandoen krever en eksplisitt eldre, arkivert asset-selection i samme tenant og organisasjon, revaliderer det komplette rendition-settet og oppretter en helt ny aktiv revisjon med samme rendition-sett, alt-tekst og offentlig kreditering. Restore-kilden omskrives aldri, og restore-eventet peker både på den tidligere aktive selectionen og restore-kilden. Restore er ikke ny approval: eventet lagrer ingen ny godkjenningstekst eller proveniens. Endret approval, alt-tekst, kreditering, fit, fokus eller rendition-sett skal bruke vanlig replacement. Databasen håndhever restore-eventets snapshotform, mens source-status og cross-tenant/-organization-scope håndheves av domenekommandoen.
 
 - additive modeller, constraints og migrasjoner
 - kontrollert ingest, private originaler og renditions gjennom lokale navngitte storagealiaser
@@ -145,7 +147,7 @@ Fase 3C.5 legger til `selection_removed_to_fallback` og `remove_organization_ima
 - feature av frem til test- og datagrunnlaget er godkjent
 - ingen varige bildefiler før ADR-008-backupen er ACTIVE og restore-verifisert
 - ingen bildefiler skrives, leses eller serveres av grunnleveransene; ingen API- eller brukerflyt kaller kommandoene, og legacybildeflyten er uendret
-- neste fase 3C-leveranse krever separat godkjenning
+- fase 3B.1R er neste kvalitetsgate før faktisk processing eller storage-runtime; ingen ny selection-kommando planlegges etter fase 3C.6
 
 ### Fase 3D – Editor-flyt for aktørbilde
 

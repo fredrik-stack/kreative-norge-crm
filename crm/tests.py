@@ -64,6 +64,7 @@ from .services.images.selections import (
     InvalidImageSelectionTransitionError,
     lock_organization_image_selection,
     remove_organization_image_to_fallback,
+    restore_archived_organization_image_selection,
 )
 from .serializers import PersonSerializer
 import_commit_module = importlib.import_module("crm.services.import.commit")
@@ -4055,6 +4056,22 @@ class OrganizationImageSelectionCommandTests(TestCase):
         values.update(overrides)
         return remove_organization_image_to_fallback(**values)
 
+    def restore_archived(self, source_selection, **overrides):
+        active_selection = OrganizationImageSelection.objects.get(
+            tenant=self.tenant,
+            organization=self.organization,
+            status=OrganizationImageSelection.Status.ACTIVE,
+        )
+        values = {
+            "actor": self.actor,
+            "tenant_id": self.tenant.pk,
+            "organization_id": self.organization.pk,
+            "expected_revision": active_selection.revision,
+            "source_selection_id": source_selection.pk,
+        }
+        values.update(overrides)
+        return restore_archived_organization_image_selection(**values)
+
     @override_settings(IMAGE_ASSET_FEATURE_ENABLED=False)
     def test_disabled_feature_fails_before_any_write_or_existing_change(self):
         existing = OrganizationImageSelection.objects.create(
@@ -4922,6 +4939,498 @@ class OrganizationImageSelectionCommandTests(TestCase):
             )
         )
 
+    def test_restore_archived_asset_from_fallback_creates_new_revision_without_new_approval(self):
+        asset, rendition_set = self.create_image_domain()
+        source = self.lock_asset(
+            rendition_set,
+            alt_text="  Tidligere alt-tekst  ",
+            public_credit="  Tidligere kreditering  ",
+        ).selection
+        active = self.remove_to_fallback().selection
+        source_before = OrganizationImageSelection.objects.filter(pk=source.pk).values().get()
+        active_before = OrganizationImageSelection.objects.filter(pk=active.pk).values().get()
+
+        result = self.restore_archived(source)
+
+        source.refresh_from_db()
+        active.refresh_from_db()
+        self.assertEqual(
+            OrganizationImageSelection.objects.filter(pk=source.pk).values().get(),
+            source_before,
+        )
+        self.assertEqual(
+            OrganizationImageSelection.objects.filter(pk=active.pk).values().get(),
+            {**active_before, "status": OrganizationImageSelection.Status.ARCHIVED},
+        )
+        self.assertEqual(result.previous_selection, active)
+        self.assertEqual(result.selection.revision, 3)
+        self.assertEqual(result.selection.status, OrganizationImageSelection.Status.ACTIVE)
+        self.assertEqual(result.selection.selection_kind, OrganizationImageSelection.SelectionKind.ASSET)
+        self.assertEqual(result.selection.rendition_set_id, source.rendition_set_id)
+        self.assertEqual(result.selection.alt_text, source.alt_text)
+        self.assertEqual(result.selection.public_credit, source.public_credit)
+        self.assertEqual(result.selection.locked_by, self.actor)
+        self.assertEqual(result.selection.locked_at, result.event.created_at)
+        self.assertEqual(
+            OrganizationImageSelection.objects.filter(
+                organization=self.organization,
+                status=OrganizationImageSelection.Status.ACTIVE,
+            ).count(),
+            1,
+        )
+        self.assertEqual(result.event.event_type, ImageReviewEvent.EventType.SELECTION_RESTORED)
+        self.assertEqual(result.event.selection, result.selection)
+        self.assertEqual(result.event.previous_selection, active)
+        self.assertEqual(result.event.restored_from_selection, source)
+        self.assertEqual(result.event.previous_selection_id_snapshot, active.pk)
+        self.assertEqual(result.event.previous_selection_revision_snapshot, active.revision)
+        self.assertEqual(result.event.restored_from_selection_id_snapshot, source.pk)
+        self.assertEqual(result.event.restored_from_selection_revision_snapshot, source.revision)
+        self.assertEqual(result.event.rendition_set_id_snapshot, rendition_set.pk)
+        self.assertEqual(result.event.asset_id_snapshot, asset.pk)
+        self.assertEqual(result.event.asset_checksum_sha256_snapshot, asset.checksum_sha256)
+        self.assertEqual(
+            result.event.asset_validation_version_snapshot,
+            asset.validation_version,
+        )
+        self.assertEqual(result.event.alt_text_snapshot, source.alt_text)
+        self.assertEqual(result.event.public_credit_snapshot, source.public_credit)
+        self.assertEqual(result.event.approval_text_version_snapshot, "")
+        self.assertEqual(result.event.approval_text_snapshot, "")
+        self.assertEqual(result.event.source_type_snapshot, "")
+        self.assertEqual(result.event.source_url_snapshot, "")
+        self.assertEqual(result.event.source_page_url_snapshot, "")
+        self.assertEqual(result.event.provider_snapshot, "")
+        self.assertEqual(result.event.technical_warnings_snapshot, [])
+
+    def test_restore_archived_asset_over_active_asset_and_reuses_source_more_than_once(self):
+        _, first_rendition_set = self.create_image_domain()
+        _, second_rendition_set = self.create_image_domain()
+        source = self.lock_asset(first_rendition_set).selection
+        active_asset = self.lock_asset(second_rendition_set, expected_revision=1).selection
+
+        first_restore = self.restore_archived(source)
+        self.assertEqual(first_restore.previous_selection, active_asset)
+        self.assertEqual(first_restore.selection.revision, 3)
+        self.assertEqual(first_restore.selection.rendition_set_id, source.rendition_set_id)
+
+        fallback = self.remove_to_fallback(
+            expected_revision=3,
+            fallback_alt_text="Fallback before repeated restore",
+        ).selection
+        second_restore = self.restore_archived(
+            source,
+            expected_revision=4,
+        )
+        source.refresh_from_db()
+        self.assertEqual(source.status, OrganizationImageSelection.Status.ARCHIVED)
+        self.assertEqual(second_restore.previous_selection, fallback)
+        self.assertEqual(second_restore.selection.revision, 5)
+        self.assertNotEqual(first_restore.selection.pk, source.pk)
+        self.assertNotEqual(second_restore.selection.pk, source.pk)
+        self.assertNotEqual(first_restore.selection.pk, second_restore.selection.pk)
+        self.assertEqual(
+            ImageReviewEvent.objects.filter(
+                event_type=ImageReviewEvent.EventType.SELECTION_RESTORED,
+                restored_from_selection=source,
+            ).count(),
+            2,
+        )
+
+    def test_restore_feature_off_and_revision_conflict_make_no_writes(self):
+        _, rendition_set = self.create_image_domain()
+        source = self.lock_asset(rendition_set).selection
+        self.remove_to_fallback()
+        selections_before = list(OrganizationImageSelection.objects.order_by("pk").values())
+        events_before = list(ImageReviewEvent.objects.order_by("pk").values())
+
+        with override_settings(IMAGE_ASSET_FEATURE_ENABLED=False):
+            with self.assertRaises(ImageFeatureDisabledError):
+                self.restore_archived(source)
+        with self.assertRaises(ExpectedRevisionConflictError):
+            self.restore_archived(source, expected_revision=1)
+
+        self.assertEqual(list(OrganizationImageSelection.objects.order_by("pk").values()), selections_before)
+        self.assertEqual(list(ImageReviewEvent.objects.order_by("pk").values()), events_before)
+
+    def test_restore_rejects_missing_active_and_missing_source_without_writes(self):
+        _, rendition_set = self.create_image_domain()
+        archived_source = OrganizationImageSelection.objects.create(
+            tenant=self.tenant,
+            organization=self.organization,
+            selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+            rendition_set=rendition_set,
+            alt_text="Archived source",
+            revision=1,
+            status=OrganizationImageSelection.Status.ARCHIVED,
+            locked_by=self.actor,
+            locked_at=timezone.now(),
+        )
+        with self.assertRaises(InvalidImageSelectionTransitionError):
+            restore_archived_organization_image_selection(
+                actor=self.actor,
+                tenant_id=self.tenant.pk,
+                organization_id=self.organization.pk,
+                expected_revision=0,
+                source_selection_id=archived_source.pk,
+            )
+
+        active = OrganizationImageSelection.objects.create(
+            tenant=self.tenant,
+            organization=self.organization,
+            selection_kind=OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
+            rendition_set=None,
+            alt_text="Active fallback",
+            revision=2,
+            status=OrganizationImageSelection.Status.ACTIVE,
+            locked_by=self.actor,
+            locked_at=timezone.now(),
+        )
+        before = list(OrganizationImageSelection.objects.order_by("pk").values())
+        with self.assertRaises(ImageSelectionNotFoundError):
+            self.restore_archived(active, source_selection_id=999999)
+        self.assertEqual(list(OrganizationImageSelection.objects.order_by("pk").values()), before)
+        self.assertEqual(ImageReviewEvent.objects.count(), 0)
+
+    def test_restore_source_is_scoped_to_tenant_and_organization(self):
+        active = self.lock_fallback().selection
+        other_organization = Organization.objects.create(
+            tenant=self.tenant,
+            name="Other restore organization",
+        )
+        _, other_org_rendition_set = self.create_image_domain()
+        other_org_source = OrganizationImageSelection.objects.create(
+            tenant=self.tenant,
+            organization=other_organization,
+            selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+            rendition_set=other_org_rendition_set,
+            alt_text="Other organization source",
+            revision=1,
+            status=OrganizationImageSelection.Status.ARCHIVED,
+            locked_by=self.actor,
+            locked_at=timezone.now(),
+        )
+        other_actor = get_user_model().objects.create_user(
+            username="other-restore-editor",
+            password="test-password",
+        )
+        TenantMembership.objects.create(
+            tenant=self.other_tenant,
+            user=other_actor,
+            role=TenantMembership.Role.REDIGERER,
+        )
+        _, other_tenant_rendition_set = self.create_image_domain(tenant=self.other_tenant)
+        other_tenant_organization = Organization.objects.create(
+            tenant=self.other_tenant,
+            name="Other tenant restore organization",
+        )
+        other_tenant_source = OrganizationImageSelection.objects.create(
+            tenant=self.other_tenant,
+            organization=other_tenant_organization,
+            selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+            rendition_set=other_tenant_rendition_set,
+            alt_text="Other tenant source",
+            revision=1,
+            status=OrganizationImageSelection.Status.ARCHIVED,
+            locked_by=other_actor,
+            locked_at=timezone.now(),
+        )
+        before = OrganizationImageSelection.objects.filter(pk=active.pk).values().get()
+
+        for source in (other_org_source, other_tenant_source):
+            with self.subTest(source=source.pk):
+                with self.assertRaises(ImageSelectionNotFoundError):
+                    self.restore_archived(source)
+
+        self.assertEqual(OrganizationImageSelection.objects.filter(pk=active.pk).values().get(), before)
+        self.assertEqual(ImageReviewEvent.objects.count(), 1)
+
+    def test_restore_rejects_active_fallback_and_same_or_newer_revision_sources(self):
+        active_fallback = self.lock_fallback().selection
+        with self.assertRaises(InvalidImageSelectionTransitionError):
+            self.restore_archived(active_fallback)
+
+        _, rendition_set = self.create_image_domain()
+        newer_archived_asset = OrganizationImageSelection.objects.create(
+            tenant=self.tenant,
+            organization=self.organization,
+            selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+            rendition_set=rendition_set,
+            alt_text="Newer archived asset",
+            revision=2,
+            status=OrganizationImageSelection.Status.ARCHIVED,
+            locked_by=self.actor,
+            locked_at=timezone.now(),
+        )
+        with self.assertRaises(InvalidImageSelectionTransitionError):
+            self.restore_archived(newer_archived_asset)
+
+        _, replacement_rendition_set = self.create_image_domain()
+        active_asset = self.lock_asset(replacement_rendition_set, expected_revision=1).selection
+        active_fallback.refresh_from_db()
+        with self.assertRaises(InvalidImageSelectionTransitionError):
+            self.restore_archived(active_fallback, expected_revision=active_asset.revision)
+        with self.assertRaises(InvalidImageSelectionTransitionError):
+            self.restore_archived(active_asset, expected_revision=active_asset.revision)
+
+        self.assertEqual(OrganizationImageSelection.objects.filter(status="active").count(), 1)
+        self.assertEqual(ImageReviewEvent.objects.count(), 2)
+
+    def test_restore_rejects_incomplete_rendition_set_without_writes(self):
+        _, incomplete_rendition_set = self.create_image_domain(
+            variants=(ImageRendition.Variant.SQUARE,),
+        )
+        source = OrganizationImageSelection.objects.create(
+            tenant=self.tenant,
+            organization=self.organization,
+            selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+            rendition_set=incomplete_rendition_set,
+            alt_text="Incomplete source",
+            revision=1,
+            status=OrganizationImageSelection.Status.ARCHIVED,
+            locked_by=self.actor,
+            locked_at=timezone.now(),
+        )
+        active = OrganizationImageSelection.objects.create(
+            tenant=self.tenant,
+            organization=self.organization,
+            selection_kind=OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
+            rendition_set=None,
+            alt_text="Active fallback",
+            revision=2,
+            status=OrganizationImageSelection.Status.ACTIVE,
+            locked_by=self.actor,
+            locked_at=timezone.now(),
+        )
+        before = list(OrganizationImageSelection.objects.order_by("pk").values())
+
+        with self.assertRaises(IncompleteRenditionSetError):
+            self.restore_archived(source)
+
+        self.assertEqual(list(OrganizationImageSelection.objects.order_by("pk").values()), before)
+        self.assertEqual(active.status, OrganizationImageSelection.Status.ACTIVE)
+        self.assertEqual(ImageReviewEvent.objects.count(), 0)
+
+    def test_restore_uses_allowed_capability_matrix(self):
+        cases = (
+            ("restore-platform-admin", None, True),
+            ("restore-tenant-admin", TenantMembership.Role.SUPERADMIN, False),
+            ("restore-group-admin", TenantMembership.Role.GRUPPEADMIN, False),
+            ("restore-editor", TenantMembership.Role.REDIGERER, False),
+        )
+        for index, (username, role, is_superuser) in enumerate(cases, start=1):
+            organization = Organization.objects.create(
+                tenant=self.tenant,
+                name=f"Restore capability organization {index}",
+            )
+            user = get_user_model().objects.create_user(
+                username=username,
+                password="test-password",
+                is_superuser=is_superuser,
+                is_staff=is_superuser,
+            )
+            if role:
+                TenantMembership.objects.create(tenant=self.tenant, user=user, role=role)
+            _, rendition_set = self.create_image_domain()
+            source = OrganizationImageSelection.objects.create(
+                tenant=self.tenant,
+                organization=organization,
+                selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+                rendition_set=rendition_set,
+                alt_text="Capability source",
+                revision=1,
+                status=OrganizationImageSelection.Status.ARCHIVED,
+                locked_by=self.actor,
+                locked_at=timezone.now(),
+            )
+            OrganizationImageSelection.objects.create(
+                tenant=self.tenant,
+                organization=organization,
+                selection_kind=OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
+                rendition_set=None,
+                alt_text="Capability fallback",
+                revision=2,
+                status=OrganizationImageSelection.Status.ACTIVE,
+                locked_by=self.actor,
+                locked_at=timezone.now(),
+            )
+
+            with self.subTest(role=role, is_superuser=is_superuser):
+                result = restore_archived_organization_image_selection(
+                    actor=user,
+                    tenant_id=self.tenant.pk,
+                    organization_id=organization.pk,
+                    expected_revision=2,
+                    source_selection_id=source.pk,
+                )
+                self.assertEqual(result.selection.tenant_id, self.tenant.pk)
+
+    def test_restore_denies_unauthorized_actors_without_writes(self):
+        _, rendition_set = self.create_image_domain()
+        source = self.lock_asset(rendition_set).selection
+        self.remove_to_fallback()
+        reader = get_user_model().objects.create_user(username="restore-reader", password="test-password")
+        TenantMembership.objects.create(tenant=self.tenant, user=reader, role=TenantMembership.Role.LESER)
+        no_membership = get_user_model().objects.create_user(username="restore-none", password="test-password")
+        wrong_tenant = get_user_model().objects.create_user(username="restore-wrong", password="test-password")
+        TenantMembership.objects.create(
+            tenant=self.other_tenant,
+            user=wrong_tenant,
+            role=TenantMembership.Role.REDIGERER,
+        )
+        inactive = get_user_model().objects.create_user(
+            username="restore-inactive",
+            password="test-password",
+            is_active=False,
+        )
+        TenantMembership.objects.create(
+            tenant=self.tenant,
+            user=inactive,
+            role=TenantMembership.Role.REDIGERER,
+        )
+        selections_before = list(OrganizationImageSelection.objects.order_by("pk").values())
+        events_before = list(ImageReviewEvent.objects.order_by("pk").values())
+
+        for actor in (reader, no_membership, wrong_tenant, inactive, AnonymousUser()):
+            with self.subTest(actor=str(actor)):
+                with self.assertRaises(ImageSelectionPermissionDenied):
+                    self.restore_archived(source, actor=actor)
+
+        self.assertEqual(list(OrganizationImageSelection.objects.order_by("pk").values()), selections_before)
+        self.assertEqual(list(ImageReviewEvent.objects.order_by("pk").values()), events_before)
+
+    def test_restore_event_failure_rolls_back_new_revision_and_archiving(self):
+        _, rendition_set = self.create_image_domain()
+        source = self.lock_asset(rendition_set).selection
+        active = self.remove_to_fallback().selection
+        source_before = OrganizationImageSelection.objects.filter(pk=source.pk).values().get()
+        active_before = OrganizationImageSelection.objects.filter(pk=active.pk).values().get()
+
+        with patch.object(ImageReviewEvent, "save", side_effect=RuntimeError("restore event failure")):
+            with self.assertRaisesRegex(RuntimeError, "restore event failure"):
+                self.restore_archived(source)
+
+        self.assertEqual(OrganizationImageSelection.objects.filter(pk=source.pk).values().get(), source_before)
+        self.assertEqual(OrganizationImageSelection.objects.filter(pk=active.pk).values().get(), active_before)
+        self.assertEqual(OrganizationImageSelection.objects.count(), 2)
+        self.assertEqual(ImageReviewEvent.objects.count(), 2)
+
+    def test_restore_source_set_null_preserves_snapshots_and_manager_blocks_snapshot_changes(self):
+        _, rendition_set = self.create_image_domain()
+        source = self.lock_asset(rendition_set).selection
+        self.remove_to_fallback()
+        event = self.restore_archived(source).event
+        snapshots = (
+            event.restored_from_selection_id_snapshot,
+            event.restored_from_selection_revision_snapshot,
+        )
+
+        with self.assertRaises(AppendOnlyEventError):
+            ImageReviewEvent.objects.filter(pk=event.pk).update(
+                restored_from_selection_id_snapshot=999,
+            )
+        with self.assertRaises(AppendOnlyEventError):
+            ImageReviewEvent._base_objects.filter(pk=event.pk).update(
+                restored_from_selection_id_snapshot=999,
+            )
+
+        source.delete()
+        event = ImageReviewEvent._base_objects.get(pk=event.pk)
+        self.assertIsNone(event.restored_from_selection_id)
+        self.assertEqual(
+            (
+                event.restored_from_selection_id_snapshot,
+                event.restored_from_selection_revision_snapshot,
+            ),
+            snapshots,
+        )
+
+    def test_restore_event_database_constraints_require_restore_snapshots_and_no_approval(self):
+        _, rendition_set = self.create_image_domain()
+        source = self.lock_asset(rendition_set).selection
+        self.remove_to_fallback()
+        restored_event = self.restore_archived(source).event
+        values = ImageReviewEvent._base_objects.filter(pk=restored_event.pk).values().get()
+        values.pop("id")
+
+        for field_name in (
+            "restored_from_selection_id_snapshot",
+            "restored_from_selection_revision_snapshot",
+        ):
+            invalid = {**values, field_name: None}
+            with self.subTest(field_name=field_name):
+                with self.assertRaises(IntegrityError):
+                    with transaction.atomic():
+                        ImageReviewEvent.objects.create(**invalid)
+
+        invalid_approval = {
+            **values,
+            "approval_text_version_snapshot": IMAGE_APPROVAL_TEXT_VERSION,
+            "approval_text_snapshot": IMAGE_APPROVAL_TEXT,
+        }
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                ImageReviewEvent.objects.create(**invalid_approval)
+
+        locked_event = ImageReviewEvent.objects.exclude(pk=restored_event.pk).first()
+        non_restore_values = ImageReviewEvent._base_objects.filter(pk=locked_event.pk).values().get()
+        non_restore_values.pop("id")
+        non_restore_values["restored_from_selection_id_snapshot"] = source.pk
+        non_restore_values["restored_from_selection_revision_snapshot"] = source.revision
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                ImageReviewEvent.objects.create(**non_restore_values)
+
+    def test_restore_preserves_publication_legacy_fields_and_performs_no_storage_io(self):
+        _, rendition_set = self.create_image_domain()
+        source = self.lock_asset(rendition_set).selection
+        self.remove_to_fallback()
+        person = Person.objects.create(
+            tenant=self.tenant,
+            full_name="Restore public person",
+            email="restore@example.com",
+            phone="12345678",
+        )
+        link = OrganizationPerson.objects.create(
+            tenant=self.tenant,
+            organization=self.organization,
+            person=person,
+            publish_person=True,
+        )
+        contact = PersonContact.objects.create(
+            tenant=self.tenant,
+            person=person,
+            type="EMAIL",
+            value="restore@example.com",
+            is_primary=True,
+            is_public=True,
+        )
+        organization_before = Organization.objects.filter(pk=self.organization.pk).values().get()
+        person_before = Person.objects.filter(pk=person.pk).values().get()
+        link_before = OrganizationPerson.objects.filter(pk=link.pk).values().get()
+        contact_before = PersonContact.objects.filter(pk=contact.pk).values().get()
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            private_root = Path(temporary_directory) / "private"
+            public_root = Path(temporary_directory) / "public"
+            with override_settings(
+                IMAGE_ORIGINALS_ROOT=private_root,
+                IMAGE_RENDITIONS_ROOT=public_root,
+            ):
+                self.restore_archived(source)
+            self.assertFalse(private_root.exists())
+            self.assertFalse(public_root.exists())
+            self.assertEqual(list(Path(temporary_directory).iterdir()), [])
+
+        self.assertEqual(Organization.objects.filter(pk=self.organization.pk).values().get(), organization_before)
+        self.assertEqual(Person.objects.filter(pk=person.pk).values().get(), person_before)
+        self.assertEqual(OrganizationPerson.objects.filter(pk=link.pk).values().get(), link_before)
+        self.assertEqual(PersonContact.objects.filter(pk=contact.pk).values().get(), contact_before)
+        self.assertEqual(
+            set(inspect.signature(restore_archived_organization_image_selection).parameters),
+            {"actor", "tenant_id", "organization_id", "expected_revision", "source_selection_id"},
+        )
+
 
 @override_settings(IMAGE_ASSET_FEATURE_ENABLED=True)
 class OrganizationImageSelectionConcurrencyTests(TransactionTestCase):
@@ -5098,6 +5607,119 @@ class OrganizationImageSelectionConcurrencyTests(TransactionTestCase):
         self.assertEqual(
             ImageReviewEvent.objects.filter(
                 event_type=ImageReviewEvent.EventType.SELECTION_REMOVED_TO_FALLBACK,
+            ).count(),
+            1,
+        )
+
+    def test_concurrent_restore_creates_exactly_one_new_revision_and_event(self):
+        asset = ImageAsset.objects.create(
+            tenant=self.tenant,
+            private_storage_key="assets/concurrent-restore.jpeg",
+            checksum_sha256="d" * 64,
+            original_format=ImageAsset.OriginalFormat.JPEG,
+            mime_type="image/jpeg",
+            width=1600,
+            height=900,
+            file_size_bytes=123456,
+            validation_version="validation-v1",
+        )
+        rendition_set = ImageRenditionSet.objects.create(
+            tenant=self.tenant,
+            asset=asset,
+            fit_mode=ImageRenditionSet.FitMode.COVER,
+            processing_version="processing-v1",
+            render_config_hash_sha256="e" * 64,
+        )
+        for index, variant in enumerate(
+            (
+                ImageRendition.Variant.SQUARE,
+                ImageRendition.Variant.LANDSCAPE,
+                ImageRendition.Variant.SHARE,
+            ),
+            start=1,
+        ):
+            ImageRendition.objects.create(
+                tenant=self.tenant,
+                rendition_set=rendition_set,
+                variant=variant,
+                output_format=ImageRendition.OutputFormat.WEBP,
+                width=512 + index,
+                height=512 + index,
+                file_size_bytes=20000 + index,
+                checksum_sha256=f"{index + 3}" * 64,
+                artifact_storage_key=f"renditions/concurrent-restore-{variant}.webp",
+            )
+        source = OrganizationImageSelection.objects.create(
+            tenant=self.tenant,
+            organization=self.organization,
+            selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+            rendition_set=rendition_set,
+            alt_text="Concurrent restore source",
+            public_credit="Concurrent credit",
+            revision=1,
+            status=OrganizationImageSelection.Status.ARCHIVED,
+            locked_by=self.actors[0],
+            locked_at=timezone.now(),
+        )
+        active = OrganizationImageSelection.objects.create(
+            tenant=self.tenant,
+            organization=self.organization,
+            selection_kind=OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
+            rendition_set=None,
+            alt_text="Concurrent active fallback",
+            revision=2,
+            status=OrganizationImageSelection.Status.ACTIVE,
+            locked_by=self.actors[0],
+            locked_at=timezone.now(),
+        )
+        barrier = threading.Barrier(2)
+        outcomes = []
+        outcome_lock = threading.Lock()
+
+        def run_command(actor_id):
+            close_old_connections()
+            actor = get_user_model().objects.get(pk=actor_id)
+            barrier.wait(timeout=10)
+            try:
+                result = restore_archived_organization_image_selection(
+                    actor=actor,
+                    tenant_id=self.tenant.pk,
+                    organization_id=self.organization.pk,
+                    expected_revision=2,
+                    source_selection_id=source.pk,
+                )
+                outcome = ("success", result.selection.revision)
+            except (ExpectedRevisionConflictError, ImageSelectionConcurrencyError) as error:
+                outcome = ("conflict", type(error).__name__)
+            finally:
+                close_old_connections()
+            with outcome_lock:
+                outcomes.append(outcome)
+
+        threads = [
+            threading.Thread(target=run_command, args=(actor.pk,))
+            for actor in self.actors
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=20)
+
+        self.assertTrue(all(not thread.is_alive() for thread in threads))
+        self.assertEqual([outcome[0] for outcome in outcomes].count("success"), 1)
+        self.assertEqual([outcome[0] for outcome in outcomes].count("conflict"), 1)
+        source.refresh_from_db()
+        active.refresh_from_db()
+        self.assertEqual(source.status, OrganizationImageSelection.Status.ARCHIVED)
+        self.assertEqual(active.status, OrganizationImageSelection.Status.ARCHIVED)
+        self.assertEqual(OrganizationImageSelection.objects.count(), 3)
+        self.assertEqual(
+            OrganizationImageSelection.objects.filter(status=OrganizationImageSelection.Status.ACTIVE).count(),
+            1,
+        )
+        self.assertEqual(
+            ImageReviewEvent.objects.filter(
+                event_type=ImageReviewEvent.EventType.SELECTION_RESTORED,
             ).count(),
             1,
         )
@@ -5311,6 +5933,122 @@ class ImageRemovalEventMigrationTests(TransactionTestCase):
             .get(),
             event_before,
         )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+
+
+class ImageRestoreEventMigrationTests(TransactionTestCase):
+    migrate_from = (
+        "crm",
+        "0024_remove_imagereviewevent_img_evt_previous_contract_and_more",
+    )
+    migrate_to = ("crm", "0025_restore_archived_image_selection")
+
+    def test_restore_schema_migration_preserves_old_rows_reverses_and_reapplies(self):
+        migration_module = importlib.import_module(
+            "crm.migrations.0025_restore_archived_image_selection"
+        )
+        self.assertEqual(
+            [operation.__class__.__name__ for operation in migration_module.Migration.operations],
+            [
+                "RemoveConstraint",
+                "RemoveConstraint",
+                "AddField",
+                "AddField",
+                "AddField",
+                "AlterField",
+                "AddConstraint",
+                "AddConstraint",
+                "AddConstraint",
+            ],
+        )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from])
+        old_apps = executor.loader.project_state([self.migrate_from]).apps
+        OldTenant = old_apps.get_model("crm", "Tenant")
+        OldOrganization = old_apps.get_model("crm", "Organization")
+        OldSelection = old_apps.get_model("crm", "OrganizationImageSelection")
+        OldEvent = old_apps.get_model("crm", "ImageReviewEvent")
+        OldUser = old_apps.get_model(*settings.AUTH_USER_MODEL.split("."))
+
+        tenant = OldTenant.objects.create(name="Restore migration", slug="restore-migration")
+        organization = OldOrganization.objects.create(
+            tenant=tenant,
+            name="Restore migration organization",
+        )
+        user = OldUser.objects.create(username="restore-migration-user")
+        selection = OldSelection.objects.create(
+            tenant=tenant,
+            organization=organization,
+            selection_kind="system_fallback",
+            rendition_set=None,
+            alt_text="Existing restore migration fallback",
+            public_credit="",
+            revision=1,
+            status="active",
+            locked_by=user,
+            locked_at=timezone.now(),
+        )
+        event = OldEvent.objects.create(
+            tenant=tenant,
+            organization=organization,
+            selection=selection,
+            actor_user=user,
+            event_type="selection_locked",
+            organization_id_snapshot=organization.pk,
+            organization_name_snapshot=organization.name,
+            organization_org_number_snapshot="",
+            selection_id_snapshot=selection.pk,
+            selection_revision_snapshot=1,
+            selection_kind_snapshot="system_fallback",
+            actor_user_id_snapshot=user.pk,
+            actor_username_snapshot=user.username,
+            alt_text_snapshot=selection.alt_text,
+            created_at=timezone.now(),
+        )
+        event_before = OldEvent.objects.filter(pk=event.pk).values().get()
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_to])
+        new_apps = executor.loader.project_state([self.migrate_to]).apps
+        NewEvent = new_apps.get_model("crm", "ImageReviewEvent")
+        migrated_event = NewEvent.objects.filter(pk=event.pk).values().get()
+        for field_name, expected in event_before.items():
+            with self.subTest(field_name=field_name):
+                self.assertEqual(migrated_event[field_name], expected)
+        self.assertIsNone(migrated_event["restored_from_selection_id"])
+        self.assertIsNone(migrated_event["restored_from_selection_id_snapshot"])
+        self.assertIsNone(migrated_event["restored_from_selection_revision_snapshot"])
+        self.assertIn(
+            "selection_restored",
+            {value for value, _label in NewEvent._meta.get_field("event_type").choices},
+        )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from])
+        restored_apps = executor.loader.project_state([self.migrate_from]).apps
+        self.assertEqual(
+            restored_apps.get_model("crm", "ImageReviewEvent")
+            .objects.filter(pk=event.pk)
+            .values()
+            .get(),
+            event_before,
+        )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_to])
+        reapplied_apps = executor.loader.project_state([self.migrate_to]).apps
+        reapplied_event = (
+            reapplied_apps.get_model("crm", "ImageReviewEvent")
+            .objects.filter(pk=event.pk)
+            .values()
+            .get()
+        )
+        for field_name, expected in event_before.items():
+            with self.subTest(reapplied_field=field_name):
+                self.assertEqual(reapplied_event[field_name], expected)
 
         executor = MigrationExecutor(connection)
         executor.migrate(executor.loader.graph.leaf_nodes())
