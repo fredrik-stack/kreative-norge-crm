@@ -24,6 +24,8 @@ IMAGE_REVIEW_EVENT_NULLABLE_LIVE_REFERENCE_FIELDS = frozenset(
         "asset_id",
         "previous_selection",
         "previous_selection_id",
+        "restored_from_selection",
+        "restored_from_selection_id",
         "actor_user",
         "actor_user_id",
     }
@@ -618,6 +620,7 @@ class ImageReviewEvent(models.Model):
             "selection_removed_to_fallback",
             "Selection removed to fallback",
         )
+        SELECTION_RESTORED = "selection_restored", "Selection restored"
 
     class SourceType(models.TextChoices):
         OFFICIAL_WEBSITE = "official_website", "Official website"
@@ -667,6 +670,13 @@ class ImageReviewEvent(models.Model):
         blank=True,
         related_name="replacement_events",
     )
+    restored_from_selection = models.ForeignKey(
+        OrganizationImageSelection,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="restore_events",
+    )
     actor_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -696,6 +706,14 @@ class ImageReviewEvent(models.Model):
     asset_validation_version_snapshot = models.CharField(max_length=64, blank=True, default="")
     previous_selection_id_snapshot = models.PositiveBigIntegerField(null=True, blank=True)
     previous_selection_revision_snapshot = models.PositiveIntegerField(null=True, blank=True)
+    restored_from_selection_id_snapshot = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+    )
+    restored_from_selection_revision_snapshot = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+    )
     actor_user_id_snapshot = models.PositiveBigIntegerField()
     actor_username_snapshot = models.CharField(max_length=255)
     alt_text_snapshot = models.CharField(max_length=500)
@@ -762,23 +780,55 @@ class ImageReviewEvent(models.Model):
                         previous_selection_revision_snapshot__isnull=False,
                         previous_selection_revision_snapshot__gt=0,
                     )
+                    | models.Q(
+                        event_type="selection_restored",
+                        previous_selection_id_snapshot__isnull=False,
+                        previous_selection_id_snapshot__gt=0,
+                        previous_selection_revision_snapshot__isnull=False,
+                        previous_selection_revision_snapshot__gt=0,
+                    )
                 ),
                 name="img_evt_previous_contract",
             ),
             models.CheckConstraint(
                 condition=(
-                    models.Q(
-                        selection_kind_snapshot="asset",
-                        rendition_set_id_snapshot__isnull=False,
-                        rendition_set_id_snapshot__gt=0,
-                        asset_id_snapshot__isnull=False,
-                        asset_id_snapshot__gt=0,
+                    (
+                        models.Q(
+                            event_type__in=[
+                                "selection_locked",
+                                "selection_replaced",
+                            ],
+                            selection_kind_snapshot="asset",
+                            rendition_set_id_snapshot__isnull=False,
+                            rendition_set_id_snapshot__gt=0,
+                            asset_id_snapshot__isnull=False,
+                            asset_id_snapshot__gt=0,
+                        )
+                        & ~models.Q(asset_checksum_sha256_snapshot="")
+                        & ~models.Q(asset_validation_version_snapshot="")
+                        & ~models.Q(source_type_snapshot="")
+                        & ~models.Q(approval_text_version_snapshot="")
+                        & ~models.Q(approval_text_snapshot="")
                     )
-                    & ~models.Q(asset_checksum_sha256_snapshot="")
-                    & ~models.Q(asset_validation_version_snapshot="")
-                    & ~models.Q(source_type_snapshot="")
-                    & ~models.Q(approval_text_version_snapshot="")
-                    & ~models.Q(approval_text_snapshot="")
+                    | (
+                        models.Q(
+                            event_type="selection_restored",
+                            selection_kind_snapshot="asset",
+                            rendition_set_id_snapshot__isnull=False,
+                            rendition_set_id_snapshot__gt=0,
+                            asset_id_snapshot__isnull=False,
+                            asset_id_snapshot__gt=0,
+                            source_type_snapshot="",
+                            source_url_snapshot="",
+                            source_page_url_snapshot="",
+                            provider_snapshot="",
+                            technical_warnings_snapshot=[],
+                            approval_text_version_snapshot="",
+                            approval_text_snapshot="",
+                        )
+                        & ~models.Q(asset_checksum_sha256_snapshot="")
+                        & ~models.Q(asset_validation_version_snapshot="")
+                    )
                     | models.Q(
                         selection_kind_snapshot="system_fallback",
                         rendition_set_id_snapshot__isnull=True,
@@ -795,6 +845,26 @@ class ImageReviewEvent(models.Model):
                     )
                 ),
                 name="img_evt_selection_kind_contract",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        event_type="selection_restored",
+                        selection_kind_snapshot="asset",
+                        restored_from_selection_id_snapshot__isnull=False,
+                        restored_from_selection_id_snapshot__gt=0,
+                        restored_from_selection_revision_snapshot__isnull=False,
+                        restored_from_selection_revision_snapshot__gt=0,
+                    )
+                    | (
+                        ~models.Q(event_type="selection_restored")
+                        & models.Q(
+                            restored_from_selection_id_snapshot__isnull=True,
+                            restored_from_selection_revision_snapshot__isnull=True,
+                        )
+                    )
+                ),
+                name="img_evt_restore_contract",
             ),
             models.CheckConstraint(
                 condition=models.Q(source_type_snapshot="")

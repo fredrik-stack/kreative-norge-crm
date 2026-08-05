@@ -2,6 +2,19 @@
 
 Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små kosmetiske justeringer trenger ikke registreres.
 
+## 2026-08-05
+
+### Fase 3C.6: ordinær restore av arkivert asset-selection som ny revisjon
+
+- bekreftet at PR #22 og fase 3C.5 er merget, og lagt additiv migrasjon `0025` med `selection_restored`, nullable restore-source-referanse og immutable source-ID-/revisjonssnapshots
+- lagt `restore_archived_organization_image_selection` bak avslått feature, med eksplisitt tenant, capability, organisasjonslås, `expected_revision` og en eksplisitt eldre arkivert asset-selection som kilde
+- beholdt både restore-kilden og dagens aktive selection som historikk; bare dagens aktive status arkiveres, mens restore alltid oppretter en helt ny aktiv revisjon
+- kopiert rendition-sett, alt-tekst og offentlig kreditering uendret fra restore-kilden og revalidert nøyaktig square-, landscape- og share-rendition
+- registrert tidligere aktiv selection og restore-kilden i append-only event uten ny approvaltekst, kilde-URL, provider eller tekniske warnings; endret godkjenningsgrunnlag eller presentasjonsinnhold krever vanlig replacement
+- verifisert rollback ved eventfeil, `SET_NULL` med bevarte snapshots, tenant-/rolleavvisning, null writes ved røde gater og reell PostgreSQL-concurrency med nøyaktig én vellykket restore
+- beholdt `IMAGE_ASSET_FEATURE_ENABLED=False`, legacybildeflyten og backupgrunnmuren **ACTIVE**; ingen API-, Editor-, PUBLIC-, storage-, fil-, bildebehandlings-, runtime- eller stagingendring inngår
+- satt fase 3B.1R som neste kvalitetsgate før faktisk processing eller storage-runtime; ingen ny selection-kommando planlegges etter denne leveransen
+
 ## 2026-08-03
 
 ### Fase 3C: atomisk selection-kommando og append-only locking-/replacement-event
