@@ -61,7 +61,9 @@ from .services.images.selections import (
     ImageSelectionPermissionDenied,
     IncompleteRenditionSetError,
     InvalidImageSelectionError,
+    InvalidImageSelectionTransitionError,
     lock_organization_image_selection,
+    remove_organization_image_to_fallback,
 )
 from .serializers import PersonSerializer
 import_commit_module = importlib.import_module("crm.services.import.commit")
@@ -4042,6 +4044,17 @@ class OrganizationImageSelectionCommandTests(TestCase):
         values.update(overrides)
         return lock_organization_image_selection(**values)
 
+    def remove_to_fallback(self, **overrides):
+        values = {
+            "actor": self.actor,
+            "tenant_id": self.tenant.pk,
+            "organization_id": self.organization.pk,
+            "expected_revision": 1,
+            "fallback_alt_text": "Kreative Norge standardbilde",
+        }
+        values.update(overrides)
+        return remove_organization_image_to_fallback(**values)
+
     @override_settings(IMAGE_ASSET_FEATURE_ENABLED=False)
     def test_disabled_feature_fails_before_any_write_or_existing_change(self):
         existing = OrganizationImageSelection.objects.create(
@@ -4181,6 +4194,249 @@ class OrganizationImageSelectionCommandTests(TestCase):
             inspect.signature(lock_organization_image_selection).parameters,
         )
 
+    def test_remove_asset_to_fallback_writes_exact_revision_and_event_contract(self):
+        _, rendition_set = self.create_image_domain()
+        first = self.lock_asset(rendition_set)
+        previous_before = OrganizationImageSelection.objects.filter(
+            pk=first.selection.pk
+        ).values().get()
+        fallback_alt_text = "  Kreative Norge standardbilde  "
+
+        result = self.remove_to_fallback(fallback_alt_text=fallback_alt_text)
+
+        previous_after = OrganizationImageSelection.objects.filter(
+            pk=first.selection.pk
+        ).values().get()
+        self.assertEqual(
+            previous_after,
+            {**previous_before, "status": OrganizationImageSelection.Status.ARCHIVED},
+        )
+        self.assertEqual(result.previous_selection.pk, first.selection.pk)
+        self.assertEqual(result.selection.selection_kind, OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK)
+        self.assertEqual(result.selection.revision, 2)
+        self.assertEqual(result.selection.status, OrganizationImageSelection.Status.ACTIVE)
+        self.assertEqual(result.selection.alt_text, fallback_alt_text)
+        self.assertEqual(result.selection.public_credit, "")
+        self.assertIsNone(result.selection.rendition_set_id)
+        self.assertEqual(result.selection.locked_at, result.event.created_at)
+        self.assertEqual(
+            result.event.event_type,
+            ImageReviewEvent.EventType.SELECTION_REMOVED_TO_FALLBACK,
+        )
+        self.assertEqual(result.event.selection_id, result.selection.pk)
+        self.assertEqual(result.event.selection_revision_snapshot, 2)
+        self.assertEqual(result.event.previous_selection_id, first.selection.pk)
+        self.assertEqual(result.event.previous_selection_id_snapshot, first.selection.pk)
+        self.assertEqual(result.event.previous_selection_revision_snapshot, 1)
+        self.assertEqual(
+            result.event.selection_kind_snapshot,
+            OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
+        )
+        self.assertIsNone(result.event.rendition_set_id_snapshot)
+        self.assertIsNone(result.event.asset_id_snapshot)
+        self.assertEqual(result.event.asset_checksum_sha256_snapshot, "")
+        self.assertEqual(result.event.asset_validation_version_snapshot, "")
+        self.assertEqual(result.event.source_type_snapshot, "")
+        self.assertEqual(result.event.source_url_snapshot, "")
+        self.assertEqual(result.event.source_page_url_snapshot, "")
+        self.assertEqual(result.event.provider_snapshot, "")
+        self.assertEqual(result.event.technical_warnings_snapshot, [])
+        self.assertEqual(result.event.approval_text_version_snapshot, "")
+        self.assertEqual(result.event.approval_text_snapshot, "")
+        self.assertEqual(
+            OrganizationImageSelection.objects.filter(
+                organization=self.organization,
+                status=OrganizationImageSelection.Status.ACTIVE,
+            ).count(),
+            1,
+        )
+
+    def test_remove_feature_off_preserves_selection_and_event_history(self):
+        _, rendition_set = self.create_image_domain()
+        first = self.lock_asset(rendition_set)
+        selection_before = OrganizationImageSelection.objects.filter(
+            pk=first.selection.pk
+        ).values().get()
+        event_before = ImageReviewEvent.objects.filter(pk=first.event.pk).values().get()
+
+        with override_settings(IMAGE_ASSET_FEATURE_ENABLED=False):
+            with self.assertRaises(ImageFeatureDisabledError):
+                self.remove_to_fallback()
+
+        self.assertEqual(
+            OrganizationImageSelection.objects.filter(pk=first.selection.pk).values().get(),
+            selection_before,
+        )
+        self.assertEqual(
+            ImageReviewEvent.objects.filter(pk=first.event.pk).values().get(),
+            event_before,
+        )
+        self.assertEqual(OrganizationImageSelection.objects.count(), 1)
+        self.assertEqual(ImageReviewEvent.objects.count(), 1)
+
+    def test_remove_rejects_missing_or_fallback_active_selection_without_writes(self):
+        with self.assertRaises(InvalidImageSelectionTransitionError):
+            self.remove_to_fallback(expected_revision=0)
+        self.assertEqual(OrganizationImageSelection.objects.count(), 0)
+        self.assertEqual(ImageReviewEvent.objects.count(), 0)
+
+        fallback = self.lock_fallback()
+        selection_before = OrganizationImageSelection.objects.filter(
+            pk=fallback.selection.pk
+        ).values().get()
+        event_before = ImageReviewEvent.objects.filter(pk=fallback.event.pk).values().get()
+        with self.assertRaises(InvalidImageSelectionTransitionError):
+            self.remove_to_fallback(expected_revision=1)
+
+        self.assertEqual(
+            OrganizationImageSelection.objects.filter(pk=fallback.selection.pk).values().get(),
+            selection_before,
+        )
+        self.assertEqual(
+            ImageReviewEvent.objects.filter(pk=fallback.event.pk).values().get(),
+            event_before,
+        )
+
+    def test_remove_rejects_conflict_and_invalid_alt_text_without_writes(self):
+        _, rendition_set = self.create_image_domain()
+        first = self.lock_asset(rendition_set)
+        selection_before = OrganizationImageSelection.objects.filter(
+            pk=first.selection.pk
+        ).values().get()
+
+        with self.assertRaises(ExpectedRevisionConflictError):
+            self.remove_to_fallback(expected_revision=0)
+        for fallback_alt_text in ("", "   ", None, 123):
+            with self.subTest(fallback_alt_text=fallback_alt_text):
+                with self.assertRaises(InvalidImageSelectionError):
+                    self.remove_to_fallback(fallback_alt_text=fallback_alt_text)
+
+        self.assertEqual(
+            OrganizationImageSelection.objects.filter(pk=first.selection.pk).values().get(),
+            selection_before,
+        )
+        self.assertEqual(OrganizationImageSelection.objects.count(), 1)
+        self.assertEqual(ImageReviewEvent.objects.count(), 1)
+
+    def test_remove_uses_same_allowed_capability_matrix(self):
+        cases = (
+            ("remove-platform-admin", None, True),
+            ("remove-tenant-admin", TenantMembership.Role.SUPERADMIN, False),
+            ("remove-group-admin", TenantMembership.Role.GRUPPEADMIN, False),
+            ("remove-editor", TenantMembership.Role.REDIGERER, False),
+        )
+        for index, (username, role, is_superuser) in enumerate(cases, start=1):
+            organization = Organization.objects.create(
+                tenant=self.tenant,
+                name=f"Removal capability organization {index}",
+            )
+            user = get_user_model().objects.create_user(
+                username=username,
+                password="test-password",
+                is_superuser=is_superuser,
+                is_staff=is_superuser,
+            )
+            if role:
+                TenantMembership.objects.create(tenant=self.tenant, user=user, role=role)
+            _, rendition_set = self.create_image_domain()
+            self.lock_asset(
+                rendition_set,
+                organization_id=organization.pk,
+            )
+
+            with self.subTest(role=role, is_superuser=is_superuser):
+                result = self.remove_to_fallback(
+                    actor=user,
+                    organization_id=organization.pk,
+                )
+                self.assertEqual(result.selection.tenant_id, self.tenant.pk)
+
+    def test_remove_denies_unauthorized_actors_and_cross_tenant_organization(self):
+        _, rendition_set = self.create_image_domain()
+        first = self.lock_asset(rendition_set)
+        reader = get_user_model().objects.create_user(
+            username="remove-reader",
+            password="test-password",
+        )
+        TenantMembership.objects.create(
+            tenant=self.tenant,
+            user=reader,
+            role=TenantMembership.Role.LESER,
+        )
+        no_membership = get_user_model().objects.create_user(
+            username="remove-no-membership",
+            password="test-password",
+        )
+        wrong_tenant = get_user_model().objects.create_user(
+            username="remove-wrong-tenant",
+            password="test-password",
+        )
+        TenantMembership.objects.create(
+            tenant=self.other_tenant,
+            user=wrong_tenant,
+            role=TenantMembership.Role.REDIGERER,
+        )
+        inactive = get_user_model().objects.create_user(
+            username="remove-inactive",
+            password="test-password",
+            is_active=False,
+        )
+        TenantMembership.objects.create(
+            tenant=self.tenant,
+            user=inactive,
+            role=TenantMembership.Role.REDIGERER,
+        )
+
+        for actor in (reader, no_membership, wrong_tenant, inactive, AnonymousUser()):
+            with self.subTest(actor=str(actor)):
+                with self.assertRaises(ImageSelectionPermissionDenied):
+                    self.remove_to_fallback(actor=actor)
+
+        other_organization = Organization.objects.create(
+            tenant=self.other_tenant,
+            name="Cross-tenant removal organization",
+        )
+        with self.assertRaises(ImageSelectionNotFoundError):
+            self.remove_to_fallback(organization_id=other_organization.pk)
+
+        first.selection.refresh_from_db()
+        self.assertEqual(first.selection.status, OrganizationImageSelection.Status.ACTIVE)
+        self.assertEqual(OrganizationImageSelection.objects.count(), 1)
+        self.assertEqual(ImageReviewEvent.objects.count(), 1)
+
+    def test_generic_lock_rejects_asset_to_fallback_and_fallback_to_fallback(self):
+        _, rendition_set = self.create_image_domain()
+        first = self.lock_asset(rendition_set)
+        with self.assertRaises(InvalidImageSelectionTransitionError):
+            self.lock_fallback(expected_revision=1)
+        first.selection.refresh_from_db()
+        self.assertEqual(first.selection.status, OrganizationImageSelection.Status.ACTIVE)
+
+        self.remove_to_fallback()
+        with self.assertRaises(InvalidImageSelectionTransitionError):
+            self.lock_fallback(expected_revision=2)
+
+        self.assertEqual(OrganizationImageSelection.objects.count(), 2)
+        self.assertEqual(ImageReviewEvent.objects.count(), 2)
+
+    def test_remove_event_failure_rolls_back_and_keeps_asset_active(self):
+        _, rendition_set = self.create_image_domain()
+        first = self.lock_asset(rendition_set)
+        selection_before = OrganizationImageSelection.objects.filter(
+            pk=first.selection.pk
+        ).values().get()
+
+        with patch.object(ImageReviewEvent, "save", side_effect=RuntimeError("event failure")):
+            with self.assertRaisesRegex(RuntimeError, "event failure"):
+                self.remove_to_fallback()
+
+        self.assertEqual(
+            OrganizationImageSelection.objects.filter(pk=first.selection.pk).values().get(),
+            selection_before,
+        )
+        self.assertEqual(OrganizationImageSelection.objects.count(), 1)
+        self.assertEqual(ImageReviewEvent.objects.count(), 1)
+
     def test_invalid_warning_and_sensitive_url_evidence_are_rejected_without_writes(self):
         _, rendition_set = self.create_image_domain()
         invalid_evidence = (
@@ -4294,13 +4550,14 @@ class OrganizationImageSelectionCommandTests(TestCase):
         self.assertEqual(result.event.source_url_snapshot, "")
 
     def test_replacement_archives_only_status_and_writes_previous_snapshot(self):
-        _, rendition_set = self.create_image_domain()
-        first = self.lock_asset(rendition_set)
+        _, first_rendition_set = self.create_image_domain()
+        _, second_rendition_set = self.create_image_domain()
+        first = self.lock_asset(first_rendition_set)
         previous_before = OrganizationImageSelection.objects.filter(
             pk=first.selection.pk
         ).values().get()
 
-        replacement = self.lock_fallback(expected_revision=1)
+        replacement = self.lock_asset(second_rendition_set, expected_revision=1)
 
         previous_after = OrganizationImageSelection.objects.filter(
             pk=first.selection.pk
@@ -4319,7 +4576,7 @@ class OrganizationImageSelectionCommandTests(TestCase):
     def test_fallback_can_be_replaced_by_asset_and_old_set_reselected_as_new_revision(self):
         _, rendition_set = self.create_image_domain()
         first = self.lock_asset(rendition_set)
-        fallback = self.lock_fallback(expected_revision=1)
+        fallback = self.remove_to_fallback()
         third = self.lock_asset(rendition_set, expected_revision=2)
 
         first.selection.refresh_from_db()
@@ -4446,11 +4703,13 @@ class OrganizationImageSelectionCommandTests(TestCase):
         self.assertEqual(ImageReviewEvent.objects.count(), 0)
 
     def test_event_failure_rolls_back_replacement_and_keeps_old_active(self):
-        first = self.lock_fallback()
+        _, first_rendition_set = self.create_image_domain()
+        _, second_rendition_set = self.create_image_domain()
+        first = self.lock_asset(first_rendition_set)
 
         with patch.object(ImageReviewEvent, "save", side_effect=RuntimeError("event failure")):
             with self.assertRaisesRegex(RuntimeError, "event failure"):
-                self.lock_fallback(expected_revision=1, alt_text="Replacement")
+                self.lock_asset(second_rendition_set, expected_revision=1)
 
         first.selection.refresh_from_db()
         self.assertEqual(first.selection.status, OrganizationImageSelection.Status.ACTIVE)
@@ -4570,13 +4829,35 @@ class OrganizationImageSelectionCommandTests(TestCase):
             with transaction.atomic():
                 ImageReviewEvent.objects.create(**values)
 
+        values["event_type"] = ImageReviewEvent.EventType.SELECTION_REMOVED_TO_FALLBACK
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                ImageReviewEvent.objects.create(**values)
+
         values["event_type"] = ImageReviewEvent.EventType.SELECTION_LOCKED
         values["asset_id_snapshot"] = 99
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
                 ImageReviewEvent.objects.create(**values)
 
+    def test_removed_event_database_constraint_requires_fallback_selection(self):
+        _, first_rendition_set = self.create_image_domain()
+        _, second_rendition_set = self.create_image_domain()
+        self.lock_asset(first_rendition_set)
+        replacement = self.lock_asset(second_rendition_set, expected_revision=1)
+        values = ImageReviewEvent._base_objects.filter(
+            pk=replacement.event.pk
+        ).values().get()
+        values.pop("id")
+        values["event_type"] = ImageReviewEvent.EventType.SELECTION_REMOVED_TO_FALLBACK
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                ImageReviewEvent.objects.create(**values)
+
     def test_command_preserves_publication_people_contacts_and_legacy_images(self):
+        _, rendition_set = self.create_image_domain()
+        self.lock_asset(rendition_set)
         person = Person.objects.create(
             tenant=self.tenant,
             full_name="Public person",
@@ -4602,7 +4883,7 @@ class OrganizationImageSelectionCommandTests(TestCase):
         link_before = OrganizationPerson.objects.filter(pk=link.pk).values().get()
         contact_before = PersonContact.objects.filter(pk=contact.pk).values().get()
 
-        self.lock_fallback()
+        self.remove_to_fallback()
 
         self.assertEqual(
             Organization.objects.filter(pk=self.organization.pk).values().get(),
@@ -4619,6 +4900,8 @@ class OrganizationImageSelectionCommandTests(TestCase):
         )
 
     def test_command_and_event_model_do_not_use_storage_or_create_files(self):
+        _, rendition_set = self.create_image_domain()
+        self.lock_asset(rendition_set)
         with tempfile.TemporaryDirectory() as temporary_directory:
             private_root = Path(temporary_directory) / "private"
             public_root = Path(temporary_directory) / "public"
@@ -4626,7 +4909,7 @@ class OrganizationImageSelectionCommandTests(TestCase):
                 IMAGE_ORIGINALS_ROOT=private_root,
                 IMAGE_RENDITIONS_ROOT=public_root,
             ):
-                self.lock_fallback()
+                self.remove_to_fallback()
 
             self.assertFalse(private_root.exists())
             self.assertFalse(public_root.exists())
@@ -4710,6 +4993,113 @@ class OrganizationImageSelectionConcurrencyTests(TransactionTestCase):
         self.assertEqual(
             list(OrganizationImageSelection.objects.values_list("revision", flat=True)),
             [1],
+        )
+
+    def test_concurrent_removal_creates_at_most_one_fallback_revision(self):
+        asset = ImageAsset.objects.create(
+            tenant=self.tenant,
+            private_storage_key="assets/concurrent-removal.jpeg",
+            checksum_sha256="a" * 64,
+            original_format=ImageAsset.OriginalFormat.JPEG,
+            mime_type="image/jpeg",
+            width=1600,
+            height=900,
+            file_size_bytes=123456,
+            validation_version="validation-v1",
+        )
+        rendition_set = ImageRenditionSet.objects.create(
+            tenant=self.tenant,
+            asset=asset,
+            fit_mode=ImageRenditionSet.FitMode.COVER,
+            processing_version="processing-v1",
+            render_config_hash_sha256="b" * 64,
+        )
+        for index, variant in enumerate(
+            (
+                ImageRendition.Variant.SQUARE,
+                ImageRendition.Variant.LANDSCAPE,
+                ImageRendition.Variant.SHARE,
+            ),
+            start=1,
+        ):
+            ImageRendition.objects.create(
+                tenant=self.tenant,
+                rendition_set=rendition_set,
+                variant=variant,
+                output_format=ImageRendition.OutputFormat.WEBP,
+                width=512 + index,
+                height=512 + index,
+                file_size_bytes=20000 + index,
+                checksum_sha256=f"{index}" * 64,
+                artifact_storage_key=f"renditions/concurrent-removal-{variant}.webp",
+            )
+        first = lock_organization_image_selection(
+            actor=self.actors[0],
+            tenant_id=self.tenant.pk,
+            organization_id=self.organization.pk,
+            expected_revision=0,
+            selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+            rendition_set_id=rendition_set.pk,
+            alt_text="Concurrent asset",
+            asset_evidence=AssetApprovalEvidence(
+                source_type=ImageReviewEvent.SourceType.UPLOAD,
+            ),
+        )
+        barrier = threading.Barrier(2)
+        outcomes = []
+        outcome_lock = threading.Lock()
+
+        def run_command(actor_id):
+            close_old_connections()
+            actor = get_user_model().objects.get(pk=actor_id)
+            barrier.wait(timeout=10)
+            try:
+                result = remove_organization_image_to_fallback(
+                    actor=actor,
+                    tenant_id=self.tenant.pk,
+                    organization_id=self.organization.pk,
+                    expected_revision=1,
+                    fallback_alt_text="Concurrent fallback",
+                )
+                outcome = ("success", result.selection.revision)
+            except (
+                ExpectedRevisionConflictError,
+                ImageSelectionConcurrencyError,
+                InvalidImageSelectionTransitionError,
+            ) as error:
+                outcome = ("conflict", type(error).__name__)
+            finally:
+                close_old_connections()
+            with outcome_lock:
+                outcomes.append(outcome)
+
+        threads = [
+            threading.Thread(target=run_command, args=(actor.pk,))
+            for actor in self.actors
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=20)
+
+        self.assertTrue(all(not thread.is_alive() for thread in threads))
+        self.assertEqual([outcome[0] for outcome in outcomes].count("success"), 1)
+        self.assertEqual([outcome[0] for outcome in outcomes].count("conflict"), 1)
+        first.selection.refresh_from_db()
+        self.assertEqual(first.selection.status, OrganizationImageSelection.Status.ARCHIVED)
+        self.assertEqual(OrganizationImageSelection.objects.count(), 2)
+        self.assertEqual(ImageReviewEvent.objects.count(), 2)
+        self.assertEqual(
+            OrganizationImageSelection.objects.filter(
+                status=OrganizationImageSelection.Status.ACTIVE,
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            ImageReviewEvent.objects.filter(
+                event_type=ImageReviewEvent.EventType.SELECTION_REMOVED_TO_FALLBACK,
+            ).count(),
+            1,
         )
 
 
@@ -4820,6 +5210,106 @@ class ImageReviewEventMigrationTests(TransactionTestCase):
             restored_apps.get_model("crm", "OrganizationImageSelection")
             .objects.filter(pk=selection.pk)
             .exists()
+        )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+
+
+class ImageRemovalEventMigrationTests(TransactionTestCase):
+    migrate_from = ("crm", "0023_imagereviewevent")
+    migrate_to = (
+        "crm",
+        "0024_remove_imagereviewevent_img_evt_previous_contract_and_more",
+    )
+
+    def test_event_contract_migration_preserves_old_rows_and_reapplies(self):
+        migration_module = importlib.import_module(
+            "crm.migrations.0024_remove_imagereviewevent_img_evt_previous_contract_and_more"
+        )
+        self.assertEqual(
+            [operation.__class__.__name__ for operation in migration_module.Migration.operations],
+            ["RemoveConstraint", "AlterField", "AddConstraint"],
+        )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from])
+        old_apps = executor.loader.project_state([self.migrate_from]).apps
+        OldTenant = old_apps.get_model("crm", "Tenant")
+        OldOrganization = old_apps.get_model("crm", "Organization")
+        OldSelection = old_apps.get_model("crm", "OrganizationImageSelection")
+        OldEvent = old_apps.get_model("crm", "ImageReviewEvent")
+        OldUser = old_apps.get_model(*settings.AUTH_USER_MODEL.split("."))
+
+        tenant = OldTenant.objects.create(name="Removal migration", slug="removal-migration")
+        organization = OldOrganization.objects.create(
+            tenant=tenant,
+            name="Removal migration organization",
+        )
+        user = OldUser.objects.create(username="removal-migration-user")
+        selection = OldSelection.objects.create(
+            tenant=tenant,
+            organization=organization,
+            selection_kind="system_fallback",
+            rendition_set=None,
+            alt_text="Existing fallback",
+            public_credit="",
+            revision=1,
+            status="active",
+            locked_by=user,
+            locked_at=timezone.now(),
+        )
+        event = OldEvent.objects.create(
+            tenant=tenant,
+            organization=organization,
+            selection=selection,
+            actor_user=user,
+            event_type="selection_locked",
+            organization_id_snapshot=organization.pk,
+            organization_name_snapshot=organization.name,
+            organization_org_number_snapshot="",
+            selection_id_snapshot=selection.pk,
+            selection_revision_snapshot=1,
+            selection_kind_snapshot="system_fallback",
+            actor_user_id_snapshot=user.pk,
+            actor_username_snapshot=user.username,
+            alt_text_snapshot=selection.alt_text,
+            created_at=timezone.now(),
+        )
+        event_before = OldEvent.objects.filter(pk=event.pk).values().get()
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_to])
+        new_apps = executor.loader.project_state([self.migrate_to]).apps
+        NewEvent = new_apps.get_model("crm", "ImageReviewEvent")
+        self.assertEqual(NewEvent.objects.filter(pk=event.pk).values().get(), event_before)
+        event_type_field = NewEvent._meta.get_field("event_type")
+        self.assertEqual(event_type_field.max_length, 29)
+        self.assertIn(
+            "selection_removed_to_fallback",
+            {value for value, _label in event_type_field.choices},
+        )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from])
+        restored_apps = executor.loader.project_state([self.migrate_from]).apps
+        self.assertEqual(
+            restored_apps.get_model("crm", "ImageReviewEvent")
+            .objects.filter(pk=event.pk)
+            .values()
+            .get(),
+            event_before,
+        )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_to])
+        reapplied_apps = executor.loader.project_state([self.migrate_to]).apps
+        self.assertEqual(
+            reapplied_apps.get_model("crm", "ImageReviewEvent")
+            .objects.filter(pk=event.pk)
+            .values()
+            .get(),
+            event_before,
         )
 
         executor = MigrationExecutor(connection)

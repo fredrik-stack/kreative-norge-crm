@@ -614,6 +614,10 @@ class ImageReviewEvent(models.Model):
     class EventType(models.TextChoices):
         SELECTION_LOCKED = "selection_locked", "Selection locked"
         SELECTION_REPLACED = "selection_replaced", "Selection replaced"
+        SELECTION_REMOVED_TO_FALLBACK = (
+            "selection_removed_to_fallback",
+            "Selection removed to fallback",
+        )
 
     class SourceType(models.TextChoices):
         OFFICIAL_WEBSITE = "official_website", "Official website"
@@ -671,7 +675,7 @@ class ImageReviewEvent(models.Model):
         related_name="image_review_events",
     )
 
-    event_type = models.CharField(max_length=24, choices=EventType.choices)
+    event_type = models.CharField(max_length=29, choices=EventType.choices)
     organization_id_snapshot = models.PositiveBigIntegerField()
     organization_name_snapshot = models.CharField(max_length=255)
     organization_org_number_snapshot = models.CharField(max_length=32, blank=True, default="")
@@ -745,6 +749,14 @@ class ImageReviewEvent(models.Model):
                     )
                     | models.Q(
                         event_type="selection_replaced",
+                        previous_selection_id_snapshot__isnull=False,
+                        previous_selection_id_snapshot__gt=0,
+                        previous_selection_revision_snapshot__isnull=False,
+                        previous_selection_revision_snapshot__gt=0,
+                    )
+                    | models.Q(
+                        event_type="selection_removed_to_fallback",
+                        selection_kind_snapshot="system_fallback",
                         previous_selection_id_snapshot__isnull=False,
                         previous_selection_id_snapshot__gt=0,
                         previous_selection_revision_snapshot__isnull=False,

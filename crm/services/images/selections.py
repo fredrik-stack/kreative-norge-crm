@@ -93,6 +93,10 @@ class InvalidImageSelectionError(ImageSelectionError):
     pass
 
 
+class InvalidImageSelectionTransitionError(InvalidImageSelectionError):
+    pass
+
+
 class IncompleteRenditionSetError(ImageSelectionError):
     pass
 
@@ -262,6 +266,7 @@ def _build_event(
     evidence: AssetApprovalEvidence | None,
     technical_warnings: list[str],
     timestamp,
+    event_type: str,
 ) -> ImageReviewEvent:
     is_asset = selection.selection_kind == OrganizationImageSelection.SelectionKind.ASSET
     event = ImageReviewEvent(
@@ -272,11 +277,7 @@ def _build_event(
         asset=asset if is_asset else None,
         previous_selection=previous_selection,
         actor_user=actor,
-        event_type=(
-            ImageReviewEvent.EventType.SELECTION_REPLACED
-            if previous_selection
-            else ImageReviewEvent.EventType.SELECTION_LOCKED
-        ),
+        event_type=event_type,
         organization_id_snapshot=organization.pk,
         organization_name_snapshot=organization.name,
         organization_org_number_snapshot=organization.org_number or "",
@@ -312,6 +313,96 @@ def _build_event(
     return event
 
 
+def _locked_selection_context(*, actor, tenant_id: int, organization_id: int):
+    organization = (
+        Organization.objects.select_for_update()
+        .filter(pk=organization_id, tenant_id=tenant_id)
+        .first()
+    )
+    if organization is None:
+        raise ImageSelectionNotFoundError(
+            "The organization was not found in the target tenant."
+        )
+
+    _validate_actor_capability(actor, tenant_id)
+
+    active_selection = (
+        OrganizationImageSelection.objects.select_for_update()
+        .filter(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            status=OrganizationImageSelection.Status.ACTIVE,
+        )
+        .first()
+    )
+    return organization, active_selection
+
+
+def _create_selection_revision(
+    *,
+    actor,
+    tenant_id: int,
+    organization: Organization,
+    active_selection: OrganizationImageSelection | None,
+    selection_kind: str,
+    rendition_set: ImageRenditionSet | None,
+    alt_text: str,
+    public_credit: str,
+    asset: ImageAsset | None,
+    evidence: AssetApprovalEvidence | None,
+    technical_warnings: list[str],
+    event_type: str,
+) -> OrganizationImageSelectionResult:
+    highest_revision = (
+        OrganizationImageSelection.objects.filter(
+            tenant_id=tenant_id,
+            organization_id=organization.pk,
+        ).aggregate(max_revision=Max("revision"))["max_revision"]
+        or 0
+    )
+    timestamp = timezone.now()
+
+    if active_selection:
+        active_selection.status = OrganizationImageSelection.Status.ARCHIVED
+        active_selection.save(update_fields=["status"])
+
+    selection = OrganizationImageSelection(
+        tenant_id=tenant_id,
+        organization=organization,
+        selection_kind=selection_kind,
+        rendition_set=rendition_set,
+        alt_text=alt_text,
+        public_credit=public_credit,
+        revision=highest_revision + 1,
+        status=OrganizationImageSelection.Status.ACTIVE,
+        locked_by=actor,
+        locked_at=timestamp,
+    )
+    try:
+        selection.full_clean()
+    except ValidationError as error:
+        _raise_invalid_validation(error)
+    selection.save()
+
+    event = _build_event(
+        tenant_id=tenant_id,
+        organization=organization,
+        selection=selection,
+        previous_selection=active_selection,
+        actor=actor,
+        asset=asset,
+        evidence=evidence,
+        technical_warnings=technical_warnings,
+        timestamp=timestamp,
+        event_type=event_type,
+    )
+    return OrganizationImageSelectionResult(
+        selection=selection,
+        event=event,
+        previous_selection=active_selection,
+    )
+
+
 def lock_organization_image_selection(
     *,
     actor,
@@ -333,26 +424,10 @@ def lock_organization_image_selection(
 
     try:
         with transaction.atomic():
-            organization = (
-                Organization.objects.select_for_update()
-                .filter(pk=organization_id, tenant_id=tenant_id)
-                .first()
-            )
-            if organization is None:
-                raise ImageSelectionNotFoundError(
-                    "The organization was not found in the target tenant."
-                )
-
-            _validate_actor_capability(actor, tenant_id)
-
-            active_selection = (
-                OrganizationImageSelection.objects.select_for_update()
-                .filter(
-                    tenant_id=tenant_id,
-                    organization_id=organization_id,
-                    status=OrganizationImageSelection.Status.ACTIVE,
-                )
-                .first()
+            organization, active_selection = _locked_selection_context(
+                actor=actor,
+                tenant_id=tenant_id,
+                organization_id=organization_id,
             )
             actual_revision = active_selection.revision if active_selection else 0
             if expected_revision != actual_revision:
@@ -382,55 +457,96 @@ def lock_organization_image_selection(
                     raise InvalidImageSelectionError(
                         "System fallback cannot include asset approval evidence."
                     )
+                if active_selection is not None:
+                    if (
+                        active_selection.selection_kind
+                        == OrganizationImageSelection.SelectionKind.ASSET
+                    ):
+                        raise InvalidImageSelectionTransitionError(
+                            "Use remove_organization_image_to_fallback for asset-to-fallback transitions."
+                        )
+                    raise InvalidImageSelectionTransitionError(
+                        "The active selection is already system fallback."
+                    )
             else:
                 raise InvalidImageSelectionError("Unsupported selection kind.")
 
-            highest_revision = (
-                OrganizationImageSelection.objects.filter(
-                    tenant_id=tenant_id,
-                    organization_id=organization_id,
-                ).aggregate(max_revision=Max("revision"))["max_revision"]
-                or 0
-            )
-            timestamp = timezone.now()
-
-            if active_selection:
-                active_selection.status = OrganizationImageSelection.Status.ARCHIVED
-                active_selection.save(update_fields=["status"])
-
-            selection = OrganizationImageSelection(
+            return _create_selection_revision(
+                actor=actor,
                 tenant_id=tenant_id,
                 organization=organization,
+                active_selection=active_selection,
                 selection_kind=selection_kind,
                 rendition_set=rendition_set,
                 alt_text=alt_text,
                 public_credit=public_credit,
-                revision=highest_revision + 1,
-                status=OrganizationImageSelection.Status.ACTIVE,
-                locked_by=actor,
-                locked_at=timestamp,
-            )
-            try:
-                selection.full_clean()
-            except ValidationError as error:
-                _raise_invalid_validation(error)
-            selection.save()
-
-            event = _build_event(
-                tenant_id=tenant_id,
-                organization=organization,
-                selection=selection,
-                previous_selection=active_selection,
-                actor=actor,
                 asset=asset,
                 evidence=evidence,
                 technical_warnings=technical_warnings,
-                timestamp=timestamp,
+                event_type=(
+                    ImageReviewEvent.EventType.SELECTION_REPLACED
+                    if active_selection
+                    else ImageReviewEvent.EventType.SELECTION_LOCKED
+                ),
             )
-            return OrganizationImageSelectionResult(
-                selection=selection,
-                event=event,
-                previous_selection=active_selection,
+    except IntegrityError as error:
+        raise ImageSelectionConcurrencyError(
+            "The image selection changed concurrently; reload before retrying."
+        ) from error
+
+
+def remove_organization_image_to_fallback(
+    *,
+    actor,
+    tenant_id: int,
+    organization_id: int,
+    expected_revision: int,
+    fallback_alt_text: str,
+) -> OrganizationImageSelectionResult:
+    if not settings.IMAGE_ASSET_FEATURE_ENABLED:
+        raise ImageFeatureDisabledError("Image asset selection is disabled.")
+
+    _validate_identifier(tenant_id, "tenant_id")
+    _validate_identifier(organization_id, "organization_id")
+    _validate_identifier(expected_revision, "expected_revision", allow_zero=True)
+    if not isinstance(fallback_alt_text, str) or not fallback_alt_text.strip():
+        raise InvalidImageSelectionError(
+            "fallback_alt_text must be a non-empty text value."
+        )
+
+    try:
+        with transaction.atomic():
+            organization, active_selection = _locked_selection_context(
+                actor=actor,
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+            )
+            if active_selection is None:
+                raise InvalidImageSelectionTransitionError(
+                    "An active asset selection is required before removal to fallback."
+                )
+            if expected_revision != active_selection.revision:
+                raise ExpectedRevisionConflictError(
+                    f"Expected active revision {expected_revision}, found {active_selection.revision}."
+                )
+            if active_selection.selection_kind != OrganizationImageSelection.SelectionKind.ASSET:
+                raise InvalidImageSelectionTransitionError(
+                    "The active selection is already system fallback."
+                )
+
+            return _create_selection_revision(
+                actor=actor,
+                tenant_id=tenant_id,
+                organization=organization,
+                active_selection=active_selection,
+                selection_kind=OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
+                rendition_set=None,
+                alt_text=fallback_alt_text,
+                public_credit="",
+                asset=None,
+                evidence=None,
+                technical_warnings=[],
+                event_type=ImageReviewEvent.EventType.SELECTION_REMOVED_TO_FALLBACK,
             )
     except IntegrityError as error:
         raise ImageSelectionConcurrencyError(
