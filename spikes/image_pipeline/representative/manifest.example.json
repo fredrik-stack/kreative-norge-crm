@@ -1,0 +1,20 @@
+{
+  "$schema": "../manifest.schema.json",
+  "version": 1,
+  "fixtures": [
+    {
+      "fixture_id": "fixture-logo-wide-001",
+      "filename": "files/example-wide-logo.png",
+      "category": "logo",
+      "intended_fit": "contain",
+      "expected_variants": ["square", "landscape", "share"],
+      "rights_basis": "internal_test_only",
+      "redistribution_allowed": false,
+      "contains_person": false,
+      "expected_color_profile": "unknown",
+      "review_themes": ["crop", "color_shift", "logo_legibility", "internal_whitespace"],
+      "notes": "Replace this entry and file locally; do not include names or customer data.",
+      "expected_result": "success"
+    }
+  ]
+}

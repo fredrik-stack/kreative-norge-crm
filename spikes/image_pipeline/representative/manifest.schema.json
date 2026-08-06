@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kreativenorge.no/schemas/phase3b1r-representative-manifest-v1.json",
+  "title": "Phase 3B.1R representative image manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "fixtures"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "version": {"const": 1},
+    "fixtures": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "fixture_id", "filename", "category", "intended_fit",
+          "expected_variants", "rights_basis", "redistribution_allowed",
+          "contains_person", "expected_color_profile", "review_themes", "notes"
+        ],
+        "properties": {
+          "fixture_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,79}$"},
+          "filename": {"type": "string", "minLength": 1},
+          "category": {"enum": ["logo", "photo", "mobile_photo", "poster", "illustration", "other"]},
+          "intended_fit": {"enum": ["contain", "cover"]},
+          "expected_variants": {
+            "type": "array", "minItems": 1, "uniqueItems": true,
+            "items": {"enum": ["square", "landscape", "share"]}
+          },
+          "rights_basis": {"enum": ["owned", "explicit_permission", "open_license", "internal_test_only"]},
+          "redistribution_allowed": {"type": "boolean"},
+          "contains_person": {"type": "boolean"},
+          "expected_color_profile": {"type": ["string", "null"]},
+          "review_themes": {
+            "type": "array", "uniqueItems": true,
+            "items": {"enum": ["crop", "relevant_content", "color_shift", "sharpness", "compression", "logo_legibility", "internal_whitespace", "poster_or_text", "watermark"]}
+          },
+          "notes": {"type": "string", "maxLength": 500},
+          "expected_result": {"enum": ["success", "controlled_error"]}
+        }
+      }
+    }
+  }
+}

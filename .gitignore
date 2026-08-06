@@ -23,3 +23,6 @@ frontend/playwright-report/
 
 # Lokale kildefiler til manualen
 manual/source/
+
+# Phase 3B.1R representative image sources and local evidence
+spikes/image_pipeline/representative/private_dataset/

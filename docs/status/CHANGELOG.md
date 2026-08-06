@@ -2,6 +2,19 @@
 
 Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små kosmetiske justeringer trenger ikke registreres.
 
+## 2026-08-06
+
+### Fase 3B.1R-A: isolert representativ kvalitets-harness
+
+- bekreftet at PR #23 er merget og at ordinær selection-livssyklus er komplett bak fortsatt avslått `IMAGE_ASSET_FEATURE_ENABLED`
+- lagt en Git-ignorert lokal datasettkontrakt med anonym fixture-ID, rettighetsgrunnlag, redistribusjonsgate, fit, varianter, fargeprofilforventning og manuelle reviewtemaer uten representative kildefiler
+- lagt en eksplisitt offline-runner med streng path-/manifestvalidering, én child-prosess per fixture, uendret source-checksum og output bare til valgt output-root
+- målt kildeformat, dimensjoner, metadata-nøkler uten verdier, crop/no-upscale, edge variance, enkel blockiness, logowhitespace, kandidat-pixelgrenser, tid og peak RSS som advisory evidens
+- skilt mellom sRGB, ikke-sRGB, untagged og korrupt ICC og generert inspecterbare kandidater for konvertert profilfri sRGB og konvertert sRGB med standardprofil uten å beslutte endelig outputkontrakt
+- lagt lokal statisk HTML-/CSV-/JSON-review, kontaktark og redacted maskinevidens som aldri inneholder bildebytes når redistribusjon ikke er tillatt
+- beholdt root requirements, produksjons-Dockerfile, CRM-runtime, modeller, migrasjoner, API, Editor, PUBLIC, storage, staging og deploy uendret
+- beholdt fase 3B.1R som ufullført fordi et faktisk lokalt rettighetsavklart datasett og separat evidensgodkjenning gjenstår; ingen endelig kvalitetsgrense er besluttet
+
 ## 2026-08-05
 
 ### Fase 3C.6: ordinær restore av arkivert asset-selection som ny revisjon
