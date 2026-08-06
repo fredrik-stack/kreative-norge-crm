@@ -37,8 +37,24 @@
             "items": {"enum": ["crop", "relevant_content", "color_shift", "sharpness", "compression", "logo_legibility", "internal_whitespace", "poster_or_text", "watermark"]}
           },
           "notes": {"type": "string", "maxLength": 500},
-          "expected_result": {"enum": ["success", "controlled_error"]}
-        }
+          "expected_result": {"enum": ["success", "controlled_error"]},
+          "expected_error_code": {"type": ["string", "null"], "minLength": 1, "maxLength": 100, "pattern": ".*\\S.*"}
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": ["expected_result"],
+              "properties": {"expected_result": {"const": "controlled_error"}}
+            },
+            "then": {
+              "required": ["expected_error_code"],
+              "properties": {"expected_error_code": {"type": "string", "minLength": 1, "pattern": ".*\\S.*"}}
+            },
+            "else": {
+              "properties": {"expected_error_code": {"type": "null"}}
+            }
+          }
+        ]
       }
     }
   }

@@ -19,7 +19,7 @@ Copy `manifest.example.json` to `private_dataset/manifest.json`, place rights-cl
 
 Allowed categories are `logo`, `photo`, `mobile_photo`, `poster`, `illustration`, and `other`. Fit is `contain` or `cover`. Rights basis is `owned`, `explicit_permission`, `open_license`, or `internal_test_only`. Review themes are selected from `crop`, `relevant_content`, `color_shift`, `sharpness`, `compression`, `logo_legibility`, `internal_whitespace`, `poster_or_text`, and `watermark`.
 
-`expected_result=controlled_error` is only for a deliberately retained corrupt/unsupported test source. Ordinary files default to `success`. It does not turn an unexpected decode failure into success.
+`expected_result=controlled_error` is only for a deliberately retained corrupt/unsupported test source and requires a non-empty `expected_error_code`. The runner requires an exact error-code match; no wildcard is supported. Ordinary files default to `success`, where `expected_error_code` must be omitted or `null`.
 
 ## Run locally
 
@@ -33,6 +33,8 @@ PYTHONPATH=spikes/image_pipeline \
 ```
 
 The runner performs no network access and does not modify the dataset. Every fixture is analyzed in an isolated child process. Local `review.html`, previews, renditions, and the contact sheet may contain source pixels and must remain local unless **every** included fixture has `redistribution_allowed=true`.
+
+Opaque original previews use metadata-stripped JPEG. Transparent previews use metadata-stripped PNG so alpha is preserved. The local HTML shows transparent previews on a deterministic neutral checkerboard, and the JPEG contact sheet explicitly composites them onto the same checkerboard rather than flattening them to an implicit background.
 
 `redacted-summary.json` contains fixture IDs, checksums, technical measurements, and aggregates only. It never contains previews or base64 image data. The harness and schema may be committed. Generated visual evidence requires the redistribution gate; private source files and manifests must never be committed.
 

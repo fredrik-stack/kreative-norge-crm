@@ -248,12 +248,24 @@ def render_variant(image: Image.Image, variant: str, fit: str) -> tuple[Image.Im
     }
 
 
-def write_preview(image: Image.Image, target: Path) -> dict[str, object]:
+def write_preview(image: Image.Image, output_root: Path) -> dict[str, object]:
     preview = image.copy()
     preview.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
-    data = encode(preview, "JPEG", embed_srgb=False)
+    has_alpha = (
+        "A" in preview.getbands()
+        and preview.getchannel("A").getextrema()[0] < 255
+    )
+    output_format = "PNG" if has_alpha else "JPEG"
+    target = output_root / ("original-preview.png" if has_alpha else "original-preview.jpg")
+    data = encode(preview, output_format, embed_srgb=False)
     target.write_bytes(data)
-    return {"relative_path": target.name, "checksum": checksum(data), "byte_size": len(data), **inspect_output(data)}
+    return {
+        "relative_path": target.name,
+        "checksum": checksum(data),
+        "byte_size": len(data),
+        "review_background": "neutral_checkerboard" if has_alpha else None,
+        **inspect_output(data),
+    }
 
 
 def analyze(payload: dict[str, object], output_root: Path) -> dict[str, object]:
@@ -310,7 +322,7 @@ def analyze(payload: dict[str, object], output_root: Path) -> dict[str, object]:
     decode_ms = round((time.perf_counter() - decode_started) * 1000, 3)
     fixture_root = output_root / str(payload["fixture_id"])
     fixture_root.mkdir(parents=True, exist_ok=False)
-    preview = write_preview(color_normalized, fixture_root / "original-preview.jpg")
+    preview = write_preview(color_normalized, fixture_root)
     rendition_started = time.perf_counter()
     renditions: dict[str, object] = {}
     for variant in payload["expected_variants"]:

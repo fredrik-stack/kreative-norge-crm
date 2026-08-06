@@ -13,10 +13,10 @@ PR #23 og fase 3C.6 er merget. Ordinær selection-livssyklus er dermed komplett 
 ## Implementert harness
 
 - lokal `representative/private_dataset/` er Git-ignorert; repoet inneholder bare README, JSON Schema og anonymt eksempelmanifest
-- manifestet krever anonym fixture-ID, relativ fil under `files/`, kategori, `contain`/`cover`, relevante varianter, rettighetsgrunnlag, redistribusjonsvalg, personindikator, forventet fargeprofil, reviewtemaer og korte ikke-identifiserende notater
+- manifestet krever anonym fixture-ID, relativ fil under `files/`, kategori, `contain`/`cover`, relevante varianter, rettighetsgrunnlag, redistribusjonsvalg, personindikator, forventet fargeprofil, reviewtemaer og korte ikke-identifiserende notater; en forventet kontrollert feil må i tillegg angi en eksakt, ikke-tom feilkode
 - dupliserte IDs/filer, manglende filer, ukjente verdier, feil typer, absolutte paths, traversal og symlink-utgang avvises
 - runneren krever eksplisitt dataset-root og tom, separat output-root, bruker ikke nettverk, skriver ikke til source og analyserer hver fixture i isolert child-prosess
-- metadataregistrering begrenses til nøkkelnavn; genererte previews og renditions fjerner EXIF, kommentarer og øvrige kildeverdier
+- metadataregistrering begrenses til nøkkelnavn; genererte previews og renditions fjerner EXIF, kommentarer og øvrige kildeverdier. Opaque previews bruker JPEG, mens transparente previews bevarer alpha i PNG og vises/kompositeres mot et eksplisitt nøytralt checkerboard i HTML og JPEG-kontaktark
 - gyldig sRGB, gyldig ikke-sRGB, untagged og korrupt ICC skilles. Gyldig ikke-sRGB konverteres før crop/resize. Korrupt ICC gir kontrollert feil, og untagged input registreres som en eksplisitt antakelse
 - både profilfri konvertert sRGB og konvertert sRGB med standardprofil genereres som inspecterbare kandidater. Ingen av dem er godkjent som endelig kontrakt
 - pixelnivåene 20, 36, 50, 64 og 100 MP evalueres som kandidater; edge variance, blockiness, logowhitespace, tid og peak RSS er advisory målinger

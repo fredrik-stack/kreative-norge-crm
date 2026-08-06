@@ -14,7 +14,8 @@
       "expected_color_profile": "unknown",
       "review_themes": ["crop", "color_shift", "logo_legibility", "internal_whitespace"],
       "notes": "Replace this entry and file locally; do not include names or customer data.",
-      "expected_result": "success"
+      "expected_result": "success",
+      "expected_error_code": null
     }
   ]
 }

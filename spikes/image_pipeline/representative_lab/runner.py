@@ -24,6 +24,11 @@ class RunnerError(RuntimeError):
     pass
 
 
+CHECKERBOARD_LIGHT = (238, 240, 238)
+CHECKERBOARD_DARK = (210, 214, 210)
+CHECKERBOARD_BLOCK = 16
+
+
 def _inside(path: Path, parent: Path) -> bool:
     return path == parent or parent in path.parents
 
@@ -78,6 +83,13 @@ def _worker(spike_root: Path, output_root: Path, fixture: Any) -> dict[str, Any]
         raise RunnerError(
             f"fixture {fixture.fixture_id} expected {expected}, received {actual}: {detail}"
         )
+    if actual == "controlled_error":
+        actual_code = result.get("error", {}).get("code")
+        if actual_code != fixture.expected_error_code:
+            raise RunnerError(
+                f"fixture {fixture.fixture_id} expected controlled error code "
+                f"{fixture.expected_error_code}, received {actual_code}"
+            )
     if actual == "success":
         for variant in fixture.expected_variants:
             entry = result.get("renditions", {}).get(variant)
@@ -184,7 +196,18 @@ def _write_review_html(results: list[dict[str, Any]], target: Path) -> None:
             cards.append(f'<article><h2>{fixture_id}</h2><p class="error">Controlled error: {error}</p></article>')
             continue
         fixture_dir = fixture_id
-        images = [f'<figure><img src="{fixture_dir}/original-preview.jpg" alt="Original preview"><figcaption>Original preview</figcaption></figure>']
+        preview = result["preview"]
+        preview_path = html.escape(f"{fixture_dir}/{preview['relative_path']}")
+        preview_class = "checkerboard" if preview.get("has_alpha") else "opaque-preview"
+        preview_caption = (
+            "Original preview with alpha on neutral checkerboard"
+            if preview.get("has_alpha")
+            else "Original preview"
+        )
+        images = [
+            f'<figure class="{preview_class}"><img src="{preview_path}" '
+            f'alt="Original preview"><figcaption>{preview_caption}</figcaption></figure>'
+        ]
         for variant, evidence in result["renditions"].items():
             output = evidence["outputs"].get("profile_free")
             if output:
@@ -220,11 +243,30 @@ def _write_review_html(results: list[dict[str, Any]], target: Path) -> None:
 body{{font:16px system-ui,sans-serif;margin:2rem;background:#f4f5f2;color:#17251f}}
 article{{background:white;padding:1rem;margin:0 0 1.5rem;border:1px solid #ccd3cc}}
 .images{{display:flex;flex-wrap:wrap;gap:1rem}}figure{{margin:0}}img{{max-width:320px;max-height:240px;border:1px solid #999}}
+.checkerboard img{{background-color:rgb(238,240,238);background-image:linear-gradient(45deg,rgb(210,214,210) 25%,transparent 25%),linear-gradient(-45deg,rgb(210,214,210) 25%,transparent 25%),linear-gradient(45deg,transparent 75%,rgb(210,214,210) 75%),linear-gradient(-45deg,transparent 75%,rgb(210,214,210) 75%);background-size:32px 32px;background-position:0 0,0 16px,16px -16px,-16px 0}}
 pre{{white-space:pre-wrap;overflow-wrap:anywhere}}fieldset{{margin-top:1rem}}.error{{color:#8b1f24}}
 </style><body><h1>Phase 3B.1R local review</h1>
 <p>Advisory evidence only. No threshold or output-profile strategy is approved by this report.</p>
 {"".join(cards)}</body></html>"""
     target.write_text(document, encoding="utf-8")
+
+
+def _checkerboard(size: tuple[int, int]) -> Image.Image:
+    background = Image.new("RGB", size, CHECKERBOARD_LIGHT)
+    draw = ImageDraw.Draw(background)
+    for y in range(0, size[1], CHECKERBOARD_BLOCK):
+        for x in range(0, size[0], CHECKERBOARD_BLOCK):
+            if (x // CHECKERBOARD_BLOCK + y // CHECKERBOARD_BLOCK) % 2:
+                draw.rectangle(
+                    (
+                        x,
+                        y,
+                        min(size[0], x + CHECKERBOARD_BLOCK) - 1,
+                        min(size[1], y + CHECKERBOARD_BLOCK) - 1,
+                    ),
+                    fill=CHECKERBOARD_DARK,
+                )
+    return background
 
 
 def _write_contact_sheet(results: list[dict[str, Any]], output_root: Path) -> None:
@@ -234,11 +276,20 @@ def _write_contact_sheet(results: list[dict[str, Any]], output_root: Path) -> No
     draw = ImageDraw.Draw(sheet)
     for index, result in enumerate(successful):
         y = index * cell_height
-        preview_path = output_root / str(result["fixture_id"]) / "original-preview.jpg"
+        preview_path = (
+            output_root
+            / str(result["fixture_id"])
+            / str(result["preview"]["relative_path"])
+        )
         with Image.open(preview_path) as opened:
-            preview = opened.convert("RGB")
+            preview = opened.convert("RGBA")
             preview.thumbnail((360, 220), Image.Resampling.LANCZOS)
-        sheet.paste(preview, (10, y + 10))
+        if result["preview"].get("has_alpha"):
+            composed = _checkerboard(preview.size)
+            composed.paste(preview, (0, 0), preview)
+        else:
+            composed = preview.convert("RGB")
+        sheet.paste(composed, (10, y + 10))
         draw.text((390, y + 20), str(result["fixture_id"]), fill="black")
         draw.text((390, y + 55), f"fit={result['intended_fit']} icc={result['color_profile']['status']}", fill="black")
         draw.text((390, y + 90), "Manual: pass / review / reject", fill="black")

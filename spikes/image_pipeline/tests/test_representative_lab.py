@@ -9,7 +9,7 @@ import unittest
 from PIL import Image, ImageCms, PngImagePlugin
 
 from representative_lab.manifest import ManifestError, load_manifest
-from representative_lab.runner import RunnerError, run
+from representative_lab.runner import CHECKERBOARD_LIGHT, RunnerError, run
 
 
 class RepresentativeLabTests(unittest.TestCase):
@@ -62,13 +62,20 @@ class RepresentativeLabTests(unittest.TestCase):
         image.save(path, "PNG", **kwargs)
         return path
 
-    def write_logo(self, name="logo.png"):
+    def write_logo(self, name="logo.png", *, icc_profile=None, metadata=False):
         image = Image.new("RGBA", (1000, 500), (0, 0, 0, 0))
         for x in range(300, 700):
             for y in range(180, 320):
                 image.putpixel((x, y), (25, 100, 70, 255))
         path = self.files / name
-        image.save(path, "PNG")
+        kwargs = {}
+        if icc_profile is not None:
+            kwargs["icc_profile"] = icc_profile
+        if metadata:
+            pnginfo = PngImagePlugin.PngInfo()
+            pnginfo.add_text("comment", "sensitive synthetic logo metadata")
+            kwargs["pnginfo"] = pnginfo
+        image.save(path, "PNG", **kwargs)
         return path
 
     def test_manifest_accepts_complete_contract(self):
@@ -114,6 +121,46 @@ class RepresentativeLabTests(unittest.TestCase):
             with self.assertRaisesRegex(ManifestError, "duplicate"):
                 load_manifest(self.dataset)
 
+    def test_manifest_requires_specific_error_code_only_for_controlled_errors(self):
+        self.write_rgb()
+        controlled_without_code = self.fixture(
+            "photo-001",
+            "source.png",
+            expected_result="controlled_error",
+        )
+        self.write_manifest([controlled_without_code])
+        with self.assertRaisesRegex(ManifestError, "expected_error_code is required"):
+            load_manifest(self.dataset)
+
+        success_with_code = self.fixture(
+            "photo-001",
+            "source.png",
+            expected_error_code="decode_failed",
+        )
+        self.write_manifest([success_with_code])
+        with self.assertRaisesRegex(ManifestError, "must be omitted or null"):
+            load_manifest(self.dataset)
+
+        controlled_with_empty_code = self.fixture(
+            "photo-001",
+            "source.png",
+            expected_result="controlled_error",
+            expected_error_code="",
+        )
+        self.write_manifest([controlled_with_empty_code])
+        with self.assertRaisesRegex(ManifestError, "cannot be empty"):
+            load_manifest(self.dataset)
+
+        controlled_with_whitespace_code = self.fixture(
+            "photo-001",
+            "source.png",
+            expected_result="controlled_error",
+            expected_error_code="   ",
+        )
+        self.write_manifest([controlled_with_whitespace_code])
+        with self.assertRaisesRegex(ManifestError, "cannot be empty"):
+            load_manifest(self.dataset)
+
     def test_output_root_must_be_explicit_empty_and_outside_dataset(self):
         self.write_rgb()
         self.write_manifest([self.fixture("photo-001", "source.png")])
@@ -147,6 +194,13 @@ class RepresentativeLabTests(unittest.TestCase):
             self.assertTrue((output / name).is_file(), name)
         evidence = json.loads((output / "evidence.json").read_text(encoding="utf-8"))
         fixture = evidence["fixtures"][0]
+        preview = fixture["preview"]
+        self.assertEqual(preview["relative_path"], "original-preview.jpg")
+        self.assertEqual(preview["format"], "JPEG")
+        self.assertFalse(preview["has_alpha"])
+        self.assertNotIn("comment", preview["metadata_keys"])
+        self.assertNotIn("exif", preview["metadata_keys"])
+        self.assertNotIn("icc_profile", preview["metadata_keys"])
         profile_free = fixture["renditions"]["share"]["outputs"]["profile_free"]
         self.assertNotIn("comment", profile_free["metadata_keys"])
         self.assertNotIn("exif", profile_free["metadata_keys"])
@@ -208,6 +262,7 @@ class RepresentativeLabTests(unittest.TestCase):
             "corrupt-icc-001",
             "corrupt-icc.jpg",
             expected_result="controlled_error",
+            expected_error_code="corrupt_icc_profile",
             expected_variants=["share"],
         )
         self.write_manifest([expected])
@@ -217,10 +272,65 @@ class RepresentativeLabTests(unittest.TestCase):
         evidence = json.loads((output / "evidence.json").read_text(encoding="utf-8"))
         self.assertEqual(evidence["fixtures"][0]["error"]["code"], "corrupt_icc_profile")
 
-        expected["expected_result"] = "success"
+        expected["expected_error_code"] = "decode_failed"
         self.write_manifest([expected])
-        with self.assertRaisesRegex(RunnerError, "expected success"):
+        with self.assertRaisesRegex(
+            RunnerError,
+            "expected controlled error code decode_failed, received corrupt_icc_profile",
+        ):
             run(self.dataset, self.root / "unexpected", argv=[])
+
+    def test_transparent_preview_preserves_alpha_and_uses_explicit_checkerboard(self):
+        srgb = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+        self.write_logo(icc_profile=srgb, metadata=True)
+        self.write_manifest(
+            [
+                self.fixture(
+                    "logo-001",
+                    "logo.png",
+                    category="logo",
+                    intended_fit="contain",
+                    review_themes=["internal_whitespace", "logo_legibility"],
+                )
+            ]
+        )
+        first = self.root / "first-preview"
+        second = self.root / "second-preview"
+        run(self.dataset, first, argv=[])
+        run(self.dataset, second, argv=[])
+        fixture = json.loads((first / "evidence.json").read_text(encoding="utf-8"))["fixtures"][0]
+        second_fixture = json.loads(
+            (second / "evidence.json").read_text(encoding="utf-8")
+        )["fixtures"][0]
+        preview = fixture["preview"]
+        self.assertEqual(preview["relative_path"], "original-preview.png")
+        self.assertEqual(preview["format"], "PNG")
+        self.assertTrue(preview["has_alpha"])
+        self.assertEqual(preview["review_background"], "neutral_checkerboard")
+        self.assertEqual(preview["checksum"], second_fixture["preview"]["checksum"])
+        preview_path = first / "logo-001" / preview["relative_path"]
+        with Image.open(preview_path) as opened:
+            opened.load()
+            self.assertIn("A", opened.getbands())
+            self.assertLess(opened.getchannel("A").getextrema()[0], 255)
+            metadata_keys = {str(key).lower() for key in opened.info}
+        self.assertNotIn("exif", metadata_keys)
+        self.assertNotIn("comment", metadata_keys)
+        self.assertNotIn("icc_profile", metadata_keys)
+
+        review_html = (first / "review.html").read_text(encoding="utf-8")
+        self.assertIn('src="logo-001/original-preview.png"', review_html)
+        self.assertIn('class="checkerboard"', review_html)
+        self.assertIn("Original preview with alpha on neutral checkerboard", review_html)
+        with Image.open(first / "contact-sheet-local.jpg") as contact_sheet:
+            pixel = contact_sheet.convert("RGB").getpixel((15, 15))
+        self.assertLess(
+            sum(abs(pixel[index] - CHECKERBOARD_LIGHT[index]) for index in range(3)),
+            60,
+        )
+        redacted_text = (first / "redacted-summary.json").read_text(encoding="utf-8")
+        self.assertNotIn("original-preview.png", redacted_text)
+        self.assertNotIn("data:image", redacted_text)
 
     def test_crop_no_upscale_logo_whitespace_and_candidate_limits_are_measurements(self):
         self.write_rgb("small.png")

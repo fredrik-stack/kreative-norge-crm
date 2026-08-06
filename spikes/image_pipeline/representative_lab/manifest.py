@@ -37,8 +37,9 @@ FIXTURE_FIELDS = {
     "review_themes",
     "notes",
     "expected_result",
+    "expected_error_code",
 }
-REQUIRED_FIXTURE_FIELDS = FIXTURE_FIELDS - {"expected_result"}
+REQUIRED_FIXTURE_FIELDS = FIXTURE_FIELDS - {"expected_result", "expected_error_code"}
 FIXTURE_ID = re.compile(r"^[a-z0-9][a-z0-9._-]{2,79}$")
 
 
@@ -61,6 +62,7 @@ class Fixture:
     review_themes: tuple[str, ...]
     notes: str
     expected_result: str
+    expected_error_code: str | None
 
     def worker_payload(self) -> dict[str, Any]:
         return {
@@ -76,6 +78,7 @@ class Fixture:
             "review_themes": list(self.review_themes),
             "notes": self.notes,
             "expected_result": self.expected_result,
+            "expected_error_code": self.expected_error_code,
         }
 
 
@@ -169,6 +172,24 @@ def _fixture(raw: Any, index: int, dataset_root: Path) -> Fixture:
     expected_result = _string(expected_result, f"{label}.expected_result")
     if expected_result not in EXPECTED_RESULTS:
         raise ManifestError(f"{label}.expected_result has unknown value: {expected_result}")
+    expected_error_code = raw.get("expected_error_code")
+    if expected_result == "success":
+        if expected_error_code is not None:
+            raise ManifestError(
+                f"{label}.expected_error_code must be omitted or null when expected_result is success"
+            )
+    else:
+        if expected_error_code is None:
+            raise ManifestError(
+                f"{label}.expected_error_code is required when expected_result is controlled_error"
+            )
+        expected_error_code = _string(
+            expected_error_code,
+            f"{label}.expected_error_code",
+            max_length=100,
+        )
+        if not expected_error_code.strip():
+            raise ManifestError(f"{label}.expected_error_code cannot be empty")
 
     return Fixture(
         fixture_id=fixture_id,
@@ -194,6 +215,7 @@ def _fixture(raw: Any, index: int, dataset_root: Path) -> Fixture:
         ),
         notes=notes,
         expected_result=expected_result,
+        expected_error_code=expected_error_code,
     )
 
 
