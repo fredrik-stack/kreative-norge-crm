@@ -296,8 +296,6 @@ def analyze(payload: dict[str, object], output_root: Path) -> dict[str, object]:
         raise ControlledSourceError("pixel_guard", str(exc)) from exc
     except (UnidentifiedImageError, OSError, SyntaxError, ValueError) as exc:
         raise ControlledSourceError("decode_failed", str(exc)) from exc
-    decode_ms = round((time.perf_counter() - decode_started) * 1000, 3)
-
     color_normalized, color = normalize_color(normalized, icc)
     expected_profile = payload.get("expected_color_profile")
     color["expected_profile"] = expected_profile
@@ -309,6 +307,7 @@ def analyze(payload: dict[str, object], output_root: Path) -> dict[str, object]:
         and expected_text not in observed_text
     )
     color_normalized = color_normalized.convert("RGBA" if "A" in color_normalized.getbands() else "RGB")
+    decode_ms = round((time.perf_counter() - decode_started) * 1000, 3)
     fixture_root = output_root / str(payload["fixture_id"])
     fixture_root.mkdir(parents=True, exist_ok=False)
     preview = write_preview(color_normalized, fixture_root / "original-preview.jpg")
