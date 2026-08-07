@@ -94,14 +94,15 @@ Dette er ikke en generell redesign. Øvrige kort og komponenter videreutvikles i
 
 ### Fase 3B – teknisk prototype og kontrakt
 
-**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, processing-, storage-, delivery-, takedown- og restoreprinsippene er godkjent, og lokal Hetzner storage-/backup-MVP er ACTIVE. Fase 3B.1R-A forbereder den isolerte analyse- og datasettrammen; fase 3B.1R-B med et faktisk rettighetsavklart datasett og separat evidensgodkjenning gjenstår før reell bildebehandling kan godkjennes.
+**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, fase 3B.1R er gjennomført og godkjent med representativ kvalitets- og sRGB-evidens, processing-, storage-, delivery-, takedown- og restoreprinsippene er godkjent, og lokal Hetzner storage-/backup-MVP er **ACTIVE**. Hele fase 3B er fortsatt aktiv fordi senere serving-, purge-, journal-, API-, retention-, sync/async- og observabilitygater gjenstår.
 
 - [fase 3B.1](PHASE_3B1_IMAGE_RENDITION_SPIKE.md) målte Pillow og pyvips/libvips, format, foreløpige terskler og ressursbruk på syntetiske fixtures
 - fase 3B.1 prototypet contain, cover, fokuspunkt, square/landscape/share, deterministisk fallback og statisk nødvariant uten CRM-runtimekobling
 - prosjekteier har godkjent Pillow bak intern adapter, statisk JPEG/PNG/WebP-input, outputmappingen WebP/PNG/JPEG, 512 × 512 `square`, 800 × 450 `landscape`, 1200 × 630 `share`, no-upscale, immutable key-invarianten og 15 MiB som konfigurerbar standard
-- endelig pixelgrense, dimensjonsregler og blur-/komprimeringsregler er ikke godkjent
-- fase 3B.1R skal teste representative, rettighetsavklarte ekte bilder og sRGB/fargeprofiler og fastsette kvalitetsreglene før reell bildebehandling kan godkjennes; delsteget blokkerer ikke additivt fase 3C-grunnarbeid bak avslått feature
-- [fase 3B.1R-A](PHASE_3B1R_REPRESENTATIVE_QUALITY_HARNESS.md) etablerer bare lokalt manifest, prosessisolert måling, ICC-/sRGB-evidens, statisk review og redacted output; ingen ekte kilder eller endelige terskler følger med
+- [fase 3B.1R](PHASE_3B1R_REPRESENTATIVE_QUALITY_HARNESS.md) har kjørt den isolerte harnessen lokalt på 24 rettighetsavklarte fixtures og fått separat evidensgodkjenning; private kilder, manifest og visuell/full evidens forblir Git-ignorert
+- 36 MP er godkjent som konfigurerbar decoded-pixel-standard for MVP; det finnes ingen universell minimumsdimensjon, ingen automatisk oppskalering og obligatoriske renditions vurderes separat etter fit, faktisk cropområde og scaling margin
+- edge variance og blockiness er advisory, outliers kan gi warning/manual review, og ingen numerisk edge-/blur-/blockiness- eller whitespacegrense er automatisk hard fail
+- offentlig MVP-output normaliseres eller konverteres eksplisitt til sRGB før crop/resize og skrives profilfritt; untagged registreres som antatt sRGB, mens korrupt/uleselig ICC er kontrollert teknisk feil
 - [fase 3B.2](PHASE_3B2_STORAGE_RESTORE_SPIKE.md) har prototypet separate private/public `STORAGES`-aliaser, lokal filesystemreferanse, Moto 5.2.2, immutable artifact/release keys, absolutte allowlistede media-origins, origin-sletting, purge/takedown, separat deny-journal og backup/restore
 - prosjekteier har godkjent to-key-kontrakt, en aktiv public rendition-store uten tilgjengelige historiske public versjoner, kontrollert public delivery, private originaler, hybridbackup, fail-closed restore, varig deny-journal/read-model og idempotent purge; ADR-008 velger lokal host-persistent storage for første MVP og gjør providerkrav betingede
 - [ADR-008](../decisions/ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokale navngitte storagealiaser og stabil lokal Borg `>=1.2.8`/`<1.3.0` med remote path `borg-1.2` til separat Hetzner Storage Box og retention 14/8/12; S3/AWS/Backblaze/CDN utsettes
@@ -110,7 +111,7 @@ Dette er ikke en generell redesign. Øvrige kort og komponenter videreutvikles i
 - fase 3B.2 har ikke opprettet CRM-modeller, migrasjoner, API/OpenAPI, Editor, PUBLIC, Import 2.0-integrasjon, bakgrunnskø eller stagingdeploy
 - senere fase 3B-gater skal fastsette lokal private/public-serving og cache/purge/verifikasjon, permanent deny-journal/read-model/cursor, API-schema, aliasmapping, public release key-struktur, concurrency/databaseconstraints, retentionmekanisme, sync/async-grense og observability; provider-/CDN-gater gjelder bare dersom ekstern storage senere tas opp igjen
 
-Processing profile v1 og fase 3B.2-prinsippene er arkitekturgrunnlag, ikke produksjonsimplementering. Dagens CRM-runtime og legacy URL-/faviconflyt gjelder fortsatt. ADR-008-backupen er aktivert og restore-verifisert. Etter dokumentasjons-PR-en åpnes fase 3C additivt bak avslått feature; fase 3B.1R og gater for lokal serving/purge, API-schema, aliasmapping, concurrency, retention og sync/async må være grønne før reell bildebruk kan aktiveres.
+Processing profile v1, fase 3B.1R-kvalitetskontrakten og fase 3B.2-prinsippene er arkitekturgrunnlag, ikke produksjonsimplementering. Dagens CRM-runtime og legacy URL-/faviconflyt gjelder fortsatt. ADR-008-backupen er aktivert og restore-verifisert. Gater for lokal serving/purge, permanent deny-journal/read-model/cursor, API-schema, aliasmapping, public release key, retention, sync/async og observability må fortsatt være grønne før reell bildebruk kan aktiveres.
 
 #### Godkjent operasjonell MVP: lokal Hetzner-storage og backup
 
@@ -124,11 +125,11 @@ MVP-en bruker:
 - Storage Box-snapshots og Hetzner Cloud Backups som ekstra lag
 - obligatorisk dump-, repository- og isolert restore-gate før timeraktivering
 
-Den skrivebeskyttede [serverbaselinen](STAGING_BACKUP_BASELINE_2026-08-01.md) fant et lite database-/filgrunnlag, ingen eksisterende import-/eksportfiler og ingen kolliderende automatisert backup, men bekreftet at nye FileField-filer vil være containerlagret uten en senere host-mount. [Aktiveringen 2026-08-02](STAGING_BACKUP_ACTIVATION_2026-08-02.md) etablerte BX11 med 1 TB i FSN1, kryptert Borg-kjede, separat recovery-custody, første backup, full repository-check, isolert restore, snapshots og aktive timere. S3-/CDN-sammenligning tas bare opp igjen ved dokumentert vekst- eller driftsbehov. Fase 3B.1R står parallelt som obligatorisk kvalitetsgate før reell bildebehandling godkjennes.
+Den skrivebeskyttede [serverbaselinen](STAGING_BACKUP_BASELINE_2026-08-01.md) fant et lite database-/filgrunnlag, ingen eksisterende import-/eksportfiler og ingen kolliderende automatisert backup, men bekreftet at nye FileField-filer vil være containerlagret uten en senere host-mount. [Aktiveringen 2026-08-02](STAGING_BACKUP_ACTIVATION_2026-08-02.md) etablerte BX11 med 1 TB i FSN1, kryptert Borg-kjede, separat recovery-custody, første backup, full repository-check, isolert restore, snapshots og aktive timere. S3-/CDN-sammenligning tas bare opp igjen ved dokumentert vekst- eller driftsbehov. Fase 3B.1R-kvalitetsgaten er gjennomført og godkjent; øvrige runtimegater gjelder fortsatt.
 
 ### Fase 3C – additiv backend- og storagegrunnmur
 
-**Status:** PR #23 og fase 3C.6 er merget. Den ordinære selection-livssyklusen med låsing/replacement, fjerning til fallback og restore av arkivert selection som ny revisjon er komplett bak avslått feature. Ingen ny selection-livssykluskommando planlegges; fase 3B.1R er neste kvalitetsgate.
+**Status:** PR #23 og fase 3C.6 er merget. Den ordinære selection-livssyklusen med låsing/replacement, fjerning til fallback og restore av arkivert selection som ny revisjon er komplett bak avslått feature. Fase 3B.1R er gjennomført og godkjent; ingen ny selection-livssykluskommando planlegges, og neste faseleveranse velges separat blant de gjenstående 3B-/3C-gatene.
 
 Første leveranse har innført `IMAGE_ASSET_FEATURE_ENABLED=False` som standard og lokale `image_originals_private`-/`image_renditions_public`-aliaser med separate, validerte roots. Eksisterende `default` og `staticfiles` er bevart. Aliasene brukes ikke av runtime, og settings-load eller system check oppretter ingen mapper eller filer.
 
@@ -148,7 +149,7 @@ Fase 3C.6 legger til `selection_restored` og `restore_archived_organization_imag
 - feature av frem til test- og datagrunnlaget er godkjent
 - ingen varige bildefiler før ADR-008-backupen er ACTIVE og restore-verifisert
 - ingen bildefiler skrives, leses eller serveres av grunnleveransene; ingen API- eller brukerflyt kaller kommandoene, og legacybildeflyten er uendret
-- fase 3B.1R er neste kvalitetsgate før faktisk processing eller storage-runtime; ingen ny selection-kommando planlegges etter fase 3C.6
+- fase 3B.1R er gjennomført; gjenstående runtimegater velges separat, og ingen ny selection-kommando planlegges etter fase 3C.6
 
 ### Fase 3D – Editor-flyt for aktørbilde
 

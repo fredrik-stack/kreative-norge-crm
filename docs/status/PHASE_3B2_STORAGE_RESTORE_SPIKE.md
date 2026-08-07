@@ -324,11 +324,11 @@ Ved avslutningen av selve prototypen var følgende valg åpne. Punkt 33 skiller 
 - API-schema, aliasmapping, concurrency, queue og orphan-retensjon
 - fase 3B.1R-grenser og sRGB-kontrakt
 
-## 31. Anbefalt neste fase 3B-gate
+## 31. Historisk anbefalt neste fase 3B-gate ved prototypen
 
 Prosjekteier gjennomførte beslutningsgaten 2026-08-01. Neste anbefalte planleggingsleveranse er en eksplisitt, skrivebeskyttet provider-/driftsgate som sammenligner aktuelle S3- og CDN-alternativer mot private versioner, purge, backup, data residency, kostnad og restore.
 
-Dette åpner ikke fase 3C. Fase 3B.1R og senere fase 3B-gater for API, concurrency, retention og sync/async gjenstår.
+På dette tidspunktet åpnet beslutningen ikke fase 3C. Fase 3B.1R og senere fase 3B-gater for API, concurrency, retention og sync/async gjenstod. Punkt 33 beskriver senere beslutninger og dagens gjenværende gater.
 
 ## 32. Eksplisitt bekreftelse på at CRM-runtime er urørt
 
@@ -358,6 +358,6 @@ Prosjekteier godkjente 2026-08-01 følgende leverandøruavhengige arkitekturprin
 
 Laben brukte anonym GET mot en Moto-bucket for å bevise S3-protokolladferd. Dette er ikke et produksjonskrav og skal ikke tolkes som valgt deliverymodell.
 
-Fortsatt åpne MVP-valg er lokal private/public-storage og serving, lokal cache/purge/verifikasjon, permanent journalteknologi, WORM/tamper evidence, read-model/cursor, målte RPO/RTO, eksakt public key-struktur, concurrency/databaseconstraints, retensjonsmekanisme, sync/async-grense, observability og konkrete driftstjenester. ADR-008 har valgt stabil lokal Borg `>=1.2.8` og `<1.3.0` med remote path `borg-1.2`, separat Hetzner Storage Box og retention 14/8/12. Provider, region, ekstern IAM, CDN, KMS, Object Lock og provider-spesifikk `versionId`-verifikasjon gjenåpnes bare ved dokumentert behov for objektlagring.
+Fortsatt åpne MVP-valg er lokal private/public-storage og serving, lokal cache/purge/verifikasjon, permanent journalteknologi, WORM/tamper evidence, read-model/cursor, full katastrofe-RTO, eksakt public key-struktur, concurrency/databaseconstraints, retensjonsmekanisme, sync/async-grense, observability og konkrete driftstjenester. ADR-008 har valgt og aktivert stabil lokal Borg `>=1.2.8` og `<1.3.0` med remote path `borg-1.2`, separat Hetzner Storage Box og retention 14/8/12; nattlig RPO og restore-smoke er målt. Provider, region, ekstern IAM, CDN, KMS, Object Lock og provider-spesifikk `versionId`-verifikasjon gjenåpnes bare ved dokumentert behov for objektlagring.
 
-Den daværende provider-/driftsgaten ble senere erstattet av ADR-008s lokale storage-/backup-MVP. Operativ aktivering av den backupkjeden, fase 3B.1R og senere lokale API-, serving-, journal-, concurrency-, retention- og sync/async-gater gjenstår fortsatt før fase 3C.
+Den daværende provider-/driftsgaten ble senere erstattet av ADR-008s lokale storage-/backup-MVP. Backupkjeden er operativt aktivert, og fase 3B.1R er gjennomført og godkjent. Senere lokale API-, serving-, journal-, concurrency-, retention-, sync/async- og observabilitygater gjenstår før reell bilde-runtime og offentlig serving kan aktiveres.
