@@ -3435,6 +3435,14 @@ class ImageDomainMigrationTests(TransactionTestCase):
         executor.migrate(executor.loader.graph.leaf_nodes())
 
 
+# Keep the focused release-domain test cases visible to CI's explicit `crm.tests` label.
+from .test_image_releases import (  # noqa: E402, F401
+    OrganizationImageReleaseMigrationTests,
+    OrganizationImageReleaseTests,
+    PublicReleaseKeyBuilderTests,
+)
+
+
 class OrganizationImageSelectionModelTests(TestCase):
     checksum_a = "a" * 64
     checksum_b = "b" * 64

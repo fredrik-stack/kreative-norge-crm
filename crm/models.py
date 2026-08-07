@@ -1,4 +1,5 @@
 from decimal import Decimal
+import uuid
 
 from django.db import models
 from django.core.exceptions import ValidationError
@@ -10,6 +11,10 @@ from .validators import validate_sha256, validate_storage_key
 
 class AppendOnlyEventError(Exception):
     """Raised when an image review event mutation is attempted through the ORM."""
+
+
+class ImmutableImageReleaseError(Exception):
+    """Raised when an immutable public image release mutation is attempted."""
 
 
 IMAGE_REVIEW_EVENT_NULLABLE_LIVE_REFERENCE_FIELDS = frozenset(
@@ -114,6 +119,67 @@ class ImageReviewEventBaseManager(
 
 class ImageReviewEventManager(models.Manager.from_queryset(ImageReviewEventQuerySet)):
     use_in_migrations = True
+
+
+class ImmutableImageReleaseQuerySet(models.QuerySet):
+    def create(self, **kwargs):
+        raise ImmutableImageReleaseError(
+            "Public image releases must be created through the aggregate service."
+        )
+
+    def get_or_create(self, defaults=None, **kwargs):
+        raise ImmutableImageReleaseError(
+            "Public image releases cannot be created through get_or_create."
+        )
+
+    def update(self, **kwargs):
+        raise ImmutableImageReleaseError("Public image releases cannot be updated.")
+
+    def delete(self):
+        raise ImmutableImageReleaseError("Public image releases cannot be deleted.")
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ImmutableImageReleaseError(
+            "Public image releases cannot be bulk-updated."
+        )
+
+    def _update(self, values):
+        raise ImmutableImageReleaseError(
+            "Public image releases cannot be privately updated."
+        )
+
+    _update.queryset_only = False
+
+    def update_or_create(self, defaults=None, create_defaults=None, **kwargs):
+        raise ImmutableImageReleaseError(
+            "Public image releases cannot be updated or created by upsert."
+        )
+
+    def bulk_create(
+        self,
+        objs,
+        batch_size=None,
+        ignore_conflicts=False,
+        update_conflicts=False,
+        update_fields=None,
+        unique_fields=None,
+    ):
+        raise ImmutableImageReleaseError(
+            "Public image releases must be created through the aggregate service."
+        )
+
+
+class ImmutableImageReleaseManager(
+    models.Manager.from_queryset(ImmutableImageReleaseQuerySet)
+):
+    use_in_migrations = True
+
+    def _insert_from_release_service(self, objs):
+        """Private insert primitive for the atomic release aggregate service."""
+        objs = list(objs)
+        for obj in objs:
+            obj.full_clean()
+        return models.QuerySet.bulk_create(self.get_queryset(), objs)
 
 
 def import_job_upload_to(instance, filename: str) -> str:
@@ -610,6 +676,235 @@ class OrganizationImageSelection(models.Model):
             f"OrganizationImageSelection #{self.pk or 'new'} "
             f"(organization {self.organization_id}, revision {self.revision})"
         )
+
+
+class OrganizationImageRelease(models.Model):
+    KEY_SCHEMA_VERSION = 1
+
+    release_id = models.UUIDField(unique=True, editable=False)
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="organization_image_releases",
+    )
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.PROTECT,
+        related_name="image_releases",
+    )
+    selection = models.ForeignKey(
+        OrganizationImageSelection,
+        on_delete=models.PROTECT,
+        related_name="public_releases",
+    )
+    rendition_set = models.ForeignKey(
+        ImageRenditionSet,
+        on_delete=models.PROTECT,
+        related_name="organization_image_releases",
+    )
+    key_schema_version = models.PositiveSmallIntegerField(default=KEY_SCHEMA_VERSION)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    _base_objects = ImmutableImageReleaseManager()
+    objects = ImmutableImageReleaseManager()
+
+    class Meta:
+        base_manager_name = "_base_objects"
+        default_manager_name = "objects"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(key_schema_version=1),
+                name="img_release_key_schema_v1",
+            ),
+        ]
+
+    def clean(self) -> None:
+        super().clean()
+        errors = {}
+        try:
+            release_id = uuid.UUID(str(self.release_id))
+        except (AttributeError, TypeError, ValueError):
+            errors["release_id"] = "Release ID must be a valid UUIDv4."
+        else:
+            if release_id.version != 4:
+                errors["release_id"] = "Release ID must be UUIDv4."
+
+        if self.selection_id:
+            if self.tenant_id and self.selection.tenant_id != self.tenant_id:
+                errors["tenant"] = "Release tenant must match the selection tenant."
+            if (
+                self.organization_id
+                and self.selection.organization_id != self.organization_id
+            ):
+                errors["organization"] = (
+                    "Release organization must match the selection organization."
+                )
+            if (
+                self.rendition_set_id
+                and self.selection.rendition_set_id != self.rendition_set_id
+            ):
+                errors["rendition_set"] = (
+                    "Release rendition set must match the selection rendition set."
+                )
+            if (
+                self.selection.selection_kind
+                != OrganizationImageSelection.SelectionKind.ASSET
+            ):
+                errors["selection"] = "Only asset selections can have public releases."
+
+        if self.rendition_set_id and self.tenant_id:
+            if self.rendition_set.tenant_id != self.tenant_id:
+                errors["rendition_set"] = (
+                    "Release rendition set must belong to the release tenant."
+                )
+
+        if self.organization_id and self.tenant_id:
+            if self.organization.tenant_id != self.tenant_id:
+                errors["organization"] = (
+                    "Release organization must belong to the release tenant."
+                )
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        raise ImmutableImageReleaseError(
+            "Public image releases must be created through the aggregate service."
+        )
+
+    def delete(self, *args, **kwargs):
+        raise ImmutableImageReleaseError("Public image releases cannot be deleted.")
+
+    def __str__(self) -> str:
+        return f"OrganizationImageRelease {self.release_id}"
+
+
+class OrganizationImageReleaseRendition(models.Model):
+    release = models.ForeignKey(
+        OrganizationImageRelease,
+        on_delete=models.PROTECT,
+        related_name="renditions",
+    )
+    rendition = models.ForeignKey(
+        ImageRendition,
+        on_delete=models.PROTECT,
+        related_name="public_release_mappings",
+    )
+    variant = models.CharField(max_length=12, choices=ImageRendition.Variant.choices)
+    output_format = models.CharField(
+        max_length=8,
+        choices=ImageRendition.OutputFormat.choices,
+    )
+    artifact_storage_key_snapshot = models.CharField(
+        max_length=1024,
+        validators=[validate_storage_key],
+    )
+    artifact_checksum_sha256_snapshot = models.CharField(
+        max_length=64,
+        validators=[validate_sha256],
+    )
+    public_storage_key = models.CharField(
+        max_length=1024,
+        unique=True,
+        validators=[validate_storage_key],
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    _base_objects = ImmutableImageReleaseManager()
+    objects = ImmutableImageReleaseManager()
+
+    class Meta:
+        base_manager_name = "_base_objects"
+        default_manager_name = "objects"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["release", "variant"],
+                name="img_rel_rend_release_variant_uniq",
+            ),
+            models.UniqueConstraint(
+                fields=["release", "rendition"],
+                name="img_rel_rend_release_rendition_uniq",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(variant__in=["square", "landscape", "share"]),
+                name="img_rel_rend_variant_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(output_format__in=["jpeg", "png", "webp"]),
+                name="img_rel_rend_format_valid",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    ~models.Q(artifact_storage_key_snapshot="")
+                    & ~models.Q(artifact_checksum_sha256_snapshot="")
+                    & ~models.Q(public_storage_key="")
+                ),
+                name="img_rel_rend_required_text",
+            ),
+        ]
+
+    def clean(self) -> None:
+        super().clean()
+        errors = {}
+        if self.release_id and self.rendition_id:
+            if self.rendition.tenant_id != self.release.tenant_id:
+                errors["rendition"] = (
+                    "Rendition must belong to the release tenant."
+                )
+            if self.rendition.rendition_set_id != self.release.rendition_set_id:
+                errors["rendition"] = (
+                    "Rendition must belong to the release rendition set."
+                )
+            if self.variant != self.rendition.variant:
+                errors["variant"] = "Variant snapshot must match the rendition."
+            if self.output_format != self.rendition.output_format:
+                errors["output_format"] = (
+                    "Output format snapshot must match the rendition."
+                )
+            if self.artifact_storage_key_snapshot != self.rendition.artifact_storage_key:
+                errors["artifact_storage_key_snapshot"] = (
+                    "Artifact storage key snapshot must match the rendition."
+                )
+            if (
+                self.artifact_checksum_sha256_snapshot
+                != self.rendition.checksum_sha256
+            ):
+                errors["artifact_checksum_sha256_snapshot"] = (
+                    "Artifact checksum snapshot must match the rendition."
+                )
+
+        if self.release_id and self.variant and self.output_format:
+            from .services.images.releases import build_public_release_key
+
+            try:
+                expected_key = build_public_release_key(
+                    self.release.release_id,
+                    self.variant,
+                    self.output_format,
+                )
+            except ValueError as error:
+                errors["public_storage_key"] = str(error)
+            else:
+                if self.public_storage_key != expected_key:
+                    errors["public_storage_key"] = (
+                        "Public storage key must equal the canonical builder result."
+                    )
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        raise ImmutableImageReleaseError(
+            "Public image release renditions must be created through the aggregate service."
+        )
+
+    def delete(self, *args, **kwargs):
+        raise ImmutableImageReleaseError(
+            "Public image release renditions cannot be deleted."
+        )
+
+    def __str__(self) -> str:
+        return f"OrganizationImageReleaseRendition #{self.pk or 'new'} ({self.variant})"
 
 
 class ImageReviewEvent(models.Model):
