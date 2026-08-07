@@ -54,7 +54,7 @@ Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCH
 
 ## Fase 3 – Robust thumbnail-, bilde- og kortarkitektur
 
-**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; ADR-008s lokale Hetzner storage-/backup-MVP er ACTIVE; fase 3C har avslått konfigurasjon og additiv bilde-, selection- og event-/kommandogrunnmur uten runtimebruk.
+**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; fase 3B.1R og fase 3B.3 godkjent; ADR-008s lokale Hetzner storage-/backup-MVP er ACTIVE; fase 3C har avslått konfigurasjon og additiv bilde-, selection- og event-/kommandogrunnmur uten runtimebruk.
 
 Fase 3A kartla dagens legacy URL-, Open Graph-, kort-, import-, storage- og driftsflyt. [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag.
 
@@ -94,7 +94,7 @@ Dette er ikke en generell redesign. Øvrige kort og komponenter videreutvikles i
 
 ### Fase 3B – teknisk prototype og kontrakt
 
-**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, fase 3B.1R er gjennomført og godkjent med representativ kvalitets- og sRGB-evidens, processing-, storage-, delivery-, takedown- og restoreprinsippene er godkjent, og lokal Hetzner storage-/backup-MVP er **ACTIVE**. Hele fase 3B er fortsatt aktiv fordi senere serving-, purge-, journal-, API-, retention-, sync/async- og observabilitygater gjenstår.
+**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, fase 3B.1R er gjennomført og godkjent med representativ kvalitets- og sRGB-evidens, og fase 3B.3 har godkjent public release identity, canonical key-format og varig reservasjonsinvariant. Lokal Hetzner storage-/backup-MVP er **ACTIVE**. Hele fase 3B er fortsatt aktiv fordi release aggregate/reservasjon ikke er implementert og senere serving-, purge-, journal-, API-, retention-, sync/async- og observabilitygater gjenstår.
 
 - [fase 3B.1](PHASE_3B1_IMAGE_RENDITION_SPIKE.md) målte Pillow og pyvips/libvips, format, foreløpige terskler og ressursbruk på syntetiske fixtures
 - fase 3B.1 prototypet contain, cover, fokuspunkt, square/landscape/share, deterministisk fallback og statisk nødvariant uten CRM-runtimekobling
@@ -105,13 +105,21 @@ Dette er ikke en generell redesign. Øvrige kort og komponenter videreutvikles i
 - offentlig MVP-output normaliseres eller konverteres eksplisitt til sRGB før crop/resize og skrives profilfritt; untagged registreres som antatt sRGB, mens korrupt/uleselig ICC er kontrollert teknisk feil
 - [fase 3B.2](PHASE_3B2_STORAGE_RESTORE_SPIKE.md) har prototypet separate private/public `STORAGES`-aliaser, lokal filesystemreferanse, Moto 5.2.2, immutable artifact/release keys, absolutte allowlistede media-origins, origin-sletting, purge/takedown, separat deny-journal og backup/restore
 - prosjekteier har godkjent to-key-kontrakt, en aktiv public rendition-store uten tilgjengelige historiske public versjoner, kontrollert public delivery, private originaler, hybridbackup, fail-closed restore, varig deny-journal/read-model og idempotent purge; ADR-008 velger lokal host-persistent storage for første MVP og gjør providerkrav betingede
+- fase 3B.3 fastsetter tilfeldig UUIDv4 som separat immutable public release identity, canonical relativ key `releases/<release_uuid>/<variant>.<ext>`, organization-typed release aggregate, immutable historisk mapping, eksakt binding til internt builder-resultat og varig reservasjon/no-clobber; selection-revisjon, tenant-/Organization-identitet og artifact-hash inngår ikke i public key
+- replacement, restore og senere autorisert republisering får ny release-ID og nye keys selv med samme rendition-sett og bytes; gamle release-ID-er/keys frigjøres eller gjenbrukes aldri, og deny vinner fortsatt over restore
 - [ADR-008](../decisions/ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokale navngitte storagealiaser og stabil lokal Borg `>=1.2.8`/`<1.3.0` med remote path `borg-1.2` til separat Hetzner Storage Box og retention 14/8/12; S3/AWS/Backblaze/CDN utsettes
 - repoets backupmodul er ACTIVE etter verifisert Storage Box, kryptert repository, recovery-custody for minst to ansvarlige, første backup, full repository-check, isolert restore av samme arkiv, Storage Box-snapshot, nyere synlig Cloud Backup og aktive timere; detaljert evidens finnes i [aktiveringsrapporten](STAGING_BACKUP_ACTIVATION_2026-08-02.md)
-- eksakt public key-struktur, lokal serving/purge, permanent journalteknologi, full katastrofe-RTO og konkrete bilde-runtimepaths er fortsatt åpne; nattlig RPO og restore-smoke har foreløpige målinger
+- lokal serving/purge, permanent reservation-/deny-journalteknologi, full katastrofe-RTO og konkrete bilde-runtimepaths er fortsatt åpne; nattlig RPO og restore-smoke har foreløpige målinger
 - fase 3B.2 har ikke opprettet CRM-modeller, migrasjoner, API/OpenAPI, Editor, PUBLIC, Import 2.0-integrasjon, bakgrunnskø eller stagingdeploy
-- senere fase 3B-gater skal fastsette lokal private/public-serving og cache/purge/verifikasjon, permanent deny-journal/read-model/cursor, API-schema, aliasmapping, public release key-struktur, concurrency/databaseconstraints, retentionmekanisme, sync/async-grense og observability; provider-/CDN-gater gjelder bare dersom ekstern storage senere tas opp igjen
+- senere fase 3B-/3C-leveranser skal implementere den godkjente release aggregate-/reservasjonskontrakten og fastsette lokal private/public-serving og cache/purge/verifikasjon, permanent reservation-/deny-journal/read-model/cursor, API-schema, aliasmapping, retentionmekanisme, sync/async-grense og observability; provider-/CDN-gater gjelder bare dersom ekstern storage senere tas opp igjen
 
-Processing profile v1, fase 3B.1R-kvalitetskontrakten og fase 3B.2-prinsippene er arkitekturgrunnlag, ikke produksjonsimplementering. Dagens CRM-runtime og legacy URL-/faviconflyt gjelder fortsatt. ADR-008-backupen er aktivert og restore-verifisert. Gater for lokal serving/purge, permanent deny-journal/read-model/cursor, API-schema, aliasmapping, public release key, retention, sync/async og observability må fortsatt være grønne før reell bildebruk kan aktiveres.
+Processing profile v1, fase 3B.1R-kvalitetskontrakten, fase 3B.2-prinsippene og fase 3B.3 release-kontrakten er arkitekturgrunnlag, ikke produksjonsimplementering. Dagens CRM-runtime og legacy URL-/faviconflyt gjelder fortsatt. ADR-008-backupen er aktivert og restore-verifisert. Release aggregate/reservasjon og gater for lokal serving/purge, permanent journal/read-model/cursor, API-schema, aliasmapping, retention, sync/async og observability må fortsatt være grønne før reell bildebruk kan aktiveres.
+
+#### Fase 3B.3 – public release identity og key-kontrakt
+
+**Status:** Godkjent 2026-08-07; ikke implementert.
+
+Kontrakten er dokumentert i [ADR-007 punkt 25](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md#25-fase-3b3-godkjent-public-release-identity-og-key-kontrakt). Minste neste implementeringsleveranse er en additiv, organization-typed release-/release-rendition-grunnmur med constraints, canonical key-builder og tester uten storage-, journal-, API-, projection- eller selection-runtimekobling. Eksakte modell-/feltnavn, snapshots kontra relasjoner, manager-/servicestruktur og fordeling mellom PostgreSQL og domenetjeneste avgjøres i fase 3B.3-A. Permanent reservation-/deny-journal, materialisering, serving og purge beholdes som separate senere gater.
 
 #### Godkjent operasjonell MVP: lokal Hetzner-storage og backup
 

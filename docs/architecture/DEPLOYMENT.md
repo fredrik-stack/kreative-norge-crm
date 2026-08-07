@@ -23,14 +23,17 @@ Dagens dokumentasjon beskriver manuell oppdatering med `git pull` og rebuild. M�
 - aktive mediafiler blir på dagens Hetzner Cloud-server i host-persistente områder under `/srv/kreative-norge/media/`
 - private originaler og offentlige renditions får separate navngitte storage-aliaser og tilgangspolicyer
 - eksisterende import-/eksportfiler på default storage skal ikke flyttes eller brytes uten en separat kompatibilitets- og migreringsplan
-- intern processing artifact identity og public release identity er separate; ny offentlig publiseringsrevisjon bruker alltid ny immutable release key
+- intern processing artifact identity og public release identity er separate; hver nye offentlige release bruker tilfeldig UUIDv4 og canonical relativ key `releases/<release_uuid>/<variant>.<ext>`
+- selection-revisjon, tenant-/Organization-identitet, artifact key/checksum, request host og filesystempath inngår ikke i public key
+- public key genereres internt og må være eksakt builder-resultat for release-ID, variant og outputformat; caller kan ikke levere fri key
+- release-ID og keys reserveres varig og frigjøres aldri; samme key + samme forventede bytes kan være idempotent retry, mens samme key + andre bytes er fail-closed hard konflikt og public bytes aldri overskrives stilltiende
 - aktiv public rendition-store er dedikert og unversioned eller har et likeverdig namespace uten offentlig tilgjengelige historiske versjoner
 - offentlige renditions leveres fra en kontrollert same-origin/media-origin uten å eksponere intern filesystempath
 - lokal serving/cache må støtte takedown, origin-fjerning, idempotent purge og verifikasjon
 - hybridbackup omfatter private originaler, canonical metadata/profil, nødvendige referanser og audit, aktive public rendition-bytes og deny-journal i separat failure-domain
 - restore går gjennom karantene, deny-replay og fail-closed reconciliation før public serving kan åpnes
 
-S3, AWS, Backblaze, CDN og flerleverandørløsning er utsatt til dokumentert vekst- eller driftsbehov. Første fase 3C-leveranse konfigurerer `IMAGE_ASSET_FEATURE_ENABLED=False` som standard, bevarer `default` og `staticfiles` og legger til separate lokale `image_originals_private`-/`image_renditions_public`-aliaser. Roots valideres uten å opprette mapper. Når feature aktiveres utenfor debug, må begge roots være eksplisitt konfigurert; lokale temp-standarder er bare en ubenyttet fallback i debug eller mens feature er avslått. Aliasene brukes ikke til lesing, skriving, sletting eller serving, og legacybildeflyten er uendret.
+S3, AWS, Backblaze, CDN og flerleverandørløsning er utsatt til dokumentert vekst- eller driftsbehov. Fase 3B.3-keyen er en godkjent kontrakt, men release aggregate, varig reservasjon, no-clobber-skriving og deny-reconciliation er ikke implementert. Første fase 3C-leveranse konfigurerer `IMAGE_ASSET_FEATURE_ENABLED=False` som standard, bevarer `default` og `staticfiles` og legger til separate lokale `image_originals_private`-/`image_renditions_public`-aliaser. Roots valideres uten å opprette mapper. Når feature aktiveres utenfor debug, må begge roots være eksplisitt konfigurert; lokale temp-standarder er bare en ubenyttet fallback i debug eller mens feature er avslått. Aliasene brukes ikke til lesing, skriving, sletting eller serving, og legacybildeflyten er uendret.
 
 Dagens stagingoppsett har fortsatt ingen host-persistent media-runtime. Compose, staging-environment, containere og deploy er ikke endret; reelle runtimepaths, host-mounts og aktivering krever en separat godkjent leveranse. Backupgrunnmuren forblir **ACTIVE**.
 

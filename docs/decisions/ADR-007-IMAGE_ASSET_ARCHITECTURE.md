@@ -2,7 +2,7 @@
 
 ## Status
 
-Godkjent som arkitekturgrunnlag. Fase 3A, de isolerte fase 3B.1- og 3B.2-prototypene og fase 3B.1R med representativ kvalitetsvalidering er gjennomført. Prosjekteier har godkjent processing profile v1, den representative kvalitetskontrakten og storage-, delivery-, takedown- og restoreprinsippene nedenfor. [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokal one-server media og kryptert Hetzner Storage Box-backup som operasjonell MVP; bildearkitekturen er fortsatt ikke implementert i CRM-runtime.
+Godkjent som arkitekturgrunnlag. Fase 3A, de isolerte fase 3B.1- og 3B.2-prototypene og fase 3B.1R med representativ kvalitetsvalidering er gjennomført. Fase 3B.3 har fastsatt separat UUIDv4-basert public release identity, canonical public release keys og varig release-reservasjon. Prosjekteier har godkjent processing profile v1, den representative kvalitetskontrakten og storage-, delivery-, takedown-, restore- og release identity-prinsippene nedenfor. [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokal one-server media og kryptert Hetzner Storage Box-backup som operasjonell MVP; public release aggregate og bilde-runtime er fortsatt ikke implementert.
 
 **Beslutningsdato:** 2026-07-30
 
@@ -12,9 +12,11 @@ Godkjent som arkitekturgrunnlag. Fase 3A, de isolerte fase 3B.1- og 3B.2-prototy
 
 **Fase 3B.1R-valg godkjent:** 2026-08-07
 
+**Fase 3B.3-valg godkjent:** 2026-08-07
+
 **Dokumentert i repo:** 2026-08-07
 
-Denne beslutningen innebærer ingen applikasjonskode, datamodell, migrasjon, storage-konfigurasjon, API-endring, frontendendring, dataendring eller deploy. Dagens legacyflyt med eksterne bilde-URL-er gjelder fortsatt frem til en kontrollert overgang er implementert og verifisert.
+Fase 3B.3-dokumentasjonsleveransen innebærer ingen applikasjonskode, datamodell, migrasjon, storage-konfigurasjon, API-endring, frontendendring, dataendring eller deploy. Dagens legacyflyt med eksterne bilde-URL-er gjelder fortsatt frem til en kontrollert overgang er implementert og verifisert.
 
 ## Forhold til tidligere ADR-er
 
@@ -742,7 +744,7 @@ Det skal være et uttrykkelig skille mellom:
 
 En ny offentlig release får alltid ny identity og public key. En gammel public key overskrives eller gjenbrukes aldri. Restore etter takedown bruker ny public release identity, også når den gjenbruker nøyaktig samme artifact-bytes uten ny encoding.
 
-Den eksakte public key-strukturen er fortsatt åpen. Produksjonen er ikke låst til prototypens `public/<tenant>/<actor>/r<n>/...`; revisjon, UUID eller en annen opaque releaseidentitet kan brukes så lenge invariantene beholdes.
+Fase 3B.3 fastsetter den eksakte public release identity- og key-kontrakten i punkt 25. Produksjonen bruker ikke prototypens `public/<tenant>/<actor>/r<n>/...` eller selection-revisjon som release identity.
 
 #### Aktiv public rendition-storage
 
@@ -831,7 +833,184 @@ Det observerte gapet der unsigned GET med eksplisitt `versionId` nådde en eldre
 
 ADR-008 velger Hetzner one-server storage, stabil lokal Borg `>=1.2.8` og `<1.3.0` med remote path `borg-1.2` mot separat Storage Box, retention 14/8/12 og en obligatorisk restore-gate. Repo-grunnmuren er forberedt, men den eksterne kjeden må være ACTIVE før fase 3C kan skrive nye varige bildefiler.
 
-Før reell bildebehandling eller offentlig serving kan aktiveres, gjenstår lokal private/public-storage og serving, lokal cache-/purge-/verifikasjonskontrakt, permanent deny-journal og materialisert read-model med journalcursor/fail-closed reconciliation, SVG-policy og eventuell sikker rasterisering, eventuell skadevarekontroll og bakgrunnskø, endelig public API-schema og aliasmapping, public release key-struktur, concurrency/databaseconstraints, retensjonsmekanisme, sync/async-grense og observability. Backupkjeden er aktivert og restore-smoke er målt, men full katastrofe-RTO er fortsatt åpen. S3-/CDN-provider, region, ekstern IAM, bucket-policy, KMS, Object Lock og provider-spesifikk purge/`versionId`-verifikasjon er utsatt og blir bare en betinget senere gate ved dokumentert behov.
+Før reell bildebehandling eller offentlig serving kan aktiveres, gjenstår implementering av den godkjente public release aggregate-/reservasjonskontrakten, lokal private/public-storage og serving, lokal cache-/purge-/verifikasjonskontrakt, permanent deny-journal og materialisert read-model med journalcursor/fail-closed reconciliation, SVG-policy og eventuell sikker rasterisering, eventuell skadevarekontroll og bakgrunnskø, endelig public API-schema og aliasmapping, retensjonsmekanisme, sync/async-grense og observability. Backupkjeden er aktivert og restore-smoke er målt, men full katastrofe-RTO er fortsatt åpen. S3-/CDN-provider, region, ekstern IAM, bucket-policy, KMS, Object Lock og provider-spesifikk purge/`versionId`-verifikasjon er utsatt og blir bare en betinget senere gate ved dokumentert behov.
+
+### 25. Fase 3B.3: godkjent public release identity og key-kontrakt
+
+Prosjekteier godkjente 2026-08-07 følgende produksjonsrettede identitets- og nøkkelkontrakt. Beslutningen presiserer to-key-kontrakten i punkt 24, men aktiverer ingen public image runtime.
+
+#### Separat public release identity
+
+Public release identity er forskjellig fra både intern processing artifact identity og `OrganizationImageSelection.revision`.
+
+- Hver nye offentlige bilde-release får en tilfeldig UUIDv4 som immutable `release_id`.
+- UUID-en er en offentlig identifikator, ikke et autentiserings- eller bearer-token.
+- Selection-revisjon, database-PK, tenant-ID og Organization-ID er ikke release identity og inngår ikke i public key.
+- Replacement, restore og senere autorisert republisering får alltid ny release-ID, også når de bruker samme `ImageRenditionSet` og eksakt samme artifact-bytes.
+- En tidligere release-ID eller public key reassosieres, frigjøres eller tas aldri i bruk igjen.
+- Idempotent gjenoppretting av samme fortsatt autoriserte release kan skrive tilbake samme forventede bytes under samme key etter full restore-/deny-reconciliation. Dette er ikke en ny release eller reaktivering av en gammel denied key.
+
+`OrganizationImageSelection.revision` er fortsatt selectionens concurrency- og historikkidentitet i den aktive databasen. Den kan ikke være public release identity fordi en eldre databasebackup kan miste nyere revisjoner og senere beregne samme `MAX(revision) + 1` på nytt.
+
+#### Canonical relative public release key
+
+Public rendition-storage bruker denne relative key-kontrakten:
+
+```text
+releases/<release_uuid>/<variant>.<ext>
+```
+
+Eksempel for R1:
+
+```text
+releases/5db81680-4557-4376-b213-51d90939c425/square.webp
+releases/5db81680-4557-4376-b213-51d90939c425/landscape.webp
+releases/5db81680-4557-4376-b213-51d90939c425/share.jpg
+```
+
+Hvis R2 senere gjenbruker de eksakt samme tre `ImageRendition`-radene og artifact-bytes, får den likevel en ny release-ID og nye keys uten ny encoding:
+
+```text
+releases/a01d813f-9e9b-4f73-97a1-3ac8f4cb103a/square.webp
+releases/a01d813f-9e9b-4f73-97a1-3ac8f4cb103a/landscape.webp
+releases/a01d813f-9e9b-4f73-97a1-3ac8f4cb103a/share.jpg
+```
+
+`release_uuid` er canonical lowercase RFC 4122 UUIDv4. `variant` er nøyaktig `square`, `landscape` eller `share`. Canonical extensionmapping er `jpeg` → `jpg`, `png` → `png` og `webp` → `webp`.
+
+Den lagrede keyen skal være eksakt resultat fra den interne canonical builderen, semantisk:
+
+```text
+public_storage_key == build_public_release_key(
+    release.release_id,
+    variant,
+    output_format,
+)
+```
+
+Caller leverer aldri en fri `public_storage_key`. Pattern- eller regexmatch alene er ikke tilstrekkelig: feil release-UUID, variant eller extension skal avvises selv om teksten ellers ligner en canonical key. Dersom denne cross-row-likheten ikke kan uttrykkes forsvarlig som databaseconstraint, er den en obligatorisk domenetjenesteinvariant.
+
+Keyen inneholder bare release-ID, variant og canonical extension. Den inneholder ikke tenant-ID/-slug, Organization-ID/-navn/-slug/-nummer, selection-revisjon, rendition-sett-ID, artifact storage key, artifact-checksum/-hash, processing-version, request host, filesystempath, credentials, tokens, queryparametere eller andre mutable displayverdier. Disse verdiene kan finnes som interne relasjoner og metadata i databasen.
+
+Public URL bygges senere ved å kombinere den relative keyen med en allowlistet, miljøkonfigurert public media-origin. Request-host, intern filesystempath og signerte eller sensitive queryparametere kan aldri påvirke keyen.
+
+Prototypens `public/<tenant>/<actor>/<release>/<variant>-<artifact-hash>.<ext>` videreføres derfor bare konseptuelt med separat release-segment og variant. Tenant-, actor- og artifact-hashsegmentene fjernes, og sekvensiell `r<n>` erstattes av UUIDv4. Artifact-checksum forblir intern fordi den ikke er nødvendig for public key-unikhet og kan synliggjøre identiske bytes på tvers av tenants.
+
+#### Organization-typed public release aggregate
+
+Første implementering skal være additiv, organization-typed og uten `GenericForeignKey`. Modellnavnene og feltene nedenfor er anbefalt retning for fase 3B.3-A, ikke en beslutning om eksakt schema:
+
+- `OrganizationImageRelease`, med intern vanlig PK, globalt unik immutable UUIDv4 `release_id`, beskyttet `ForeignKey` til den konkrete `OrganizationImageSelection`, eksplisitt key-schema-version og opprettelsestidspunkt
+- `OrganizationImageReleaseRendition`, med beskyttet kobling til releasen og én konkret `ImageRendition`, samt immutable snapshots av variant, outputformat, artifact-checksum og eksakt public storage key
+
+Relasjonen er:
+
+```text
+Organization
+    → OrganizationImageSelection
+    → ImageRenditionSet
+    → ImageRendition / intern artifact identity
+
+OrganizationImageSelection
+    → OrganizationImageRelease med UUIDv4
+    → én OrganizationImageReleaseRendition og public key per nødvendig variant
+```
+
+Den normative mappingen er:
+
+- tenant og `Organization` fastsettes fra den konkrete `OrganizationImageSelection` når releasen opprettes og inngår deretter i den frosne historiske mappingen; de eksponeres ikke i keyen
+- `OrganizationImageRelease` peker til selectionen og bærer release-ID-en, men endrer ikke selectionens revisjon eller livssyklus
+- selectionen peker som i dag til nøyaktig ett `ImageRenditionSet` for en asset-selection
+- hver `OrganizationImageReleaseRendition` peker til én `ImageRendition` fra akkurat dette settet og lagrer variant-/format-/checksum-snapshot og den canonical public keyen
+- artifact identity og bytes forblir eid av `ImageRendition`; releasekoblingen er en immutable public delivery-mapping, ikke en ny encoding eller kopi-identitet
+
+Når releasen opprettes, fryses dens historiske mapping til tenant, `Organization`, `OrganizationImageSelection`, `ImageRenditionSet` og de konkrete `ImageRendition`-/artifact-identitetene. En senere endring av en referert selection eller annen levende domenerad kan aldri endre hva en eksisterende release representerer. Denne no-reassociation-invarianten er besluttet, mens fase 3B.3-A velger om den bevises med immutable identitetsfelt/snapshots på release aggregate, beskyttede immutable relasjoner eller en annen dokumentert mekanisme. Valget innfører ingen ny selection-livssykluskommando.
+
+Release aggregate kan dermed peke mot eksisterende immutable rendition-bytes uten ny encoding. Fallback-selection får ikke en asset-release i denne kontrakten; systemfallbackens endelige public key-struktur er en separat senere gate.
+
+Nødvendige databaseconstraints er minst:
+
+- global unikhet for `release_id`
+- global unikhet for hver `public_storage_key`
+- unik `(release, variant)` og `(release, rendition)`
+- gyldig key-schema-version, variant, outputformat og ikke-tomme canonical keys/checksums
+- `PROTECT` fra release til selection og fra release-rendition til den konkrete renditionen for å blokkere sletting av referert historikk
+
+`PROTECT` blokkerer sletting, men hindrer ikke alene ForeignKey-reassosiering eller endring av andre felt. En kort, atomisk domenetjeneste skal i tillegg kontrollere at selection er en asset-selection, at selection og rendition-sett tilhører samme organization-/tenant-scope, at alle tre renditions kommer fra selectionens eksakte sett, at snapshotfeltene matcher renditionen, og at hver key er eksakt builder-resultat for release-ID, variant og outputformat. Tjenesten skal opprette et komplett, konsistent release aggregate eller ingenting; en delvis release avvises. Vanlige ForeignKeys og check constraints kan ikke alene bevise disse cross-table-invariantene.
+
+Flere historiske releases kan peke til samme selection. Dette er nødvendig fordi senere autorisert republisering alltid skal få ny release-ID uten å omskrive selection eller tidligere releases. Hvilken release som senere er leverbar eller aktiv avgjøres av den separate publish-/deny-/projection-gaten, ikke av en one-to-one-constraint eller en ny selection-status.
+
+Release aggregate og release-renditions er immutable gjennom støttede skriveruter. Ordinær cleanup kan ikke slette eller frigjøre en release-ID. Retention, eventuell kontrollert anonymisering og sterkere database-WORM/trigger er separate senere gater.
+
+#### Varig reservasjon, no-clobber og idempotens
+
+UUIDv4 gir svært sterk praktisk unikhet, men no-reuse-kontrakten bygger ikke bare på kollisjonssannsynlighet.
+
+- En release-ID og dens keys reserveres varig før de kan brukes offentlig.
+- Reservasjonen slettes ikke ved feil, replacement, restore, takedown eller ordinær cleanup; en avbrutt reservasjon er permanent brukt.
+- Den senere autoritative release-/deny-journalen eller et likeverdig separat failure-domain skal kjenne alle reserverte release-ID-er og keys, ikke bare denied keys.
+- Manglende, korrupt eller stale reservation-/deny-state feiler lukket og kan ikke produsere eller aktivere public release.
+- Samme release key med samme forventede bytes kan behandles som idempotent retry.
+- Samme release key med andre bytes er en hard konflikt.
+- Public bytes skrives create-only/no-clobber og overskrives aldri stilltiende.
+- En UUID-/key-kollisjon mot varig reservasjon, database, storage eller deny-state avvises fail-closed; en ny UUID må reserveres.
+- En release/key som deny-journalen kjenner som denied kan aldri aktiveres igjen.
+
+Ved restore av en eldre database skal nyeste reservation-/deny-state lastes og reconciles før public serving. En restaurert selection-revisjon, PK eller annen databaseidentitet kan aldri brukes til å beregne eller reaktivere en tidligere release key. Takedown/deny vinner alltid over restore.
+
+Eksakt permanent journalteknologi, cursor, takedown-/publish-saga og materialiseringsrekkefølge er ikke besluttet i fase 3B.3.
+
+#### Livssyklusvirkning uten ny selection-kommando
+
+- Replacement oppretter ny selection-revisjon og senere en ny release-ID; gammel release forblir permanent reservert.
+- Removal-to-fallback oppretter som i dag en fallback-selection og ingen ny asset-release; gammel release forblir permanent reservert.
+- Restore oppretter som i dag en ny asset-selection-revisjon og senere en ny release-ID, også med samme rendition-sett og bytes.
+- Senere formell takedown lar deny-state og public projection gå til fallback; gammel release-key forblir permanent denied.
+- Senere autorisert republisering bruker ny release-ID og nye keys. Den gjenbruker artifacts uten re-encoding når bytesene fortsatt er gyldige og autoriserte.
+
+Fase 3B.3 legger ikke til en selection-status eller selection-livssykluskommando. Dagens locking-, replacement-, removal-to-fallback- og restorekommandoer forblir uendret.
+
+#### Avviste alternativer
+
+- **Selection-revisjon eller database-PK i key:** avvist fordi eldre database-restore kan gjenta verdien.
+- **Tenant-/Organization-segmenter:** avvist fordi de ikke trengs for global unikhet og kan være mutable, gjenbrukbare eller unødig eksponerende.
+- **Artifact-hash i public key:** avvist fordi release-ID gir cacheidentitet og hashen kan synliggjøre like bytes på tvers av tenants.
+- **Public release-ID som felt direkte på selection:** avvist fordi public release er en separat delivery-/reservasjonsidentitet og selection-livssyklusen er komplett.
+- **UUIDv4 uten varig reservasjon og no-clobber:** avvist fordi streng no-reuse etter database-restore også krever autoritativ kunnskap om tidligere brukte keys.
+- **Generisk release med `GenericForeignKey`:** avvist i første implementering av samme tenant- og referanseintegritetsgrunner som den typed selection-modellen.
+
+#### Trinnvis implementeringsplan
+
+**Leveranse 3B.3-A – additiv release-domenegrunnmur:**
+
+- legg til de organization-typed release-modellene, constraints og en reverserbar schema-migrasjon
+- legg til en ren canonical key-builder og en kort release-aggregate-tjeneste uten storage-, journal-, API- eller selection-runtimekobling
+- behold `IMAGE_ASSET_FEATURE_ENABLED=False`
+
+Akseptansekriterier og tester:
+
+- migrasjon frem og tilbake bevarer alle eksisterende modeller og data
+- UUID-, key-, release-/variant- og release-/rendition-unikhet håndheves i PostgreSQL
+- nøyaktig square/landscape/share, canonical extension og cross-tenant/-set-avvisning testes
+- lagret public key er alltid internt generert og eksakt builder-resultat; fri caller-key, feil release-UUID, variant eller extension og delvis/inkonsistent aggregate avvises
+- historisk release-mapping kan ikke omskrives gjennom vanlig update, ForeignKey-reassosiering, bulk update, upsert/update-conflict eller relevant delete
+- revision, database-ID-er, host, hash, credentials og mutable verdier kan ikke inngå i keyen
+- samme artifacts kan mappes til to forskjellige release-ID-er uten encoder-, renderer-, storage- eller nettverkskall
+- modell-/settings-load oppretter ingen mapper eller filer og endrer ingen publiseringsflagg
+
+Rollback: feature forblir av; additive tabeller kan migreres tilbake så lenge ingen release-reservasjoner er opprettet. Når reelle reservasjoner finnes, brukes fremoverrettet migrasjon og data slettes ikke.
+
+**Leveranse 3B.3-B – varig reservation-/deny-integrasjon:**
+
+- gjennomføres først etter separat godkjenning av permanent journalteknologi, cursor og failure-domain
+- reserverer release-ID og keys varig før DB-/filmaterialisering og støtter idempotent replay/reconciliation
+- simulerer gammel database + nyere reservation-/deny-state og beviser at gammel key aldri regenereres eller aktiveres
+
+Rollback: public projection forblir eller går fail-closed til fallback; reservations- og deny-historikk slettes aldri.
+
+**Senere materialisering, serving og projection:**
+
+Public filskriving, lokal serving, nginx/Caddy, cache/purge-runtime, takedown-/publish-saga, unpublish-semantikk, systemfallback-key, API-schema, public projection, sync/async-grense, observability og full disaster-RTO forblir egne beslutnings- og implementeringsgater.
 
 ## Begrunnelse
 
@@ -930,7 +1109,7 @@ Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkj
 
 ### Fase 3B: teknisk prototype og kontrakt
 
-**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, fase 3B.1R er gjennomført og godkjent med representativ kvalitets- og sRGB-evidens, og de tilhørende processing-, storage-, delivery-, takedown- og restoreprinsippene er godkjent. ADR-008s lokale Hetzner storage-/backup-MVP er **ACTIVE**. Fase 3B er fortsatt aktiv fordi serving/purge, permanent deny-journal/read-model/cursor, API-schema/aliasmapping, public release key, retention, sync/async og observability fortsatt gjenstår.
+**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, fase 3B.1R er gjennomført og godkjent med representativ kvalitets- og sRGB-evidens, og fase 3B.3 har godkjent eksakt UUIDv4-basert public release identity, canonical key-format og varig reservasjonsinvariant. ADR-008s lokale Hetzner storage-/backup-MVP er **ACTIVE**. Fase 3B er fortsatt aktiv fordi release aggregate/reservasjon ikke er implementert og serving/purge, permanent deny-journal/read-model/cursor, API-schema/aliasmapping, retention, sync/async og observability fortsatt gjenstår.
 
 **Omfang:**
 
@@ -1171,7 +1350,7 @@ ADR-007 regnes som implementert først når:
 
 ## Tekniske valg som fortsatt er åpne
 
-Følgende gjenstår etter de godkjente fase 3B.1-, 3B.1R- og 3B.2-valgene:
+Følgende gjenstår etter de godkjente fase 3B.1-, 3B.1R-, 3B.2- og 3B.3-valgene:
 
 - konkret trigger og migreringsplan dersom objektlagring/CDN senere blir nødvendig
 - lokale private/public-paths, permissions og same-origin/media-origin-kontrakt
@@ -1182,7 +1361,6 @@ Følgende gjenstår etter de godkjente fase 3B.1-, 3B.1R- og 3B.2-valgene:
 - eventuell skadevarekontroll
 - om mer enn ett fokuspunkt eller en placementmodell senere trengs
 - eksakt public API-feltnavn, enum og alias-til-variant-mapping
-- eksakt public release key-struktur innenfor den godkjente to-key- og immutable release-invarianten
 - konkret lokal cache-, purge- og verifikasjonskontrakt; provider/CDN bare ved senere dokumentert behov
 - om første MVP tillater logisk same-tenant assetgjenbruk
 - retensjonsfrist for godkjente, aldri tilknyttede assets
@@ -1191,7 +1369,7 @@ Følgende gjenstår etter de godkjente fase 3B.1-, 3B.1R- og 3B.2-valgene:
 - auditretensjon og eventuell kontrollert anonymisering
 - scheduler-/workergrense for retensjon
 
-Disse valgene endrer ikke hovedarkitekturen. Fase 3B.1R og operativ aktivering av ADR-008-backupen er gjennomført; øvrige gater skal dokumenteres før reell processing eller offentlig serving aktiveres.
+Disse valgene endrer ikke hovedarkitekturen. Fase 3B.1R, fase 3B.3 og operativ aktivering av ADR-008-backupen er gjennomført som beslutnings-/evidensgater; public release aggregate/reservasjon og øvrige runtimegater skal implementeres eller dokumenteres før reell processing eller offentlig serving aktiveres.
 
 ## Beslutninger som fortsatt krever eksplisitt godkjenning
 
@@ -1203,7 +1381,7 @@ Gjenstående fase 3B-resultater må godkjennes før de respektive produksjonsret
 - sync/async-grense og cleanupmekanisme
 - same-tenant reuse- og orphan-retensjonsregel
 
-Den overordnede arkitekturen, rollene, approvalteksten, fallbacken, den additive API-overgangen, retensjonsprinsippene, Import 2.0-kontrakten, fase 3B.1 processing profile v1 og fase 3B.2 storage-/delivery-/takedown-/restoreprinsippene er godkjent gjennom dette ADR-et og skal ikke åpnes på nytt uten ny evidens eller en eksplisitt endringsbeslutning.
+Den overordnede arkitekturen, rollene, approvalteksten, fallbacken, den additive API-overgangen, retensjonsprinsippene, Import 2.0-kontrakten, fase 3B.1 processing profile v1, fase 3B.2 storage-/delivery-/takedown-/restoreprinsippene og fase 3B.3 release identity-/key-/reservasjonskontrakten er godkjent gjennom dette ADR-et og skal ikke åpnes på nytt uten ny evidens eller en eksplisitt endringsbeslutning.
 
 ## Ferdigkriterium
 

@@ -83,6 +83,10 @@ Dagens modeller og migrasjoner følger fortsatt den todelte legacy-modellen, men
 - `OrganizationImageSelection` representerer én låst historisk revisjon for én organisasjon og peker enten til nøyaktig ett immutable rendition-sett eller til systemfallback
 - `ImageReviewEvent` lagrer append-only snapshots av første selection-låsing, eksplisitt replacement, ordinær fjerning til systemfallback eller restore som ny revisjon, med nullable `SET_NULL`-referanser til levende domeneobjekter
 
+Fase 3B.3 har i tillegg godkjent en planlagt, additiv og organization-typed public release aggregate uten `GenericForeignKey`. `OrganizationImageRelease` og `OrganizationImageReleaseRendition` er anbefalte modellnavn, ikke fastsatt schema. Flere historiske releases kan peke til samme selection slik at senere autorisert republisering får ny release-ID uten å omskrive selection eller tidligere releases. Hver release skal fryse sin historiske mapping til tenant, Organization, selection, rendition-sett og konkrete rendition-/artifact-identiteter; senere endring av en levende selection eller relasjon kan ikke endre hva releasen representerer. Eksakt mekanisme – immutable snapshots, beskyttede immutable relasjoner eller annet verifiserbart design – velges i fase 3B.3-A. `PROTECT` skal blokkere sletting av referert historikk, men gir ikke alene beskyttelse mot ForeignKey-reassosiering eller feltendring.
+
+Planlagte constraints omfatter globalt unike release-ID-er og public keys samt unik variant og rendition per release. En atomisk domenetjeneste må kontrollere asset-selection, tenant-/Organization-scope, eksakt rendition-sett og fullstendig square/landscape/share. Den skal generere public key internt og kreve eksakt equality mellom lagret key og canonical builder-resultat fra release-ID, variant og outputformat; fri caller-key, patternmatch alene og delvis aggregate er ugyldig. Eksakt feltutforming, manager-/servicestruktur og fordeling mellom PostgreSQL-constraints og domenetjeneste er fortsatt åpen for fase 3B.3-A. Modellene finnes ikke ennå.
+
 Databaseconstraints håndhever positive dimensjoner og filstørrelser, fokus i intervallet 0–1 og tenant-avgrenset unikhet for storage keys, rendition-sett og varianter. Checksum er bevisst ikke globalt unik. `clean()` avviser tenant-mismatch mellom asset og rendition-sett og mellom rendition-sett og rendition, men dette er ikke alene en full databasegaranti; en senere domenetjeneste skal håndheve samme invariant før runtime kan skrive.
 
 For selection håndhever databasen unik revisjon per tenant/organisasjon, maksimalt én `active`-rad, positiv revisjon, ikke-tom alt-tekst og eksklusivt valg mellom asset/rendition-sett og systemfallback. `locked_by` og `locked_at` er obligatoriske, og bruker samt rendition-sett er beskyttet med `PROTECT`. Selection dupliserer ikke asset, fit, fokus eller prosesseringsversjon; asset og presentasjonsoppskrift nås gjennom det eksakte rendition-settet.
@@ -93,7 +97,7 @@ For selection håndhever databasen unik revisjon per tenant/organisasjon, maksim
 
 Kilde-URL-snapshots lagres uendret, men bare som HTTP/HTTPS uten URL-brukernavn/passord, fragment eller kjente credentials-, signatur-, token-, AWS-, Google- eller Azure SAS-parametere. Valideringen gjør ingen fetch, DNS-oppslag eller annen nettverks-I/O.
 
-Modellene bruker bare `CharField` for logiske keys. De har ingen `FileField`, oppretter ingen mapper eller filer og bruker ingen storagealiaser. Kommandoen kontrollerer featureflagget, men flagget er avslått og ingen API-, Editor-, PUBLIC-, import- eller annen runtimeflyt kaller den. Offentlig release key og public projection inngår ikke, og legacybildeflyten er uendret.
+De implementerte modellene bruker bare `CharField` for logiske keys. De har ingen `FileField`, oppretter ingen mapper eller filer og bruker ingen storagealiaser. Kommandoen kontrollerer featureflagget, men flagget er avslått og ingen API-, Editor-, PUBLIC-, import- eller annen runtimeflyt kaller den. Public release aggregate, canonical release key og public projection er fortsatt ikke implementert, og legacybildeflyten er uendret.
 
 Konseptuell målmodell:
 
@@ -106,6 +110,11 @@ ImageCandidate
 
 OrganizationImageSelection
     → append-only ImageReviewEvent for locking/replacement/removal-to-fallback/restore
+
+OrganizationImageSelection
+    → planlagt OrganizationImageRelease med UUIDv4
+    → planlagt OrganizationImageReleaseRendition per square/landscape/share
+    → canonical relative key releases/<release_uuid>/<variant>.<ext>
 ```
 
-Første låsing, replacement, ordinær fjerning til fallback og ordinær restore som ny revisjon har append-only bildehistorikk. Kandidat-, takedown- og retentionevents kommer i separate leveranser. Assetet eies av tenant og kan finnes før en aktør. Den implementerte typed selection-modellen gjelder bare `Organization`, uten `GenericForeignKey` eller en generell selection for andre objekttyper. Fase 3B.1R-kvalitetsgaten er gjennomført og godkjent; senere serving-, purge-, journal-, API-, retention-, sync/async- og observabilitygater må fortsatt være grønne før faktisk bildebehandling eller storage-runtime aktiveres.
+Første låsing, replacement, ordinær fjerning til fallback og ordinær restore som ny revisjon har append-only bildehistorikk. Kandidat-, takedown- og retentionevents kommer i separate leveranser. Assetet eies av tenant og kan finnes før en aktør. Den implementerte typed selection-modellen og den planlagte release aggregate gjelder bare `Organization`, uten `GenericForeignKey` eller en generell selection/release for andre objekttyper. Selection-revisjon er ikke release identity. Replacement, restore og senere autorisert republisering skal bruke ny release-UUID og nye keys, mens de samme immutable rendition-bytes kan gjenbrukes uten re-encoding. Fase 3B.1R- og fase 3B.3-gatene er gjennomført og godkjent; release aggregate/reservasjon og senere serving-, purge-, journal-, API-, retention-, sync/async- og observabilitygater må fortsatt være grønne før faktisk bildebehandling eller storage-runtime aktiveres.
