@@ -6,6 +6,7 @@ Disse reglene gjelder for alt utviklingsarbeid i Kreative Norge CRM:
 2. Ingen funksjon er ferdig før dokumentasjonen er oppdatert eller kontrollert.
 3. Stabil prosjektkunnskap skal ligge i `docs/`, ikke gjentas i prompts.
 4. Diagnose → beslutning → implementering.
+5. Ny teknisk gate eller mekanisme må løse en konkret blocker for neste brukerreise eller en nødvendig drifts-/sikkerhetsgaranti; ellers utsettes den.
 
 Start med `docs/README.md` og `docs/status/PROJECT_STATUS_CURRENT.md`. Følg `docs/development/WORKFLOW.md`, og bruk prosjektets skills under `.agents/skills/` når oppgaven passer.
 

@@ -2,7 +2,7 @@
 
 **Status:** Gjeldende utviklingsplattform
 
-**Sist oppdatert:** 2026-07-24
+**Sist oppdatert:** 2026-08-07
 
 Fredrik Development System er prosjektets samlede system for å forstå, beslutte, bygge og kvalitetssikre Kreative Norge CRM. Systemet består av:
 
@@ -20,6 +20,9 @@ Skill Pack er arbeidsflytdelen av plattformen. Det erstatter ikke arkitektur-, f
 2. Ingen funksjon er ferdig før dokumentasjonen er oppdatert eller kontrollert.
 3. Stabil prosjektkunnskap skal ligge i `docs/`, ikke gjentas i prompts.
 4. Diagnose → beslutning → implementering.
+5. Ny teknisk gate eller mekanisme må løse en konkret blocker for neste brukerreise eller en nødvendig drifts-/sikkerhetsgaranti; ellers utsettes den.
+
+Se [Development Workflow](WORKFLOW.md#brukerreise-gate-for-nye-tekniske-tiltak) for praktisk anvendelse av den femte grunnregelen.
 
 En «større implementering» er en endring med vesentlig produkt-, arkitektur-, personvern-, sikkerhets-, integrasjons-, API-, data- eller migreringskonsekvens. Små, reversible feilrettinger og vedlikeholdsoppgaver kan gjennomføres uten nytt ADR når de følger eksisterende beslutninger og har tydelig scope.
 

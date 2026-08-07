@@ -2,16 +2,17 @@
 
 **Status:** Gjeldende grunnarbeidsflyt
 
-**Sist oppdatert:** 2026-07-24
+**Sist oppdatert:** 2026-08-07
 
 ## Fredrik Development System
 
-Denne arbeidsflyten inngår i `FREDRIK_DEVELOPMENT_SYSTEM.md`. Repoets fire grunnregler lastes fra `AGENTS.md`, og de gjenbrukbare Codex-arbeidsflytene ligger i `.agents/skills/`.
+Denne arbeidsflyten inngår i `FREDRIK_DEVELOPMENT_SYSTEM.md`. Repoets fem grunnregler lastes fra `AGENTS.md`, og de gjenbrukbare Codex-arbeidsflytene ligger i `.agents/skills/`.
 
 1. Ingen større implementering uten godkjent ADR.
 2. Ingen funksjon er ferdig før dokumentasjonen er oppdatert eller kontrollert.
 3. Stabil prosjektkunnskap skal ligge i `docs/`, ikke gjentas i prompts.
 4. Diagnose → beslutning → implementering.
+5. Ny teknisk gate eller mekanisme må løse en konkret blocker for neste brukerreise eller en nødvendig drifts-/sikkerhetsgaranti; ellers utsettes den.
 
 Se `FREDRIK_SKILL_PACK.md` for valg og verifisering av skills, `EXAMPLES.md` for praktiske CRM-eksempler og `../decisions/ADR-006-SESSION_WORKFLOW.md` for session-kontrakten.
 
@@ -100,6 +101,17 @@ Oppstartsrapporten bruker fast rekkefølge:
 Oppstarten er skrivebeskyttet. Hvis samme prompt uttrykkelig bestiller videre arbeid med en navngitt skill, kan den skillen overta etter at oppstartsrapporten er levert.
 
 For små, isolerte forklaringer uten prosjektendring er full session-flyt valgfri. Bruk ellers `$skill-navn` når arbeidsfasen skal være entydig. Eksplisitt valg er tryggest ved diagnose-, beslutnings- og release-gater.
+
+## Brukerreise-gate for nye tekniske tiltak
+
+Før en ny teknisk gate, mekanisme eller hardeningoppgave prioriteres, skal teamet kunne svare konkret på minst ett av disse spørsmålene:
+
+1. Hvilken konkret neste brukerreise blokkeres?
+2. Hvilken konkret nødvendig drifts-, sikkerhets-, personvern- eller dataintegritetsgaranti mangler?
+
+Hvis ingen av delene kan beskrives konkret, parkeres oppgaven. At et tiltak teoretisk «kan være nyttig senere» er ikke nok; et reproduserbart problem eller en identifisert nødvendig garanti er nok. Sikkerhets-, personvern-, integritets- og driftsarbeid trenger derfor ikke en synlig frontendbrukerreise når risikoen eller garantien er konkret.
+
+Eksisterende dokumenterte senere gater kan utsettes til de faktisk blokkerer neste steg. Prioriteringsregelen endrer ikke kravene om ADR, relevante tester, oppdatert dokumentasjon eller nødvendige sikkerhetskontroller.
 
 ## Normal leveransesyklus
 
