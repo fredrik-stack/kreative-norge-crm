@@ -2,6 +2,19 @@
 
 Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små kosmetiske justeringer trenger ikke registreres.
 
+## 2026-08-07
+
+### Fase 3B.1R: representativ kvalitetsvalidering gjennomført og godkjent
+
+- gjennomført den isolerte lokale harnessen og manuell review på 24 rettighetsavklarte fixtures uten nettverk; private kilder, privat manifest og visuell/full evidens forblir Git-ignorert
+- godkjent 36 MP som konfigurerbar standard for maksimal decoded pixelmengde etter at 20 MP avviste to nyttige kilder, mens 36 MP var den laveste testede kandidaten som beholdt alle 24; 15 MiB forblir konfigurerbar maksimal kildefilstørrelse
+- godkjent ingen universell minimumsbredde eller -høyde, ingen automatisk oppskalering, `contain` uten crop for logo og separat `cover`-/crop-/scaling-margin-vurdering av `square`, `landscape` og `share`
+- gjort manglende obligatorisk no-upscale-rendition til teknisk `NOT READY FOR APPROVAL` uten å slette eller nødvendigvis avvise kildekandidaten
+- beholdt edge variance og blockiness som advisory; outliers kan gi warning/manual review sammen med konkrete visuelle problemer, men ingen numerisk edge-, blur-, blockiness- eller whitespacegrense er automatisk hard fail
+- godkjent profilfri offentlig output etter eksplisitt sRGB-normalisering eller -konvertering før crop/resize; untagged registreres som antatt sRGB, mens korrupt/uleselig ICC er kontrollert teknisk feil
+- beholdt processing profile v1, Pillow-adapterretning, JPEG/PNG/WebP-input, no-upscale, CRM-runtime, featureflag, storage-I/O, API, Editor, PUBLIC, frontend, staging og deploy uendret
+- markert fase 3B.1R som **GJENNOMFØRT / GODKJENT**, men beholdt hele fase 3B som aktiv med senere serving-, purge-, journal-, API-, retention-, sync/async- og observabilitygater
+
 ## 2026-08-06
 
 ### Fase 3B.1R-A: isolert representativ kvalitets-harness

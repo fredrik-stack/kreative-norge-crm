@@ -2,7 +2,7 @@
 
 ## Status
 
-Godkjent som arkitekturgrunnlag. Fase 3A og de isolerte fase 3B.1- og 3B.2-prototypene er teknisk gjennomført. Prosjekteier har godkjent processing profile v1 og storage-, delivery-, takedown- og restoreprinsippene nedenfor. [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokal one-server media og kryptert Hetzner Storage Box-backup som operasjonell MVP; bildearkitekturen er fortsatt ikke implementert i CRM-runtime.
+Godkjent som arkitekturgrunnlag. Fase 3A, de isolerte fase 3B.1- og 3B.2-prototypene og fase 3B.1R med representativ kvalitetsvalidering er gjennomført. Prosjekteier har godkjent processing profile v1, den representative kvalitetskontrakten og storage-, delivery-, takedown- og restoreprinsippene nedenfor. [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokal one-server media og kryptert Hetzner Storage Box-backup som operasjonell MVP; bildearkitekturen er fortsatt ikke implementert i CRM-runtime.
 
 **Beslutningsdato:** 2026-07-30
 
@@ -10,7 +10,9 @@ Godkjent som arkitekturgrunnlag. Fase 3A og de isolerte fase 3B.1- og 3B.2-proto
 
 **Fase 3B.2-valg godkjent:** 2026-08-01
 
-**Dokumentert i repo:** 2026-08-01
+**Fase 3B.1R-valg godkjent:** 2026-08-07
+
+**Dokumentert i repo:** 2026-08-07
 
 Denne beslutningen innebærer ingen applikasjonskode, datamodell, migrasjon, storage-konfigurasjon, API-endring, frontendendring, dataendring eller deploy. Dagens legacyflyt med eksterne bilde-URL-er gjelder fortsatt frem til en kontrollert overgang er implementert og verifisert.
 
@@ -214,7 +216,7 @@ Kontrollert ingest skal minst støtte:
 - eksplisitt SVG-policy og trygg rasterisering eller avvisning
 - blokkering av favicons, sosiale medie-/plattformlogoer og andre generiske plattformikoner
 
-Processingbibliotek, første formatsett og maksimal kildefilstørrelse er godkjent i punkt 23. Endelig pixelgrense, dimensjonsregler, kvalitetsgrenser og eventuell skadevarekontroll avgjøres fortsatt gjennom senere fase 3B-evidens.
+Processingbibliotek, første formatsett, kildefilstørrelse, decoded pixelgrense, dimensjons-/no-upscale-regler, advisory kvalitetsmål og sRGB-outputkontrakt er godkjent i punkt 23. SVG-policy, eventuell skadevarekontroll, workergrense og øvrig runtimeplassering avgjøres fortsatt gjennom senere fase 3B-gater.
 
 Relevans, vannmerke, plakat-/datoinnhold, mye tekst, usikker aktørmatch og lignende kan være review-varsler. En kjent plattformlogo kan ikke godkjennes som aktørbilde.
 
@@ -662,7 +664,22 @@ Processing profile v1 er:
 
 Format, encoderinnstillinger, source checksum, fit, normalisert fokus, renditionvariant og processing-version inngår i immutable key. Endring av en av disse verdiene gir ny key og overskriver aldri historisk output. AVIF er utsatt og er ikke et MVP-krav.
 
-Offentlige renditions skal ha en eksplisitt testet sRGB-normaliseringskontrakt før fase 3C. Fase 3B.1 beviste metadatafjerning, men fastsatte ikke fargeprofilnormalisering.
+Offentlige renditions følger denne godkjente MVP-kontrakten:
+
+```text
+gyldig kilde
+    → eksplisitt normalisering eller konvertering til sRGB
+    → crop og resize
+    → offentlig rendition uten innebygd ICC-profil
+```
+
+- Embedded sRGB behandles gjennom den samme normaliseringskontrakten.
+- Gyldig embedded non-sRGB konverteres eksplisitt til sRGB før crop og resize.
+- Untagged input behandles som antatt sRGB og registreres eksplisitt som `untagged`/`assumed-sRGB`; dette er ikke automatisk hard fail.
+- Korrupt eller uleselig ICC-profil skal ikke ignoreres. Den gir en kontrollert teknisk feil og krever en annen eller reparert kilde.
+- Sensitive kildeprofiler kopieres ikke til offentlige renditions.
+
+Profilfri sRGB-normalisert output er valgt for MVP fordi den representative kjøringen ga byte-deterministisk output. En fast innebygd standardprofil er ikke valgt. Dersom den senere vurderes, kreves en separat deterministisk test av en kanonisk profil uten variabel metadata.
 
 #### Fit, fokus, oppskalering og metadata
 
@@ -673,26 +690,28 @@ Offentlige renditions skal ha en eksplisitt testet sRGB-normaliseringskontrakt f
 - Ingen kildepiksler skaleres opp automatisk. For lavt reelt cropområde håndteres med bedre kilde, annet bilde eller kontrollert komposisjon/fallback, ikke et uskarpt offentlig bilde.
 - Privat original følger den separate storage- og retensjonskontrakten.
 
-#### Tekniske grenser og fortsatt åpne kvalitetsvalg
+#### Tekniske grenser og kvalitetsklassifisering
 
-Maksimal kildefilstørrelse på 15 MiB er godkjent som konfigurerbar standardverdi.
+- Maksimal kildefilstørrelse på 15 MiB beholdes som konfigurerbar standardverdi.
+- Maksimal decoded pixelmengde er 36 megapiksler som konfigurerbar MVP-standard. Dette er den laveste representative kandidatgrensen som beholdt alle 24 fixtures, ikke en universelt optimal grense. Den kan revurderes ved ny evidens.
+- Det finnes ingen universell minimumsbredde eller minimumshøyde.
+- Ingen kildepiksler skaleres opp automatisk.
+- Logo bruker `contain` og skal aldri crop-es. Foto bruker `cover` og vurderes separat for `square`, `landscape` og `share` ut fra faktisk cropområde og scaling margin.
+- Alle obligatoriske renditions må kunne produseres uten oppskalering før et asset er klart for godkjenning. En manglende obligatorisk rendition gjør assetet `NOT READY FOR APPROVAL`, men sletter eller avviser ikke nødvendigvis kildekandidaten; flyten skal be om bedre kilde, annet bilde eller fallback.
 
-Følgende er fortsatt prototypeverdier og ikke godkjente endelige produktgrenser:
+Edge variance og blockiness er informational/advisory. Tydelige outliers kan gi warning, og en outlier kombinert med liten kilde, synlig komprimering, mye tekst, vannmerkerisiko eller et annet visuelt problem kan trigge manual review. Ingen numerisk edge-variance-, blur- eller blockinessgrense er automatisk hard fail, og prototypeintervallene fra fase 3B.1 er ikke produksjonsgrenser.
 
-- 20 megapiksler som maksimal pixelgrense
-- korteste side under 160 som universell hard fail
-- 160–511 som universelt reviewområde
-- minst 512 som universell pass
-- edge variance under 5 som automatisk hard fail
-- de øvrige edge-variance-/blurintervallene
+Mye internt logowhitespace kan gi warning og manual review, men whitespace alene er ikke hard fail. Numerisk whitespaceprosent er ikke alene en godkjenningsregel; faktisk lesbarhet og presentasjon ved relevante UI-størrelser er avgjørende.
 
-En pixelgrense skal finnes av sikkerhetshensyn, men endelig tall krever representative høyoppløselige fixtures og ressursmålinger. Dimensjonsregler skal vurderes per bildetype, fit, variant, reelt cropområde og behov for oppskalering. Én universell regel basert bare på korteste side skal ikke avvise alle logoer og foto. Blur-/edge-variance brukes foreløpig bare som varsel, reviewprioritering og diagnostisk informasjon, ikke automatisk endelig hard fail.
+Tekniske readiness-feil holdes adskilt fra subjektiv bildekvalitet. Decodefeil, unsupported eller ugyldig input, en korrupt/uleselig ICC-profil som ikke kan behandles etter kontrakten, og en manglende obligatorisk rendition under no-upscale-kontrakten kan blokkere teknisk readiness. Dette er ikke en vurdering av om bildet er pent eller stygt.
 
-#### Fase 3B.1R: representativ kvalitetsvalidering
+#### Fase 3B.1R: representativ kvalitetsvalidering gjennomført
 
-Før fase 3C skal et lite, rettighetsavklart datasett med ekte brede/høye logoer, logoer med liten tekst og whitespace, portretter, gruppebilder, mørke scene-/konsertbilder, komprimerte nettsidebilder, plakater/årstall, vannmerker, høyoppløselige mobilbilder og reelle ICC-/fargeprofiler testes.
+[Fase 3B.1R](../status/PHASE_3B1R_REPRESENTATIVE_QUALITY_HARNESS.md) kjørte 24 lokalt lagrede, rettighetsavklarte fixtures gjennom den isolerte harnesskontrakten og manuell visuell review. Private kilder, privat manifest og visuell/full evidens forblir Git-ignorert; bare anonymiserte aggregater dokumenteres.
 
-Fase 3B.1R skal brukes til å fastsette pixelgrense, variant- og cropbaserte dimensjonsregler, blur-/komprimeringsvarsler, lesbarhetsvarsler for logo og eventuell begrenset kvalitetsregel. Delsteget blokkerer ikke fase 3B.2, men må være gjennomført og godkjent før fase 3C.
+Den representative evidensen viste at 20 MP avviste to nyttige kilder, mens 36, 50, 64 og 100 MP beholdt alle 24. Ingen edge-variance-, blockiness- eller whitespaceverdi korrelerte stabilt nok med visuell kvalitet til automatisk hard fail. Profilfri output etter verifisert sRGB-konvertering var byte-deterministisk; kandidaten med generert standardprofil hadde identiske dekodede piksler, men var ikke byte-deterministisk.
+
+Prosjekteier godkjente 2026-08-07 grensene og klassifiseringene i dette punktet. Fase 3B.1R er dermed **GJENNOMFØRT / GODKJENT**, uten at hele fase 3B eller CRM-runtime er ferdig.
 
 #### Fase 3B.2: teknisk gjennomført storage-, takedown- og restoreprototype
 
@@ -812,7 +831,7 @@ Det observerte gapet der unsigned GET med eksplisitt `versionId` nådde en eldre
 
 ADR-008 velger Hetzner one-server storage, stabil lokal Borg `>=1.2.8` og `<1.3.0` med remote path `borg-1.2` mot separat Storage Box, retention 14/8/12 og en obligatorisk restore-gate. Repo-grunnmuren er forberedt, men den eksterne kjeden må være ACTIVE før fase 3C kan skrive nye varige bildefiler.
 
-Før fase 3C gjenstår fase 3B.1R med representative ekte bilder, eksplisitt sRGB-/fargeprofiltesting, endelige pixel-/dimensjons-/kvalitetsgrenser, lokal private/public-storage og serving, lokal cache-/purge-/verifikasjonskontrakt, permanent deny-journal og materialisert read-model med journalcursor/fail-closed reconciliation, SVG-policy og eventuell sikker rasterisering, eventuell skadevarekontroll og bakgrunnskø, endelig public API-schema og aliasmapping, public release key-struktur, concurrency/databaseconstraints, retensjonsmekanisme, sync/async-grense, observability og målte RPO/RTO. S3-/CDN-provider, region, ekstern IAM, bucket-policy, KMS, Object Lock og provider-spesifikk purge/`versionId`-verifikasjon er utsatt og blir bare en betinget senere gate ved dokumentert behov.
+Før reell bildebehandling eller offentlig serving kan aktiveres, gjenstår lokal private/public-storage og serving, lokal cache-/purge-/verifikasjonskontrakt, permanent deny-journal og materialisert read-model med journalcursor/fail-closed reconciliation, SVG-policy og eventuell sikker rasterisering, eventuell skadevarekontroll og bakgrunnskø, endelig public API-schema og aliasmapping, public release key-struktur, concurrency/databaseconstraints, retensjonsmekanisme, sync/async-grense og observability. Backupkjeden er aktivert og restore-smoke er målt, men full katastrofe-RTO er fortsatt åpen. S3-/CDN-provider, region, ekstern IAM, bucket-policy, KMS, Object Lock og provider-spesifikk purge/`versionId`-verifikasjon er utsatt og blir bare en betinget senere gate ved dokumentert behov.
 
 ## Begrunnelse
 
@@ -911,7 +930,7 @@ Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkj
 
 ### Fase 3B: teknisk prototype og kontrakt
 
-**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, og de tilhørende processing-, storage-, delivery-, takedown- og restoreprinsippene er godkjent. ADR-008 har godkjent lokal Hetzner storage-/backup-MVP. Fase 3B er fortsatt aktiv. Fase 3B.1R, aktiv backup/restore og senere API-, concurrency-, retention- og sync/async-gater gjenstår før fase 3C.
+**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, fase 3B.1R er gjennomført og godkjent med representativ kvalitets- og sRGB-evidens, og de tilhørende processing-, storage-, delivery-, takedown- og restoreprinsippene er godkjent. ADR-008s lokale Hetzner storage-/backup-MVP er **ACTIVE**. Fase 3B er fortsatt aktiv fordi serving/purge, permanent deny-journal/read-model/cursor, API-schema/aliasmapping, public release key, retention, sync/async og observability fortsatt gjenstår.
 
 **Omfang:**
 
@@ -1152,16 +1171,12 @@ ADR-007 regnes som implementert først når:
 
 ## Tekniske valg som fortsatt er åpne
 
-Følgende gjenstår etter de godkjente fase 3B.1- og 3B.2-valgene:
+Følgende gjenstår etter de godkjente fase 3B.1-, 3B.1R- og 3B.2-valgene:
 
-- endelig pixelgrense basert på representative høyoppløselige fixtures og ressursmålinger
-- dimensjonsregler per bildetype, fit, variant, reelt cropområde og oppskaleringsbehov
-- blur-, komprimerings- og logolesbarhetsvarsler og eventuell begrenset kvalitetsregel
-- eksplisitt sRGB-normaliseringskontrakt
 - konkret trigger og migreringsplan dersom objektlagring/CDN senere blir nødvendig
 - lokale private/public-paths, permissions og same-origin/media-origin-kontrakt
 - permanent deny-journalteknologi, WORM/tamper evidence, read-model og cursor
-- aktivert og verifisert ADR-008-backup, faktisk RPO/RTO og senere eventuell ekstra regionredundans
+- full katastrofe-RTO og senere eventuell ekstra regionredundans; ADR-008-backupen er aktivert og restore-smoke er målt
 - SVG-rasteriseringsverktøy
 - eventuell bakgrunnskø
 - eventuell skadevarekontroll
@@ -1176,17 +1191,14 @@ Følgende gjenstår etter de godkjente fase 3B.1- og 3B.2-valgene:
 - auditretensjon og eventuell kontrollert anonymisering
 - scheduler-/workergrense for retensjon
 
-Disse valgene endrer ikke hovedarkitekturen. Fase 3B.1R, operativ aktivering av ADR-008-backupen og øvrig gjenstående fase 3B-evidens skal dokumenteres før fase 3C starter.
+Disse valgene endrer ikke hovedarkitekturen. Fase 3B.1R og operativ aktivering av ADR-008-backupen er gjennomført; øvrige gater skal dokumenteres før reell processing eller offentlig serving aktiveres.
 
 ## Beslutninger som fortsatt krever eksplisitt godkjenning
 
-Gjenstående fase 3B-resultater må godkjennes før produksjonsrettet implementering av fase 3C. Godkjenningen skal minst omfatte:
+Gjenstående fase 3B-resultater må godkjennes før de respektive produksjonsrettede runtimeleveransene aktiveres. Godkjenningen skal minst omfatte:
 
 - konkret lokal storage-/media-origin-, tilgangs-, purge- og restoreadferd for første MVP
-- faktisk grønn førstebackup og restore-smoke etter ADR-008, samt målte RPO-/RTO-forutsetninger
 - permanent deny-journal-, read-model- og cursorløsning innenfor de godkjente fail-closed-prinsippene
-- representative pixel-, dimensjons- og kvalitetsgrenser fra fase 3B.1R
-- eksplisitt sRGB-normaliseringskontrakt
 - endelig API-schema og aliasmapping
 - sync/async-grense og cleanupmekanisme
 - same-tenant reuse- og orphan-retensjonsregel
