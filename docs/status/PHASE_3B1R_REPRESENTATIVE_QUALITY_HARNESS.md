@@ -114,7 +114,7 @@ Fase 3B.1R er gjennomført og godkjent, men hele fase 3B er ikke ferdig. Før re
 - cache, purge og verifikasjon
 - permanent deny-journal, read-model og cursor
 - endelig API-schema og aliasmapping
-- public release key-struktur
+- implementering av fase 3B.3s godkjente UUIDv4-baserte public release aggregate og varige reservasjon
 - retention og cleanupmekanisme
 - sync/async-grense og eventuell worker
 - observability

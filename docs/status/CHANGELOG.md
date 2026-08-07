@@ -4,6 +4,18 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 
 ## 2026-08-07
 
+### Fase 3B.3: public release identity og canonical key-kontrakt godkjent
+
+- fastsatt tilfeldig UUIDv4 som separat immutable public release identity, forskjellig fra processing artifact identity og `OrganizationImageSelection.revision`
+- fastsatt canonical relativ storage key `releases/<release_uuid>/<variant>.<ext>` med lowercase UUIDv4, variantene square/landscape/share og extensionmappingen JPEG → `jpg`, PNG → `png` og WebP → `webp`
+- utelatt tenant-/Organization-identitet, selection-revisjon, rendition-sett-ID, artifact key/checksum/hash, request host, filesystempath, credentials, tokens, queryparametere og mutable displayverdier fra public key
+- godkjent organization-typed release aggregate uten `GenericForeignKey`, immutable historisk mapping, databaseunikhet, slettingsbeskyttelse og nøyaktig én public key per nødvendig variant; eksakte modell-/feltnavn og håndhevingsmekanisme avgjøres i fase 3B.3-A
+- fastsatt at public key genereres internt og må være eksakt canonical builder-resultat fra release-ID, variant og outputformat; caller-key, feil UUID/variant/extension og delvis aggregate avvises
+- godkjent no-clobber: samme key og forventede bytes kan være idempotent retry, andre bytes er hard konflikt, og tidligere release-ID-er/keys frigjøres eller gjenbrukes aldri
+- bekreftet at replacement, restore og senere autorisert republisering alltid får ny release-ID og nye keys, også når eksisterende rendition-bytes gjenbrukes uten ny encoding
+- beholdt permanent journalteknologi, takedown-/publish-saga, serving, nginx/Caddy, cache/purge, unpublish, retention, fallback-key, API/projection, workergrense, observability og full disaster-RTO som separate senere gater
+- beholdt `IMAGE_ASSET_FEATURE_ENABLED=False`; ingen modell, migrasjon, filskriving, runtime, API, Editor, PUBLIC, import, staging eller deploy inngår i beslutningsleveransen
+
 ### Fase 3B.1R: representativ kvalitetsvalidering gjennomført og godkjent
 
 - gjennomført den isolerte lokale harnessen og manuell review på 24 rettighetsavklarte fixtures uten nettverk; private kilder, privat manifest og visuell/full evidens forblir Git-ignorert
@@ -129,7 +141,7 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 
 ### Fase 3B.2: storage-, delivery-, takedown- og restoreprinsipper godkjent
 
-- godkjent to-key-kontrakt med separat deterministisk processing artifact identity og immutable public release identity; ny offentlig revisjon bruker ny release key uten krav om ny encoding, mens eksakt key-struktur fortsatt er åpen
+- godkjent to-key-kontrakt med separat deterministisk processing artifact identity og immutable public release identity; ny offentlig revisjon bruker ny release key uten krav om ny encoding, mens eksakt key-struktur på dette tidspunktet fortsatt var åpen og senere ble fastsatt i ADR-007 punkt 25
 - godkjent dedikert unversioned aktiv public rendition-store eller likeverdig namespace uten offentlig tilgjengelige historiske versjoner; suspended versioning behandles ikke automatisk som aldri-versioned
 - presisert at public delivery ikke krever anonym bucket: første MVP bruker kontrollert same-origin/lokal media-origin fra host-persistent storage; ekstern provider-endpoint, origin-begrenset objektlager og CDN er bare betingede senere krav
 - godkjent private originaler med separat lokal host-persistent storage, permissions og rollebeskyttet tilgang; provider-versioning, IAM/public-access-block og eksplisitt `versionId`-bevis gjelder bare dersom objektlagring senere innføres
