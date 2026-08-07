@@ -44,4 +44,10 @@ Pillow and pyvips/libvips are both tested. The exact `pyvips-binary` package tha
 - public rendition encoders strip EXIF, ICC, XMP and comments
 - output keys include source checksum, processing version and canonical render configuration
 
-The 20-megapixel limit, universal shortest-side bands and edge-variance/blur bands remain prototype values. Phase 3B.1R must set representative pixel, dimension and quality rules and prove explicit sRGB normalization before phase 3C.
+The 20-megapixel limit, universal shortest-side bands and edge-variance/blur bands remain prototype values. Phase 3B.1R must set representative pixel, dimension and quality rules and prove explicit sRGB normalization before actual image processing or storage runtime.
+
+## Representative-quality harness
+
+Phase 3B.1R-A extends this isolated lab with a local dataset contract and runner; see [`representative/README.md`](representative/README.md). It validates a private, Git-ignored manifest, analyzes each fixture in a child process, compares profile-free and standard-sRGB-profile output candidates, records advisory quality/resource measurements, and creates a local static review report plus a redacted machine-readable summary.
+
+The harness performs no downloads and is not imported by CRM runtime. Its existence does not complete phase 3B.1R: a rights-cleared local dataset, a representative run, manual evidence review, and separate approval of any final quality or sRGB rule are still required.

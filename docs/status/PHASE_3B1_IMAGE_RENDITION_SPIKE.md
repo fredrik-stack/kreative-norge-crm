@@ -2,7 +2,7 @@
 
 **Dato:** 2026-07-31
 
-**Status:** Teknisk gjennomført prototypeevidens. Prosjekteier har godkjent processing profile v1 og neste spikeavgrensning; åpne kvalitetsgrenser krever fase 3B.1R. Ikke produksjonsklar og ikke implementert i CRM.
+**Status:** Teknisk gjennomført prototypeevidens. Prosjekteier har godkjent processing profile v1; fase 3B.1R-A forbereder en representativ harness, men åpne kvalitetsgrenser krever fortsatt lokal 3B.1R-B-kjøring og separat godkjenning. Ikke produksjonsklar og ikke implementert i CRM.
 
 **Arkitekturgrunnlag:** [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md)
 
@@ -321,7 +321,9 @@ Blur-/edge-variance er foreløpig bare varsel, reviewprioritering og diagnostikk
 
 Før fase 3C skal et lite, rettighetsavklart sett med ekte brede og høye logoer, logoer med liten tekst og mye whitespace, portretter, gruppebilder, mørke scene-/konsertbilder, komprimerte nettsidebilder, plakater og årstall, vannmerker, høyoppløselige mobilbilder og reelle ICC-/fargeprofiler testes.
 
-Fase 3B.1R skal brukes til å fastsette pixelgrense, dimensjonsregler per reelt renditionbehov, blur-/komprimeringsvarsler, lesbarhetsvarsler for logo og eventuell begrenset kvalitetsregel. Delsteget blokkerer ikke fase 3B.2, men må være gjennomført og godkjent før fase 3C.
+Fase 3B.1R skal brukes til å fastsette pixelgrense, dimensjonsregler per reelt renditionbehov, blur-/komprimeringsvarsler, lesbarhetsvarsler for logo og eventuell begrenset kvalitetsregel. Delsteget blokkerte ikke den additive fase 3C-grunnmuren bak avslått feature, men må være gjennomført og godkjent før faktisk processing eller storage-runtime.
+
+Fase 3B.1R-A etablerer [en isolert harness](PHASE_3B1R_REPRESENTATIVE_QUALITY_HARNESS.md) med Git-ignorert privat datasett, streng manifestvalidering, prosessisolerte målinger, eksplisitt ICC-/sRGB-evidens, lokale reviewfiler og redacted maskinevidens. Harnesset inneholder ingen representative kildefiler. Fase 3B.1R-B krever et faktisk rettighetsavklart lokalt datasett og separat visuell/teknisk evidensgjennomgang. Ingen harnessmåling er en godkjent hard fail.
 
 ## 21. Opprinnelig avgrensning for fase 3B.2
 

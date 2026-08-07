@@ -94,13 +94,14 @@ Dette er ikke en generell redesign. Øvrige kort og komponenter videreutvikles i
 
 ### Fase 3B – teknisk prototype og kontrakt
 
-**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, processing-, storage-, delivery-, takedown- og restoreprinsippene er godkjent, og lokal Hetzner storage-/backup-MVP er ACTIVE. Fase 3C kan starte additivt bak avslått feature etter dokumentasjons-PR-en; fase 3B.1R forblir en kvalitetsgate før reell bildebehandling kan godkjennes.
+**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, processing-, storage-, delivery-, takedown- og restoreprinsippene er godkjent, og lokal Hetzner storage-/backup-MVP er ACTIVE. Fase 3B.1R-A forbereder den isolerte analyse- og datasettrammen; fase 3B.1R-B med et faktisk rettighetsavklart datasett og separat evidensgodkjenning gjenstår før reell bildebehandling kan godkjennes.
 
 - [fase 3B.1](PHASE_3B1_IMAGE_RENDITION_SPIKE.md) målte Pillow og pyvips/libvips, format, foreløpige terskler og ressursbruk på syntetiske fixtures
 - fase 3B.1 prototypet contain, cover, fokuspunkt, square/landscape/share, deterministisk fallback og statisk nødvariant uten CRM-runtimekobling
 - prosjekteier har godkjent Pillow bak intern adapter, statisk JPEG/PNG/WebP-input, outputmappingen WebP/PNG/JPEG, 512 × 512 `square`, 800 × 450 `landscape`, 1200 × 630 `share`, no-upscale, immutable key-invarianten og 15 MiB som konfigurerbar standard
 - endelig pixelgrense, dimensjonsregler og blur-/komprimeringsregler er ikke godkjent
 - fase 3B.1R skal teste representative, rettighetsavklarte ekte bilder og sRGB/fargeprofiler og fastsette kvalitetsreglene før reell bildebehandling kan godkjennes; delsteget blokkerer ikke additivt fase 3C-grunnarbeid bak avslått feature
+- [fase 3B.1R-A](PHASE_3B1R_REPRESENTATIVE_QUALITY_HARNESS.md) etablerer bare lokalt manifest, prosessisolert måling, ICC-/sRGB-evidens, statisk review og redacted output; ingen ekte kilder eller endelige terskler følger med
 - [fase 3B.2](PHASE_3B2_STORAGE_RESTORE_SPIKE.md) har prototypet separate private/public `STORAGES`-aliaser, lokal filesystemreferanse, Moto 5.2.2, immutable artifact/release keys, absolutte allowlistede media-origins, origin-sletting, purge/takedown, separat deny-journal og backup/restore
 - prosjekteier har godkjent to-key-kontrakt, en aktiv public rendition-store uten tilgjengelige historiske public versjoner, kontrollert public delivery, private originaler, hybridbackup, fail-closed restore, varig deny-journal/read-model og idempotent purge; ADR-008 velger lokal host-persistent storage for første MVP og gjør providerkrav betingede
 - [ADR-008](../decisions/ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokale navngitte storagealiaser og stabil lokal Borg `>=1.2.8`/`<1.3.0` med remote path `borg-1.2` til separat Hetzner Storage Box og retention 14/8/12; S3/AWS/Backblaze/CDN utsettes
@@ -127,7 +128,7 @@ Den skrivebeskyttede [serverbaselinen](STAGING_BACKUP_BASELINE_2026-08-01.md) fa
 
 ### Fase 3C – additiv backend- og storagegrunnmur
 
-**Status:** De fem første additive leveransene er merget; PR #22 fullførte ordinær fjerning fra aktivt asset til systemfallback på `main`. Fase 3C.6 implementerer restore av en eksplisitt arkivert asset-selection som ny revisjon og er siste planlagte selection-livssyklusleveranse før fase 3B.1R prioriteres.
+**Status:** PR #23 og fase 3C.6 er merget. Den ordinære selection-livssyklusen med låsing/replacement, fjerning til fallback og restore av arkivert selection som ny revisjon er komplett bak avslått feature. Ingen ny selection-livssykluskommando planlegges; fase 3B.1R er neste kvalitetsgate.
 
 Første leveranse har innført `IMAGE_ASSET_FEATURE_ENABLED=False` som standard og lokale `image_originals_private`-/`image_renditions_public`-aliaser med separate, validerte roots. Eksisterende `default` og `staticfiles` er bevart. Aliasene brukes ikke av runtime, og settings-load eller system check oppretter ingen mapper eller filer.
 
