@@ -2,7 +2,7 @@
 
 ## Status
 
-Godkjent som arkitekturgrunnlag. Fase 3A, de isolerte fase 3B.1- og 3B.2-prototypene og fase 3B.1R med representativ kvalitetsvalidering er gjennomført. Fase 3B.3 har fastsatt separat UUIDv4-basert public release identity, canonical public release keys og varig release-reservasjon. Prosjekteier har godkjent processing profile v1, den representative kvalitetskontrakten og storage-, delivery-, takedown-, restore- og release identity-prinsippene nedenfor. [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokal one-server media og kryptert Hetzner Storage Box-backup som operasjonell MVP; public release aggregate og bilde-runtime er fortsatt ikke implementert.
+Godkjent som arkitekturgrunnlag. Fase 3A, de isolerte fase 3B.1- og 3B.2-prototypene og fase 3B.1R med representativ kvalitetsvalidering er gjennomført. Fase 3B.3 har fastsatt separat UUIDv4-basert public release identity, canonical public release keys og varig release-reservasjon. Fase 3B.3-A har implementert den additive organization-typed release-aggregaten, canonical key-builderen, immutable historisk mapping og atomisk feature-gated opprettelse i databasedomenet. Prosjekteier har godkjent processing profile v1, den representative kvalitetskontrakten og storage-, delivery-, takedown-, restore- og release identity-prinsippene nedenfor. [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokal one-server media og kryptert Hetzner Storage Box-backup som operasjonell MVP; fase 3B.3-B med permanent restore-sikker reservation-/deny-journal i separat failure-domain og all public bilde-runtime er fortsatt ikke implementert.
 
 **Beslutningsdato:** 2026-07-30
 
@@ -833,7 +833,7 @@ Det observerte gapet der unsigned GET med eksplisitt `versionId` nådde en eldre
 
 ADR-008 velger Hetzner one-server storage, stabil lokal Borg `>=1.2.8` og `<1.3.0` med remote path `borg-1.2` mot separat Storage Box, retention 14/8/12 og en obligatorisk restore-gate. Repo-grunnmuren er forberedt, men den eksterne kjeden må være ACTIVE før fase 3C kan skrive nye varige bildefiler.
 
-Før reell bildebehandling eller offentlig serving kan aktiveres, gjenstår implementering av den godkjente public release aggregate-/reservasjonskontrakten, lokal private/public-storage og serving, lokal cache-/purge-/verifikasjonskontrakt, permanent deny-journal og materialisert read-model med journalcursor/fail-closed reconciliation, SVG-policy og eventuell sikker rasterisering, eventuell skadevarekontroll og bakgrunnskø, endelig public API-schema og aliasmapping, retensjonsmekanisme, sync/async-grense og observability. Backupkjeden er aktivert og restore-smoke er målt, men full katastrofe-RTO er fortsatt åpen. S3-/CDN-provider, region, ekstern IAM, bucket-policy, KMS, Object Lock og provider-spesifikk purge/`versionId`-verifikasjon er utsatt og blir bare en betinget senere gate ved dokumentert behov.
+Fase 3B.3-A har implementert release-aggregate- og canonical key-domenegrunnmuren uten storage- eller public runtime. Før reell bildebehandling eller offentlig serving kan aktiveres, gjenstår fase 3B.3-B med permanent restore-sikker reservation-/deny-journal, separat failure-domain, materialisert read-model, journalcursor og fail-closed reconciliation; create-only/no-clobber storage-skriving; lokal private/public-storage, materialisering og serving; lokal cache-/purge-/verifikasjonskontrakt; SVG-policy og eventuell sikker rasterisering; eventuell skadevarekontroll og bakgrunnskø; endelig public API-schema og aliasmapping; retensjonsmekanisme; sync/async-grense og observability. Backupkjeden er aktivert og restore-smoke er målt, men full katastrofe-RTO er fortsatt åpen. S3-/CDN-provider, region, ekstern IAM, bucket-policy, KMS, Object Lock og provider-spesifikk purge/`versionId`-verifikasjon er utsatt og blir bare en betinget senere gate ved dokumentert behov.
 
 ### 25. Fase 3B.3: godkjent public release identity og key-kontrakt
 
@@ -1109,7 +1109,7 @@ Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkj
 
 ### Fase 3B: teknisk prototype og kontrakt
 
-**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, fase 3B.1R er gjennomført og godkjent med representativ kvalitets- og sRGB-evidens, og fase 3B.3 har godkjent eksakt UUIDv4-basert public release identity, canonical key-format og varig reservasjonsinvariant. ADR-008s lokale Hetzner storage-/backup-MVP er **ACTIVE**. Fase 3B er fortsatt aktiv fordi release aggregate/reservasjon ikke er implementert og serving/purge, permanent deny-journal/read-model/cursor, API-schema/aliasmapping, retention, sync/async og observability fortsatt gjenstår.
+**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, fase 3B.1R er gjennomført og godkjent med representativ kvalitets- og sRGB-evidens, og fase 3B.3 har godkjent eksakt UUIDv4-basert public release identity, canonical key-format og varig reservasjonsinvariant. Fase 3B.3-A har implementert den additive release-domenegrunnmuren uten public runtime. ADR-008s lokale Hetzner storage-/backup-MVP er **ACTIVE**. Fase 3B er fortsatt aktiv fordi fase 3B.3-B med permanent restore-sikker reservation-/deny-journal i separat failure-domain, create-only/no-clobber storage-skriving og serving/purge, read-model/cursor, API-schema/aliasmapping, retention, sync/async og observability fortsatt gjenstår.
 
 **Omfang:**
 
@@ -1369,7 +1369,7 @@ Følgende gjenstår etter de godkjente fase 3B.1-, 3B.1R-, 3B.2- og 3B.3-valgene
 - auditretensjon og eventuell kontrollert anonymisering
 - scheduler-/workergrense for retensjon
 
-Disse valgene endrer ikke hovedarkitekturen. Fase 3B.1R, fase 3B.3 og operativ aktivering av ADR-008-backupen er gjennomført som beslutnings-/evidensgater; public release aggregate/reservasjon og øvrige runtimegater skal implementeres eller dokumenteres før reell processing eller offentlig serving aktiveres.
+Disse valgene endrer ikke hovedarkitekturen. Fase 3B.1R, fase 3B.3, fase 3B.3-A-domenegrunnmuren og operativ aktivering av ADR-008-backupen er gjennomført som beslutnings-, implementerings- og evidensgater. Fase 3B.3-B med permanent restore-sikker reservation-/deny-journal og create-only/no-clobber storage-skriving samt øvrige runtimegater skal implementeres eller dokumenteres før reell processing eller offentlig serving aktiveres.
 
 ## Beslutninger som fortsatt krever eksplisitt godkjenning
 

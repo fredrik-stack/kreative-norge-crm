@@ -4,6 +4,19 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 
 ## 2026-08-07
 
+### Fase 3B.3-A: additiv public release-domenegrunnmur
+
+- lagt additivt til `OrganizationImageRelease` og `OrganizationImageReleaseRendition` med migrasjon `0026`, direkte organization-typed relasjoner og uten `GenericForeignKey`
+- implementert intern UUIDv4-generering og canonical builder for `releases/<release_uuid>/<variant>.<ext>`; caller kan ikke levere release-ID eller public storage key
+- gjort den feature-gated aggregate-tjenesten til eneste støttede insertvei; ny instance-save og default-/base-/reverse-managerens create, get-or-create, bulk-create og upsert avvises, mens en privat fullvaliderende insertprimitiv bare brukes inne i tjenestens transaksjon
+- vurdert parent-locking av rendition-settet, men ikke innført en ny mekanisme uten konkret reproducerbar release-integritetsfeil; selection og de tre frosne rendition-radene låses fortsatt
+- fryst release-mappingen til tenant, Organization, selection og rendition-sett gjennom immutable beskyttede relasjoner, og fryst variant, outputformat, artifact key og artifact-checksum per release-rendition
+- håndhevet global unikhet for release-ID og public key, unik variant og rendition per release, nøyaktig builder-binding og komplett square/landscape/share i den atomiske domenetjenesten
+- blokkert støttede ORM-veier for update, ForeignKey-reassosiering, bulk update, upsert/update-conflict og delete; `PROTECT` beskytter referert historikk mot sletting, mens manager-/modellreglene hindrer reassosiering gjennom ordinære skriveruter
+- verifisert at R1 → R2 får nye UUID-er og keys, men kan gjenbruke identiske artifact-bytes uten ny encoding eller fil-I/O
+- verifisert additiv forward/backward-migrasjon, tom initial release-tabell, constraints og invariantene med 26 målrettede PostgreSQL-tester og hele backendpakken på 272 tester
+- beholdt `IMAGE_ASSET_FEATURE_ENABLED=False`; ingen storage-I/O, journal, serving, purge, API/projection, Editor, PUBLIC, staging eller deploy inngår, og permanent reservation-/deny-journal i separat failure-domain er fortsatt en senere gate
+
 ### Fase 3B.3: public release identity og canonical key-kontrakt godkjent
 
 - fastsatt tilfeldig UUIDv4 som separat immutable public release identity, forskjellig fra processing artifact identity og `OrganizationImageSelection.revision`
