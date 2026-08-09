@@ -2,7 +2,7 @@
 
 **Status:** Godkjent strategisk arbeidsrekkefølge
 
-**Sist oppdatert:** 2026-08-02
+**Sist oppdatert:** 2026-08-08
 
 Roadmapen skiller mellom produktfaser og et parallelt infrastrukturløp. En fase beskriver prioritert rekkefølge, ikke at innholdet allerede er implementert. Større implementering krever fortsatt et godkjent ADR når arbeidet innebærer et vesentlig arkitekturvalg.
 
@@ -54,11 +54,11 @@ Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCH
 
 ## Fase 3 – Robust thumbnail-, bilde- og kortarkitektur
 
-**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; fase 3B.1R og fase 3B.3 godkjent; fase 3B.3-A har additiv public release-domenegrunnmur; ADR-008s lokale Hetzner storage-/backup-MVP er ACTIVE; fase 3C har avslått konfigurasjon og additiv bilde-, selection- og event-/kommandogrunnmur uten runtimebruk.
+**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; fase 3B.1R og fase 3B.3 godkjent; fase 3B.3-A har additiv public release-domenegrunnmur; ADR-008s lokale Hetzner storage-/backup-MVP er ACTIVE; fase 3C har additiv domene-/selectiongrunnmur og intern upload-only processing/storage-runtime bak avslått feature, uten API eller offentlig bildebruk.
 
 Fase 3A kartla dagens legacy URL-, Open Graph-, kort-, import-, storage- og driftsflyt. [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag.
 
-`ImageAsset`, `ImageRenditionSet`, `ImageRendition`, den typed `OrganizationImageSelection` og den organization-typed public release aggregaten er implementert additivt med constraints og migrasjoner. `ImageReviewEvent` og de feature-gated selection-kommandoene dekker atomisk første låsing, replacement, ordinær fjerning fra aktivt asset til systemfallback og restore av en eksplisitt arkivert asset-selection som ny revisjon. Release-tjenesten kan opprette et komplett immutable release-aggregate med interne canonical keys, men ingen applikasjonsflyt kaller noen av tjenestene og bilde-runtime er ikke implementert. Grunnmuren endrer ikke dagens `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- eller faviconflyt; disse gjelder fortsatt frem til en kontrollert overgang er levert og verifisert.
+`ImageAsset`, `ImageRenditionSet`, `ImageRendition`, den typed `OrganizationImageSelection` og den organization-typed public release aggregaten er implementert additivt med constraints og migrasjoner. `ImageReviewEvent` og de feature-gated selection-kommandoene dekker atomisk første låsing, replacement, ordinær fjerning fra aktivt asset til systemfallback og restore av en eksplisitt arkivert asset-selection som ny revisjon. Release-tjenesten kan opprette et komplett immutable release-aggregate med interne canonical keys. Fase 3C.7 legger til intern upload-only dekoding, processing, immutable artifact-storage og atomisk asset-/rendition-aggregate, men ingen API- eller brukerflyt kaller tjenestene. Grunnmuren endrer ikke dagens `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- eller faviconflyt; disse gjelder fortsatt frem til en kontrollert overgang er levert og verifisert.
 
 Bildeløsningen skal gå fra ustabile eksterne treff til en varig, redaksjonelt kontrollerbar ressurs:
 
@@ -115,7 +115,7 @@ Dette er ikke en generell redesign. Øvrige kort og komponenter videreutvikles i
 - fase 3B.2 har ikke opprettet CRM-modeller, migrasjoner, API/OpenAPI, Editor, PUBLIC, Import 2.0-integrasjon, bakgrunnskø eller stagingdeploy
 - senere fase 3B-/3C-leveranser skal implementere permanent reservation-/deny-journal/read-model/cursor og fastsette lokal private/public-serving og cache/purge/verifikasjon, API-schema, aliasmapping, retentionmekanisme, sync/async-grense og observability; provider-/CDN-gater gjelder bare dersom ekstern storage senere tas opp igjen
 
-Processing profile v1, fase 3B.1R-kvalitetskontrakten, fase 3B.2-prinsippene og fase 3B.3 release-kontrakten er arkitekturgrunnlag. Fase 3B.3-A er en produksjonsrettet, men ubrukt domenegrunnmur; den er ikke bilde-runtime. Dagens CRM-runtime og legacy URL-/faviconflyt gjelder fortsatt. ADR-008-backupen er aktivert og restore-verifisert. Permanent reservation-/deny-journal og gater for lokal serving/purge, read-model/cursor, API-schema, aliasmapping, retention, sync/async og observability må fortsatt være grønne før reell bildebruk kan aktiveres.
+Processing profile v1, fase 3B.1R-kvalitetskontrakten, fase 3B.2-prinsippene og fase 3B.3 release-kontrakten er arkitekturgrunnlag. Fase 3B.3-A er release-domenegrunnmur, mens fase 3C.7 er første interne bilde-runtime uten API- eller public-kobling. Dagens brukerrettede CRM-runtime og legacy URL-/faviconflyt gjelder fortsatt. ADR-008-backupen er aktivert og restore-verifisert. Permanent reservation-/deny-journal og gater for lokal serving/purge, read-model/cursor, API-schema, aliasmapping, retention, sync/async og observability må fortsatt være grønne før reell offentlig bildebruk kan aktiveres.
 
 #### Fase 3B.3 – public release identity og key-kontrakt
 
@@ -139,9 +139,9 @@ Den skrivebeskyttede [serverbaselinen](STAGING_BACKUP_BASELINE_2026-08-01.md) fa
 
 ### Fase 3C – additiv backend- og storagegrunnmur
 
-**Status:** PR #23 og fase 3C.6 er merget. Den ordinære selection-livssyklusen med låsing/replacement, fjerning til fallback og restore av arkivert selection som ny revisjon er komplett bak avslått feature. Fase 3B.1R er gjennomført og godkjent; ingen ny selection-livssykluskommando planlegges, og neste faseleveranse velges separat blant de gjenstående 3B-/3C-gatene.
+**Status:** PR #23 og fase 3C.6 er merget. Den ordinære selection-livssyklusen er komplett bak avslått feature. Fase 3C.7 implementerer lokalt første interne upload-only processing/storage-tjeneste; ingen API-, Editor-, PUBLIC- eller releasekobling er aktiv.
 
-Første leveranse har innført `IMAGE_ASSET_FEATURE_ENABLED=False` som standard og lokale `image_originals_private`-/`image_renditions_public`-aliaser med separate, validerte roots. Eksisterende `default` og `staticfiles` er bevart. Aliasene brukes ikke av runtime, og settings-load eller system check oppretter ingen mapper eller filer.
+Første leveranse har innført `IMAGE_ASSET_FEATURE_ENABLED=False` som standard og lokale `image_originals_private`-/`image_renditions_public`-aliaser med separate, validerte roots. Eksisterende `default` og `staticfiles` er bevart. Settings-load eller system check oppretter ingen mapper eller filer. Fase 3C.7 bruker aliasene bare når den interne tjenesten kalles med feature aktivert.
 
 Andre leveranse legger til `ImageAsset`, `ImageRenditionSet` og `ImageRendition` med provider-nøytrale logiske keys, teknisk metadata, tenant-avgrenset unikhet, numeriske constraints og `PROTECT` mellom asset, sett og rendition. Modellene er ikke koblet til `Organization`, storage, API eller runtime, og featureflagget forblir avslått.
 
@@ -153,13 +153,15 @@ Fase 3C.5 legger til `selection_removed_to_fallback` og `remove_organization_ima
 
 Fase 3C.6 legger til `selection_restored` og `restore_archived_organization_image_selection`. Kommandoen krever en eksplisitt eldre, arkivert asset-selection i samme tenant og organisasjon, revaliderer det komplette rendition-settet og oppretter en helt ny aktiv revisjon med samme rendition-sett, alt-tekst og offentlig kreditering. Restore-kilden omskrives aldri, og restore-eventet peker både på den tidligere aktive selectionen og restore-kilden. Restore er ikke ny approval: eventet lagrer ingen ny godkjenningstekst eller proveniens. Endret approval, alt-tekst, kreditering, fit, fokus eller rendition-sett skal bruke vanlig replacement. Databasen håndhever restore-eventets snapshotform, mens source-status og cross-tenant/-organization-scope håndheves av domenekommandoen.
 
+Fase 3C.7 legger til Pillow 12.3.0 bak intern adapter og `ingest_uploaded_image`. Tjenesten håndhever statisk JPEG/PNG/WebP, 15 MiB, 36 MP, single-frame, EXIF orientation, sRGB, profilfri output og no-upscale. `cover` bruker normalisert fokus eller sentrum; `contain` bruker gjennomsiktig canvas uten fokusavhengighet. Original og tre artifacts får interne tenant-scopede keys og checksums før write, skrives create-only med eksakt-key-kontroll og verifiseres før et komplett databaseaggregate committes eller gjenbrukes. Databasefeil kan etterlate immutable, ikke-servert orphan-bytes for idempotent retry; permanent cleanup er utsatt.
+
 - additive modeller, constraints og migrasjoner
 - kontrollert ingest, private originaler og renditions gjennom lokale navngitte storagealiaser
 - capability-permissions, approval, locking, audit, retention, karantene og takedown
 - feature av frem til test- og datagrunnlaget er godkjent
 - ingen varige bildefiler før ADR-008-backupen er ACTIVE og restore-verifisert
-- ingen bildefiler skrives, leses eller serveres av grunnleveransene; ingen API- eller brukerflyt kaller kommandoene, og legacybildeflyten er uendret
-- fase 3B.1R er gjennomført; gjenstående runtimegater velges separat, og ingen ny selection-kommando planlegges etter fase 3C.6
+- interne bildefiler kan skrives og leses av fase 3C.7-tjenesten når feature eksplisitt aktiveres; ingen filer serveres og ingen API- eller brukerflyt kaller tjenesten
+- gjenstående runtimegater velges etter konkret brukerreise-/driftsblocker; ingen ny selection-kommando planlegges etter fase 3C.6
 
 ### Fase 3D – Editor-flyt for aktørbilde
 

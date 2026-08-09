@@ -2,6 +2,20 @@
 
 Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små kosmetiske justeringer trenger ikke registreres.
 
+## 2026-08-08
+
+### Fase 3C.7: intern upload-only ingest og deterministisk prosessering
+
+- pin-net Pillow 12.3.0 bak en intern adapter og implementert kontrollert, begrenset lesing og faktisk dekoding av statisk JPEG, PNG og WebP
+- håndhevet 15 MiB, 36 MP, single-frame, EXIF orientation før rendering, eksplisitt sRGB-normalisering, kontrollert feil ved korrupt ICC og profilfrie renditions uten automatisk oppskalering
+- implementert processing profile v1 med `cover`, standardsentrum eller normalisert fokus, `contain` uten fokusavhengighet, og nøyaktig `square`, `landscape` og `share`
+- beregnet source- og artifact-checksums fra ferdige bytes før storage-write og lagt tenant-scopede, deterministiske interne keys som er separate fra canonical public release keys
+- lagt provider-nøytral immutable storagehelper som krever eksakt requested key, gjenbruker identiske bytes, avviser konflikt og collision-renaming og verifiserer skrevne bytes før databasecommit
+- lagt feature-gated `ingest_uploaded_image`, som skriver og verifiserer privat original og tre artifacts før ett atomisk `ImageAsset`/`ImageRenditionSet`/`ImageRendition`-aggregate opprettes eller gjenbrukes
+- beholdt storage-orphans ved databasefeil som immutable, ikke-servert retrygrunnlag; implicit reparasjon av delvise eller inkonsistente aggregater avvises
+- verifisert 26 målrettede PostgreSQL-/storage-/processingtester og hele backendpakken på 298 tester, inkludert eksisterende bilde-, selection- og releaseregresjoner
+- beholdt `IMAGE_ASSET_FEATURE_ENABLED=False`; ingen API-, Editor-, PUBLIC-, release-, serving-, journal-, purge-, staging- eller deployendring inngår
+
 ## 2026-08-07
 
 ### Fase 3B.3-A: additiv public release-domenegrunnmur
