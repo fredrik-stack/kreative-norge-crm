@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.conf import settings
 from .permissions import get_user_tenant_role
 from .models import (
     Tenant,
@@ -101,6 +102,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
     primary_link = serializers.SerializerMethodField()
     primary_link_field = serializers.SerializerMethodField()
     preview_image_url = serializers.SerializerMethodField()
+    image_asset_feature_enabled = serializers.SerializerMethodField()
     tags = TagSerializer(many=True, read_only=True)
     tag_ids = serializers.PrimaryKeyRelatedField(
         many=True,
@@ -155,6 +157,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "primary_link",
             "primary_link_field",
             "preview_image_url",
+            "image_asset_feature_enabled",
             "tags",
             "tag_ids",
             "categories",
@@ -173,6 +176,9 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "auto_thumbnail_url",
             "og_last_fetched_at",
         ]
+
+    def get_image_asset_feature_enabled(self, obj):
+        return settings.IMAGE_ASSET_FEATURE_ENABLED
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

@@ -60,6 +60,7 @@ type Organization = {
    primary_link: string | null;
    primary_link_field: string | null;
    preview_image_url: string | null;
+   image_asset_feature_enabled: boolean;
    tags: Tag[];
    categories: Category[];
    subcategories: Subcategory[];
@@ -165,6 +166,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         primary_link: "https://example.com",
         primary_link_field: "website_url",
         preview_image_url: "https://example.com/favicon.ico",
+        image_asset_feature_enabled: false,
         tags: [],
         categories: [],
         subcategories: [],
@@ -369,6 +371,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
           : payload.youtube_url ? "youtube_url"
           : null,
         preview_image_url: null,
+        image_asset_feature_enabled: false,
         tags: state.tags.filter((tag) => (payload as { tag_ids?: number[] }).tag_ids?.includes(tag.id)),
         categories: state.categories.filter((category) => (payload as { category_ids?: number[] }).category_ids?.includes(category.id)),
         subcategories: state.subcategories.filter((item) =>
@@ -419,6 +422,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
           : payload.youtube_url ? "youtube_url"
           : current.primary_link_field,
         preview_image_url: current.preview_image_url,
+        image_asset_feature_enabled: current.image_asset_feature_enabled,
         description: payload.description ?? current.description,
         tags: state.tags.filter((tag) => (payload as { tag_ids?: number[] }).tag_ids?.includes(tag.id) ?? current.tags.some((item) => item.id === tag.id)),
         categories: state.categories.filter((category) =>
@@ -446,6 +450,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         thumbnail_image_url: current.thumbnail_image_url,
         auto_thumbnail_url: current.auto_thumbnail_url ?? current.preview_image_url ?? current.og_image_url ?? "https://example.com/preview.jpg",
         preview_image_url: current.preview_image_url ?? current.og_image_url ?? "https://example.com/preview.jpg",
+        image_asset_feature_enabled: current.image_asset_feature_enabled,
         og_last_fetched_at: now,
       };
       await route.fulfill({

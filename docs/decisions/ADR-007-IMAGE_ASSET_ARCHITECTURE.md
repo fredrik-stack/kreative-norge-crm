@@ -2,7 +2,7 @@
 
 ## Status
 
-Godkjent som arkitekturgrunnlag. Fase 3A, de isolerte fase 3B.1- og 3B.2-prototypene og fase 3B.1R med representativ kvalitetsvalidering er gjennomført. Fase 3B.3 har fastsatt separat UUIDv4-basert public release identity, canonical public release keys og varig release-reservasjon. Fase 3B.3-A har implementert den additive organization-typed release-aggregaten, canonical key-builderen, immutable historisk mapping og atomisk feature-gated opprettelse i databasedomenet. Prosjekteier har godkjent processing profile v1, den representative kvalitetskontrakten og storage-, delivery-, takedown-, restore- og release identity-prinsippene nedenfor. [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokal one-server media og kryptert Hetzner Storage Box-backup som operasjonell MVP; fase 3B.3-B med permanent restore-sikker reservation-/deny-journal i separat failure-domain og all public bilde-runtime er fortsatt ikke implementert.
+Godkjent som arkitekturgrunnlag. Fase 3A, de isolerte fase 3B.1- og 3B.2-prototypene og fase 3B.1R med representativ kvalitetsvalidering er gjennomført. Fase 3B.3 har fastsatt separat UUIDv4-basert public release identity, canonical public release keys og varig release-reservasjon. Fase 3B.3-A har implementert den additive organization-typed release-aggregaten, canonical key-builderen, immutable historisk mapping og atomisk feature-gated opprettelse i databasedomenet. Fase 3C.7 har implementert intern processing/storage, og fase 3D.1 har implementert første offisielle website/Open Graph-kandidatflyt til eksplisitt Organization-selection bak det fortsatt avslåtte featureflagget. Prosjekteier har godkjent processing profile v1, den representative kvalitetskontrakten og storage-, delivery-, takedown-, restore- og release identity-prinsippene nedenfor. [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokal one-server media og kryptert Hetzner Storage Box-backup som operasjonell MVP; fase 3B.3-B med permanent restore-sikker reservation-/deny-journal i separat failure-domain og all public bilde-runtime er fortsatt ikke implementert.
 
 **Beslutningsdato:** 2026-07-30
 
@@ -1191,6 +1191,8 @@ Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkj
 - PUBLIC fortsetter legacy eller systemfallback uten å eksponere blokkerte bilder
 
 ### Fase 3D: Editor-flyt for aktørbilde
+
+**Implementeringsstatus 2026-08-09:** Første avgrensede leveranse er implementert bak avslått feature med official website/Open Graph-discovery, transient signert kandidat, ephemeral kandidat-preview, valgt 3C.7-processing, intern rendition-preview og eksplisitt first lock/replacement. Punktene om upload, limt URL, systemfallback-/historikk-UI, takedownforberedelse og public projection er fortsatt ikke implementert.
 
 **Omfang:**
 

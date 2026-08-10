@@ -96,6 +96,7 @@ export function resetMockEditorData() {
         primary_link: "https://example.com",
         primary_link_field: "website_url",
         preview_image_url: "https://example.com/favicon.ico",
+        image_asset_feature_enabled: false,
         tags: [],
         categories: [],
         subcategories: [],

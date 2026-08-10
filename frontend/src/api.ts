@@ -5,6 +5,9 @@ import type {
   ImportJob,
   ImportRow,
   Organization,
+  OfficialImageCandidate,
+  OrganizationImageState,
+  ProcessedOrganizationImage,
   OrganizationPerson,
   Paginated,
   PersonContact,
@@ -81,6 +84,28 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return (await response.json()) as T;
+}
+
+async function requestBlob(path: string, payload: object): Promise<Blob> {
+  const csrfToken = getCsrfCookie();
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const contentType = response.headers.get("content-type") ?? "";
+    const data: unknown = contentType.includes("application/json") ? await response.json() : await response.text();
+    if (response.status === 401 || response.status === 403) {
+      notifyAuthError({ status: response.status, path });
+    }
+    throw new ApiError(response.status, `API ${response.status}`, data);
+  }
+  return response.blob();
 }
 
 function notifyAuthError(detail: AuthErrorDetail) {
@@ -278,6 +303,82 @@ export async function refreshOrganizationPreview(
     method: "POST",
     body: JSON.stringify({}),
   });
+}
+
+function organizationImagePath(tenantId: number, organizationId: number, action: string): string {
+  return `/api/tenants/${tenantId}/organizations/${organizationId}/images/${action}/`;
+}
+
+export async function discoverOfficialImages(
+  tenantId: number,
+  organizationId: number,
+): Promise<OfficialImageCandidate[]> {
+  const result = await request<{ candidates: OfficialImageCandidate[] }>(
+    organizationImagePath(tenantId, organizationId, "discover"),
+    { method: "POST", body: JSON.stringify({}) },
+  );
+  return result.candidates;
+}
+
+export async function getCandidatePreview(
+  tenantId: number,
+  organizationId: number,
+  candidateRef: string,
+): Promise<Blob> {
+  return requestBlob(organizationImagePath(tenantId, organizationId, "candidate-preview"), {
+    candidate_ref: candidateRef,
+  });
+}
+
+export async function processOfficialImage(
+  tenantId: number,
+  organizationId: number,
+  payload: {
+    candidate_ref: string;
+    image_kind: "photo" | "logo";
+    focus_x?: number;
+    focus_y?: number;
+  },
+): Promise<ProcessedOrganizationImage> {
+  return request<ProcessedOrganizationImage>(organizationImagePath(tenantId, organizationId, "process"), {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getRenditionPreview(
+  tenantId: number,
+  organizationId: number,
+  previewRef: string,
+  variant: "square" | "landscape" | "share",
+): Promise<Blob> {
+  return requestBlob(organizationImagePath(tenantId, organizationId, "rendition-preview"), {
+    preview_ref: previewRef,
+    variant,
+  });
+}
+
+export async function approveOfficialImage(
+  tenantId: number,
+  organizationId: number,
+  payload: {
+    approval_ref: string;
+    expected_revision: number;
+    alt_text: string;
+    public_credit: string;
+  },
+): Promise<{ selection_id: number; revision: number; status: string; event_id: number }> {
+  return request(organizationImagePath(tenantId, organizationId, "approve"), {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getOrganizationImageState(
+  tenantId: number,
+  organizationId: number,
+): Promise<OrganizationImageState> {
+  return request(organizationImagePath(tenantId, organizationId, "state"));
 }
 
 export async function createOrganization(

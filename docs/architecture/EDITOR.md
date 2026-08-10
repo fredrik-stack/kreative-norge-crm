@@ -1,10 +1,18 @@
 # Editor
 
-**Status:** implementert grunnløsning; fase 2-standarder for kontaktpublisering implementert
+**Status:** implementert grunnløsning; fase 2-standarder for kontaktpublisering implementert; fase 3D.1 offisiell bildekandidatflyt implementert bak avslått feature
 
 React-editoren støtter tenantvalg, rollebasert tilgang, aktører, personer, relasjoner, kontaktkanaler, søk, taksonomifiltrering og import/eksport-side.
 
 Editoren har håndtering av ulagrede endringer og egne URL-er for oversikter og detaljvisninger.
+
+## Implementert Aktørbilde-flyt bak featureflag
+
+Når `IMAGE_ASSET_FEATURE_ENABLED=True` for et miljø, viser Organization-editoren seksjonen `Aktørbilde`. Redaktøren kan eksplisitt finne kandidater fra aktørens `website_url`, se servergenererte kandidatpreviews uten hotlinking, velge én kandidat, velge `Foto`/cover eller `Logo`/contain, justere valgfritt fotofokus, prosessere bare det valgte bildet og kontrollere interne `square`-, `landscape`- og `share`-previews. Alt-tekst er påkrevd, offentlig kreditering er valgfri, og bare `Godkjenn og lås bilde` eller `Godkjenn og erstatt bilde` oppretter en aktiv `OrganizationImageSelection`.
+
+Aktiv selection vises med revisjon og tre interne previews. Expected-revision-konflikter og nettverks-/processingfeil vises kontrollert. Vanlig Organization-save, discovery, kandidat-preview og processing kan ikke velge eller erstatte bilde. Den eksisterende `Public Preview (legacy)` er fortsatt en separat legacyvisning; de nye previewene er ikke offentlig publisert.
+
+Seksjonen er skjult når flagget er av, som fortsatt er standard. Brave/generelt bildesøk, limt URL, brukerrettet upload, historikk-/restore-UI, takedown, public projection og PUBLIC-bildebruk er ikke implementert i denne leveransen.
 
 ## Implementert kontaktopplevelse
 
