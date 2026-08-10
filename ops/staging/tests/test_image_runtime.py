@@ -3,23 +3,37 @@ from __future__ import annotations
 from pathlib import Path
 import unittest
 
+import yaml
+
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 class StagingImageRuntimeContractTests(unittest.TestCase):
-    def test_compose_binds_only_the_two_explicit_image_roots(self):
-        compose = (REPOSITORY_ROOT / "docker-compose.staging.yml").read_text(encoding="utf-8")
+    def test_compose_mounts_images_only_into_api(self):
+        compose = yaml.safe_load(
+            (REPOSITORY_ROOT / "docker-compose.staging.yml").read_text(
+                encoding="utf-8"
+            )
+        )
+        api_volumes = set(compose["services"]["api"]["volumes"])
+        web_volumes = compose["services"]["web"]["volumes"]
 
         self.assertIn(
             "/srv/kreative-norge/media/private:/srv/kreative-norge/media/private",
-            compose,
+            api_volumes,
         )
         self.assertIn(
             "/srv/kreative-norge/media/public:/srv/kreative-norge/media/public",
-            compose,
+            api_volumes,
         )
-        self.assertNotIn("/srv/kreative-norge/media:/", compose)
+        self.assertEqual(web_volumes, ["django_static:/var/www/django-static:ro"])
+        self.assertFalse(
+            any("/srv/kreative-norge/media/private" in volume for volume in web_volumes)
+        )
+        self.assertFalse(
+            any("/srv/kreative-norge/media/public" in volume for volume in web_volumes)
+        )
 
     def test_staging_example_keeps_feature_off_with_explicit_container_roots(self):
         environment = (REPOSITORY_ROOT / ".env.staging.example").read_text(encoding="utf-8")

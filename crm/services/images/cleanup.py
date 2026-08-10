@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import ExitStack
 from dataclasses import dataclass
 import os
 from pathlib import Path
@@ -13,6 +14,11 @@ from django.db import connection, transaction
 
 from crm.models import ImageAsset, ImageRendition
 from crm.validators import validate_storage_key
+
+from .runtime_lock import (
+    ImageStorageRuntimeLockError,
+    acquire_image_storage_cleanup_lock,
+)
 
 
 class ImageOrphanCleanupError(RuntimeError):
@@ -176,6 +182,70 @@ def _build_plan(*, minimum_age_seconds: int, now: float) -> tuple[StorageCleanup
     return tuple(plans)
 
 
+def _directory_open_flags() -> int:
+    try:
+        return os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    except AttributeError as error:
+        raise ImageOrphanCleanupError(
+            "This platform cannot provide no-follow directory deletion."
+        ) from error
+
+
+def _open_child_directory(parent_fd: int, component: str) -> int:
+    return os.open(component, _directory_open_flags(), dir_fd=parent_fd)
+
+
+def _open_root_directory(root: Path, stack: ExitStack) -> int:
+    try:
+        current_fd = os.open(root.anchor, _directory_open_flags())
+        stack.callback(os.close, current_fd)
+        for component in root.parts[1:]:
+            current_fd = _open_child_directory(current_fd, component)
+            stack.callback(os.close, current_fd)
+        return current_fd
+    except OSError as error:
+        raise ImageOrphanCleanupError(
+            f"Cannot securely open image storage root: {root}"
+        ) from error
+
+
+def _delete_regular_file_no_follow(*, root: Path, key: str, cutoff: float) -> None:
+    try:
+        validate_storage_key(key)
+    except ValidationError as error:
+        raise ImageOrphanCleanupError(f"Invalid deletion candidate key: {key}") from error
+
+    components = key.split("/")
+    try:
+        with ExitStack() as stack:
+            parent_fd = _open_root_directory(root, stack)
+            for component in components[:-1]:
+                parent_fd = _open_child_directory(parent_fd, component)
+                stack.callback(os.close, parent_fd)
+
+            file_name = components[-1]
+            metadata = os.stat(file_name, dir_fd=parent_fd, follow_symlinks=False)
+            if not stat.S_ISREG(metadata.st_mode):
+                raise ImageOrphanCleanupError(
+                    f"Candidate is no longer a regular file: {key}"
+                )
+            if metadata.st_mtime > cutoff:
+                raise ImageOrphanCleanupError(
+                    f"Candidate became too young for deletion: {key}"
+                )
+            os.unlink(file_name, dir_fd=parent_fd)
+    except ImageOrphanCleanupError:
+        raise
+    except FileNotFoundError as error:
+        raise ImageOrphanCleanupError(
+            f"Candidate disappeared before deletion: {key}"
+        ) from error
+    except OSError as error:
+        raise ImageOrphanCleanupError(
+            f"Failed secure no-follow deletion for orphan candidate: {key}"
+        ) from error
+
+
 def cleanup_image_storage_orphans(
     *,
     apply: bool = False,
@@ -185,17 +255,13 @@ def cleanup_image_storage_orphans(
     if isinstance(minimum_age_hours, bool) or minimum_age_hours < 0:
         raise ImageOrphanCleanupError("minimum_age_hours must be a non-negative integer.")
     minimum_age_seconds = minimum_age_hours * 60 * 60
+    plan_now = time.time() if now is None else now
     plans = _build_plan(
         minimum_age_seconds=minimum_age_seconds,
-        now=time.time() if now is None else now,
+        now=plan_now,
     )
     if not apply:
         return ImageOrphanCleanupResult(plans=plans, deleted_keys=())
-
-    if connection.vendor != "postgresql":
-        raise ImageOrphanCleanupError(
-            "Apply requires PostgreSQL table locks and is unavailable on this database backend."
-        )
 
     deleted: list[tuple[str, str]] = []
     model_by_alias = {
@@ -203,6 +269,13 @@ def cleanup_image_storage_orphans(
         for alias, _, model, field_name in STORAGE_SPECS
     }
     with transaction.atomic():
+        try:
+            acquire_image_storage_cleanup_lock()
+        except ImageStorageRuntimeLockError as error:
+            raise ImageOrphanCleanupError(
+                "Apply requires PostgreSQL advisory locking and is unavailable."
+            ) from error
+
         table_names = ", ".join(
             connection.ops.quote_name(model._meta.db_table)
             for model in (ImageAsset, ImageRendition)
@@ -213,10 +286,12 @@ def cleanup_image_storage_orphans(
         # Rebuild the complete plan while writes to both reference tables are
         # blocked. A new reference, missing file, symlink, special entry, or
         # root/backend mismatch blocks deletion.
+        apply_now = time.time() if now is None else now
         plans = _build_plan(
             minimum_age_seconds=minimum_age_seconds,
-            now=time.time() if now is None else now,
+            now=apply_now,
         )
+        cutoff = apply_now - minimum_age_seconds
         for plan in plans:
             model, field_name = model_by_alias[plan.alias]
             for key in plan.orphan_keys:
@@ -224,22 +299,6 @@ def cleanup_image_storage_orphans(
                     raise ImageOrphanCleanupError(
                         f"{plan.alias} key became referenced; cleanup stopped before deleting it."
                     )
-                path = plan.root.joinpath(*key.split("/"))
-                try:
-                    mode = path.lstat().st_mode
-                except FileNotFoundError as error:
-                    raise ImageOrphanCleanupError(
-                        f"Candidate disappeared before deletion: {key}"
-                    ) from error
-                if not stat.S_ISREG(mode):
-                    raise ImageOrphanCleanupError(
-                        f"Candidate is no longer a regular file: {key}"
-                    )
-                try:
-                    path.unlink()
-                except OSError as error:
-                    raise ImageOrphanCleanupError(
-                        f"Failed to delete orphan candidate: {key}"
-                    ) from error
+                _delete_regular_file_no_follow(root=plan.root, key=key, cutoff=cutoff)
                 deleted.append((plan.alias, key))
     return ImageOrphanCleanupResult(plans=plans, deleted_keys=tuple(deleted))

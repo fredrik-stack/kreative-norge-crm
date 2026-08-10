@@ -54,7 +54,7 @@ Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCH
 
 ## Fase 3 – Robust thumbnail-, bilde- og kortarkitektur
 
-**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; fase 3B.1R og fase 3B.3 godkjent; fase 3B.3-A har additiv public release-domenegrunnmur; ADR-008s lokale Hetzner storage-/backup-MVP er ACTIVE; fase 3C har domene-/selection- og processinggrunnmur; fase 3D.1 er teknisk aktivert i staging med intern host-persistent bilde-runtime, uten offentlig bildebruk; manuell visuell kontroll gjenstår.
+**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; fase 3B.1R og fase 3B.3 godkjent; fase 3B.3-A har additiv public release-domenegrunnmur; ADR-008s lokale Hetzner storage-/backup-MVP er ACTIVE; fase 3C har domene-/selection- og processinggrunnmur; fase 3D.1 er teknisk aktivert og visuelt godkjent i staging med intern host-persistent bilde-runtime, uten offentlig bildebruk.
 
 Fase 3A kartla dagens legacy URL-, Open Graph-, kort-, import-, storage- og driftsflyt. [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag.
 
@@ -165,13 +165,24 @@ Fase 3C.7 legger til Pillow 12.3.0 bak intern adapter og `ingest_uploaded_image`
 
 ### Fase 3D – Editor-flyt for aktørbilde
 
-**Status:** Påbegynt. Fase 3D.1s første offisielle kandidatflyt er merget med PR #30 og teknisk aktivert i staging bak en miljøstyrt featuregate. Manuell visuell kontroll, øvrige kilder, fallback-/historikk-UI og public projection gjenstår.
+**Status:** Påbegynt. Fase 3D.1s første offisielle kandidatflyt er merget med PR #30 og teknisk aktivert og visuelt godkjent i staging bak en miljøstyrt featuregate. Fase 3D.2 er besluttet som neste leveranse, men ikke implementert. Fallback-/historikk-UI og public projection gjenstår.
 
 - offisiell website/Open Graph-discovery, kortlivet signert kandidat, ephemeral kandidat-preview og valgt processing er implementert i 3D.1
 - intern square/landscape/share-preview, «Godkjenn og lås bilde» og eksplisitt replacement er implementert i 3D.1
-- Brave/generelt bildesøk, brukerrettet upload, limt URL og fallback gjenstår som behovsdrevne leveranser
+- Brave/generelt bildesøk, limt URL og manuell upload inngår i besluttet fase 3D.2; de er ikke implementert
 - ordinær arkivering, restore og historikk; takedown-UI forberedes deaktivert til deny-gaten er verifisert
 - aktiv selection-preview er intern; preview fra samme public projection som PUBLIC gjenstår
+
+#### Fase 3D.2 – besluttet neste leveranse, ikke implementert
+
+Redaktøren skal få forståelige norske processingfeil, fokusforvalg Venstre/Midt/Høyre og Topp/Midt/Bunn, live crop-preview for Foto og valgfri alt-tekst. Nye kilder prioriteres slik:
+
+1. offisiell nettside / Open Graph
+2. Brave / generelt bildesøk
+3. limt direkte bilde-URL
+4. manuell upload
+
+Brave-søket skal bygge på faktiske CRM-fakta, ikke AI-gjetting. Aktørnavn brukes alltid; kommune eller sted kan legges til deterministisk. Kategori, tags og tilknyttede personer legges ikke automatisk inn i første søk. Den eksakte søketeksten skal være synlig og redigerbar, og endelig bildevalg gjøres alltid av en menneskelig redaktør.
 
 ### Fase 3E – PUBLIC, API, deling og kort
 

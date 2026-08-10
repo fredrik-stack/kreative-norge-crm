@@ -249,6 +249,21 @@ class SecureImageFetchTests(SimpleTestCase):
 
         self.assertEqual(result.body, body)
 
+    def test_rejects_html_content_type_when_bytes_are_not_supported_html(self):
+        factory = FakeConnectionFactory(
+            [FakeResponse(200, {"Content-Type": "text/html"}, b"plain text only")]
+        )
+
+        with self.assertRaises(SecureImageFetchError) as context:
+            fetch_external_resource(
+                "https://example.com/",
+                expected="html",
+                resolver=self.public_resolver,
+                connection_factory=factory,
+            )
+
+        self.assertEqual(context.exception.code, "html_mismatch")
+
     def test_timeout_and_remote_http_error_are_controlled(self):
         timeout_response = FakeResponse(200, {"Content-Type": "image/jpeg"}, image_bytes())
         timeout_response.read = Mock(side_effect=socket.timeout())

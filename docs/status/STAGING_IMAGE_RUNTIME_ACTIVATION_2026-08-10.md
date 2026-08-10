@@ -1,6 +1,6 @@
 # Stagingaktivering av fase 3D.1 – 2026-08-10
 
-**Status:** Teknisk gjennomført; manuell visuell prosjekteierkontroll gjenstår
+**Status:** Teknisk gjennomført; prosjekteiers manuelle visuelle gate gjennomført
 
 ## Omfang
 
@@ -24,10 +24,14 @@ Implementasjonen ligger på `feature/phase3d1-staging-runtime`:
 
 Minimal orphan-cleanup er implementert som dry-run-first management command. Den krever eksplisitte lokale roots, avviser symlinks og spesialfiler, blokkerer sletting når database-refererte filer mangler og revaliderer referanser under PostgreSQL-lås før `--apply`. Standard minstealder er 24 timer. Den sletter bare kvalifiserte, urefererte regulære filer og fjerner aldri kataloger.
 
+Review-hardening i PR #32 serialiserer storage→database-vinduet mot destruktiv cleanup. Ingest tar en delt PostgreSQL transaction-level advisory lock før første immutable write/reuse og holder den gjennom aggregatecommit eller rollback. Cleanup apply tar samme lock eksklusivt før siste planskanning, tabellås og sletting; dry-run blokkerer ikke ingest. Sletting traverserer storage-root og alle katalogkomponenter descriptor-relativt med `O_DIRECTORY` og `O_NOFOLLOW`, kontrollerer sluttobjektet som regulær fil og bruker relativ unlink fra den åpne parent-fd-en. En deterministisk to-connection-test observerer cleanup ventende på advisory-låsen mens ingest er pauset etter storage og før DB-commit. En separat swap-test viser at en katalog som byttes til symlink etter scan stopper slettingen uten å berøre filen utenfor alias-rooten.
+
 ## Lokal verifikasjon
 
-- hele backendpakken: 332 tester grønne
-- official-discovery-/kandidattester etter fetch-rettingen: 27 tester grønne
+- hele backendpakken gjennom Django discovery: 336 tester grønne
+- berørte processing-/ingest-/candidate-/runtime-/cleanup-tester: 64 tester grønne
+- stagingkontrakter: 3 tester grønne med strukturell YAML-kontroll av service-spesifikke mounts
+- `bash -n` og ShellCheck 0.10.0 av staging-scriptet grønne
 - frontend: 15 tester og produksjonsbuild grønne
 - runtime-/backupkontrakttester grønne
 - backend- og web-images bygget som produksjonscontainere
@@ -58,7 +62,16 @@ En autentisert stagingreise mot én eksisterende organisasjon verifiserte:
 
 Arkivet `kreative-norge-staging-20260810T183823Z` inneholder den faktiske private originalen. Full backupverifikasjon og isolert restore-smoke var grønne, og eksakt Borg-uttrekk matchet database-checksummen `4a5ddc59b8ddfa60fcf7ead596952db15944ec4e38e1602addec50cfc40767a1`. Etter en ny kontrollert API-recreate var aktiv selection, alle previews og storagechecksums fortsatt grønne.
 
-Den eksisterende Playwright-reisen dekker første låsing, men ikke replacement. Replacement er derfor ikke mutert i staging i denne leveransen; backendtestene dekker kontrakten. Browser-runtime var ikke tilgjengelig i arbeidsøkten, så prosjekteier må fortsatt gjøre den manuelle visuelle kontrollen i Editor.
+Den eksisterende Playwright-reisen dekker første låsing, men ikke replacement. Replacement er derfor ikke mutert i staging i denne leveransen; backendtestene dekker kontrakten.
+
+## Prosjekteiers manuelle visuelle gate
+
+Prosjekteier gjennomførte den visuelle kontrollen etter den tekniske aktiveringen:
+
+- Parkenfestivalen: official discovery fungerte, logo ble valgt, Logo/contain fungerte, og prosessering og visning så riktig ut
+- Bodø Bluesklubb: official discovery fungerte, Foto ble valgt, og no-upscale-gaten ble utløst for et for lite bilde; dette ble vurdert som forventet kvalitetsbeskyttelse, ikke runtimefeil
+
+Den manuelle visuelle gaten for Leveranse 2 er dermed gjennomført. Norske processingfeil, fokusforvalg, live Foto-crop, valgfri alt-tekst, Brave/generelt søk, limt URL og manuell upload er besluttet for fase 3D.2 og er ikke implementert her.
 
 ## Nåstatus og åpne grenser
 
@@ -68,4 +81,4 @@ Den eksisterende Playwright-reisen dekker første låsing, men ikke replacement.
 - PUBLIC, public release, public projection og offentlig media-serving er uendret
 - default storage for import-/eksport-/rapportfiler er fortsatt ikke host-persistent
 - permanent reservation-/deny-journal, retentionpolicy, public cache/purge og full katastrofe-RTO gjenstår
-- manuell visuell Editor-kontroll og ordinær PR-review/merge gjenstår
+- ordinær PR-review/merge gjenstår

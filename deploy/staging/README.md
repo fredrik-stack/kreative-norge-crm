@@ -191,7 +191,7 @@ docker-compose -f docker-compose.staging.yml --env-file .env.staging exec -T api
   python manage.py cleanup_image_storage_orphans
 ```
 
-It requires both roots explicitly in the environment, accepts only local `FileSystemStorage`, refuses missing database-referenced files, symlink components, symlinks inside either root, special filesystem entries, invalid keys and root/backend mismatches. Files younger than 24 hours are excluded by default. Apply also holds PostgreSQL `SHARE` locks on both reference tables while it rebuilds the plan and deletes, so a new database reference cannot appear between the final check and unlink. Deletion requires an explicit operator action:
+It requires both roots explicitly in the environment, accepts only local `FileSystemStorage`, refuses missing database-referenced files, symlink components, symlinks inside either root, special filesystem entries, invalid keys and root/backend mismatches. Files younger than 24 hours are excluded by default. Apply takes the exclusive form of the same transaction-level PostgreSQL advisory lock held in shared mode by ingest from before storage write/reuse through database commit. It then holds PostgreSQL `SHARE` locks on both reference tables while rebuilding the plan. Deletion opens the configured root and each key component descriptor-relatively with no-follow and unlinks only a verified regular filename relative to its opened parent directory. Deletion requires an explicit operator action:
 
 ```bash
 docker-compose -f docker-compose.staging.yml --env-file .env.staging exec -T api \
@@ -199,6 +199,30 @@ docker-compose -f docker-compose.staging.yml --env-file .env.staging exec -T api
 ```
 
 This is only reference-aware orphan cleanup. It is not retention, takedown, release purge or automatic scheduling.
+
+## 12. Roll back image runtime activation
+
+Rollback disables the Editor flow; it does not roll back or delete image assets. First record current `ImageAsset`, `ImageRendition` and `OrganizationImageRelease` counts and run the orphan command in dry-run mode. Set only `IMAGE_ASSET_FEATURE_ENABLED=False` in the ignored `.env.staging`. Keep `IMAGE_ORIGINALS_ROOT` and `IMAGE_RENDITIONS_ROOT` unchanged, and do not remove either host directory or any media bytes.
+
+Because the current server has Docker Compose 1.29.2 and has previously hit the `ContainerConfig` recreate error, recreate only API in a controlled sequence. Do not remove database, web, volumes or media:
+
+```bash
+docker-compose -f docker-compose.staging.yml --env-file .env.staging stop api
+docker-compose -f docker-compose.staging.yml --env-file .env.staging rm -f api
+docker-compose -f docker-compose.staging.yml --env-file .env.staging up -d --no-deps api
+docker-compose -f docker-compose.staging.yml --env-file .env.staging exec -T api python manage.py check
+```
+
+Then verify:
+
+1. Django reports `IMAGE_ASSET_FEATURE_ENABLED=False` inside API.
+2. `/`, `/api/auth/session/` and `/public/actors/` return the expected successful responses over HTTPS.
+3. An authenticated Organization Editor no longer shows the `Aktørbilde` flow.
+4. Database counts match the recorded pre-rollback counts.
+5. `cleanup_image_storage_orphans` dry-run is green, which proves every DB-referenced original and rendition is still present. Do not use `--apply` during rollback.
+6. Previously recorded representative media checksums still match on the host. No public release is created or deleted by rollback.
+
+The Compose 1.29.2 `ContainerConfig` behavior remains a separate operational risk. Stop if the exact API-only sequence fails; do not broaden removal as an implicit workaround. Upgrading Compose is outside this delivery.
 
 ## Notes
 
