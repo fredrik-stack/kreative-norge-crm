@@ -54,7 +54,7 @@ Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCH
 
 ## Fase 3 – Robust thumbnail-, bilde- og kortarkitektur
 
-**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; fase 3B.1R og fase 3B.3 godkjent; fase 3B.3-A har additiv public release-domenegrunnmur; ADR-008s lokale Hetzner storage-/backup-MVP er ACTIVE; fase 3C har domene-/selection- og processinggrunnmur; fase 3D.1 er teknisk aktivert og visuelt godkjent i staging; fase 3D.2 er implementert og lokalt backendtestet på aktiv featurebranch, men venter på CI, staging og eiergodkjenning. Ingen offentlig bildebruk er aktivert.
+**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; fase 3B.1R og fase 3B.3 godkjent; fase 3B.3-A har additiv public release-domenegrunnmur; ADR-008s lokale Hetzner storage-/backup-MVP er ACTIVE; fase 3C har domene-/selection- og processinggrunnmur; fase 3D.1 er teknisk aktivert og visuelt godkjent i staging; fase 3D.2 er implementert, CI-grønn og teknisk stagingverifisert for URL/upload, men venter på visuell eiergodkjenning og separat Brave-avtale-/credentialgate. Ingen offentlig bildebruk er aktivert.
 
 Fase 3A kartla dagens legacy URL-, Open Graph-, kort-, import-, storage- og driftsflyt. [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag.
 
@@ -165,7 +165,7 @@ Fase 3C.7 legger til Pillow 12.3.0 bak intern adapter og `ingest_uploaded_image`
 
 ### Fase 3D – Editor-flyt for aktørbilde
 
-**Status:** Påbegynt. Fase 3D.1s første offisielle kandidatflyt er merget med PR #30 og teknisk aktivert og visuelt godkjent i staging bak en miljøstyrt featuregate. Fase 3D.2 er implementert og lokalt backendtestet på aktiv featurebranch, men er ikke CI- eller stagingverifisert og ikke visuelt godkjent av prosjekteier. Fallback-/historikk-UI og public projection gjenstår.
+**Status:** Påbegynt. Fase 3D.1s første offisielle kandidatflyt er merget med PR #30 og teknisk aktivert og visuelt godkjent i staging bak en miljøstyrt featuregate. Fase 3D.2 er implementert på draft-PR #33, CI-grønn og teknisk stagingverifisert for URL/upload, men er ikke visuelt godkjent av prosjekteier; live Brave er blokkert av manglende nøkkel og avtale-/personverngate. Fallback-/historikk-UI og public projection gjenstår.
 
 - offisiell website/Open Graph-discovery, kortlivet signert kandidat, ephemeral kandidat-preview og valgt processing er implementert i 3D.1
 - intern square/landscape/share-preview, «Godkjenn og lås bilde» og eksplisitt replacement er implementert i 3D.1
@@ -173,7 +173,7 @@ Fase 3C.7 legger til Pillow 12.3.0 bak intern adapter og `ingest_uploaded_image`
 - ordinær arkivering, restore og historikk; takedown-UI forberedes deaktivert til deny-gaten er verifisert
 - aktiv selection-preview er intern; preview fra samme public projection som PUBLIC gjenstår
 
-#### Fase 3D.2 – implementert på featurebranch; leveransegater gjenstår
+#### Fase 3D.2 – CI-grønn og teknisk stagingverifisert; eiergater gjenstår
 
 Editor presenterer kildene slik:
 
@@ -188,7 +188,7 @@ Provideradapteren bruker `country=NO`, `search_lang=nb`, `safesearch=strict`, `s
 
 Foto har fokusforvalgene Venstre/Midt/Høyre og Topp/Midt/Bunn. Klientens live crop-preview er veiledende; de faktiske serverrenderte `square`-, `landscape`- og `share`-previewene er fasit før approval. Logo bruker contain. Asset-alttekst er valgfri og tom streng bevares uten skjult aktørnavn-fallback; whitespace-only avvises. Eksplisitt systemfallback-selection krever fortsatt tekst. Schema-migrasjon `0027` er uten datarewrite, men blir forward-only etter første blanke asset-/event-alt. Fra det tidspunktet er operativ rollback feature-off og fremoverrettet retting; pre-deploy-backup må tas og verifiseres før aktivering. Skjult utfylling med aktørnavn er aldri en rollbackmekanisme.
 
-3D.2 oppretter ingen public release, public projection eller persistent kandidatrad og endrer ikke PUBLIC. Lokal samlet verifikasjon er grønn med 365 backendtester, 22 frontendtester, 10 Playwright-tester, migrasjons-/staging-/backupkontrakter og begge produksjonscontainerbyggene. Før en Brave-nøkkel aktiveres må prosjekteier eller annen avtaleeier dokumentere hvordan redaktørene omfattes av Braves gjeldende standardvilkår punkt 4(c), samt nødvendige personvernvarsler eller samtykker for querydata. Neste stoppunkt er ordinær CI, kontrollert stagingverifikasjon og deretter prosjekteiers visuelle godkjenning. Ingen av disse tre gatene eller avtale-/personverngaten er godkjent ennå.
+3D.2 oppretter ingen public release, public projection eller persistent kandidatrad og endrer ikke PUBLIC. Lokal samlet verifikasjon er grønn med 365 backendtester, 22 frontendtester, 10 Playwright-tester, migrasjons-/staging-/backupkontrakter og begge produksjonscontainerbyggene. Alle fem CI-jobber i run `31441538397` er grønne. Stagingverifiseringen gjennomførte direkte URL, multipart-upload, to fokussett, private previews, first lock/replacement og blank alttekst på en dedikert upublisert testaktør med 0 public releases, uendret publisert antall, grønne HTTPS-smokes og 0 orphans. Live Brave er kontrollert blokkert med `503` fordi nøkkelen mangler. Før nøkkelen aktiveres må prosjekteier eller annen avtaleeier dokumentere hvordan redaktørene omfattes av Braves gjeldende standardvilkår punkt 4(c), samt nødvendige personvernvarsler eller samtykker for querydata. Neste stoppunkt er prosjekteiers visuelle UI-godkjenning og den separate Brave-gaten. Se [stagingevidensen](STAGING_IMAGE_SOURCES_2026-08-11.md).
 
 ### Fase 3E – PUBLIC, API, deling og kort
 

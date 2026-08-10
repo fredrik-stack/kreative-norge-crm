@@ -15,13 +15,14 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 - skilt appens transient signed-ref fra providerens retention: Brave opplyser at standard query-logger kan beholdes i opptil 90 dager, mens Zero Data Retention krever Enterprise/egen avtale
 - beholdt valgt Brave-events `source_type` og provider, men ikke providerens bilde-/side-URL eller query, i tråd med standardvilkårenes begrensning på persistent lagring/caching; rettighetsgodkjenning av selve bildet forblir et menneskelig ansvar
 - gjenbrukt den sikre fetch-, preview-, processing- og approvalkjeden for Brave og limt URL; Brave-gridet kan bruke provider-thumbnail, mens valgt live-preview og serverprocessing bruker samme signerte original-URL
-- lagt multipart-upload direkte gjennom samme kontrollerte ingest-/renditionprofil og økt staging-nginxmalens request-body-grense fra 10 til 16 MiB for 15 MiB filgrense pluss multipart-overhead; dette er ikke deployet eller stagingverifisert
+- lagt multipart-upload direkte gjennom samme kontrollerte ingest-/renditionprofil og økt staging-nginxgrensen fra 10 til 16 MiB for 15 MiB filgrense pluss multipart-overhead; grensen og faktisk multipartflyt er verifisert i staging
 - lagt norske provider-/fetch-/processingfeil, fokusforvalg Venstre/Midt/Høyre og Topp/Midt/Bunn og umiddelbar, veiledende Foto-crop-preview; serverens faktiske `square`-, `landscape`- og `share`-previews er fortsatt fasit før approval
 - gjort asset-alttekst valgfri med schema-only migrasjon `0027`; eksakt tom streng bevares uten skjult aktørnavn-fallback, whitespace-only avvises, og eksplisitt systemfallback-selection krever fortsatt tekst
 - dokumentert og testet migrasjonens rollbackgrense: reverse fungerer før blanke verdier finnes, men blokkeres av de gamle constraintene etter første blanke asset-/event-alt; da er operativ rollback feature-off og fremoverrettet retting, med krav om verifisert pre-deploy-backup før aktivering og aldri skjult datautfylling
 - verifisert 124 målrettede provider-, kandidat-, API-, modell-, selection- og migrasjonstester, deretter hele lokale leveransen med 365 backendtester, 22 frontendtester, 10 Playwright-tester, backup-/stagingkontrakter, produksjonsbygg og begge containerbygg; `makemigrations --check --dry-run` viser ingen modellavvik
 - beholdt featureflaggets kode-default avslått og PUBLIC, public release/materialisering, public projection, serving, legacybilder og persistent kandidathistorikk uendret
-- markert ordinær CI, stagingverifikasjon og prosjekteiers visuelle godkjenning som gjenstående; ingen stagingevidens er opprettet for 3D.2
+- verifisert alle fem GitHub CI-jobber grønne i run `31441538397`, deployet commit `971a9c0` etter fersk grønn Borg-backup og dokumentert URL-/upload-/blank-alt-/PUBLIC-/storageevidens i [stagingrapporten](STAGING_IMAGE_SOURCES_2026-08-11.md)
+- beholdt live Brave blokkert med kontrollert `503` fordi servernøkkel og avtale-/personverngate mangler; prosjekteiers visuelle live crop-/UI-godkjenning gjenstår
 
 ## 2026-08-10
 

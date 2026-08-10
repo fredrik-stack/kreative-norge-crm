@@ -35,17 +35,17 @@ Prosjekteiers eksplisitt godkjente `--apply`-kjøring opprettet kontakt-ID `233`
 
 Serveren bruker fortsatt eldre Docker Compose `1.29.2`. Denne økten oppgraderte ikke Compose og kjørte ingen restart, recreate eller deploy. Ved fremtidig drift skal unødvendig recreate unngås; dersom den kjente `ContainerConfig`-feilen oppstår, skal kjøringen stoppes og håndteres som kontrollert feilretting med ny helsekontroll, ikke som del av en datareparasjon.
 
-## Fase 3D.2 staginggate – planlagt, ikke gjennomført
+## Fase 3D.2 staginggate – teknisk gjennomført 2026-08-11
 
-Repoet har operativ konfigurasjon for fase 3D.2, men dette dokumentet påstår verken stagingdeploy, live-verifikasjon eller at Brave-nøkkelen finnes. Før leveransen deployes til staging skal operatøren:
+Fase 3D.2-commit `971a9c0` er deployet til staging etter følgende gjennomførte gater:
 
-1. ta en fersk Borg-backup og stoppe dersom backupjobben ikke er grønn
+1. fersk Borg-backup ble tatt og fullført grønt før deploy
 2. beholde `BRAVE_IMAGE_SEARCH_API_KEY` tom frem til prosjekteier eller annen avtaleeier har dokumentert redaktørenes dekning under Braves gjeldende standardvilkår punkt 4(c), samt nødvendige personvernvarsler eller samtykker; etter godkjenning er nøkkelen fortsatt en server-side verdi i den ignorerte `.env.staging` og skal aldri legges i `VITE_`-variabler, frontend-buildargumenter, API-responser eller logger
-3. bekrefte at Compose fortsatt gir `.env.staging` til `api` via `env_file`, uten å sende nøkkelen til `web`
-4. bekrefte at nginx laster `client_max_body_size 16m`, som gir headroom for applikasjonens 15 MiB kildefilgrense og multipart-overhead
-5. verifisere den interne Organization Editor-flyten etter deploy; hvis nøkkelen mangler, skal Brave-kallet gi kontrollert `503`/`brave_not_configured`, og live-verifikasjonen av Brave-sporet skal stå som blokkert
+3. Compose gir fortsatt `.env.staging` til `api` via `env_file`, uten frontendvariabel eller buildargument for nøkkelen
+4. nginx laster `client_max_body_size 16m`, som gir headroom for applikasjonens 15 MiB kildefilgrense og multipart-overhead
+5. direkte URL, faktisk multipart-upload, private previews, processing, blank alttekst, storage og PUBLIC-regresjon er teknisk verifisert; manglende nøkkel gir kontrollert `503`/`brave_not_configured`, og live-verifikasjonen av Brave-sporet står blokkert
 
-Deployen skal beholde dagens host-persistente `image_originals_private`-/`image_renditions_public`-aliaser, Borg-oppsett og dry-run-first `cleanup_image_storage_orphans` uendret. Fase 3D.2 gir ingen PUBLIC-endring og innebærer ingen produksjonssetting. En eventuell kontroll av eksisterende PUBLIC-baseline er bare en regresjonssjekk, ikke aktivering eller publisering av den nye bildeflyten.
+Deployen beholdt dagens host-persistente `image_originals_private`-/`image_renditions_public`-aliaser, Borg-oppsett og dry-run-first `cleanup_image_storage_orphans` uendret. Orphan-dry-run rapporterte 0 avvik og 0 slettinger. Fase 3D.2 ga ingen PUBLIC-endring og innebar ingen produksjonssetting. Full evidens og eierens manuelle testinstruks står i [stagingrapporten](../status/STAGING_IMAGE_SOURCES_2026-08-11.md).
 
 ## Ønsket neste steg
 

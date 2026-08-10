@@ -1,6 +1,6 @@
 # Editor
 
-**Status:** implementert grunnløsning; fase 2-standarder for kontaktpublisering implementert; fase 3D.1 offisiell bildekandidatflyt teknisk aktivert og visuelt godkjent i staging; fase 3D.2 er implementert og lokalt backendtestet på aktiv featurebranch, men er ikke CI-, staging- eller eiergodkjent
+**Status:** implementert grunnløsning; fase 2-standarder for kontaktpublisering implementert; fase 3D.1 offisiell bildekandidatflyt teknisk aktivert og visuelt godkjent i staging; fase 3D.2 er implementert, CI-grønn og teknisk stagingverifisert for URL/upload, men venter på visuell eiergodkjenning og separat Brave-avtale-/credentialgate
 
 React-editoren støtter tenantvalg, rollebasert tilgang, aktører, personer, relasjoner, kontaktkanaler, søk, taksonomifiltrering og import/eksport-side.
 
@@ -37,7 +37,7 @@ Aktiv selection vises med revisjon, eventuell `Ingen alt-tekst` og tre interne p
 
 ### Leveransestatus og gjenstående gater
 
-Fase 3D.2-koden og automatisert testdekning finnes på aktiv featurebranch. Fase 3D.1 er tidligere teknisk og visuelt verifisert i staging, men fase 3D.2 er ennå ikke verifisert i CI eller staging og er ikke visuelt godkjent av prosjekteier. Featureflaggets kode-default er fortsatt avslått.
+Fase 3D.2-koden og automatisert testdekning finnes på draft-PR #33. Alle fem CI-jobber er grønne. Direkte URL, multipart-upload, to fokussett, private previews, blank alttekst og uendret PUBLIC er teknisk verifisert i staging på en dedikert upublisert testaktør. Brave live-søk er kontrollert blokkert fordi servernøkkelen mangler og avtale-/personverngaten ikke er godkjent. Prosjekteiers visuelle kontroll av live crop og resten av UI-reisen gjenstår. Featureflaggets kode-default er fortsatt avslått. Se [datert stagingevidens](../status/STAGING_IMAGE_SOURCES_2026-08-11.md).
 
 Historikk-/restore-UI, takedown, permanent kandidatlagring, public release/materialisering, public projection og PUBLIC-bildebruk er ikke implementert av 3D.2.
 
