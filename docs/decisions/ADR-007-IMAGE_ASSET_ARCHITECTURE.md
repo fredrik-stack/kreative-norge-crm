@@ -1192,7 +1192,7 @@ Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkj
 
 ### Fase 3D: Editor-flyt for aktørbilde
 
-**Implementeringsstatus 2026-08-09:** Første avgrensede leveranse er implementert bak avslått feature med official website/Open Graph-discovery, transient signert kandidat, ephemeral kandidat-preview, valgt 3C.7-processing, intern rendition-preview og eksplisitt first lock/replacement. Punktene om upload, limt URL, systemfallback-/historikk-UI, takedownforberedelse og public projection er fortsatt ikke implementert.
+**Implementeringsstatus 2026-08-10:** Første avgrensede leveranse er implementert bak miljøstyrt featuregate med official website/Open Graph-discovery, transient signert kandidat, ephemeral kandidat-preview, valgt 3C.7-processing, intern rendition-preview og eksplisitt first lock/replacement. Den interne host-persistente storage-runtimeen er teknisk aktivert og backup-/restore-verifisert i staging; kode-default er fortsatt avslått, public serving er uendret og manuell visuell kontroll gjenstår. Punktene om upload, limt URL, systemfallback-/historikk-UI, takedownforberedelse og public projection er fortsatt ikke implementert.
 
 **Omfang:**
 

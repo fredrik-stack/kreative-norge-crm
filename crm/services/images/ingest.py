@@ -18,6 +18,10 @@ from .processing import (
     ProcessedRendition,
     process_uploaded_image,
 )
+from .runtime_lock import (
+    ImageStorageRuntimeLockError,
+    acquire_image_storage_ingest_lock,
+)
 from .storage import ImmutableStorageResult, _save_immutable
 
 
@@ -264,29 +268,46 @@ def ingest_uploaded_image(
     )
     render_config_hash = _canonical_hash(_render_config(processed))
     source_key = _source_key(tenant.pk, processed)
-    original_storage = _save_immutable(
-        alias="image_originals_private",
-        requested_key=source_key,
-        data=processed.source.original_bytes,
-        content_type=processed.source.mime_type,
-    )
-    artifact_storage: list[ImmutableStorageResult] = []
-    for rendition in processed.renditions:
-        artifact_storage.append(
-            _save_immutable(
-                alias="image_renditions_public",
-                requested_key=_artifact_key(tenant.pk, processed, render_config_hash, rendition),
-                data=rendition.encoded_bytes,
-                content_type=rendition.mime_type,
+    try:
+        with transaction.atomic():
+            # The transaction-scoped shared advisory lock starts before any
+            # immutable byte is written or reused and is released only after
+            # the aggregate commit (or rollback). Cleanup apply takes the
+            # exclusive form of this same lock.
+            acquire_image_storage_ingest_lock()
+            original_storage = _save_immutable(
+                alias="image_originals_private",
+                requested_key=source_key,
+                data=processed.source.original_bytes,
+                content_type=processed.source.mime_type,
             )
-        )
+            artifact_storage: list[ImmutableStorageResult] = []
+            for rendition in processed.renditions:
+                artifact_storage.append(
+                    _save_immutable(
+                        alias="image_renditions_public",
+                        requested_key=_artifact_key(
+                            tenant.pk,
+                            processed,
+                            render_config_hash,
+                            rendition,
+                        ),
+                        data=rendition.encoded_bytes,
+                        content_type=rendition.mime_type,
+                    )
+                )
 
-    asset, rendition_set, renditions, aggregate_created = _create_or_reuse_database_aggregate(
-        tenant=tenant,
-        processed=processed,
-        source_key=source_key,
-        render_config_hash=render_config_hash,
-    )
+            asset, rendition_set, renditions, aggregate_created = (
+                _create_or_reuse_database_aggregate(
+                    tenant=tenant,
+                    processed=processed,
+                    source_key=source_key,
+                    render_config_hash=render_config_hash,
+                )
+            )
+    except ImageStorageRuntimeLockError as error:
+        raise ImageIngestError("Image ingest could not acquire its runtime lock.") from error
+
     return ImageIngestResult(
         asset=asset,
         rendition_set=rendition_set,

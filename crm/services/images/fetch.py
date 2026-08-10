@@ -324,7 +324,7 @@ def fetch_external_resource(
                 if sniffed_type is None or sniffed_type != content_type:
                     raise SecureImageFetchError("image_mismatch", "Remote response is not the declared image type.")
             else:
-                html_prefix = body.lstrip(b"\xef\xbb\xbf\x00\t\r\n ")[:512].casefold()
+                html_prefix = body.lstrip(b"\xef\xbb\xbf\x00\t\r\n ")[:512].lower()
                 if not html_prefix.startswith((b"<!doctype html", b"<html", b"<head", b"<body")):
                     raise SecureImageFetchError("html_mismatch", "Remote response is not HTML.")
             return SecureFetchResult(

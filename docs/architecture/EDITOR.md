@@ -1,6 +1,6 @@
 # Editor
 
-**Status:** implementert grunnløsning; fase 2-standarder for kontaktpublisering implementert; fase 3D.1 offisiell bildekandidatflyt implementert bak avslått feature
+**Status:** implementert grunnløsning; fase 2-standarder for kontaktpublisering implementert; fase 3D.1 offisiell bildekandidatflyt teknisk aktivert og visuelt godkjent i staging bak miljøstyrt featuregate
 
 React-editoren støtter tenantvalg, rollebasert tilgang, aktører, personer, relasjoner, kontaktkanaler, søk, taksonomifiltrering og import/eksport-side.
 
@@ -13,6 +13,12 @@ Når `IMAGE_ASSET_FEATURE_ENABLED=True` for et miljø, viser Organization-editor
 Aktiv selection vises med revisjon og tre interne previews. Expected-revision-konflikter og nettverks-/processingfeil vises kontrollert. Vanlig Organization-save, discovery, kandidat-preview og processing kan ikke velge eller erstatte bilde. Den eksisterende `Public Preview (legacy)` er fortsatt en separat legacyvisning; de nye previewene er ikke offentlig publisert.
 
 Seksjonen er skjult når flagget er av, som fortsatt er standard. Brave/generelt bildesøk, limt URL, brukerrettet upload, historikk-/restore-UI, takedown, public projection og PUBLIC-bildebruk er ikke implementert i denne leveransen.
+
+## Besluttet neste Aktørbilde-leveranse – ikke implementert
+
+Fase 3D.2 skal gi norske processingfeil, fokusforvalg Venstre/Midt/Høyre og Topp/Midt/Bunn, live crop-preview for Foto og valgfri alt-tekst. Kildene prioriteres offisiell nettside/Open Graph, Brave/generelt bildesøk, limt bilde-URL og manuell upload.
+
+Brave-søk skal alltid starte med aktørnavnet og kan bruke lagret kommune/sted deterministisk. Kategori, tags og personer legges ikke automatisk til. Redaktøren skal se og kunne redigere den eksakte søketeksten, og et menneske skal alltid gjøre det endelige bildevalget. Dette beskriver besluttet neste leveranse; dagens 3D.1-UI krever fortsatt alt-tekst og tilbyr ikke disse nye kildene eller UX-kontrollene.
 
 ## Implementert kontaktopplevelse
 

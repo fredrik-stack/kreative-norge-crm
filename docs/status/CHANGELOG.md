@@ -2,6 +2,30 @@
 
 Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små kosmetiske justeringer trenger ikke registreres.
 
+## 2026-08-10
+
+### Fase 3D.1: host-persistent staging-runtime aktivert
+
+- serialisert immutable ingest-vinduet mot destruktiv cleanup med en felles PostgreSQL transaction-level advisory read/write-lock som holdes fra før storage-write/reuse gjennom databasecommit
+- erstattet path-basert orphan-sletting med descriptor-relativ, komponentvis `O_NOFOLLOW`-traversering og relativ unlink fra verifisert parent directory fd
+- lagt deterministiske PostgreSQL concurrency- og directory-swap-regresjonstester, negativ HTML-sniffing og strukturell Compose-verifikasjon av at bare API har imagemounts
+- utvidet obligatorisk CI til full Django discovery, stagingkontrakttester, `bash -n` og ShellCheck av staging-scriptet
+- la til eksplisitte private/public bildepaths under `/srv/kreative-norge/media/`, API-only bind mounts og sikker root-eid katalogforberedelse uten public serving
+- beholdt `IMAGE_ASSET_FEATURE_ENABLED=False` som kode- og eksempelstandard, og aktiverte bare den ignorerte stagingkonfigurasjonen etter grønn persistence-, backup- og restore-gate
+- la til deterministisk write/verify/cleanup-probe og verifiserte samme checksums på hosten og gjennom begge storagealiasene etter API-recreate
+- la til dry-run-first orphan-cleanup med lokal-root-, symlink-, missing-reference-, alder-, PostgreSQL-lock- og recheck-gater
+- rettet case-insensitiv bytes-sniffing av HTML i official discovery etter at den faktiske stagingreisen avdekket `bytes.casefold`-feilen
+- verifiserte 336 backendtester gjennom full discovery, 64 berørte image-/candidate-/runtime-tester, 3 stagingkontrakttester, ShellCheck 0.10.0, 15 frontendtester, frontendbuild og begge produksjonscontainerbuildene
+- verifiserte samme kontrakt i GitHub CI med 336 backendtester, eksplisitt logging av de nye testmodulene, 3 stagingkontrakttester, ShellCheck 0.9.0 og alle fem jobber grønne
+- deployet runtimecommit `17919df` kontrollert til staging og verifiserte feature `True`, API-only imagemounts, 16 av 16 DB-refererte filer med korrekte checksums, 0 public releases, grønn orphan dry-run uten sletting og tre HTTPS-smokes på `200`
+- gjennomførte faktisk official discovery, kandidat-preview, processing og first lock i staging; opprettet ett privat asset, tre interne renditions, aktiv selection og ett review-event uten public release
+- verifiserte to separate Borg-arkiver og isolerte restore-smokes: én med deterministisk probe og én med faktisk fase 3D.1-original; eksakte uttrekk matchet forventede checksums
+- bekreftet at aktiv selection, previews og storagechecksums overlevde en ny kontrollert API-recreate
+- beholdt PUBLIC, public release, canonical `releases/...`, public projection og offentlig media-serving uendret
+- registrert prosjekteiers gjennomførte visuelle staginggate: Parkenfestivalen fungerte med official discovery og Logo/contain; Bodø Bluesklubb fungerte med official discovery og Foto, og no-upscale ved for liten kilde ble godkjent som forventet kvalitetsbeskyttelse
+- besluttet fase 3D.2 med norske processingfeil, fokusforvalg, live Foto-crop, valgfri alt-tekst og prioriterte kilder fra offisiell/OG via Brave og limt URL til manuell upload; dette er ikke implementert i denne leveransen
+- dokumenterte Docker Compose 1.29.2s `ContainerConfig`-feil som åpen driftsrisiko etter kontrollert eksakt container-recreate
+
 ## 2026-08-09
 
 ### Fase 3D.1: offisiell kandidatflyt fra Editor til selection

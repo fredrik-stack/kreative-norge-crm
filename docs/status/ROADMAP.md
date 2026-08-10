@@ -54,7 +54,7 @@ Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCH
 
 ## Fase 3 – Robust thumbnail-, bilde- og kortarkitektur
 
-**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; fase 3B.1R og fase 3B.3 godkjent; fase 3B.3-A har additiv public release-domenegrunnmur; ADR-008s lokale Hetzner storage-/backup-MVP er ACTIVE; fase 3C har domene-/selection- og processinggrunnmur; fase 3D.1 har første interne offisielle kandidatflyt bak avslått feature, uten offentlig bildebruk.
+**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; fase 3B.1R og fase 3B.3 godkjent; fase 3B.3-A har additiv public release-domenegrunnmur; ADR-008s lokale Hetzner storage-/backup-MVP er ACTIVE; fase 3C har domene-/selection- og processinggrunnmur; fase 3D.1 er teknisk aktivert og visuelt godkjent i staging med intern host-persistent bilde-runtime, uten offentlig bildebruk.
 
 Fase 3A kartla dagens legacy URL-, Open Graph-, kort-, import-, storage- og driftsflyt. [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag.
 
@@ -130,16 +130,16 @@ Kontrakten er dokumentert i [ADR-007 punkt 25](../decisions/ADR-007-IMAGE_ASSET_
 MVP-en bruker:
 
 - dagens Hetzner Cloud-server for app, database og aktiv media
-- lokale navngitte Django-storagealiaser og host-persistente mediaområder når bilde-runtime implementeres
+- lokale navngitte Django-storagealiaser og host-persistente mediaområder; dette er aktivert og restore-verifisert for intern bilde-runtime i staging
 - daglig kryptert Borg-backup til separat Hetzner Storage Box
 - Storage Box-snapshots og Hetzner Cloud Backups som ekstra lag
 - obligatorisk dump-, repository- og isolert restore-gate før timeraktivering
 
-Den skrivebeskyttede [serverbaselinen](STAGING_BACKUP_BASELINE_2026-08-01.md) fant et lite database-/filgrunnlag, ingen eksisterende import-/eksportfiler og ingen kolliderende automatisert backup, men bekreftet at nye FileField-filer vil være containerlagret uten en senere host-mount. [Aktiveringen 2026-08-02](STAGING_BACKUP_ACTIVATION_2026-08-02.md) etablerte BX11 med 1 TB i FSN1, kryptert Borg-kjede, separat recovery-custody, første backup, full repository-check, isolert restore, snapshots og aktive timere. S3-/CDN-sammenligning tas bare opp igjen ved dokumentert vekst- eller driftsbehov. Fase 3B.1R-kvalitetsgaten er gjennomført og godkjent; øvrige runtimegater gjelder fortsatt.
+Den skrivebeskyttede [serverbaselinen](STAGING_BACKUP_BASELINE_2026-08-01.md) fant et lite database-/filgrunnlag, ingen eksisterende import-/eksportfiler og ingen kolliderende automatisert backup. [Aktiveringen 2026-08-02](STAGING_BACKUP_ACTIVATION_2026-08-02.md) etablerte BX11 med 1 TB i FSN1, kryptert Borg-kjede, separat recovery-custody, første backup, full repository-check, isolert restore, snapshots og aktive timere. [Bildeaktiveringen 2026-08-10](STAGING_IMAGE_RUNTIME_ACTIVATION_2026-08-10.md) etablerte og restore-verifiserte de host-persistente bildeområdene. Default storage for generelle FileField-filer er fortsatt ikke persistent. S3-/CDN-sammenligning tas bare opp igjen ved dokumentert vekst- eller driftsbehov.
 
 ### Fase 3C – additiv backend- og storagegrunnmur
 
-**Status:** PR #23 og fase 3C.6 er merget. Den ordinære selection-livssyklusen er komplett bak avslått feature. Fase 3C.7 implementerer intern processing/storage, og fase 3D.1 legger til første feature-gated API-/Editor-kobling. Ingen PUBLIC-, public serving- eller releasekobling er aktiv.
+**Status:** PR #23 og fase 3C.6 er merget. Den ordinære selection-livssyklusen er komplett bak featuregaten. Fase 3C.7 implementerer intern processing/storage, og fase 3D.1 bruker denne i API/Editor. Intern host-persistent staging-runtime er aktiv og restore-verifisert. Ingen PUBLIC-, public serving- eller releasekobling er aktiv.
 
 Første leveranse har innført `IMAGE_ASSET_FEATURE_ENABLED=False` som standard og lokale `image_originals_private`-/`image_renditions_public`-aliaser med separate, validerte roots. Eksisterende `default` og `staticfiles` er bevart. Settings-load eller system check oppretter ingen mapper eller filer. Fase 3C.7 bruker aliasene bare når den interne tjenesten kalles med feature aktivert.
 
@@ -165,13 +165,24 @@ Fase 3C.7 legger til Pillow 12.3.0 bak intern adapter og `ingest_uploaded_image`
 
 ### Fase 3D – Editor-flyt for aktørbilde
 
-**Status:** Påbegynt. Fase 3D.1s første offisielle kandidatflyt er merget med PR #30 bak fortsatt avslått feature; øvrige kilder, fallback-/historikk-UI og public projection gjenstår.
+**Status:** Påbegynt. Fase 3D.1s første offisielle kandidatflyt er merget med PR #30 og teknisk aktivert og visuelt godkjent i staging bak en miljøstyrt featuregate. Fase 3D.2 er besluttet som neste leveranse, men ikke implementert. Fallback-/historikk-UI og public projection gjenstår.
 
 - offisiell website/Open Graph-discovery, kortlivet signert kandidat, ephemeral kandidat-preview og valgt processing er implementert i 3D.1
 - intern square/landscape/share-preview, «Godkjenn og lås bilde» og eksplisitt replacement er implementert i 3D.1
-- Brave/generelt bildesøk, brukerrettet upload, limt URL og fallback gjenstår som behovsdrevne leveranser
+- Brave/generelt bildesøk, limt URL og manuell upload inngår i besluttet fase 3D.2; de er ikke implementert
 - ordinær arkivering, restore og historikk; takedown-UI forberedes deaktivert til deny-gaten er verifisert
 - aktiv selection-preview er intern; preview fra samme public projection som PUBLIC gjenstår
+
+#### Fase 3D.2 – besluttet neste leveranse, ikke implementert
+
+Redaktøren skal få forståelige norske processingfeil, fokusforvalg Venstre/Midt/Høyre og Topp/Midt/Bunn, live crop-preview for Foto og valgfri alt-tekst. Nye kilder prioriteres slik:
+
+1. offisiell nettside / Open Graph
+2. Brave / generelt bildesøk
+3. limt direkte bilde-URL
+4. manuell upload
+
+Brave-søket skal bygge på faktiske CRM-fakta, ikke AI-gjetting. Aktørnavn brukes alltid; kommune eller sted kan legges til deterministisk. Kategori, tags og tilknyttede personer legges ikke automatisk inn i første søk. Den eksakte søketeksten skal være synlig og redigerbar, og endelig bildevalg gjøres alltid av en menneskelig redaktør.
 
 ### Fase 3E – PUBLIC, API, deling og kort
 

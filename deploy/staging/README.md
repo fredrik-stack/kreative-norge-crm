@@ -50,10 +50,32 @@ DJANGO_CSRF_TRUSTED_ORIGINS=https://staging.your-domain.no
 DB_NAME=crm_db
 DB_USER=crm
 DB_PASSWORD=...
+IMAGE_ASSET_FEATURE_ENABLED=False
+IMAGE_ORIGINALS_ROOT=/srv/kreative-norge/media/private
+IMAGE_RENDITIONS_ROOT=/srv/kreative-norge/media/public
 VITE_API_BASE=
 ```
 
-## 4. Start staging
+Keep `IMAGE_ASSET_FEATURE_ENABLED=False` until the persistence and Borg gates below are green. The two image roots are still required explicitly so the same Compose configuration can be verified before activation.
+
+## 4. Prepare image storage
+
+Run the repository-owned setup as root before the first image-capable API container is created:
+
+```bash
+sudo /srv/kreative-norge-crm/ops/staging/prepare-image-storage.sh
+```
+
+It creates only these host-persistent directories and enforces `root:root` mode `0750` without recursively changing or deleting existing image bytes:
+
+- `/srv/kreative-norge/media/private`
+- `/srv/kreative-norge/media/public`
+
+The current API image runs as root and can write both directories. The root-run Borg service can read them. If the API later becomes non-root, ownership must be changed through a separate controlled delivery; do not broaden these modes ad hoc.
+
+`public` is the historical storage-alias name for internal processing renditions. It is not mounted into `web`, has no `base_url`, and is not served by nginx or Caddy.
+
+## 5. Start staging
 
 ```bash
 docker-compose -f docker-compose.staging.yml --env-file .env.staging up -d --build
@@ -61,13 +83,13 @@ docker-compose -f docker-compose.staging.yml --env-file .env.staging up -d --bui
 
 The repository compose file binds the web container to `127.0.0.1:8080:80`.
 
-## 5. Create an admin user
+## 6. Create an admin user
 
 ```bash
 docker-compose -f docker-compose.staging.yml --env-file .env.staging exec api python manage.py createsuperuser
 ```
 
-## 6. Verify the deployment
+## 7. Verify the deployment
 
 Check:
 
@@ -84,7 +106,7 @@ Then open:
 - `https://staging.northernsound.no/public/actors/`
 - `https://staging.northernsound.no/admin/`
 
-## 7. HTTPS
+## 8. HTTPS
 
 The compose setup serves HTTP only on localhost port `8080`.
 
@@ -95,7 +117,7 @@ Caddy terminates HTTPS and must forward:
 
 Nginx inside the `web` container must pass the incoming `X-Forwarded-Proto` header onward to Django for `/api/`, `/admin/`, and `/public/`. That matches Django's `SECURE_PROXY_SSL_HEADER` setting and prevents HTTPS redirect loops.
 
-## 8. Updating staging
+## 9. Updating staging
 
 ```bash
 git pull
@@ -104,9 +126,108 @@ docker-compose -f docker-compose.staging.yml --env-file .env.staging ps
 docker-compose -f docker-compose.staging.yml --env-file .env.staging exec -T api python manage.py check
 ```
 
+## 10. Image persistence and activation gate
+
+For the first image-runtime activation, keep the feature off and take a fresh backup before the deploy/recreate:
+
+```bash
+sudo systemctl start kreative-norge-backup.service
+sudo systemctl status kreative-norge-backup.service --no-pager
+```
+
+After deploying the image-runtime code with the feature still off, generate a 32-character lowercase hexadecimal token and write the controlled PNG probe through the existing Django storage primitive in a one-off container:
+
+```bash
+PROBE_TOKEN=$(python3 -c 'import secrets; print(secrets.token_hex(16))')
+docker-compose -f docker-compose.staging.yml --env-file .env.staging run --rm \
+  -e IMAGE_ASSET_FEATURE_ENABLED=True api \
+  python manage.py verify_image_storage_persistence --write --token "$PROBE_TOKEN"
+```
+
+Verify both host files against the checksum printed by the command. The exact relative keys are also printed, so no broad filesystem search is needed:
+
+```bash
+sha256sum \
+  "/srv/kreative-norge/media/private/runtime-probes/$PROBE_TOKEN/original.png" \
+  "/srv/kreative-norge/media/public/runtime-probes/$PROBE_TOKEN/rendition.png"
+```
+
+Recreate only the API container while the staging feature remains off, then read the same bytes through both storage aliases:
+
+```bash
+docker-compose -f docker-compose.staging.yml --env-file .env.staging up -d --no-deps --force-recreate api
+docker-compose -f docker-compose.staging.yml --env-file .env.staging exec -T api \
+  python manage.py verify_image_storage_persistence --verify --token "$PROBE_TOKEN"
+```
+
+Stop if the server's known Compose 1.29.2 `ContainerConfig` failure appears. Do not remove or recreate unrelated containers as an implicit workaround.
+
+With the probe still present, run a fresh Borg backup and the isolated restore gate. The backup manifest records a path token and checksum for one representative host-media file; restore must locate the same archive member and verify byte identity:
+
+```bash
+sudo systemctl start kreative-norge-backup.service
+sudo /usr/local/lib/kreative-norge-backup/verify.sh
+sudo BACKUP_ENV_FILE=/etc/kreative-norge-backup/backup.env \
+  /usr/local/lib/kreative-norge-backup/restore-smoke.sh
+```
+
+Only after all three gates are green, remove the exact probe and change only the actual server's ignored `.env.staging` to `IMAGE_ASSET_FEATURE_ENABLED=True`:
+
+```bash
+docker-compose -f docker-compose.staging.yml --env-file .env.staging exec -T api \
+  python manage.py verify_image_storage_persistence --cleanup --token "$PROBE_TOKEN"
+docker-compose -f docker-compose.staging.yml --env-file .env.staging up -d --no-deps --force-recreate api
+docker-compose -f docker-compose.staging.yml --env-file .env.staging exec -T api python manage.py check
+```
+
+The code/default and `.env.staging.example` stay `False`; production must not be activated by this procedure.
+
+## 11. Minimal orphan cleanup
+
+Database failure after immutable storage writes can leave unserved orphan bytes. The command is never scheduled and is dry-run by default:
+
+```bash
+docker-compose -f docker-compose.staging.yml --env-file .env.staging exec -T api \
+  python manage.py cleanup_image_storage_orphans
+```
+
+It requires both roots explicitly in the environment, accepts only local `FileSystemStorage`, refuses missing database-referenced files, symlink components, symlinks inside either root, special filesystem entries, invalid keys and root/backend mismatches. Files younger than 24 hours are excluded by default. Apply takes the exclusive form of the same transaction-level PostgreSQL advisory lock held in shared mode by ingest from before storage write/reuse through database commit. It then holds PostgreSQL `SHARE` locks on both reference tables while rebuilding the plan. Deletion opens the configured root and each key component descriptor-relatively with no-follow and unlinks only a verified regular filename relative to its opened parent directory. Deletion requires an explicit operator action:
+
+```bash
+docker-compose -f docker-compose.staging.yml --env-file .env.staging exec -T api \
+  python manage.py cleanup_image_storage_orphans --apply --minimum-age-hours 24
+```
+
+This is only reference-aware orphan cleanup. It is not retention, takedown, release purge or automatic scheduling.
+
+## 12. Roll back image runtime activation
+
+Rollback disables the Editor flow; it does not roll back or delete image assets. First record current `ImageAsset`, `ImageRendition` and `OrganizationImageRelease` counts and run the orphan command in dry-run mode. Set only `IMAGE_ASSET_FEATURE_ENABLED=False` in the ignored `.env.staging`. Keep `IMAGE_ORIGINALS_ROOT` and `IMAGE_RENDITIONS_ROOT` unchanged, and do not remove either host directory or any media bytes.
+
+Because the current server has Docker Compose 1.29.2 and has previously hit the `ContainerConfig` recreate error, recreate only API in a controlled sequence. Do not remove database, web, volumes or media:
+
+```bash
+docker-compose -f docker-compose.staging.yml --env-file .env.staging stop api
+docker-compose -f docker-compose.staging.yml --env-file .env.staging rm -f api
+docker-compose -f docker-compose.staging.yml --env-file .env.staging up -d --no-deps api
+docker-compose -f docker-compose.staging.yml --env-file .env.staging exec -T api python manage.py check
+```
+
+Then verify:
+
+1. Django reports `IMAGE_ASSET_FEATURE_ENABLED=False` inside API.
+2. `/`, `/api/auth/session/` and `/public/actors/` return the expected successful responses over HTTPS.
+3. An authenticated Organization Editor no longer shows the `Aktørbilde` flow.
+4. Database counts match the recorded pre-rollback counts.
+5. `cleanup_image_storage_orphans` dry-run is green, which proves every DB-referenced original and rendition is still present. Do not use `--apply` during rollback.
+6. Previously recorded representative media checksums still match on the host. No public release is created or deleted by rollback.
+
+The Compose 1.29.2 `ContainerConfig` behavior remains a separate operational risk. Stop if the exact API-only sequence fails; do not broaden removal as an implicit workaround. Upgrading Compose is outside this delivery.
+
 ## Notes
 
 - `api` runs `migrate` and `collectstatic` on startup.
 - Frontend is built into the nginx image at deploy time.
 - Static files are shared from Django to nginx through the `django_static` volume.
+- Image originals and internal renditions use separate host bind mounts outside `/app` and outside staticfiles.
 - For contact-data repairs, run `python manage.py repair_person_contacts` as dry-run first. Use `--apply` only after backup and explicit approval.

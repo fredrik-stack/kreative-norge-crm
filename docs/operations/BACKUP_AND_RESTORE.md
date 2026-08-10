@@ -10,10 +10,10 @@ Denne runbooken er den autoritative driftsprosedyren for kryptert PostgreSQL-, f
 
 | Status | Betydning |
 | --- | --- |
-| ACTIVE | Første backup og isolert restore er grønne, original Borg-passfrase og eksportert kryptert repositorynøkkel er sikret off-server sammen med nødvendig Storage Box-identitet/repository-ID for minst to ansvarlige, Console-steg er kontrollert og timerne kjører |
+| ACTIVE | Første backup og isolert restore er grønne, recovery-custody og Console-steg er kontrollert, timerne kjører, og intern bilde-runtime er host-persistent og backup-/restore-verifisert |
 | PREPARED | Repoets kode, maler og dokumentasjon finnes, men ekstern kjede er ikke aktiv |
 | MANUAL REQUIRED | Prosjekteier må gjøre en kontroll i Hetzner Console eller organisasjonens passordlager |
-| NOT IMPLEMENTED | Fremtidig lokal bilde-runtime og mediaflytting finnes ikke |
+| NOT IMPLEMENTED | Host-persistent default storage for import, eksport og rapporter finnes ikke |
 
 Nåstatus er **ACTIVE**. Den skrivebeskyttede [stagingbaselinen 2026-08-01](../status/STAGING_BACKUP_BASELINE_2026-08-01.md) ble fulgt av kontrollert [aktivering 2026-08-02](../status/STAGING_BACKUP_ACTIVATION_2026-08-02.md). Separat Storage Box, kryptert Borg-repository, recovery-custody for minst to ansvarlige, første backup, full repository-check, isolert restore av samme arkiv, Console-gatene og timeraktiveringen er verifisert grønne.
 
@@ -31,13 +31,17 @@ Den nattlige jobben tar:
 
 Backupen tar ikke private SSH-nøkler, Borg recovery-secret, eksportert repositorynøkkel, hele `/etc`, home-kataloger, rått live PostgreSQL-volume, image layers, caches, staticfiles, `node_modules`, Python-cache eller store logger. `export-recovery-key` avviser destinasjoner i applikasjonsrepo, backup-state, beskyttede mediaområder og allowlistede serverkonfigurasjonsfiler. Destinasjonsparent må være eid av operatøren og ikke group/world-writable, og sluttfilen opprettes atomisk uten overskriving; directory- og symlinktarget avvises.
 
+Den aktive allowlisten inneholder `/srv/kreative-norge/media/private` og `/srv/kreative-norge/media/public`. Første stagingaktivering fulgte den kontrollerte PNG-proben i [stagingrunbooken](../../deploy/staging/README.md#10-image-persistence-and-activation-gate): proben ble skrevet gjennom begge Django-aliasene, funnet med samme checksum på hosten, lest etter API-recreate, beholdt gjennom manuell backup og isolert restore og deretter fjernet eksakt. Se [datert aktiveringsevidens](../status/STAGING_IMAGE_RUNTIME_ACTIVATION_2026-08-10.md).
+
+`public`-katalogen inneholder i denne fasen bare interne processing-renditions. Backupinkludering gjør den ikke offentlig, og katalogen er ikke montert i web-containeren eller eksponert gjennom nginx/Caddy.
+
 Verifisert kodekontrakt for dagens eneste `FileField`-familier er:
 
 - `ImportJob.file`: `imports/tenant_<id>/job_<id>/<filename>`
 - `preview_report_file` og `error_report_file`: `imports/tenant_<id>/job_<id>/reports/<filename>`
 - `ExportJob.file`: `exports/tenant_<id>/job_<id>/<filename>`
 
-Django settings har ingen eksplisitt `MEDIA_ROOT` eller media-`STORAGES`-backend, og staging Compose har ingen API-media-mount. Baselinen fant ikke `/app/imports`, `/app/exports` eller eksisterende filer i disse områdene; ingen nåværende import-/eksportfiler er derfor identifisert som utsatt. Default storage har likevel location `/app`, så nye FileField-filer kan bli liggende i API-containerlaget og gå tapt ved recreate. Modulen tar sikre tar-bundles av områdene når de finnes, men erstatter ikke den senere host-persistente migreringen.
+Django bruker separate `image_originals_private`- og `image_renditions_public`-aliaser med eksplisitte roots. Staging Compose bind-mounter disse områdene i API-containeren; web har ingen tilgang og serverer dem ikke. Default storage har fortsatt location `/app` uten persistent import-/eksportmount. Nye generelle FileField-filer kan derfor bli liggende i API-containerlaget og gå tapt ved recreate. Modulen tar sikre tar-bundles av disse områdene når de finnes, men erstatter ikke en senere host-persistent default-storage-migrering.
 
 Manifestet inneholder bare driftsmetadata: UTC, miljø, hostname, Git-commit og clean/dirty, PostgreSQL-versjon, dumpnavn/-størrelse/-checksum, inkluderte og manglende top-level paths, arkivnavn, modulversjon og verifikasjonsstatus. Representative mediafiles identifiseres bare med hash av arkivpath og innholdschecksum; rå path eller filinnhold logges ikke.
 
@@ -252,10 +256,10 @@ Denne operasjonen krever eksplisitt hendelsesbeslutning og egen plan. Ikke bruk 
 
 ## 12. Kjente åpne risikoer
 
-- Ingen eksisterende FileField-filer ble funnet, men nye filer kan ligge i API-containerlaget og mangler host-persistent mount.
+- Bildeoriginaler og interne renditions er host-persistente; nye generelle FileField-filer på default storage kan fortsatt ligge i API-containerlaget.
 - Ingen ekstern feilvarsling finnes.
 - Første restore-smoke er målt til 8,7 sekunder, men full katastrofe-RTO er ikke målt eller lovet.
 - Custody, Storage Box-snapshots og Cloud Backup-status krever fortsatt løpende manuell kontroll.
-- Serverrepoet er synkronisert til backupmodulens godkjente `main`-commit uten applikasjonsdeploy; kjørende CRM-images er ikke rebuildet eller restartet.
+- Bilde-runtime er teknisk deployet til staging; manuell visuell Editor-kontroll og ordinær PR-merge gjenstår.
 
 Backupgrunnmuren er **ACTIVE** fordi Storage Box-, Borg-, recovery-key-/custody-, backup-, restore-, Console- og timerkravene er oppfylt. Cloud Backups og Storage Box-snapshots er fortsatt tilleggslag.
