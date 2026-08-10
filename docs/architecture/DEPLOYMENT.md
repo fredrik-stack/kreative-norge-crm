@@ -1,6 +1,6 @@
 # Deployment
 
-**Status:** staging dokumentert; backupgrunnmur ACTIVE; deployautomatisering planlagt
+**Status:** staging dokumentert; backupgrunnmur og intern bilde-runtime ACTIVE; deployautomatisering planlagt
 
 Staging bruker Caddy foran Docker Compose:
 
@@ -37,7 +37,9 @@ S3, AWS, Backblaze, CDN og flerleverandørløsning er utsatt til dokumentert vek
 
 Første fase 3C-leveranse konfigurerte `IMAGE_ASSET_FEATURE_ENABLED=False` som standard, bevarte `default` og `staticfiles` og la til separate lokale `image_originals_private`-/`image_renditions_public`-aliaser. Roots valideres uten å opprette mapper. Når feature aktiveres utenfor debug, må begge roots være eksplisitt konfigurert; lokale temp-standarder er bare fallback i debug eller mens feature er avslått. Fase 3C.7 bruker aliasene gjennom en eksplisitt intern upload-only tjeneste: private originaler og processing-artifacts skrives med tenant-scopede deterministiske keys, eksakt-key/no-clobber og etterfølgende byte-/checksumverifikasjon. Fase 3D.1 legger til feature-gated interne API-/Editor-kall til denne tjenesten og private/no-store previews. Artifact-aliaset er fortsatt ikke en aktiv public origin, canonical `releases/...`-keys skrives ikke, og ingen filer serveres offentlig.
 
-Dagens stagingoppsett har fortsatt ingen host-persistent media-runtime. Featureflagget er fortsatt av som default og er ikke aktivert i staging. Compose, staging-environment, containere og deploy er ikke endret; reelle runtimepaths, host-mounts og aktivering krever en separat godkjent leveranse. Backupgrunnmuren forblir **ACTIVE**.
+Staging har fra 2026-08-10 host-persistent intern bilde-runtime. API-containeren bind-mounter `/srv/kreative-norge/media/private` og `/srv/kreative-norge/media/public` til de samme absolutte pathene i containeren. `web` har ingen mediamount, og artifact-aliaset er fortsatt ikke en offentlig origin. Kode og eksempelkonfigurasjon beholder feature avslått; bare den ignorerte stagingkonfigurasjonen har `IMAGE_ASSET_FEATURE_ENABLED=True` etter grønn persistence-, backup- og restore-gate. Detaljert evidens finnes i [stagingaktiveringen 2026-08-10](../status/STAGING_IMAGE_RUNTIME_ACTIVATION_2026-08-10.md).
+
+`cleanup_image_storage_orphans` gir en begrenset dry-run-first cleanup for de to bildealiasene. Apply krever PostgreSQL, validerte lokale roots og eksplisitt operatørvalg, revaliderer databasereferanser under lås og sletter bare gamle, urefererte regulære filer. Den er ikke en generell retention- eller public purge-mekanisme.
 
 ## Backupgrunnmur
 
@@ -58,9 +60,9 @@ Status er **ACTIVE**. Den skrivebeskyttede [stagingbaselinen 2026-08-01](../stat
 
 Backup, verify og restore deler én `flock`; bare låseieren kan skrive operativ status. Recovery-key-export krever en privat, operator-eid parent, avviser directory-/symlinktarget og oppretter sluttfilen atomisk uten overskriving eller beskyttede backup-/repo-destinasjoner. Repository-inspeksjon viser bare ufarlig sammendrag uten muterende Borg-operasjoner. Første passphrase-/key-custody er manuelt bekreftet for minst to ansvarlige; løpende custody kan fortsatt ikke bevises av kode og forblir **MANUAL REQUIRED**.
 
-Det eksisterende `postgres_data`-volumet er persistent. API-containeren har derimot ingen import-, eksport- eller media-mount i dagens Compose-fil, og Django default storage har location `/app`. Baselinen fant ikke `/app/imports`, `/app/exports` eller eksisterende filer i disse områdene; ingen nåværende filer er identifisert som utsatt. Nye `ImportJob.file`-, rapport- eller `ExportJob.file`-filer kan likevel havne i containerlaget og gå tapt ved recreate. Backupmodulen kan ta områdene med mens containeren finnes; en separat leveranse må etablere host-persistent default/media-storage før filfunksjonene tas i aktiv bruk.
+Det eksisterende `postgres_data`-volumet og de to eksplisitte bildeområdene er persistente. Django default storage har fortsatt location `/app` og ingen egen import-/eksportmount. Baselinen fant ikke `/app/imports`, `/app/exports` eller eksisterende filer i disse områdene; ingen nåværende filer er identifisert som utsatt. Nye `ImportJob.file`-, rapport- eller `ExportJob.file`-filer kan likevel havne i containerlaget og gå tapt ved recreate. Backupmodulen kan ta områdene med mens containeren finnes; en separat leveranse må etablere host-persistent default storage før disse filfunksjonene tas i aktiv bruk.
 
-Den faktiske staging-environmentfilen er `/srv/kreative-norge-crm/.env.staging`, mens aktiv Compose-fil er `/srv/kreative-norge-crm/docker-compose.staging.yml`. Serverrepoet er rent og synkronisert til backupmodulens godkjente `main`-commit. Dette var ingen applikasjonsdeploy: kjørende CRM-images ble ikke rebuildet, restartet eller gjenskapt.
+Den faktiske staging-environmentfilen er `/srv/kreative-norge-crm/.env.staging`, mens aktiv Compose-fil er `/srv/kreative-norge-crm/docker-compose.staging.yml`. Ved bildeaktiveringen ble API- og web-images rebuildet og gjenskapt kontrollert. Docker Compose 1.29.2s `ContainerConfig`-feil krevde eksakt stop/remove/create av berørte containere; oppgradering av Compose er derfor en åpen driftsrisiko, ikke en ny funksjonsgate.
 
 Aktiv Storage Box er BX11 med 1 TB i FSN1. Applikasjonsserveren står i HEL1, og FSN1 gir fysisk lokasjonsseparasjon innen Hetzner. Kapasiteten vurderes på nytt ved 60–70 prosent faktisk bruk, med minst 20–30 prosent ledig for Borg-vekst og Storage Box-snapshots.
 

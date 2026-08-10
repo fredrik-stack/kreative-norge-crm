@@ -2,6 +2,22 @@
 
 Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små kosmetiske justeringer trenger ikke registreres.
 
+## 2026-08-10
+
+### Fase 3D.1: host-persistent staging-runtime aktivert
+
+- la til eksplisitte private/public bildepaths under `/srv/kreative-norge/media/`, API-only bind mounts og sikker root-eid katalogforberedelse uten public serving
+- beholdt `IMAGE_ASSET_FEATURE_ENABLED=False` som kode- og eksempelstandard, og aktiverte bare den ignorerte stagingkonfigurasjonen etter grønn persistence-, backup- og restore-gate
+- la til deterministisk write/verify/cleanup-probe og verifiserte samme checksums på hosten og gjennom begge storagealiasene etter API-recreate
+- la til dry-run-first orphan-cleanup med lokal-root-, symlink-, missing-reference-, alder-, PostgreSQL-lock- og recheck-gater
+- rettet case-insensitiv bytes-sniffing av HTML i official discovery etter at den faktiske stagingreisen avdekket `bytes.casefold`-feilen
+- verifiserte 332 backendtester, 27 kandidattester etter rettingen, 15 frontendtester, frontendbuild og produksjonscontainerbuild
+- gjennomførte faktisk official discovery, kandidat-preview, processing og first lock i staging; opprettet ett privat asset, tre interne renditions, aktiv selection og ett review-event uten public release
+- verifiserte to separate Borg-arkiver og isolerte restore-smokes: én med deterministisk probe og én med faktisk fase 3D.1-original; eksakte uttrekk matchet forventede checksums
+- bekreftet at aktiv selection, previews og storagechecksums overlevde en ny kontrollert API-recreate
+- beholdt PUBLIC, public release, canonical `releases/...`, public projection og offentlig media-serving uendret; manuell visuell Editor-kontroll gjenstår
+- dokumenterte Docker Compose 1.29.2s `ContainerConfig`-feil som åpen driftsrisiko etter kontrollert eksakt container-recreate
+
 ## 2026-08-09
 
 ### Fase 3D.1: offisiell kandidatflyt fra Editor til selection

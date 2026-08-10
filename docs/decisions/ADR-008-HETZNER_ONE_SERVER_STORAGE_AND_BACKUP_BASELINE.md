@@ -10,10 +10,10 @@ Godkjent arkitekturretning og **ACTIVE** operativ backupgrunnmur. Den skrivebesk
 
 Operativ status skal alltid bruke disse begrepene:
 
-- **ACTIVE:** manuell backup og isolert restore er grønne, original Borg-passfrase og eksportert kryptert repositorynøkkel er bekreftet off-server sammen med nødvendig Storage Box-identitet/repository-ID for minst to ansvarlige, timerne kjører og de manuelle Hetzner-kontrollene er utført
+- **ACTIVE:** manuell backup og isolert restore er grønne, recovery-custody og manuelle Hetzner-kontroller er bekreftet, timerne kjører, og intern bilde-runtime er host-persistent og backup-/restore-verifisert
 - **PREPARED:** kode, maler, tester og runbook finnes, men ekstern kjede er ikke aktivert
 - **MANUAL REQUIRED:** en kontroll i Hetzner Console eller organisasjonens passordlager må utføres av prosjekteier
-- **NOT IMPLEMENTED:** fremtidig lokal bilde-runtime og media-migrering finnes ikke
+- **NOT IMPLEMENTED:** host-persistent default storage og eventuell migrering av generelle FileField-filer finnes ikke
 
 ## Bakgrunn
 
@@ -131,7 +131,7 @@ Denne løsningen beskytter dagens viktigste data uten å gjøre bildearkitekture
 ### Risiko og begrensninger
 
 - aktiv server er fortsatt et enkelt tilgjengelighetspunkt mellom backupene
-- ingen eksisterende FileField-filer ble funnet i containerområdene 2026-08-01, men nye filer kan forsvinne ved container-recreate før host-persistent storage er etablert
+- ingen eksisterende generelle FileField-filer ble funnet i containerområdene 2026-08-01; bildeområdene er senere gjort persistente, men nye default-storage-filer kan fortsatt forsvinne ved container-recreate
 - Storage Box-snapshots bruker kapasitet på samme boks og er ikke uavhengig katastrofebackup; se [Hetzner Storage Box snapshots](https://docs.hetzner.com/storage/storage-box/snapshots/)
 - Cloud Backup-status må fortsatt kontrolleres i Console; en nyere backup ble verifisert 2026-08-02, men Cloud Backup er bare et ekstra helserverlag
 - recovery avhenger av både korrekt sikret original Borg-passfrase, eksportert kryptert repositorynøkkel og nødvendig Storage Box-identitet/repository-ID; custody er bekreftet for minst to ansvarlige, men forblir en manuell organisatorisk kontroll
@@ -150,6 +150,7 @@ Denne løsningen beskytter dagens viktigste data uten å gjøre bildearkitekture
 
 - **ACTIVE:** separat Storage Box, kryptert Borg-repository, dedikert nøkkel og pin-net host key, off-server recovery-custody for minst to ansvarlige, første backup, full repository-check, isolert restore av samme arkiv, Storage Box-snapshot, nyere synlig Cloud Backup og aktive nattlige/ukentlige timere
 - **MANUAL REQUIRED:** løpende custody-, snapshot- og Cloud Backup-kontroll kan ikke bevises av kode og må fortsatt eies av operatør
-- **NOT IMPLEMENTED:** lokal media-runtime, host mounts, filflytting og bildearkitektur
+- **ACTIVE:** intern lokal bilde-runtime i staging, eksplisitte host mounts, persistence-probe og backup-/restore-verifikasjon; se [aktiveringen 2026-08-10](../status/STAGING_IMAGE_RUNTIME_ACTIVATION_2026-08-10.md)
+- **NOT IMPLEMENTED:** host-persistent default storage, migrering av generelle FileField-filer og offentlig media-serving
 
 Cloud Backups og Storage Box-snapshots teller fortsatt ikke alene som `ACTIVE`; statusen bygger på hele den verifiserte backup-, recovery- og restorekjeden.
