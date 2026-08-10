@@ -128,12 +128,48 @@ export type Organization = {
   primary_link: string | null;
   primary_link_field: string | null;
   preview_image_url: string | null;
+  image_asset_feature_enabled: boolean;
   tags: Tag[];
   categories: Category[];
   subcategories: Subcategory[];
   created_at: string;
   updated_at: string;
   active_people?: OrganizationPersonNested[];
+};
+
+export type OfficialImageCandidate = {
+  candidate_ref: string;
+  source_type: "official_website" | "open_graph" | "website_image";
+  source_label: string;
+  source_domain: string;
+  provider: string;
+  width: number | null;
+  height: number | null;
+  technical_status: string;
+};
+
+export type ProcessedOrganizationImage = {
+  approval_ref: string;
+  rendition_preview_ref: string;
+  asset_id: number;
+  rendition_set_id: number;
+  variants: Array<"square" | "landscape" | "share">;
+  warnings: string[];
+  status: "created" | "reused";
+};
+
+export type OrganizationImageState = {
+  expected_revision: number;
+  active_selection: null | {
+    id: number;
+    revision: number;
+    status: "active";
+    kind: "asset" | "system_fallback";
+    alt_text: string;
+    public_credit: string;
+    rendition_preview_ref: string | null;
+    variants: Array<"square" | "landscape" | "share">;
+  };
 };
 
 export type Paginated<T> = {

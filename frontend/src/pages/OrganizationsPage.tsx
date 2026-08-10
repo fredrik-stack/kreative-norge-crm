@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
 import { Field } from "../components/Field";
@@ -6,6 +6,16 @@ import { useEditor } from "../context/EditorContext";
 import { filterSubcategoriesForCategory, sortedCategories as sortCategoriesByTaxonomy } from "../editorTaxonomy";
 import { saveLabel } from "../editor-utils";
 import { useRouteSyncedSelection } from "../hooks/useRouteSyncedSelection";
+import {
+  ApiError,
+  approveOfficialImage,
+  discoverOfficialImages,
+  getCandidatePreview,
+  getOrganizationImageState,
+  getRenditionPreview,
+  processOfficialImage,
+} from "../api";
+import type { OfficialImageCandidate, OrganizationImageState, ProcessedOrganizationImage } from "../types";
 
 export function OrganizationsPage() {
   const editor = useEditor();
@@ -592,10 +602,381 @@ function OrganizationEditorPanel(props: {
             </div>
           </form>
 
+          {typeof editor.selectedOrgId === "number" && editor.selectedOrganization?.image_asset_feature_enabled ? (
+            <OrganizationImagePanel
+              key={`${editor.tenantId}:${editor.selectedOrgId}`}
+              tenantId={editor.tenantId!}
+              organizationId={editor.selectedOrgId}
+              organizationName={editor.selectedOrganization.name}
+            />
+          ) : null}
+
           <OrganizationLinksPanel navigate={navigate} />
         </>
       )}
     </section>
+  );
+}
+
+type ImageVariant = "square" | "landscape" | "share";
+const IMAGE_VARIANTS: ImageVariant[] = ["square", "landscape", "share"];
+
+function imageFlowError(error: unknown): string {
+  if (error instanceof ApiError && error.data && typeof error.data === "object" && "detail" in error.data) {
+    return String((error.data as { detail: unknown }).detail);
+  }
+  return "Bildehandlingen kunne ikke fullføres. Prøv igjen eller hent kandidatene på nytt.";
+}
+
+export function OrganizationImagePanel(props: {
+  tenantId: number;
+  organizationId: number;
+  organizationName: string;
+}) {
+  const { tenantId, organizationId, organizationName } = props;
+  const objectUrls = useRef<string[]>([]);
+  const scopeGeneration = useRef(0);
+  const [candidates, setCandidates] = useState<OfficialImageCandidate[]>([]);
+  const [candidatePreviews, setCandidatePreviews] = useState<Record<string, string>>({});
+  const [selectedRef, setSelectedRef] = useState<string | null>(null);
+  const [imageKind, setImageKind] = useState<"photo" | "logo">("photo");
+  const [focusX, setFocusX] = useState(0.5);
+  const [focusY, setFocusY] = useState(0.5);
+  const [processed, setProcessed] = useState<ProcessedOrganizationImage | null>(null);
+  const [processedPreviews, setProcessedPreviews] = useState<Partial<Record<ImageVariant, string>>>({});
+  const [activePreviews, setActivePreviews] = useState<Partial<Record<ImageVariant, string>>>({});
+  const [imageState, setImageState] = useState<OrganizationImageState | null>(null);
+  const [altText, setAltText] = useState("");
+  const [publicCredit, setPublicCredit] = useState("");
+  const [busy, setBusy] = useState<"state" | "discover" | "process" | "approve" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  function rememberObjectUrl(blob: Blob, generation: number): string {
+    const url = URL.createObjectURL(blob);
+    if (scopeGeneration.current !== generation) {
+      URL.revokeObjectURL(url);
+      return "";
+    }
+    objectUrls.current.push(url);
+    return url;
+  }
+
+  function revokePreviewUrls(urls: Partial<Record<ImageVariant, string>> | Record<string, string>) {
+    const revoked = new Set(Object.values(urls).filter(Boolean));
+    revoked.forEach((url) => URL.revokeObjectURL(url));
+    objectUrls.current = objectUrls.current.filter((url) => !revoked.has(url));
+  }
+
+  async function loadPreviews(
+    previewRef: string,
+    generation: number,
+  ): Promise<Partial<Record<ImageVariant, string>>> {
+    const entries = await Promise.all(
+      IMAGE_VARIANTS.map(async (variant) => [
+        variant,
+        rememberObjectUrl(
+          await getRenditionPreview(tenantId, organizationId, previewRef, variant),
+          generation,
+        ),
+      ] as const),
+    );
+    if (scopeGeneration.current !== generation) return {};
+    return Object.fromEntries(entries);
+  }
+
+  async function loadState(generation: number) {
+    const state = await getOrganizationImageState(tenantId, organizationId);
+    if (scopeGeneration.current !== generation) return;
+    setImageState(state);
+    if (state.active_selection) {
+      setAltText(state.active_selection.alt_text);
+      setPublicCredit(state.active_selection.public_credit);
+      if (state.active_selection.rendition_preview_ref) {
+        const previews = await loadPreviews(state.active_selection.rendition_preview_ref, generation);
+        if (scopeGeneration.current !== generation) return;
+        revokePreviewUrls(activePreviews);
+        setActivePreviews(previews);
+      }
+    } else {
+      revokePreviewUrls(activePreviews);
+      setActivePreviews({});
+      setAltText("");
+      setPublicCredit("");
+    }
+  }
+
+  function invalidateProcessing() {
+    revokePreviewUrls(processedPreviews);
+    setProcessed(null);
+    setProcessedPreviews({});
+  }
+
+  useEffect(() => {
+    const generation = scopeGeneration.current + 1;
+    scopeGeneration.current = generation;
+    setCandidates([]);
+    setCandidatePreviews({});
+    setSelectedRef(null);
+    setProcessed(null);
+    setProcessedPreviews({});
+    setActivePreviews({});
+    setImageState(null);
+    setAltText("");
+    setPublicCredit("");
+    let cancelled = false;
+    setBusy("state");
+    setError(null);
+    loadState(generation)
+      .catch((nextError) => {
+        if (!cancelled && scopeGeneration.current === generation) setError(imageFlowError(nextError));
+      })
+      .finally(() => {
+        if (!cancelled && scopeGeneration.current === generation) setBusy(null);
+      });
+    return () => {
+      cancelled = true;
+      scopeGeneration.current += 1;
+      objectUrls.current.forEach((url) => URL.revokeObjectURL(url));
+      objectUrls.current = [];
+    };
+    // Organization identity is the lifecycle boundary for all transient refs and blobs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId, organizationId]);
+
+  async function onDiscover() {
+    const generation = scopeGeneration.current;
+    setBusy("discover");
+    setError(null);
+    invalidateProcessing();
+    try {
+      const discovered = await discoverOfficialImages(tenantId, organizationId);
+      if (scopeGeneration.current !== generation) return;
+      setCandidates(discovered);
+      setSelectedRef(null);
+      const previews = await Promise.all(
+        discovered.map(async (candidate) => {
+          try {
+            return [
+              candidate.candidate_ref,
+              rememberObjectUrl(
+                await getCandidatePreview(tenantId, organizationId, candidate.candidate_ref),
+                generation,
+              ),
+            ] as const;
+          } catch {
+            return [candidate.candidate_ref, ""] as const;
+          }
+        }),
+      );
+      if (scopeGeneration.current !== generation) return;
+      revokePreviewUrls(candidatePreviews);
+      setCandidatePreviews(Object.fromEntries(previews));
+    } catch (nextError) {
+      if (scopeGeneration.current === generation) setError(imageFlowError(nextError));
+    } finally {
+      if (scopeGeneration.current === generation) setBusy(null);
+    }
+  }
+
+  async function onProcess() {
+    if (!selectedRef) return;
+    const generation = scopeGeneration.current;
+    setBusy("process");
+    setError(null);
+    try {
+      const result = await processOfficialImage(tenantId, organizationId, {
+        candidate_ref: selectedRef,
+        image_kind: imageKind,
+        ...(imageKind === "photo" ? { focus_x: focusX, focus_y: focusY } : {}),
+      });
+      if (scopeGeneration.current !== generation) return;
+      const previews = await loadPreviews(result.rendition_preview_ref, generation);
+      if (scopeGeneration.current !== generation) return;
+      revokePreviewUrls(processedPreviews);
+      setProcessed(result);
+      setProcessedPreviews(previews);
+    } catch (nextError) {
+      if (scopeGeneration.current === generation) setError(imageFlowError(nextError));
+    } finally {
+      if (scopeGeneration.current === generation) setBusy(null);
+    }
+  }
+
+  async function onApprove() {
+    if (!processed || !altText.trim() || !imageState) return;
+    const generation = scopeGeneration.current;
+    setBusy("approve");
+    setError(null);
+    try {
+      await approveOfficialImage(tenantId, organizationId, {
+        approval_ref: processed.approval_ref,
+        expected_revision: imageState.expected_revision,
+        alt_text: altText.trim(),
+        public_credit: publicCredit.trim(),
+      });
+      if (scopeGeneration.current !== generation) return;
+      await loadState(generation);
+      if (scopeGeneration.current !== generation) return;
+      invalidateProcessing();
+    } catch (nextError) {
+      if (scopeGeneration.current === generation) setError(imageFlowError(nextError));
+    } finally {
+      if (scopeGeneration.current === generation) setBusy(null);
+    }
+  }
+
+  return (
+    <section className="organization-image-panel" aria-labelledby="organization-image-heading">
+      <div className="sidebar-header">
+        <div>
+          <p className="eyebrow small">Intern bildeflyt</p>
+          <h2 id="organization-image-heading">Aktørbilde</h2>
+        </div>
+        <button type="button" className="ghost-button" onClick={onDiscover} disabled={busy !== null}>
+          {busy === "discover" ? "Finner bilder..." : "Finn bilder"}
+        </button>
+      </div>
+      <p className="muted">
+        Finn kandidater fra aktørens offisielle nettside. Ingenting blir valgt før du godkjenner eksplisitt.
+      </p>
+      {error ? <div className="inline-banner warn" role="alert">{error}</div> : null}
+      {imageState?.active_selection ? (
+        <div className="image-active-state">
+          <strong>Aktivt låst bilde · revisjon {imageState.active_selection.revision}</strong>
+          <span className="meta">{imageState.active_selection.alt_text}</span>
+          <ImagePreviewGrid urls={activePreviews} label="Aktiv selection-preview" />
+        </div>
+      ) : busy !== "state" ? (
+        <div className="empty-state compact">Ingen aktiv bildeselection.</div>
+      ) : null}
+
+      {candidates.length > 0 ? (
+        <div className="image-candidate-grid">
+          {candidates.map((candidate) => (
+            <button
+              type="button"
+              key={candidate.candidate_ref}
+              className={`image-candidate-card ${selectedRef === candidate.candidate_ref ? "active" : ""}`}
+              disabled={busy !== null}
+              onClick={() => {
+                setSelectedRef(candidate.candidate_ref);
+                invalidateProcessing();
+              }}
+            >
+              {candidatePreviews[candidate.candidate_ref] ? (
+                <img src={candidatePreviews[candidate.candidate_ref]} alt="" />
+              ) : (
+                <span className="empty-state compact">Preview utilgjengelig</span>
+              )}
+              <strong>{candidate.source_label}</strong>
+              <span className="meta">{candidate.source_domain}</span>
+              <span className="meta">
+                {candidate.width && candidate.height ? `${candidate.width} × ${candidate.height}` : "Ukjente dimensjoner"}
+                {" · "}{candidate.technical_status}
+              </span>
+              <span>{selectedRef === candidate.candidate_ref ? "Valgt bilde" : "Velg bilde"}</span>
+            </button>
+          ))}
+        </div>
+      ) : busy === null ? (
+        <div className="empty-state compact">Klikk «Finn bilder» for å hente kandidater fra offisiell nettside.</div>
+      ) : null}
+
+      {selectedRef ? (
+        <div className="image-processing-controls">
+          <div className="grid two">
+            <Field label="Bildetype">
+              <select
+                value={imageKind}
+                disabled={busy !== null}
+                onChange={(event) => {
+                  setImageKind(event.target.value as "photo" | "logo");
+                  invalidateProcessing();
+                }}
+              >
+                <option value="photo">Foto</option>
+                <option value="logo">Logo</option>
+              </select>
+            </Field>
+            {imageKind === "photo" ? (
+              <div className="grid two">
+                <Field label={`Fokus X (${focusX.toFixed(2)})`}>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={focusX}
+                    disabled={busy !== null}
+                    onChange={(event) => {
+                      setFocusX(Number(event.target.value));
+                      invalidateProcessing();
+                    }}
+                  />
+                </Field>
+                <Field label={`Fokus Y (${focusY.toFixed(2)})`}>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={focusY}
+                    disabled={busy !== null}
+                    onChange={(event) => {
+                      setFocusY(Number(event.target.value));
+                      invalidateProcessing();
+                    }}
+                  />
+                </Field>
+              </div>
+            ) : (
+              <p className="muted">Logo bruker contain og er ikke avhengig av fokus.</p>
+            )}
+          </div>
+          <button type="button" className="primary-button" onClick={onProcess} disabled={busy !== null}>
+            {busy === "process" ? "Prosesserer..." : "Prosesser valgt bilde"}
+          </button>
+        </div>
+      ) : null}
+
+      {processed ? (
+        <div className="image-approval-panel">
+          <ImagePreviewGrid urls={processedPreviews} label="Intern processing-preview" />
+          {processed.warnings.length > 0 ? (
+            <div className="inline-banner warn">Tekniske varsler: {processed.warnings.join(", ")}</div>
+          ) : null}
+          <Field label="Alt-tekst" required>
+            <input value={altText} onChange={(event) => setAltText(event.target.value)} placeholder={`Beskriv bildet av ${organizationName}`} />
+          </Field>
+          <Field label="Offentlig kreditering (valgfritt)">
+            <input value={publicCredit} onChange={(event) => setPublicCredit(event.target.value)} />
+          </Field>
+          <button type="button" className="primary-button" onClick={onApprove} disabled={!altText.trim() || busy !== null}>
+            {busy === "approve"
+              ? "Godkjenner..."
+              : imageState?.active_selection
+                ? "Godkjenn og erstatt bilde"
+                : "Godkjenn og lås bilde"}
+          </button>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function ImagePreviewGrid(props: {
+  urls: Partial<Record<ImageVariant, string>>;
+  label: string;
+}) {
+  return (
+    <div className="image-preview-grid" aria-label={props.label}>
+      {IMAGE_VARIANTS.map((variant) => (
+        <figure key={variant}>
+          {props.urls[variant] ? <img src={props.urls[variant]} alt={`${props.label}: ${variant}`} /> : <div className="empty-state compact">Laster...</div>}
+          <figcaption>{variant}</figcaption>
+        </figure>
+      ))}
+    </div>
   );
 }
 
@@ -890,7 +1271,7 @@ function OrganizationPreviewPanel({ invalidOrgRoute }: { invalidOrgRoute: boolea
       ) : (
         <>
           <div className="sidebar-header">
-            <h2>Public Preview</h2>
+            <h2>Public Preview (legacy)</h2>
             <div className="actions">
               <span className={`dot ${editor.draft.is_published ? "green" : "gray"}`} />
               <button

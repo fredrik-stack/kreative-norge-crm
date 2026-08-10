@@ -2,6 +2,20 @@
 
 Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små kosmetiske justeringer trenger ikke registreres.
 
+## 2026-08-09
+
+### Fase 3D.1: offisiell kandidatflyt fra Editor til selection
+
+- lagt én sikker, IP-bundet fetchadapter for official discovery, kandidat-preview og valgt processing med fail-closed DNS/SSRF-, redirect-, downgrade-, credential-, timeout-, MIME- og størrelseskontroll
+- lagt website/Open Graph-discovery fra `Organization.website_url`, lagrede OG-kandidater, maksimalt én sidefetch, deduplisering og maksimum seks kandidater uten persistent kandidatmodell
+- bundet transient kandidat og approval til tenant, Organization, bruker og proveniens gjennom kortlivede signerte refs; caller kan ikke levere fri URL, proveniens, asset eller rendition-sett ved approval
+- lagt ephemeral private/no-store kandidat-preview og checksumverifisert intern preview av square/landscape/share uten privat original, intern path eller public serving
+- koblet bare valgt kandidat gjennom fase 3C.7 med Foto → cover, Logo → contain og valgfritt normalisert fotofokus; processing oppretter ingen selection, event eller release
+- lagt eksplisitt approval til eksisterende `lock_organization_image_selection`, inkludert first lock, expected-revision og replacement med eksisterende event-/provenienskontrakt
+- lagt feature-gated `Aktørbilde` i Organization-editoren med kandidatgalleri, teknisk status, tre previews, warnings, alt-tekst, kreditering og aktiv selection; legacy Public Preview forblir separat
+- verifisert 26 målrettede kandidat-/fetch-/API-/storage-/selectiontester, hele backendpakken på 324 tester, 15 frontendtester, frontendbuild, deterministisk Playwright-flyt og backend-/web-produksjonsbuild i Linux-containere
+- beholdt `IMAGE_ASSET_FEATURE_ENABLED=False`; ingen Brave, limt URL, brukerupload, public release/materialisering, projection, PUBLIC, serving, journal, purge, staging eller deploy inngår
+
 ## 2026-08-08
 
 ### Fase 3C.7: intern upload-only ingest og deterministisk prosessering

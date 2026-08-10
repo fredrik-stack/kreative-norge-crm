@@ -1,8 +1,9 @@
 from django.contrib.auth import authenticate, login, logout
 import importlib
+from dataclasses import asdict
 from django.db.models import Count
 from django.db.models import Q
-from django.http import FileResponse
+from django.http import FileResponse, HttpResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
@@ -56,6 +57,25 @@ from .serializers import (
     ImportJobGenerateAiSerializer,
 )
 from .services.open_graph import refresh_organization_open_graph
+from .services.images.candidates import (
+    ImageCandidateFeatureDisabledError,
+    ImageCandidateFlowError,
+    ImageCandidatePermissionDenied,
+    approve_official_image_candidate,
+    discover_official_image_candidates,
+    get_organization_image_state,
+    process_official_image_candidate,
+    read_rendition_preview,
+    render_candidate_preview,
+)
+from .services.images.fetch import SecureImageFetchError
+from .services.images.ingest import ImageIngestError
+from .services.images.processing import ImageProcessingError
+from .services.images.selections import (
+    ExpectedRevisionConflictError,
+    ImageSelectionError,
+    ImageSelectionPermissionDenied,
+)
 
 import_normalizers_module = importlib.import_module("crm.services.import.normalizers")
 import_commit_module = importlib.import_module("crm.services.import.commit")
@@ -231,6 +251,141 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         organization.refresh_from_db()
         serializer = self.get_serializer(organization)
         return Response(serializer.data)
+
+    def _image_error_response(self, error):
+        code = getattr(error, "code", "image_flow_error")
+        if isinstance(error, (ImageCandidatePermissionDenied, ImageSelectionPermissionDenied)):
+            response_status = status.HTTP_403_FORBIDDEN
+        elif code == "not_found":
+            response_status = status.HTTP_404_NOT_FOUND
+        elif isinstance(error, ExpectedRevisionConflictError):
+            response_status = status.HTTP_409_CONFLICT
+            code = "revision_conflict"
+        elif isinstance(error, ImageCandidateFeatureDisabledError):
+            response_status = status.HTTP_404_NOT_FOUND
+        else:
+            response_status = status.HTTP_400_BAD_REQUEST
+        return Response(
+            {"code": code, "detail": str(error)},
+            status=response_status,
+        )
+
+    @staticmethod
+    def _private_image_response(body: bytes, content_type: str) -> HttpResponse:
+        response = HttpResponse(body, content_type=content_type)
+        response["Cache-Control"] = "private, no-store, max-age=0"
+        response["Pragma"] = "no-cache"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
+
+    @action(detail=True, methods=["post"], url_path="images/discover")
+    def discover_images(self, request, tenant_id=None, pk=None):
+        try:
+            candidates = discover_official_image_candidates(
+                actor=request.user,
+                tenant_id=int(tenant_id),
+                organization_id=int(pk),
+            )
+            return Response({"candidates": [asdict(candidate) for candidate in candidates]})
+        except (ImageCandidateFlowError, SecureImageFetchError) as error:
+            return self._image_error_response(error)
+
+    @action(detail=True, methods=["post"], url_path="images/candidate-preview")
+    def candidate_image_preview(self, request, tenant_id=None, pk=None):
+        try:
+            preview = render_candidate_preview(
+                actor=request.user,
+                tenant_id=int(tenant_id),
+                organization_id=int(pk),
+                candidate_ref=request.data.get("candidate_ref"),
+            )
+            response = self._private_image_response(preview.body, preview.content_type)
+            response["X-Image-Width"] = str(preview.width)
+            response["X-Image-Height"] = str(preview.height)
+            return response
+        except (ImageCandidateFlowError, SecureImageFetchError) as error:
+            return self._image_error_response(error)
+
+    @action(detail=True, methods=["post"], url_path="images/process")
+    def process_candidate_image(self, request, tenant_id=None, pk=None):
+        try:
+            result = process_official_image_candidate(
+                actor=request.user,
+                tenant_id=int(tenant_id),
+                organization_id=int(pk),
+                candidate_ref=request.data.get("candidate_ref"),
+                image_kind=request.data.get("image_kind"),
+                focus_x=request.data.get("focus_x"),
+                focus_y=request.data.get("focus_y"),
+            )
+            return Response(
+                {
+                    "approval_ref": result.approval_ref,
+                    "rendition_preview_ref": result.rendition_preview_ref,
+                    "asset_id": result.asset_id,
+                    "rendition_set_id": result.rendition_set_id,
+                    "variants": result.variants,
+                    "warnings": result.warnings,
+                    "status": result.status,
+                }
+            )
+        except (
+            ImageCandidateFlowError,
+            SecureImageFetchError,
+            ImageIngestError,
+            ImageProcessingError,
+        ) as error:
+            return self._image_error_response(error)
+
+    @action(detail=True, methods=["post"], url_path="images/rendition-preview")
+    def rendition_image_preview(self, request, tenant_id=None, pk=None):
+        try:
+            body, content_type = read_rendition_preview(
+                actor=request.user,
+                tenant_id=int(tenant_id),
+                organization_id=int(pk),
+                preview_ref=request.data.get("preview_ref"),
+                variant=request.data.get("variant"),
+            )
+            return self._private_image_response(body, content_type)
+        except ImageCandidateFlowError as error:
+            return self._image_error_response(error)
+
+    @action(detail=True, methods=["post"], url_path="images/approve")
+    def approve_candidate_image(self, request, tenant_id=None, pk=None):
+        try:
+            result = approve_official_image_candidate(
+                actor=request.user,
+                tenant_id=int(tenant_id),
+                organization_id=int(pk),
+                approval_ref=request.data.get("approval_ref"),
+                expected_revision=request.data.get("expected_revision"),
+                alt_text=request.data.get("alt_text"),
+                public_credit=request.data.get("public_credit") or "",
+            )
+            return Response(
+                {
+                    "selection_id": result.selection.pk,
+                    "revision": result.selection.revision,
+                    "status": result.selection.status,
+                    "event_id": result.event.pk,
+                }
+            )
+        except (ImageCandidateFlowError, ImageSelectionError) as error:
+            return self._image_error_response(error)
+
+    @action(detail=True, methods=["get"], url_path="images/state")
+    def organization_image_state(self, request, tenant_id=None, pk=None):
+        try:
+            return Response(
+                get_organization_image_state(
+                    actor=request.user,
+                    tenant_id=int(tenant_id),
+                    organization_id=int(pk),
+                )
+            )
+        except ImageCandidateFlowError as error:
+            return self._image_error_response(error)
 
 
 class PersonViewSet(viewsets.ModelViewSet):

@@ -1,0 +1,576 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import timedelta
+from io import BytesIO
+from urllib.parse import urljoin, urlsplit
+
+from django.conf import settings
+from django.core import signing
+from django.core.files.storage import storages
+from django.utils import timezone
+from PIL import Image, ImageOps, UnidentifiedImageError
+
+from crm.models import (
+    ImageRendition,
+    ImageRenditionSet,
+    ImageReviewEvent,
+    Organization,
+    OrganizationImageSelection,
+    Tenant,
+    TenantMembership,
+)
+from crm.services.open_graph import MetaParser, _candidate_score
+
+from .fetch import SecureImageFetchError, fetch_external_resource, normalize_external_url
+from .ingest import ingest_uploaded_image
+from .processing import checksum_bytes
+from .selections import (
+    ALLOWED_SELECTION_ROLES,
+    AssetApprovalEvidence,
+    OrganizationImageSelectionResult,
+    lock_organization_image_selection,
+)
+
+
+CANDIDATE_REF_SALT = "crm.image-candidate.v1"
+APPROVAL_REF_SALT = "crm.image-approval.v1"
+RENDITION_PREVIEW_REF_SALT = "crm.image-rendition-preview.v1"
+REF_TTL_SECONDS = 30 * 60
+MAX_DISCOVERY_HTML_BYTES = 1_000_000
+MAX_CANDIDATES = 6
+MAX_CANDIDATE_PREVIEW_PIXELS = 12_000_000
+MAX_CANDIDATE_PREVIEW_DIMENSION = 640
+MAX_CANDIDATE_PREVIEW_BYTES = 1_000_000
+
+
+class ImageCandidateFlowError(ValueError):
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+
+
+class ImageCandidateFeatureDisabledError(ImageCandidateFlowError):
+    def __init__(self) -> None:
+        super().__init__("feature_disabled", "Image candidate flow is disabled.")
+
+
+class ImageCandidatePermissionDenied(ImageCandidateFlowError):
+    def __init__(self) -> None:
+        super().__init__("permission_denied", "Image candidate capability is required.")
+
+
+@dataclass(frozen=True, slots=True)
+class OfficialImageCandidate:
+    candidate_ref: str
+    source_type: str
+    source_label: str
+    source_domain: str
+    provider: str
+    width: int | None
+    height: int | None
+    technical_status: str
+
+
+@dataclass(frozen=True, slots=True)
+class CandidatePreview:
+    body: bytes
+    content_type: str
+    width: int
+    height: int
+
+
+@dataclass(frozen=True, slots=True)
+class ProcessedOfficialCandidate:
+    approval_ref: str
+    rendition_preview_ref: str
+    asset_id: int
+    rendition_set_id: int
+    variants: tuple[str, ...]
+    warnings: tuple[str, ...]
+    status: str
+
+
+def _feature_guard() -> None:
+    if not settings.IMAGE_ASSET_FEATURE_ENABLED:
+        raise ImageCandidateFeatureDisabledError()
+
+
+def _validate_actor(actor, tenant_id: int, *, allow_reader: bool = False) -> None:
+    if (
+        actor is None
+        or not getattr(actor, "is_authenticated", False)
+        or not getattr(actor, "is_active", False)
+        or not getattr(actor, "pk", None)
+    ):
+        raise ImageCandidatePermissionDenied()
+    if actor.is_superuser:
+        return
+    roles = TenantMembership.Role.values if allow_reader else ALLOWED_SELECTION_ROLES
+    if not TenantMembership.objects.filter(
+        tenant_id=tenant_id,
+        user_id=actor.pk,
+        role__in=roles,
+    ).exists():
+        raise ImageCandidatePermissionDenied()
+
+
+def _organization(tenant_id: int, organization_id: int) -> Organization:
+    organization = Organization.objects.filter(pk=organization_id, tenant_id=tenant_id).first()
+    if organization is None:
+        raise ImageCandidateFlowError("not_found", "Organization was not found in the tenant.")
+    return organization
+
+
+def _signed_payload(payload: dict[str, object], salt: str) -> str:
+    return signing.dumps(payload, salt=salt, compress=True)
+
+
+def _load_signed_payload(
+    value: str,
+    *,
+    salt: str,
+    actor,
+    tenant_id: int,
+    organization_id: int,
+) -> dict[str, object]:
+    if not isinstance(value, str) or not value:
+        raise ImageCandidateFlowError("invalid_ref", "A signed image reference is required.")
+    try:
+        payload = signing.loads(value, salt=salt, max_age=REF_TTL_SECONDS)
+    except signing.SignatureExpired as error:
+        raise ImageCandidateFlowError("expired_ref", "The image reference has expired.") from error
+    except signing.BadSignature as error:
+        raise ImageCandidateFlowError("invalid_ref", "The image reference is invalid.") from error
+    if not isinstance(payload, dict):
+        raise ImageCandidateFlowError("invalid_ref", "The image reference payload is invalid.")
+    if (
+        payload.get("tenant_id") != tenant_id
+        or payload.get("organization_id") != organization_id
+        or payload.get("user_id") != actor.pk
+    ):
+        raise ImageCandidateFlowError("wrong_scope", "The image reference does not match this context.")
+    return payload
+
+
+def _candidate_payload(
+    *,
+    tenant_id: int,
+    organization_id: int,
+    actor,
+    source_type: str,
+    image_url: str,
+    source_page_url: str,
+    provider: str,
+    width: int | None,
+    height: int | None,
+) -> dict[str, object]:
+    discovered_at = timezone.now()
+    return {
+        "version": 1,
+        "tenant_id": tenant_id,
+        "organization_id": organization_id,
+        "user_id": actor.pk,
+        "source_type": source_type,
+        "image_url": image_url,
+        "source_page_url": source_page_url,
+        "source_domain": urlsplit(source_page_url).hostname or "",
+        "provider": provider,
+        "width": width,
+        "height": height,
+        "discovered_at": discovered_at.isoformat(),
+        "expires_at": (discovered_at + timedelta(seconds=REF_TTL_SECONDS)).isoformat(),
+    }
+
+
+def _candidate_from_payload(payload: dict[str, object]) -> OfficialImageCandidate:
+    source_type = str(payload["source_type"])
+    labels = {
+        ImageReviewEvent.SourceType.OPEN_GRAPH: "Open Graph",
+        ImageReviewEvent.SourceType.WEBSITE_IMAGE: "Offisiell nettside",
+        ImageReviewEvent.SourceType.OFFICIAL_WEBSITE: "Lagret nettsidebilde",
+    }
+    return OfficialImageCandidate(
+        candidate_ref=_signed_payload(payload, CANDIDATE_REF_SALT),
+        source_type=source_type,
+        source_label=labels.get(source_type, "Offisiell nettside"),
+        source_domain=str(payload["source_domain"]),
+        provider=str(payload["provider"]),
+        width=payload.get("width") if isinstance(payload.get("width"), int) else None,
+        height=payload.get("height") if isinstance(payload.get("height"), int) else None,
+        technical_status="ready_for_preview",
+    )
+
+
+def _normalized_candidate_url(page_url: str, value: str) -> str | None:
+    if not value or value.lstrip().casefold().startswith("data:"):
+        return None
+    try:
+        return normalize_external_url(urljoin(page_url, value))
+    except SecureImageFetchError:
+        return None
+
+
+def discover_official_image_candidates(
+    *,
+    actor,
+    tenant_id: int,
+    organization_id: int,
+) -> tuple[OfficialImageCandidate, ...]:
+    _feature_guard()
+    _validate_actor(actor, tenant_id)
+    organization = _organization(tenant_id, organization_id)
+    if not organization.website_url:
+        return ()
+
+    page_url = normalize_external_url(organization.website_url)
+    raw_candidates: list[tuple[int, str, str, int | None, int | None]] = []
+    if organization.og_image_url:
+        raw_candidates.append((400, organization.og_image_url, ImageReviewEvent.SourceType.OPEN_GRAPH, None, None))
+    if organization.auto_thumbnail_url:
+        raw_candidates.append(
+            (120, organization.auto_thumbnail_url, ImageReviewEvent.SourceType.OFFICIAL_WEBSITE, None, None)
+        )
+
+    try:
+        page = fetch_external_resource(
+            page_url,
+            expected="html",
+            max_bytes=MAX_DISCOVERY_HTML_BYTES,
+        )
+    except SecureImageFetchError:
+        if not raw_candidates:
+            raise
+        page = None
+    if page is not None:
+        parser = MetaParser()
+        parser.feed(page.body.decode("utf-8", errors="replace"))
+        for candidate in parser.image_candidates:
+            source_type = (
+                ImageReviewEvent.SourceType.OPEN_GRAPH
+                if candidate.source in {"og:image", "twitter:image"}
+                else ImageReviewEvent.SourceType.WEBSITE_IMAGE
+            )
+            priority = 300 if candidate.source == "og:image" else 250 if candidate.source == "twitter:image" else _candidate_score(candidate)
+            raw_candidates.append((priority, candidate.url, source_type, candidate.width, candidate.height))
+
+    results: list[OfficialImageCandidate] = []
+    seen: set[str] = set()
+    for _, candidate_url, source_type, width, height in sorted(raw_candidates, key=lambda item: item[0], reverse=True):
+        source_page_url = page.final_url if page is not None else page_url
+        normalized_url = _normalized_candidate_url(source_page_url, candidate_url)
+        if not normalized_url or normalized_url in seen:
+            continue
+        seen.add(normalized_url)
+        payload = _candidate_payload(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            actor=actor,
+            source_type=source_type,
+            image_url=normalized_url,
+            source_page_url=source_page_url,
+            provider="official_website",
+            width=width,
+            height=height,
+        )
+        results.append(_candidate_from_payload(payload))
+        if len(results) == MAX_CANDIDATES:
+            break
+    return tuple(results)
+
+
+def _candidate_context(
+    *,
+    actor,
+    tenant_id: int,
+    organization_id: int,
+    candidate_ref: str,
+) -> dict[str, object]:
+    _feature_guard()
+    _validate_actor(actor, tenant_id)
+    _organization(tenant_id, organization_id)
+    payload = _load_signed_payload(
+        candidate_ref,
+        salt=CANDIDATE_REF_SALT,
+        actor=actor,
+        tenant_id=tenant_id,
+        organization_id=organization_id,
+    )
+    if payload.get("source_type") not in {
+        ImageReviewEvent.SourceType.OPEN_GRAPH,
+        ImageReviewEvent.SourceType.WEBSITE_IMAGE,
+        ImageReviewEvent.SourceType.OFFICIAL_WEBSITE,
+    }:
+        raise ImageCandidateFlowError("invalid_ref", "Candidate source is not official.")
+    return payload
+
+
+def render_candidate_preview(
+    *,
+    actor,
+    tenant_id: int,
+    organization_id: int,
+    candidate_ref: str,
+) -> CandidatePreview:
+    payload = _candidate_context(
+        actor=actor,
+        tenant_id=tenant_id,
+        organization_id=organization_id,
+        candidate_ref=candidate_ref,
+    )
+    fetched = fetch_external_resource(str(payload["image_url"]), expected="image")
+    try:
+        with Image.open(BytesIO(fetched.body)) as opened:
+            if opened.width * opened.height > MAX_CANDIDATE_PREVIEW_PIXELS:
+                raise ImageCandidateFlowError("preview_pixel_limit", "Candidate preview exceeds pixel limit.")
+            if int(getattr(opened, "n_frames", 1)) != 1 or bool(getattr(opened, "is_animated", False)):
+                raise ImageCandidateFlowError("preview_animated", "Animated candidate previews are unsupported.")
+            opened.load()
+            has_alpha = "A" in opened.getbands() or "transparency" in opened.info
+            image = ImageOps.exif_transpose(opened).convert("RGBA" if has_alpha else "RGB")
+    except ImageCandidateFlowError:
+        raise
+    except (UnidentifiedImageError, OSError, SyntaxError, ValueError) as error:
+        raise ImageCandidateFlowError("preview_decode", "Candidate preview could not be decoded.") from error
+
+    image.thumbnail(
+        (MAX_CANDIDATE_PREVIEW_DIMENSION, MAX_CANDIDATE_PREVIEW_DIMENSION),
+        Image.Resampling.LANCZOS,
+    )
+    output = BytesIO()
+    image.save(output, "WEBP", quality=76, method=4, exif=b"", icc_profile=b"", xmp=b"")
+    body = output.getvalue()
+    if len(body) > MAX_CANDIDATE_PREVIEW_BYTES:
+        raise ImageCandidateFlowError("preview_size_limit", "Candidate preview exceeds output limit.")
+    return CandidatePreview(body=body, content_type="image/webp", width=image.width, height=image.height)
+
+
+def process_official_image_candidate(
+    *,
+    actor,
+    tenant_id: int,
+    organization_id: int,
+    candidate_ref: str,
+    image_kind: str,
+    focus_x: float | None = None,
+    focus_y: float | None = None,
+) -> ProcessedOfficialCandidate:
+    payload = _candidate_context(
+        actor=actor,
+        tenant_id=tenant_id,
+        organization_id=organization_id,
+        candidate_ref=candidate_ref,
+    )
+    if image_kind not in {"photo", "logo"}:
+        raise ImageCandidateFlowError("invalid_image_kind", "Image kind must be photo or logo.")
+    if image_kind == "logo" and (focus_x is not None or focus_y is not None):
+        raise ImageCandidateFlowError("invalid_focus", "Logo processing does not accept focus.")
+    fetched = fetch_external_resource(str(payload["image_url"]), expected="image")
+    upload = BytesIO(fetched.body)
+    upload.content_type = fetched.content_type
+    tenant = Tenant.objects.filter(pk=tenant_id).first()
+    if tenant is None:
+        raise ImageCandidateFlowError("not_found", "Tenant was not found.")
+    result = ingest_uploaded_image(
+        tenant=tenant,
+        upload=upload,
+        content_mode="cover" if image_kind == "photo" else "contain",
+        focus_x=focus_x,
+        focus_y=focus_y,
+    )
+    processed_at = timezone.now()
+    approval_payload = {
+        "version": 1,
+        "tenant_id": tenant_id,
+        "organization_id": organization_id,
+        "user_id": actor.pk,
+        "source_type": payload["source_type"],
+        "source_url": payload["image_url"],
+        "source_page_url": payload["source_page_url"],
+        "provider": payload["provider"],
+        "asset_checksum_sha256": result.asset.checksum_sha256,
+        "rendition_set_id": result.rendition_set.pk,
+        "image_kind": image_kind,
+        "fit_mode": result.rendition_set.fit_mode,
+        "technical_warnings": list(result.warnings),
+        "processed_at": processed_at.isoformat(),
+        "expires_at": (processed_at + timedelta(seconds=REF_TTL_SECONDS)).isoformat(),
+    }
+    preview_payload = {
+        "version": 1,
+        "tenant_id": tenant_id,
+        "organization_id": organization_id,
+        "user_id": actor.pk,
+        "rendition_set_id": result.rendition_set.pk,
+    }
+    return ProcessedOfficialCandidate(
+        approval_ref=_signed_payload(approval_payload, APPROVAL_REF_SALT),
+        rendition_preview_ref=_signed_payload(preview_payload, RENDITION_PREVIEW_REF_SALT),
+        asset_id=result.asset.pk,
+        rendition_set_id=result.rendition_set.pk,
+        variants=tuple(rendition.variant for rendition in result.renditions),
+        warnings=result.warnings,
+        status=result.status,
+    )
+
+
+def _rendition_preview_payload(
+    *,
+    actor,
+    tenant_id: int,
+    organization_id: int,
+    preview_ref: str,
+) -> dict[str, object]:
+    _feature_guard()
+    _validate_actor(actor, tenant_id, allow_reader=True)
+    _organization(tenant_id, organization_id)
+    return _load_signed_payload(
+        preview_ref,
+        salt=RENDITION_PREVIEW_REF_SALT,
+        actor=actor,
+        tenant_id=tenant_id,
+        organization_id=organization_id,
+    )
+
+
+def read_rendition_preview(
+    *,
+    actor,
+    tenant_id: int,
+    organization_id: int,
+    preview_ref: str,
+    variant: str,
+) -> tuple[bytes, str]:
+    payload = _rendition_preview_payload(
+        actor=actor,
+        tenant_id=tenant_id,
+        organization_id=organization_id,
+        preview_ref=preview_ref,
+    )
+    if variant not in ImageRendition.Variant.values:
+        raise ImageCandidateFlowError("invalid_variant", "Preview variant is invalid.")
+    rendition = ImageRendition.objects.filter(
+        tenant_id=tenant_id,
+        rendition_set_id=payload.get("rendition_set_id"),
+        variant=variant,
+    ).first()
+    if rendition is None:
+        raise ImageCandidateFlowError("not_found", "Rendition preview was not found.")
+    storage = storages["image_renditions_public"]
+    try:
+        with storage.open(rendition.artifact_storage_key, "rb") as source:
+            body = source.read(rendition.file_size_bytes + 1)
+    except (OSError, ValueError) as error:
+        raise ImageCandidateFlowError("preview_unavailable", "Rendition preview is unavailable.") from error
+    if len(body) != rendition.file_size_bytes or checksum_bytes(body) != rendition.checksum_sha256:
+        raise ImageCandidateFlowError("preview_conflict", "Rendition preview failed integrity verification.")
+    content_type = {"jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp"}[rendition.output_format]
+    return body, content_type
+
+
+def approve_official_image_candidate(
+    *,
+    actor,
+    tenant_id: int,
+    organization_id: int,
+    approval_ref: str,
+    expected_revision: int,
+    alt_text: str,
+    public_credit: str = "",
+) -> OrganizationImageSelectionResult:
+    _feature_guard()
+    _validate_actor(actor, tenant_id)
+    _organization(tenant_id, organization_id)
+    if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0:
+        raise ImageCandidateFlowError("invalid_revision", "Expected revision must be a non-negative integer.")
+    if not isinstance(alt_text, str) or not alt_text.strip() or len(alt_text) > 500:
+        raise ImageCandidateFlowError("invalid_alt_text", "Alt text must contain 1 to 500 characters.")
+    if not isinstance(public_credit, str) or len(public_credit) > 500 or (
+        public_credit and not public_credit.strip()
+    ):
+        raise ImageCandidateFlowError(
+            "invalid_public_credit",
+            "Public credit must be empty or contain at most 500 characters.",
+        )
+    payload = _load_signed_payload(
+        approval_ref,
+        salt=APPROVAL_REF_SALT,
+        actor=actor,
+        tenant_id=tenant_id,
+        organization_id=organization_id,
+    )
+    rendition_set = ImageRenditionSet.objects.select_related("asset").filter(
+        pk=payload.get("rendition_set_id"),
+        tenant_id=tenant_id,
+    ).first()
+    if rendition_set is None or rendition_set.asset.checksum_sha256 != payload.get("asset_checksum_sha256"):
+        raise ImageCandidateFlowError("invalid_ref", "Approval reference no longer matches its image aggregate.")
+    expected_fit = "cover" if payload.get("image_kind") == "photo" else "contain"
+    if rendition_set.fit_mode != expected_fit or payload.get("fit_mode") != expected_fit:
+        raise ImageCandidateFlowError("invalid_ref", "Approval reference processing mode is inconsistent.")
+    evidence = AssetApprovalEvidence(
+        source_type=str(payload["source_type"]),
+        source_url=str(payload["source_url"]),
+        source_page_url=str(payload["source_page_url"]),
+        provider=str(payload["provider"]),
+        technical_warnings=tuple(payload.get("technical_warnings", ())),
+    )
+    return lock_organization_image_selection(
+        actor=actor,
+        tenant_id=tenant_id,
+        organization_id=organization_id,
+        expected_revision=expected_revision,
+        selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+        rendition_set_id=rendition_set.pk,
+        alt_text=alt_text,
+        public_credit=public_credit,
+        asset_evidence=evidence,
+    )
+
+
+def get_organization_image_state(
+    *,
+    actor,
+    tenant_id: int,
+    organization_id: int,
+) -> dict[str, object]:
+    _feature_guard()
+    _validate_actor(actor, tenant_id, allow_reader=True)
+    _organization(tenant_id, organization_id)
+    selection = OrganizationImageSelection.objects.filter(
+        tenant_id=tenant_id,
+        organization_id=organization_id,
+        status=OrganizationImageSelection.Status.ACTIVE,
+    ).first()
+    if selection is None:
+        return {"active_selection": None, "expected_revision": 0}
+    preview_ref = None
+    variants: list[str] = []
+    if selection.rendition_set_id:
+        payload = {
+            "version": 1,
+            "tenant_id": tenant_id,
+            "organization_id": organization_id,
+            "user_id": actor.pk,
+            "rendition_set_id": selection.rendition_set_id,
+        }
+        preview_ref = _signed_payload(payload, RENDITION_PREVIEW_REF_SALT)
+        variants = list(
+            ImageRendition.objects.filter(
+                tenant_id=tenant_id,
+                rendition_set_id=selection.rendition_set_id,
+            ).order_by("variant").values_list("variant", flat=True)
+        )
+    return {
+        "expected_revision": selection.revision,
+        "active_selection": {
+            "id": selection.pk,
+            "revision": selection.revision,
+            "status": selection.status,
+            "kind": selection.selection_kind,
+            "alt_text": selection.alt_text,
+            "public_credit": selection.public_credit,
+            "rendition_preview_ref": preview_ref,
+            "variants": variants,
+        },
+    }

@@ -656,6 +656,79 @@ select,
   border-top: 1px solid var(--line);
 }
 
+.organization-image-panel {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1.1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.image-candidate-grid,
+.image-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.image-candidate-card {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.65rem;
+  text-align: left;
+  color: inherit;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+  cursor: pointer;
+}
+
+.image-candidate-card.active {
+  border-color: var(--accent, #166534);
+  box-shadow: 0 0 0 2px rgba(22, 101, 52, 0.13);
+}
+
+.image-candidate-card img {
+  width: 100%;
+  height: 120px;
+  object-fit: contain;
+  border-radius: 9px;
+  background: #f4f4f1;
+}
+
+.image-processing-controls,
+.image-approval-panel,
+.image-active-state {
+  display: grid;
+  gap: 0.8rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--line);
+}
+
+.image-preview-grid figure {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+}
+
+.image-preview-grid img,
+.image-preview-grid .empty-state {
+  width: 100%;
+  height: 130px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #f4f4f1;
+}
+
+.image-preview-grid figcaption {
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: capitalize;
+}
+
 .link-create {
   display: grid;
   grid-template-columns: minmax(220px, 1.3fr) 140px auto auto;
@@ -1883,6 +1956,11 @@ select,
   }
 
   .link-row {
+    grid-template-columns: 1fr;
+  }
+
+  .image-candidate-grid,
+  .image-preview-grid {
     grid-template-columns: 1fr;
   }
 

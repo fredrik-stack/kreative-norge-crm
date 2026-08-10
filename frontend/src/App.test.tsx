@@ -56,6 +56,7 @@ describe("App integration", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: "Rediger" }));
     expect(await screen.findByDisplayValue("Kreativ Demo AS")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Aktørbilde" })).not.toBeInTheDocument();
 
     const nameInput = screen.getByDisplayValue("Kreativ Demo AS");
     await userEvent.clear(nameInput);
