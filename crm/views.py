@@ -61,13 +61,18 @@ from .services.images.candidates import (
     ImageCandidateFeatureDisabledError,
     ImageCandidateFlowError,
     ImageCandidatePermissionDenied,
-    approve_official_image_candidate,
+    approve_image_candidate,
+    create_pasted_url_candidate,
+    discover_brave_image_candidates,
     discover_official_image_candidates,
+    get_brave_search_context,
     get_organization_image_state,
-    process_official_image_candidate,
+    process_image_candidate,
+    process_uploaded_image_candidate,
     read_rendition_preview,
     render_candidate_preview,
 )
+from .services.images.brave import BraveImageSearchError
 from .services.images.fetch import SecureImageFetchError
 from .services.images.ingest import ImageIngestError
 from .services.images.processing import ImageProcessingError
@@ -263,6 +268,15 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             code = "revision_conflict"
         elif isinstance(error, ImageCandidateFeatureDisabledError):
             response_status = status.HTTP_404_NOT_FOUND
+        elif isinstance(error, BraveImageSearchError) and code in {
+            "brave_not_configured",
+            "provider_timeout",
+            "provider_unavailable",
+            "provider_rate_limited",
+        }:
+            response_status = status.HTTP_503_SERVICE_UNAVAILABLE
+        elif isinstance(error, BraveImageSearchError) and code == "provider_malformed":
+            response_status = status.HTTP_502_BAD_GATEWAY
         else:
             response_status = status.HTTP_400_BAD_REQUEST
         return Response(
@@ -290,6 +304,55 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         except (ImageCandidateFlowError, SecureImageFetchError) as error:
             return self._image_error_response(error)
 
+    @action(detail=True, methods=["get"], url_path="images/search-context")
+    def image_search_context(self, request, tenant_id=None, pk=None):
+        try:
+            return Response(
+                get_brave_search_context(
+                    actor=request.user,
+                    tenant_id=int(tenant_id),
+                    organization_id=int(pk),
+                )
+            )
+        except ImageCandidateFlowError as error:
+            return self._image_error_response(error)
+
+    @action(detail=True, methods=["post"], url_path="images/brave-search")
+    def brave_image_search(self, request, tenant_id=None, pk=None):
+        try:
+            search_query, query_sources, candidates = discover_brave_image_candidates(
+                actor=request.user,
+                tenant_id=int(tenant_id),
+                organization_id=int(pk),
+                query=request.data.get("query"),
+                municipality=request.data.get("municipality"),
+                category_id=request.data.get("category_id"),
+                person_id=request.data.get("person_id"),
+                query_edited=request.data.get("query_edited", False),
+            )
+            return Response(
+                {
+                    "search_query": search_query,
+                    "query_sources": list(query_sources),
+                    "candidates": [asdict(candidate) for candidate in candidates],
+                }
+            )
+        except (ImageCandidateFlowError, BraveImageSearchError) as error:
+            return self._image_error_response(error)
+
+    @action(detail=True, methods=["post"], url_path="images/url-candidate")
+    def pasted_url_image_candidate(self, request, tenant_id=None, pk=None):
+        try:
+            candidate = create_pasted_url_candidate(
+                actor=request.user,
+                tenant_id=int(tenant_id),
+                organization_id=int(pk),
+                image_url=request.data.get("image_url"),
+            )
+            return Response({"candidate": asdict(candidate)})
+        except (ImageCandidateFlowError, SecureImageFetchError) as error:
+            return self._image_error_response(error)
+
     @action(detail=True, methods=["post"], url_path="images/candidate-preview")
     def candidate_image_preview(self, request, tenant_id=None, pk=None):
         try:
@@ -298,6 +361,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 tenant_id=int(tenant_id),
                 organization_id=int(pk),
                 candidate_ref=request.data.get("candidate_ref"),
+                original=request.data.get("original", False),
             )
             response = self._private_image_response(preview.body, preview.content_type)
             response["X-Image-Width"] = str(preview.width)
@@ -309,7 +373,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="images/process")
     def process_candidate_image(self, request, tenant_id=None, pk=None):
         try:
-            result = process_official_image_candidate(
+            result = process_image_candidate(
                 actor=request.user,
                 tenant_id=int(tenant_id),
                 organization_id=int(pk),
@@ -337,6 +401,36 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         ) as error:
             return self._image_error_response(error)
 
+    @action(detail=True, methods=["post"], url_path="images/upload-process")
+    def process_uploaded_candidate_image(self, request, tenant_id=None, pk=None):
+        try:
+            result = process_uploaded_image_candidate(
+                actor=request.user,
+                tenant_id=int(tenant_id),
+                organization_id=int(pk),
+                upload=request.data.get("file"),
+                image_kind=request.data.get("image_kind"),
+                focus_x=request.data.get("focus_x"),
+                focus_y=request.data.get("focus_y"),
+            )
+            return Response(
+                {
+                    "approval_ref": result.approval_ref,
+                    "rendition_preview_ref": result.rendition_preview_ref,
+                    "asset_id": result.asset_id,
+                    "rendition_set_id": result.rendition_set_id,
+                    "variants": result.variants,
+                    "warnings": result.warnings,
+                    "status": result.status,
+                }
+            )
+        except (
+            ImageCandidateFlowError,
+            ImageIngestError,
+            ImageProcessingError,
+        ) as error:
+            return self._image_error_response(error)
+
     @action(detail=True, methods=["post"], url_path="images/rendition-preview")
     def rendition_image_preview(self, request, tenant_id=None, pk=None):
         try:
@@ -354,13 +448,13 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="images/approve")
     def approve_candidate_image(self, request, tenant_id=None, pk=None):
         try:
-            result = approve_official_image_candidate(
+            result = approve_image_candidate(
                 actor=request.user,
                 tenant_id=int(tenant_id),
                 organization_id=int(pk),
                 approval_ref=request.data.get("approval_ref"),
                 expected_revision=request.data.get("expected_revision"),
-                alt_text=request.data.get("alt_text"),
+                alt_text=request.data.get("alt_text", ""),
                 public_credit=request.data.get("public_credit") or "",
             )
             return Response(

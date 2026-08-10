@@ -101,3 +101,238 @@ test("official candidate can be processed, previewed, and explicitly locked", as
   await expect(page.getByText("Aktivt låst bilde · revisjon 1")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Public Preview (legacy)" })).toBeVisible();
 });
+
+test("direct URL can be previewed, cropped live, processed, and approved with blank alt text", async ({ page }) => {
+  const state = await setupMockEditorApi(page);
+  state.organizations[0].image_asset_feature_enabled = true;
+  let activeRevision = 0;
+  const imageBody = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAQAAABp8Z5+AAAADklEQVR42mNk+M8AAQADAgEAff9qAAAAAElFTkSuQmCC",
+    "base64",
+  );
+
+  await page.route("**/api/tenants/1/organizations/10/images/state/", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        expected_revision: activeRevision,
+        active_selection: activeRevision
+          ? {
+              id: 2,
+              revision: activeRevision,
+              status: "active",
+              kind: "asset",
+              alt_text: "",
+              public_credit: "",
+              rendition_preview_ref: "active-url-preview-ref",
+              variants: ["square", "landscape", "share"],
+            }
+          : null,
+      }),
+    });
+  });
+  await page.route("**/api/tenants/1/organizations/10/images/discover/", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ candidates: [] }),
+    });
+  });
+  await page.route("**/api/tenants/1/organizations/10/images/url-candidate/", async (route) => {
+    expect(route.request().postDataJSON()).toEqual({ image_url: "https://images.example/scene.png" });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        candidate: {
+          candidate_ref: "signed-url-candidate-ref",
+          source_type: "pasted_url",
+          source_label: "Direkte bilde-URL",
+          source_domain: "images.example",
+          source_title: null,
+          source_publisher: null,
+          provider: "pasted_url",
+          width: 1600,
+          height: 1000,
+          technical_status: "ready_for_preview",
+        },
+      }),
+    });
+  });
+  await page.route("**/api/tenants/1/organizations/10/images/candidate-preview/", async (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      candidate_ref: "signed-url-candidate-ref",
+      original: true,
+    });
+    await route.fulfill({ status: 200, contentType: "image/png", body: imageBody });
+  });
+  await page.route("**/api/tenants/1/organizations/10/images/process/", async (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      candidate_ref: "signed-url-candidate-ref",
+      image_kind: "photo",
+      focus_x: 1,
+      focus_y: 1,
+    });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        approval_ref: "signed-url-approval-ref",
+        rendition_preview_ref: "signed-url-preview-ref",
+        asset_id: 2,
+        rendition_set_id: 3,
+        variants: ["square", "landscape", "share"],
+        warnings: [],
+        status: "created",
+      }),
+    });
+  });
+  await page.route("**/api/tenants/1/organizations/10/images/rendition-preview/", async (route) => {
+    await route.fulfill({ status: 200, contentType: "image/png", body: imageBody });
+  });
+  await page.route("**/api/tenants/1/organizations/10/images/approve/", async (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      approval_ref: "signed-url-approval-ref",
+      expected_revision: 0,
+      alt_text: "",
+      public_credit: "",
+    });
+    activeRevision = 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ selection_id: 2, revision: 1, status: "active", event_id: 2 }),
+    });
+  });
+
+  await page.goto("/organizations");
+  await loginAsEditor(page);
+  await page.getByRole("button", { name: "Rediger" }).click();
+  await page.getByRole("button", { name: "Finn bilder" }).click();
+  await page.getByRole("button", { name: "Lim inn bilde-URL" }).click();
+  await page.getByRole("textbox", { name: "Direkte bilde-URL" }).fill("https://images.example/scene.png");
+  await page.getByRole("button", { name: "Hent bilde" }).click();
+
+  const candidate = page.getByRole("button", { name: /Direkte bilde-URL.*images\.example/ });
+  await expect(candidate).toBeVisible();
+  await expect(page.getByRole("button", { name: "Prosesser valgt bilde" })).toHaveCount(0);
+  await candidate.click();
+  await expect(page.getByLabel("Live crop-preview").getByRole("img")).toHaveCount(3);
+  await page.getByRole("group", { name: "Horisontalt" }).getByRole("button", { name: "Høyre" }).click();
+  await page.getByRole("group", { name: "Vertikalt" }).getByRole("button", { name: "Bunn" }).click();
+  await expect(page.getByLabel("Live crop-preview").getByRole("img").first()).toHaveCSS("object-position", "100% 100%");
+
+  await page.getByRole("button", { name: "Prosesser valgt bilde" }).click();
+  await expect(page.getByRole("textbox", { name: /Alt-tekst \(valgfritt\)/ })).toHaveValue("");
+  await page.getByRole("button", { name: "Godkjenn og lås bilde" }).click();
+  await expect(page.getByText("Aktivt låst bilde · revisjon 1")).toBeVisible();
+  await expect(page.getByText("Ingen alt-tekst")).toBeVisible();
+});
+
+test("local upload is explicitly selected, multipart processed, and approved without changing PUBLIC fields", async ({ page }) => {
+  const state = await setupMockEditorApi(page);
+  state.organizations[0].image_asset_feature_enabled = true;
+  let activeRevision = 0;
+  const imageBody = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAQAAABp8Z5+AAAADklEQVR42mNk+M8AAQADAgEAff9qAAAAAElFTkSuQmCC",
+    "base64",
+  );
+
+  await page.route("**/api/tenants/1/organizations/10/images/state/", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        expected_revision: activeRevision,
+        active_selection: activeRevision
+          ? {
+              id: 3,
+              revision: activeRevision,
+              status: "active",
+              kind: "asset",
+              alt_text: "",
+              public_credit: "",
+              rendition_preview_ref: "active-upload-preview-ref",
+              variants: ["square", "landscape", "share"],
+            }
+          : null,
+      }),
+    });
+  });
+  await page.route("**/api/tenants/1/organizations/10/images/discover/", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ candidates: [] }),
+    });
+  });
+  await page.route("**/api/tenants/1/organizations/10/images/upload-process/", async (route) => {
+    const contentType = route.request().headers()["content-type"];
+    expect(contentType).toContain("multipart/form-data; boundary=");
+    const requestBody = route.request().postDataBuffer();
+    expect(requestBody).not.toBeNull();
+    const multipart = requestBody!.toString("latin1");
+    expect(multipart).toContain('name="file"; filename="upload.png"');
+    expect(multipart).toContain("Content-Type: image/png");
+    expect(multipart).toMatch(/name="image_kind"\r\n\r\nphoto/);
+    expect(multipart).toMatch(/name="focus_x"\r\n\r\n0\.5/);
+    expect(multipart).toMatch(/name="focus_y"\r\n\r\n0\.5/);
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        approval_ref: "signed-upload-approval-ref",
+        rendition_preview_ref: "signed-upload-preview-ref",
+        asset_id: 3,
+        rendition_set_id: 4,
+        variants: ["square", "landscape", "share"],
+        warnings: [],
+        status: "created",
+      }),
+    });
+  });
+  await page.route("**/api/tenants/1/organizations/10/images/rendition-preview/", async (route) => {
+    await route.fulfill({ status: 200, contentType: "image/png", body: imageBody });
+  });
+  await page.route("**/api/tenants/1/organizations/10/images/approve/", async (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      approval_ref: "signed-upload-approval-ref",
+      expected_revision: 0,
+      alt_text: "",
+      public_credit: "",
+    });
+    activeRevision = 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ selection_id: 3, revision: 1, status: "active", event_id: 3 }),
+    });
+  });
+
+  await page.goto("/organizations");
+  await loginAsEditor(page);
+  await page.getByRole("button", { name: "Rediger" }).click();
+  await page.getByRole("button", { name: "Finn bilder" }).click();
+  await page.getByRole("button", { name: "Last opp bilde" }).click();
+  await page.getByLabel("Velg JPEG-, PNG- eller WebP-bilde").setInputFiles({
+    name: "upload.png",
+    mimeType: "image/png",
+    buffer: imageBody,
+  });
+
+  const uploadCandidate = page.getByRole("button", { name: /Lastet opp.*upload\.png/ });
+  await expect(uploadCandidate).toBeVisible();
+  await expect(page.getByRole("button", { name: "Prosesser valgt bilde" })).toHaveCount(0);
+  await uploadCandidate.click();
+  await expect(page.getByLabel("Live crop-preview").getByRole("img")).toHaveCount(3);
+  await page.getByRole("button", { name: "Prosesser valgt bilde" }).click();
+  await expect(page.getByRole("textbox", { name: /Alt-tekst \(valgfritt\)/ })).toHaveValue("");
+  await page.getByRole("button", { name: "Godkjenn og lås bilde" }).click();
+
+  await expect(page.getByText("Aktivt låst bilde · revisjon 1")).toBeVisible();
+  await expect(page.getByText("Ingen alt-tekst")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Public Preview (legacy)" })).toBeVisible();
+  expect(state.organizations[0].is_published).toBe(true);
+  expect(state.organizations[0].og_image_url).toBeNull();
+});

@@ -3541,6 +3541,25 @@ class OrganizationImageSelectionModelTests(TestCase):
         self.assertEqual(selection.rendition_set.asset, rendition_set.asset)
         self.assertEqual(selection.public_credit, "")
 
+    def test_asset_alt_text_defaults_to_blank_without_hidden_fallback(self):
+        selection = OrganizationImageSelection(
+            tenant=self.tenant,
+            organization=self.organization,
+            selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+            rendition_set=self.create_rendition_set(),
+            revision=1,
+            status=OrganizationImageSelection.Status.ACTIVE,
+            locked_by=self.user,
+            locked_at=timezone.now(),
+        )
+
+        selection.full_clean()
+        selection.save()
+        selection.refresh_from_db()
+
+        self.assertEqual(selection.alt_text, "")
+        self.assertNotEqual(selection.alt_text, self.organization.name)
+
     def test_valid_active_system_fallback_selection_can_be_created(self):
         selection = OrganizationImageSelection(
             tenant=self.tenant,
@@ -3774,37 +3793,81 @@ class OrganizationImageSelectionModelTests(TestCase):
         with self.assertRaises(ProtectedError):
             self.user.delete()
 
-    def test_clean_rejects_empty_alt_text_and_whitespace_only_credit(self):
-        invalid_values = (
-            {"alt_text": ""},
-            {"alt_text": "   "},
-            {"public_credit": "   "},
-        )
-
-        for invalid_value in invalid_values:
-            selection = OrganizationImageSelection(
+    def test_clean_rejects_whitespace_alt_and_empty_fallback_alt(self):
+        rendition_set = self.create_rendition_set()
+        invalid_selections = (
+            OrganizationImageSelection(
                 tenant=self.tenant,
                 organization=self.organization,
-                selection_kind=OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
-                rendition_set=None,
-                alt_text="Valid alt text",
-                public_credit="",
+                selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+                rendition_set=rendition_set,
+                alt_text="   ",
                 revision=1,
                 status=OrganizationImageSelection.Status.ACTIVE,
                 locked_by=self.user,
                 locked_at=timezone.now(),
-            )
-            for field_name, value in invalid_value.items():
-                setattr(selection, field_name, value)
+            ),
+            OrganizationImageSelection(
+                tenant=self.tenant,
+                organization=self.organization,
+                selection_kind=OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
+                rendition_set=None,
+                alt_text="",
+                revision=1,
+                status=OrganizationImageSelection.Status.ACTIVE,
+                locked_by=self.user,
+                locked_at=timezone.now(),
+            ),
+            OrganizationImageSelection(
+                tenant=self.tenant,
+                organization=self.organization,
+                selection_kind=OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
+                rendition_set=None,
+                alt_text="   ",
+                revision=1,
+                status=OrganizationImageSelection.Status.ACTIVE,
+                locked_by=self.user,
+                locked_at=timezone.now(),
+            ),
+            OrganizationImageSelection(
+                tenant=self.tenant,
+                organization=self.organization,
+                selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+                rendition_set=rendition_set,
+                alt_text="Valid alt text",
+                public_credit="   ",
+                revision=1,
+                status=OrganizationImageSelection.Status.ACTIVE,
+                locked_by=self.user,
+                locked_at=timezone.now(),
+            ),
+        )
 
-            with self.subTest(invalid_value=invalid_value):
+        for selection in invalid_selections:
+            with self.subTest(
+                selection_kind=selection.selection_kind,
+                alt_text=selection.alt_text,
+                public_credit=selection.public_credit,
+            ):
                 with self.assertRaises(ValidationError):
                     selection.full_clean()
 
-    def test_database_rejects_empty_alt_text_when_clean_is_bypassed(self):
+    def test_database_allows_blank_asset_alt_but_rejects_blank_fallback_alt(self):
+        asset_selection = self.create_selection(
+            alt_text="",
+            status=OrganizationImageSelection.Status.ARCHIVED,
+        )
+        self.assertEqual(asset_selection.alt_text, "")
+
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
-                self.create_selection(alt_text="")
+                self.create_selection(
+                    selection_kind=OrganizationImageSelection.SelectionKind.SYSTEM_FALLBACK,
+                    rendition_set=None,
+                    alt_text="",
+                    revision=2,
+                    status=OrganizationImageSelection.Status.ARCHIVED,
+                )
 
     def test_text_is_not_normalized_or_rewritten_on_save(self):
         selection = self.create_selection(
@@ -4187,6 +4250,17 @@ class OrganizationImageSelectionCommandTests(TestCase):
         self.assertEqual(result.event.approval_text_version_snapshot, "")
         self.assertEqual(result.event.approval_text_snapshot, "")
 
+    def test_first_asset_lock_preserves_blank_alt_in_selection_and_event(self):
+        _, rendition_set = self.create_image_domain()
+
+        result = self.lock_asset(rendition_set, alt_text="")
+
+        result.selection.refresh_from_db()
+        result.event.refresh_from_db()
+        self.assertEqual(result.selection.alt_text, "")
+        self.assertEqual(result.event.alt_text_snapshot, "")
+        self.assertNotEqual(result.selection.alt_text, self.organization.name)
+
     def test_asset_event_uses_internal_approval_and_validated_provenance(self):
         asset, rendition_set = self.create_image_domain()
         evidence = self.evidence(
@@ -4558,7 +4632,7 @@ class OrganizationImageSelectionCommandTests(TestCase):
         self.assertEqual(result.event.source_url_snapshot, source_url)
         self.assertEqual(result.event.source_page_url_snapshot, source_page_url)
 
-    def test_asset_requires_evidence_and_upload_may_have_blank_source_url(self):
+    def test_asset_requires_evidence_and_upload_or_brave_may_have_blank_source_url(self):
         _, rendition_set = self.create_image_domain()
 
         with self.assertRaises(InvalidImageSelectionError):
@@ -4574,6 +4648,25 @@ class OrganizationImageSelectionCommandTests(TestCase):
         self.assertEqual(result.event.source_type_snapshot, ImageReviewEvent.SourceType.UPLOAD)
         self.assertEqual(result.event.source_url_snapshot, "")
 
+        brave_organization = Organization.objects.create(
+            tenant=self.tenant,
+            name="Brave source organization",
+        )
+        _, brave_rendition_set = self.create_image_domain()
+        brave_result = self.lock_asset(
+            brave_rendition_set,
+            organization_id=brave_organization.pk,
+            asset_evidence=self.evidence(
+                source_type=ImageReviewEvent.SourceType.BRAVE_IMAGE_SEARCH,
+                source_url="",
+            ),
+        )
+        self.assertEqual(
+            brave_result.event.source_type_snapshot,
+            ImageReviewEvent.SourceType.BRAVE_IMAGE_SEARCH,
+        )
+        self.assertEqual(brave_result.event.source_url_snapshot, "")
+
     def test_replacement_archives_only_status_and_writes_previous_snapshot(self):
         _, first_rendition_set = self.create_image_domain()
         _, second_rendition_set = self.create_image_domain()
@@ -4582,7 +4675,11 @@ class OrganizationImageSelectionCommandTests(TestCase):
             pk=first.selection.pk
         ).values().get()
 
-        replacement = self.lock_asset(second_rendition_set, expected_revision=1)
+        replacement = self.lock_asset(
+            second_rendition_set,
+            expected_revision=1,
+            alt_text="",
+        )
 
         previous_after = OrganizationImageSelection.objects.filter(
             pk=first.selection.pk
@@ -4593,6 +4690,9 @@ class OrganizationImageSelectionCommandTests(TestCase):
         self.assertEqual(replacement.event.event_type, ImageReviewEvent.EventType.SELECTION_REPLACED)
         self.assertEqual(replacement.event.previous_selection_id_snapshot, first.selection.pk)
         self.assertEqual(replacement.event.previous_selection_revision_snapshot, 1)
+        self.assertEqual(replacement.selection.alt_text, "")
+        self.assertEqual(replacement.event.alt_text_snapshot, "")
+        self.assertNotEqual(replacement.selection.alt_text, self.organization.name)
         self.assertEqual(
             OrganizationImageSelection.objects.filter(status="active").count(),
             1,
@@ -4718,6 +4818,86 @@ class OrganizationImageSelectionCommandTests(TestCase):
                 with self.assertRaises(InvalidImageSelectionError):
                     self.lock_fallback(**values)
         self.assertEqual(OrganizationImageSelection.objects.count(), 0)
+
+    def test_asset_whitespace_only_alt_is_rejected_without_writes(self):
+        _, rendition_set = self.create_image_domain()
+
+        with self.assertRaises(InvalidImageSelectionError):
+            self.lock_asset(rendition_set, alt_text="   ")
+
+        self.assertEqual(OrganizationImageSelection.objects.count(), 0)
+        self.assertEqual(ImageReviewEvent.objects.count(), 0)
+
+    def test_event_database_source_url_contract_covers_every_source_type(self):
+        _, rendition_set = self.create_image_domain()
+        template_event = self.lock_asset(rendition_set).event
+        template_values = (
+            ImageReviewEvent._base_objects.filter(pk=template_event.pk).values().get()
+        )
+        template_values.pop("id")
+
+        source_types = tuple(value for value, _label in ImageReviewEvent.SourceType.choices)
+        for source_type in source_types:
+            with self.subTest(source_type=source_type, source_url="nonempty"):
+                event = ImageReviewEvent._base_objects.create(
+                    **{
+                        **template_values,
+                        "source_type_snapshot": source_type,
+                        "source_url_snapshot": "https://example.com/retained-source.jpg",
+                    }
+                )
+                self.assertEqual(event.source_type_snapshot, source_type)
+
+        for source_type in (
+            ImageReviewEvent.SourceType.UPLOAD,
+            ImageReviewEvent.SourceType.BRAVE_IMAGE_SEARCH,
+        ):
+            with self.subTest(source_type=source_type, source_url="blank"):
+                event = ImageReviewEvent._base_objects.create(
+                    **{
+                        **template_values,
+                        "source_type_snapshot": source_type,
+                        "source_url_snapshot": "",
+                    }
+                )
+                self.assertEqual(event.source_url_snapshot, "")
+
+        for source_type in (
+            ImageReviewEvent.SourceType.OFFICIAL_WEBSITE,
+            ImageReviewEvent.SourceType.OPEN_GRAPH,
+            ImageReviewEvent.SourceType.WEBSITE_IMAGE,
+            ImageReviewEvent.SourceType.PASTED_URL,
+        ):
+            with self.subTest(source_type=source_type, source_url="blank"):
+                with self.assertRaises(IntegrityError):
+                    with transaction.atomic():
+                        ImageReviewEvent._base_objects.create(
+                            **{
+                                **template_values,
+                                "source_type_snapshot": source_type,
+                                "source_url_snapshot": "",
+                            }
+                        )
+
+    def test_event_database_allows_blank_alt_but_keeps_actor_and_org_required(self):
+        _, rendition_set = self.create_image_domain()
+        result = self.lock_asset(rendition_set, alt_text="")
+        self.assertEqual(result.event.alt_text_snapshot, "")
+
+        template_values = (
+            ImageReviewEvent._base_objects.filter(pk=result.event.pk).values().get()
+        )
+        template_values.pop("id")
+        for required_field in (
+            "organization_name_snapshot",
+            "actor_username_snapshot",
+        ):
+            with self.subTest(required_field=required_field):
+                with self.assertRaises(IntegrityError):
+                    with transaction.atomic():
+                        ImageReviewEvent._base_objects.create(
+                            **{**template_values, required_field: ""}
+                        )
 
     def test_event_failure_rolls_back_first_selection(self):
         with patch.object(ImageReviewEvent, "save", side_effect=RuntimeError("event failure")):
@@ -6060,3 +6240,277 @@ class ImageRestoreEventMigrationTests(TransactionTestCase):
 
         executor = MigrationExecutor(connection)
         executor.migrate(executor.loader.graph.leaf_nodes())
+
+
+class OptionalImageAltTextMigrationTests(TransactionTestCase):
+    migrate_from = ("crm", "0026_organization_image_release_domain")
+    migrate_to = ("crm", "0027_optional_image_alt_text")
+
+    def test_schema_only_migration_preserves_existing_rows_reverses_and_reapplies(self):
+        migration_module = importlib.import_module(
+            "crm.migrations.0027_optional_image_alt_text"
+        )
+        self.assertEqual(
+            [
+                operation.__class__.__name__
+                for operation in migration_module.Migration.operations
+            ],
+            [
+                "RemoveConstraint",
+                "RemoveConstraint",
+                "RemoveConstraint",
+                "AlterField",
+                "AlterField",
+                "AddConstraint",
+                "AddConstraint",
+                "AddConstraint",
+            ],
+        )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from])
+        old_apps = executor.loader.project_state([self.migrate_from]).apps
+        OldTenant = old_apps.get_model("crm", "Tenant")
+        OldOrganization = old_apps.get_model("crm", "Organization")
+        OldImageAsset = old_apps.get_model("crm", "ImageAsset")
+        OldImageRenditionSet = old_apps.get_model("crm", "ImageRenditionSet")
+        OldSelection = old_apps.get_model("crm", "OrganizationImageSelection")
+        OldEvent = old_apps.get_model("crm", "ImageReviewEvent")
+        OldUser = old_apps.get_model(*settings.AUTH_USER_MODEL.split("."))
+
+        tenant = OldTenant.objects.create(
+            name="Optional alt migration",
+            slug="optional-alt-migration",
+        )
+        organization = OldOrganization.objects.create(
+            tenant=tenant,
+            name="Existing optional alt organization",
+        )
+        user = OldUser.objects.create(username="optional-alt-migration-user")
+        asset = OldImageAsset.objects.create(
+            tenant=tenant,
+            private_storage_key="assets/optional-alt-existing.jpeg",
+            checksum_sha256="a" * 64,
+            original_format="jpeg",
+            mime_type="image/jpeg",
+            width=1600,
+            height=900,
+            file_size_bytes=123456,
+            validation_version="validation-v1",
+        )
+        rendition_set = OldImageRenditionSet.objects.create(
+            tenant=tenant,
+            asset=asset,
+            fit_mode="cover",
+            processing_version="processing-v1",
+            render_config_hash_sha256="b" * 64,
+        )
+        selection = OldSelection.objects.create(
+            tenant=tenant,
+            organization=organization,
+            selection_kind="asset",
+            rendition_set=rendition_set,
+            alt_text="Existing nonempty alt text",
+            public_credit="Existing credit",
+            revision=1,
+            status="active",
+            locked_by=user,
+            locked_at=timezone.now(),
+        )
+        event = OldEvent.objects.create(
+            tenant=tenant,
+            organization=organization,
+            selection=selection,
+            rendition_set=rendition_set,
+            asset=asset,
+            actor_user=user,
+            event_type="selection_locked",
+            organization_id_snapshot=organization.pk,
+            organization_name_snapshot=organization.name,
+            organization_org_number_snapshot="",
+            selection_id_snapshot=selection.pk,
+            selection_revision_snapshot=selection.revision,
+            selection_kind_snapshot="asset",
+            rendition_set_id_snapshot=rendition_set.pk,
+            asset_id_snapshot=asset.pk,
+            asset_checksum_sha256_snapshot=asset.checksum_sha256,
+            asset_validation_version_snapshot=asset.validation_version,
+            actor_user_id_snapshot=user.pk,
+            actor_username_snapshot=user.username,
+            alt_text_snapshot=selection.alt_text,
+            public_credit_snapshot=selection.public_credit,
+            source_type_snapshot="official_website",
+            source_url_snapshot="https://example.com/existing-image.jpg",
+            source_page_url_snapshot="https://example.com/existing-page",
+            provider_snapshot="existing-provider",
+            technical_warnings_snapshot=["existing warning"],
+            approval_text_version_snapshot="image-approval-v1",
+            approval_text_snapshot="Existing approval text",
+            created_at=timezone.now(),
+        )
+        selection_before = OldSelection.objects.filter(pk=selection.pk).values().get()
+        event_before = OldEvent.objects.filter(pk=event.pk).values().get()
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_to])
+        new_apps = executor.loader.project_state([self.migrate_to]).apps
+        NewSelection = new_apps.get_model("crm", "OrganizationImageSelection")
+        NewEvent = new_apps.get_model("crm", "ImageReviewEvent")
+        self.assertEqual(
+            NewSelection.objects.filter(pk=selection.pk).values().get(),
+            selection_before,
+        )
+        self.assertEqual(NewEvent.objects.filter(pk=event.pk).values().get(), event_before)
+        for model, field_name in (
+            (NewSelection, "alt_text"),
+            (NewEvent, "alt_text_snapshot"),
+        ):
+            with self.subTest(model=model.__name__, field_name=field_name):
+                field = model._meta.get_field(field_name)
+                self.assertTrue(field.blank)
+                self.assertEqual(field.default, "")
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from])
+        restored_apps = executor.loader.project_state([self.migrate_from]).apps
+        self.assertEqual(
+            restored_apps.get_model("crm", "OrganizationImageSelection")
+            .objects.filter(pk=selection.pk)
+            .values()
+            .get(),
+            selection_before,
+        )
+        self.assertEqual(
+            restored_apps.get_model("crm", "ImageReviewEvent")
+            .objects.filter(pk=event.pk)
+            .values()
+            .get(),
+            event_before,
+        )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_to])
+        reapplied_apps = executor.loader.project_state([self.migrate_to]).apps
+        self.assertEqual(
+            reapplied_apps.get_model("crm", "OrganizationImageSelection")
+            .objects.filter(pk=selection.pk)
+            .values()
+            .get(),
+            selection_before,
+        )
+        self.assertEqual(
+            reapplied_apps.get_model("crm", "ImageReviewEvent")
+            .objects.filter(pk=event.pk)
+            .values()
+            .get(),
+            event_before,
+        )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+
+    def test_reverse_is_blocked_after_blank_asset_and_event_alt_are_stored(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_to])
+        new_apps = executor.loader.project_state([self.migrate_to]).apps
+
+        NewTenant = new_apps.get_model("crm", "Tenant")
+        NewOrganization = new_apps.get_model("crm", "Organization")
+        NewImageAsset = new_apps.get_model("crm", "ImageAsset")
+        NewImageRenditionSet = new_apps.get_model("crm", "ImageRenditionSet")
+        NewSelection = new_apps.get_model("crm", "OrganizationImageSelection")
+        NewEvent = new_apps.get_model("crm", "ImageReviewEvent")
+        NewUser = new_apps.get_model(*settings.AUTH_USER_MODEL.split("."))
+
+        tenant = NewTenant.objects.create(
+            name="Optional alt reverse boundary",
+            slug="optional-alt-reverse-boundary",
+        )
+        organization = NewOrganization.objects.create(
+            tenant=tenant,
+            name="Blank alt organization",
+        )
+        user = NewUser.objects.create(username="optional-alt-reverse-user")
+        asset = NewImageAsset.objects.create(
+            tenant=tenant,
+            private_storage_key="assets/optional-alt-blank.jpeg",
+            checksum_sha256="c" * 64,
+            original_format="jpeg",
+            mime_type="image/jpeg",
+            width=1600,
+            height=900,
+            file_size_bytes=123456,
+            validation_version="validation-v1",
+        )
+        rendition_set = NewImageRenditionSet.objects.create(
+            tenant=tenant,
+            asset=asset,
+            fit_mode="cover",
+            processing_version="processing-v1",
+            render_config_hash_sha256="d" * 64,
+        )
+        selection = NewSelection.objects.create(
+            tenant=tenant,
+            organization=organization,
+            selection_kind="asset",
+            rendition_set=rendition_set,
+            alt_text="",
+            revision=1,
+            status="active",
+            locked_by=user,
+            locked_at=timezone.now(),
+        )
+        NewEvent.objects.create(
+            tenant=tenant,
+            organization=organization,
+            selection=selection,
+            rendition_set=rendition_set,
+            asset=asset,
+            actor_user=user,
+            event_type="selection_locked",
+            organization_id_snapshot=organization.pk,
+            organization_name_snapshot=organization.name,
+            organization_org_number_snapshot="",
+            selection_id_snapshot=selection.pk,
+            selection_revision_snapshot=selection.revision,
+            selection_kind_snapshot="asset",
+            rendition_set_id_snapshot=rendition_set.pk,
+            asset_id_snapshot=asset.pk,
+            asset_checksum_sha256_snapshot=asset.checksum_sha256,
+            asset_validation_version_snapshot=asset.validation_version,
+            actor_user_id_snapshot=user.pk,
+            actor_username_snapshot=user.username,
+            alt_text_snapshot="",
+            source_type_snapshot="upload",
+            source_url_snapshot="",
+            technical_warnings_snapshot=[],
+            approval_text_version_snapshot="image-approval-v1",
+            approval_text_snapshot="Existing approval text",
+            created_at=timezone.now(),
+        )
+
+        try:
+            with self.assertRaises(IntegrityError):
+                MigrationExecutor(connection).migrate([self.migrate_from])
+
+            post_failure_executor = MigrationExecutor(connection)
+            self.assertIn(
+                self.migrate_to,
+                post_failure_executor.loader.applied_migrations,
+            )
+            current_apps = post_failure_executor.loader.project_state(
+                [self.migrate_to]
+            ).apps
+            self.assertTrue(
+                current_apps.get_model("crm", "OrganizationImageSelection")
+                .objects.filter(pk=selection.pk, alt_text="")
+                .exists()
+            )
+            self.assertTrue(
+                current_apps.get_model("crm", "ImageReviewEvent")
+                .objects.filter(selection_id=selection.pk, alt_text_snapshot="")
+                .exists()
+            )
+        finally:
+            cleanup_executor = MigrationExecutor(connection)
+            cleanup_executor.migrate(cleanup_executor.loader.graph.leaf_nodes())

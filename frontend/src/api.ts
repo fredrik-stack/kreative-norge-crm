@@ -5,7 +5,9 @@ import type {
   ImportJob,
   ImportRow,
   Organization,
-  OfficialImageCandidate,
+  OrganizationImageCandidate,
+  OrganizationImageSearchContext,
+  OrganizationImageSearchResult,
   OrganizationImageState,
   ProcessedOrganizationImage,
   OrganizationPerson,
@@ -312,25 +314,63 @@ function organizationImagePath(tenantId: number, organizationId: number, action:
 export async function discoverOfficialImages(
   tenantId: number,
   organizationId: number,
-): Promise<OfficialImageCandidate[]> {
-  const result = await request<{ candidates: OfficialImageCandidate[] }>(
+): Promise<OrganizationImageCandidate[]> {
+  const result = await request<{ candidates: OrganizationImageCandidate[] }>(
     organizationImagePath(tenantId, organizationId, "discover"),
     { method: "POST", body: JSON.stringify({}) },
   );
   return result.candidates;
 }
 
+export async function getImageSearchContext(
+  tenantId: number,
+  organizationId: number,
+): Promise<OrganizationImageSearchContext> {
+  return request(organizationImagePath(tenantId, organizationId, "search-context"));
+}
+
+export async function searchBraveImages(
+  tenantId: number,
+  organizationId: number,
+  payload: {
+    query: string;
+    municipality?: string | null;
+    category_id?: number | null;
+    person_id?: number | null;
+    query_edited?: boolean;
+  },
+): Promise<OrganizationImageSearchResult> {
+  return request(organizationImagePath(tenantId, organizationId, "brave-search"), {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function createDirectUrlCandidate(
+  tenantId: number,
+  organizationId: number,
+  imageUrl: string,
+): Promise<OrganizationImageCandidate> {
+  const result = await request<{ candidate: OrganizationImageCandidate }>(
+    organizationImagePath(tenantId, organizationId, "url-candidate"),
+    { method: "POST", body: JSON.stringify({ image_url: imageUrl }) },
+  );
+  return result.candidate;
+}
+
 export async function getCandidatePreview(
   tenantId: number,
   organizationId: number,
   candidateRef: string,
+  options: { original?: boolean } = {},
 ): Promise<Blob> {
   return requestBlob(organizationImagePath(tenantId, organizationId, "candidate-preview"), {
     candidate_ref: candidateRef,
+    ...(options.original ? { original: true } : {}),
   });
 }
 
-export async function processOfficialImage(
+export async function processOrganizationImage(
   tenantId: number,
   organizationId: number,
   payload: {
@@ -346,6 +386,27 @@ export async function processOfficialImage(
   });
 }
 
+export async function processUploadedOrganizationImage(
+  tenantId: number,
+  organizationId: number,
+  payload: {
+    file: File;
+    image_kind: "photo" | "logo";
+    focus_x?: number;
+    focus_y?: number;
+  },
+): Promise<ProcessedOrganizationImage> {
+  const form = new FormData();
+  form.append("file", payload.file);
+  form.append("image_kind", payload.image_kind);
+  if (typeof payload.focus_x === "number") form.append("focus_x", String(payload.focus_x));
+  if (typeof payload.focus_y === "number") form.append("focus_y", String(payload.focus_y));
+  return request<ProcessedOrganizationImage>(organizationImagePath(tenantId, organizationId, "upload-process"), {
+    method: "POST",
+    body: form,
+  });
+}
+
 export async function getRenditionPreview(
   tenantId: number,
   organizationId: number,
@@ -358,7 +419,7 @@ export async function getRenditionPreview(
   });
 }
 
-export async function approveOfficialImage(
+export async function approveOrganizationImage(
   tenantId: number,
   organizationId: number,
   payload: {

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta
 from io import BytesIO
+import warnings
 from urllib.parse import urljoin, urlsplit
 
 from django.conf import settings
@@ -22,9 +23,16 @@ from crm.models import (
 )
 from crm.services.open_graph import MetaParser, _candidate_score
 
+from .brave import (
+    BraveImageSearchError,
+    build_search_context,
+    prepare_search_query,
+    rank_brave_results,
+    search_brave_images,
+)
 from .fetch import SecureImageFetchError, fetch_external_resource, normalize_external_url
 from .ingest import ingest_uploaded_image
-from .processing import checksum_bytes
+from .processing import MAX_SOURCE_PIXELS, checksum_bytes
 from .selections import (
     ALLOWED_SELECTION_ROLES,
     AssetApprovalEvidence,
@@ -65,11 +73,13 @@ class OfficialImageCandidate:
     candidate_ref: str
     source_type: str
     source_label: str
-    source_domain: str
-    provider: str
+    source_domain: str | None
+    provider: str | None
     width: int | None
     height: int | None
     technical_status: str
+    source_title: str | None = None
+    source_publisher: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,12 +170,23 @@ def _candidate_payload(
     actor,
     source_type: str,
     image_url: str,
-    source_page_url: str,
-    provider: str,
+    source_page_url: str | None,
+    provider: str | None,
     width: int | None,
     height: int | None,
+    preview_url: str | None = None,
+    source_domain: str | None = None,
+    source_title: str | None = None,
+    source_publisher: str | None = None,
+    search_query: str | None = None,
+    query_sources: tuple[str, ...] = (),
+    derive_source_domain: bool = True,
 ) -> dict[str, object]:
     discovered_at = timezone.now()
+    source_url_for_domain = source_page_url or image_url
+    resolved_source_domain = source_domain
+    if resolved_source_domain is None and derive_source_domain:
+        resolved_source_domain = urlsplit(source_url_for_domain).hostname or None
     return {
         "version": 1,
         "tenant_id": tenant_id,
@@ -173,11 +194,16 @@ def _candidate_payload(
         "user_id": actor.pk,
         "source_type": source_type,
         "image_url": image_url,
-        "source_page_url": source_page_url,
-        "source_domain": urlsplit(source_page_url).hostname or "",
+        "preview_url": preview_url,
+        "source_page_url": source_page_url or "",
+        "source_domain": resolved_source_domain,
         "provider": provider,
         "width": width,
         "height": height,
+        "source_title": source_title,
+        "source_publisher": source_publisher,
+        "search_query": search_query,
+        "query_sources": list(query_sources),
         "discovered_at": discovered_at.isoformat(),
         "expires_at": (discovered_at + timedelta(seconds=REF_TTL_SECONDS)).isoformat(),
     }
@@ -189,16 +215,36 @@ def _candidate_from_payload(payload: dict[str, object]) -> OfficialImageCandidat
         ImageReviewEvent.SourceType.OPEN_GRAPH: "Open Graph",
         ImageReviewEvent.SourceType.WEBSITE_IMAGE: "Offisiell nettside",
         ImageReviewEvent.SourceType.OFFICIAL_WEBSITE: "Lagret nettsidebilde",
+        ImageReviewEvent.SourceType.BRAVE_IMAGE_SEARCH: "Bildesøk",
+        ImageReviewEvent.SourceType.PASTED_URL: "Direkte bilde-URL",
     }
     return OfficialImageCandidate(
         candidate_ref=_signed_payload(payload, CANDIDATE_REF_SALT),
         source_type=source_type,
         source_label=labels.get(source_type, "Offisiell nettside"),
-        source_domain=str(payload["source_domain"]),
-        provider=str(payload["provider"]),
+        source_domain=(
+            str(payload["source_domain"])
+            if isinstance(payload.get("source_domain"), str)
+            else None
+        ),
+        provider=(
+            str(payload["provider"])
+            if isinstance(payload.get("provider"), str)
+            else None
+        ),
         width=payload.get("width") if isinstance(payload.get("width"), int) else None,
         height=payload.get("height") if isinstance(payload.get("height"), int) else None,
         technical_status="ready_for_preview",
+        source_title=(
+            str(payload["source_title"])
+            if isinstance(payload.get("source_title"), str)
+            else None
+        ),
+        source_publisher=(
+            str(payload["source_publisher"])
+            if isinstance(payload.get("source_publisher"), str)
+            else None
+        ),
     )
 
 
@@ -279,6 +325,112 @@ def discover_official_image_candidates(
     return tuple(results)
 
 
+def get_brave_search_context(
+    *,
+    actor,
+    tenant_id: int,
+    organization_id: int,
+) -> dict[str, object]:
+    _feature_guard()
+    _validate_actor(actor, tenant_id)
+    organization = _organization(tenant_id, organization_id)
+    context = build_search_context(organization)
+    return {
+        "suggested_query": context.suggested_query,
+        "query_sources": list(context.query_sources),
+        "municipalities": list(context.municipalities),
+        "categories": list(context.categories),
+        "people": list(context.people),
+    }
+
+
+def discover_brave_image_candidates(
+    *,
+    actor,
+    tenant_id: int,
+    organization_id: int,
+    query: object,
+    municipality: object = None,
+    category_id: object = None,
+    person_id: object = None,
+    query_edited: bool = False,
+) -> tuple[str, tuple[str, ...], tuple[OfficialImageCandidate, ...]]:
+    _feature_guard()
+    _validate_actor(actor, tenant_id)
+    organization = _organization(tenant_id, organization_id)
+    if not isinstance(query_edited, bool):
+        raise BraveImageSearchError(
+            "invalid_query",
+            "query_edited må være true eller false.",
+        )
+    prepared_query = prepare_search_query(
+        organization,
+        query=query,
+        municipality=municipality,
+        category_id=category_id,
+        person_id=person_id,
+        query_edited=query_edited,
+    )
+    provider_results = search_brave_images(prepared_query.query)
+    ranked_results = rank_brave_results(
+        provider_results,
+        organization=organization,
+        prepared_query=prepared_query,
+    )
+
+    candidates: list[OfficialImageCandidate] = []
+    for result in ranked_results:
+        if result.image_url is None:
+            continue
+        payload = _candidate_payload(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            actor=actor,
+            source_type=ImageReviewEvent.SourceType.BRAVE_IMAGE_SEARCH,
+            image_url=result.image_url,
+            preview_url=result.thumbnail_url,
+            source_page_url=result.source_page_url,
+            source_domain=result.source_domain,
+            provider="brave_image_search",
+            width=result.width,
+            height=result.height,
+            source_title=result.title,
+            source_publisher=result.publisher,
+            search_query=prepared_query.query,
+            query_sources=prepared_query.query_sources,
+            derive_source_domain=False,
+        )
+        candidates.append(_candidate_from_payload(payload))
+    return prepared_query.query, prepared_query.query_sources, tuple(candidates)
+
+
+def create_pasted_url_candidate(
+    *,
+    actor,
+    tenant_id: int,
+    organization_id: int,
+    image_url: object,
+) -> OfficialImageCandidate:
+    _feature_guard()
+    _validate_actor(actor, tenant_id)
+    _organization(tenant_id, organization_id)
+    if not isinstance(image_url, str):
+        raise SecureImageFetchError("invalid_url", "Image URL is required.")
+    normalized_url = normalize_external_url(image_url)
+    payload = _candidate_payload(
+        tenant_id=tenant_id,
+        organization_id=organization_id,
+        actor=actor,
+        source_type=ImageReviewEvent.SourceType.PASTED_URL,
+        image_url=normalized_url,
+        source_page_url=None,
+        provider="pasted_url",
+        width=None,
+        height=None,
+    )
+    return _candidate_from_payload(payload)
+
+
 def _candidate_context(
     *,
     actor,
@@ -300,8 +452,12 @@ def _candidate_context(
         ImageReviewEvent.SourceType.OPEN_GRAPH,
         ImageReviewEvent.SourceType.WEBSITE_IMAGE,
         ImageReviewEvent.SourceType.OFFICIAL_WEBSITE,
+        ImageReviewEvent.SourceType.BRAVE_IMAGE_SEARCH,
+        ImageReviewEvent.SourceType.PASTED_URL,
     }:
-        raise ImageCandidateFlowError("invalid_ref", "Candidate source is not official.")
+        raise ImageCandidateFlowError("invalid_ref", "Candidate source is unsupported.")
+    if not isinstance(payload.get("image_url"), str):
+        raise ImageCandidateFlowError("invalid_ref", "Candidate image URL is invalid.")
     return payload
 
 
@@ -311,6 +467,7 @@ def render_candidate_preview(
     tenant_id: int,
     organization_id: int,
     candidate_ref: str,
+    original: bool = False,
 ) -> CandidatePreview:
     payload = _candidate_context(
         actor=actor,
@@ -318,18 +475,37 @@ def render_candidate_preview(
         organization_id=organization_id,
         candidate_ref=candidate_ref,
     )
-    fetched = fetch_external_resource(str(payload["image_url"]), expected="image")
+    if not isinstance(original, bool):
+        raise ImageCandidateFlowError(
+            "invalid_preview_mode",
+            "Candidate preview original mode must be true or false.",
+        )
+    preview_url = (
+        payload["image_url"]
+        if original
+        else payload.get("preview_url") or payload["image_url"]
+    )
+    if not isinstance(preview_url, str):
+        raise ImageCandidateFlowError("invalid_ref", "Candidate preview URL is invalid.")
+    fetched = fetch_external_resource(preview_url, expected="image")
     try:
-        with Image.open(BytesIO(fetched.body)) as opened:
-            if opened.width * opened.height > MAX_CANDIDATE_PREVIEW_PIXELS:
-                raise ImageCandidateFlowError("preview_pixel_limit", "Candidate preview exceeds pixel limit.")
-            if int(getattr(opened, "n_frames", 1)) != 1 or bool(getattr(opened, "is_animated", False)):
-                raise ImageCandidateFlowError("preview_animated", "Animated candidate previews are unsupported.")
-            opened.load()
-            has_alpha = "A" in opened.getbands() or "transparency" in opened.info
-            image = ImageOps.exif_transpose(opened).convert("RGBA" if has_alpha else "RGB")
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(BytesIO(fetched.body)) as opened:
+                preview_pixel_limit = (
+                    MAX_SOURCE_PIXELS if original else MAX_CANDIDATE_PREVIEW_PIXELS
+                )
+                if opened.width * opened.height > preview_pixel_limit:
+                    raise ImageCandidateFlowError("preview_pixel_limit", "Candidate preview exceeds pixel limit.")
+                if int(getattr(opened, "n_frames", 1)) != 1 or bool(getattr(opened, "is_animated", False)):
+                    raise ImageCandidateFlowError("preview_animated", "Animated candidate previews are unsupported.")
+                opened.load()
+                has_alpha = "A" in opened.getbands() or "transparency" in opened.info
+                image = ImageOps.exif_transpose(opened).convert("RGBA" if has_alpha else "RGB")
     except ImageCandidateFlowError:
         raise
+    except (Image.DecompressionBombError, Image.DecompressionBombWarning) as error:
+        raise ImageCandidateFlowError("preview_pixel_limit", "Candidate preview exceeds pixel limit.") from error
     except (UnidentifiedImageError, OSError, SyntaxError, ValueError) as error:
         raise ImageCandidateFlowError("preview_decode", "Candidate preview could not be decoded.") from error
 
@@ -345,7 +521,72 @@ def render_candidate_preview(
     return CandidatePreview(body=body, content_type="image/webp", width=image.width, height=image.height)
 
 
-def process_official_image_candidate(
+def _validate_processing_options(
+    *,
+    image_kind: object,
+    focus_x: float | None,
+    focus_y: float | None,
+) -> str:
+    if image_kind not in {"photo", "logo"}:
+        raise ImageCandidateFlowError("invalid_image_kind", "Image kind must be photo or logo.")
+    if image_kind == "logo" and (focus_x is not None or focus_y is not None):
+        raise ImageCandidateFlowError("invalid_focus", "Logo processing does not accept focus.")
+    return str(image_kind)
+
+
+def _processed_candidate_result(
+    *,
+    actor,
+    tenant_id: int,
+    organization_id: int,
+    image_kind: str,
+    source_type: str,
+    source_url: str,
+    source_page_url: str,
+    provider: str,
+    ingest_result,
+    search_query: str | None = None,
+    query_sources: tuple[str, ...] = (),
+) -> ProcessedOfficialCandidate:
+    processed_at = timezone.now()
+    approval_payload = {
+        "version": 1,
+        "tenant_id": tenant_id,
+        "organization_id": organization_id,
+        "user_id": actor.pk,
+        "source_type": source_type,
+        "source_url": source_url,
+        "source_page_url": source_page_url,
+        "provider": provider,
+        "asset_checksum_sha256": ingest_result.asset.checksum_sha256,
+        "rendition_set_id": ingest_result.rendition_set.pk,
+        "image_kind": image_kind,
+        "fit_mode": ingest_result.rendition_set.fit_mode,
+        "technical_warnings": list(ingest_result.warnings),
+        "search_query": search_query,
+        "query_sources": list(query_sources),
+        "processed_at": processed_at.isoformat(),
+        "expires_at": (processed_at + timedelta(seconds=REF_TTL_SECONDS)).isoformat(),
+    }
+    preview_payload = {
+        "version": 1,
+        "tenant_id": tenant_id,
+        "organization_id": organization_id,
+        "user_id": actor.pk,
+        "rendition_set_id": ingest_result.rendition_set.pk,
+    }
+    return ProcessedOfficialCandidate(
+        approval_ref=_signed_payload(approval_payload, APPROVAL_REF_SALT),
+        rendition_preview_ref=_signed_payload(preview_payload, RENDITION_PREVIEW_REF_SALT),
+        asset_id=ingest_result.asset.pk,
+        rendition_set_id=ingest_result.rendition_set.pk,
+        variants=tuple(rendition.variant for rendition in ingest_result.renditions),
+        warnings=ingest_result.warnings,
+        status=ingest_result.status,
+    )
+
+
+def process_image_candidate(
     *,
     actor,
     tenant_id: int,
@@ -361,10 +602,11 @@ def process_official_image_candidate(
         organization_id=organization_id,
         candidate_ref=candidate_ref,
     )
-    if image_kind not in {"photo", "logo"}:
-        raise ImageCandidateFlowError("invalid_image_kind", "Image kind must be photo or logo.")
-    if image_kind == "logo" and (focus_x is not None or focus_y is not None):
-        raise ImageCandidateFlowError("invalid_focus", "Logo processing does not accept focus.")
+    normalized_kind = _validate_processing_options(
+        image_kind=image_kind,
+        focus_x=focus_x,
+        focus_y=focus_y,
+    )
     fetched = fetch_external_resource(str(payload["image_url"]), expected="image")
     upload = BytesIO(fetched.body)
     upload.content_type = fetched.content_type
@@ -374,44 +616,82 @@ def process_official_image_candidate(
     result = ingest_uploaded_image(
         tenant=tenant,
         upload=upload,
-        content_mode="cover" if image_kind == "photo" else "contain",
+        content_mode="cover" if normalized_kind == "photo" else "contain",
         focus_x=focus_x,
         focus_y=focus_y,
     )
-    processed_at = timezone.now()
-    approval_payload = {
-        "version": 1,
-        "tenant_id": tenant_id,
-        "organization_id": organization_id,
-        "user_id": actor.pk,
-        "source_type": payload["source_type"],
-        "source_url": payload["image_url"],
-        "source_page_url": payload["source_page_url"],
-        "provider": payload["provider"],
-        "asset_checksum_sha256": result.asset.checksum_sha256,
-        "rendition_set_id": result.rendition_set.pk,
-        "image_kind": image_kind,
-        "fit_mode": result.rendition_set.fit_mode,
-        "technical_warnings": list(result.warnings),
-        "processed_at": processed_at.isoformat(),
-        "expires_at": (processed_at + timedelta(seconds=REF_TTL_SECONDS)).isoformat(),
-    }
-    preview_payload = {
-        "version": 1,
-        "tenant_id": tenant_id,
-        "organization_id": organization_id,
-        "user_id": actor.pk,
-        "rendition_set_id": result.rendition_set.pk,
-    }
-    return ProcessedOfficialCandidate(
-        approval_ref=_signed_payload(approval_payload, APPROVAL_REF_SALT),
-        rendition_preview_ref=_signed_payload(preview_payload, RENDITION_PREVIEW_REF_SALT),
-        asset_id=result.asset.pk,
-        rendition_set_id=result.rendition_set.pk,
-        variants=tuple(rendition.variant for rendition in result.renditions),
-        warnings=result.warnings,
-        status=result.status,
+    source_type = str(payload["source_type"])
+    transient_query_sources = payload.get("query_sources")
+    query_sources = (
+        tuple(str(value) for value in transient_query_sources if isinstance(value, str))
+        if isinstance(transient_query_sources, list)
+        else ()
     )
+    brave_source = source_type == ImageReviewEvent.SourceType.BRAVE_IMAGE_SEARCH
+    return _processed_candidate_result(
+        actor=actor,
+        tenant_id=tenant_id,
+        organization_id=organization_id,
+        image_kind=normalized_kind,
+        source_type=source_type,
+        source_url="" if brave_source else str(payload["image_url"]),
+        source_page_url="" if brave_source else str(payload.get("source_page_url") or ""),
+        provider=str(payload.get("provider") or ""),
+        ingest_result=result,
+        search_query=(
+            str(payload["search_query"])
+            if isinstance(payload.get("search_query"), str)
+            else None
+        ),
+        query_sources=query_sources,
+    )
+
+
+def process_uploaded_image_candidate(
+    *,
+    actor,
+    tenant_id: int,
+    organization_id: int,
+    upload,
+    image_kind: str,
+    focus_x: float | None = None,
+    focus_y: float | None = None,
+) -> ProcessedOfficialCandidate:
+    _feature_guard()
+    _validate_actor(actor, tenant_id)
+    _organization(tenant_id, organization_id)
+    normalized_kind = _validate_processing_options(
+        image_kind=image_kind,
+        focus_x=focus_x,
+        focus_y=focus_y,
+    )
+    tenant = Tenant.objects.filter(pk=tenant_id).first()
+    if tenant is None:
+        raise ImageCandidateFlowError("not_found", "Tenant was not found.")
+    result = ingest_uploaded_image(
+        tenant=tenant,
+        upload=upload,
+        content_mode="cover" if normalized_kind == "photo" else "contain",
+        focus_x=focus_x,
+        focus_y=focus_y,
+    )
+    return _processed_candidate_result(
+        actor=actor,
+        tenant_id=tenant_id,
+        organization_id=organization_id,
+        image_kind=normalized_kind,
+        source_type=ImageReviewEvent.SourceType.UPLOAD,
+        source_url="",
+        source_page_url="",
+        provider="manual_upload",
+        ingest_result=result,
+    )
+
+
+def process_official_image_candidate(**kwargs) -> ProcessedOfficialCandidate:
+    """Compatibility wrapper for the phase 3D.1 service name."""
+
+    return process_image_candidate(**kwargs)
 
 
 def _rendition_preview_payload(
@@ -468,7 +748,7 @@ def read_rendition_preview(
     return body, content_type
 
 
-def approve_official_image_candidate(
+def approve_image_candidate(
     *,
     actor,
     tenant_id: int,
@@ -483,8 +763,13 @@ def approve_official_image_candidate(
     _organization(tenant_id, organization_id)
     if isinstance(expected_revision, bool) or not isinstance(expected_revision, int) or expected_revision < 0:
         raise ImageCandidateFlowError("invalid_revision", "Expected revision must be a non-negative integer.")
-    if not isinstance(alt_text, str) or not alt_text.strip() or len(alt_text) > 500:
-        raise ImageCandidateFlowError("invalid_alt_text", "Alt text must contain 1 to 500 characters.")
+    if not isinstance(alt_text, str) or len(alt_text) > 500 or (
+        alt_text and not alt_text.strip()
+    ):
+        raise ImageCandidateFlowError(
+            "invalid_alt_text",
+            "Alt text must be empty or contain at most 500 characters.",
+        )
     if not isinstance(public_credit, str) or len(public_credit) > 500 or (
         public_credit and not public_credit.strip()
     ):
@@ -526,6 +811,12 @@ def approve_official_image_candidate(
         public_credit=public_credit,
         asset_evidence=evidence,
     )
+
+
+def approve_official_image_candidate(**kwargs) -> OrganizationImageSelectionResult:
+    """Compatibility wrapper for the phase 3D.1 service name."""
+
+    return approve_image_candidate(**kwargs)
 
 
 def get_organization_image_state(

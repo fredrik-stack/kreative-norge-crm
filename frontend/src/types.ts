@@ -137,15 +137,45 @@ export type Organization = {
   active_people?: OrganizationPersonNested[];
 };
 
-export type OfficialImageCandidate = {
+export type OrganizationImageCandidateSource =
+  | "official_website"
+  | "open_graph"
+  | "website_image"
+  | "brave_image_search"
+  | "pasted_url";
+
+export type OrganizationImageCandidate = {
   candidate_ref: string;
-  source_type: "official_website" | "open_graph" | "website_image";
+  source_type: OrganizationImageCandidateSource;
   source_label: string;
-  source_domain: string;
-  provider: string;
+  source_domain: string | null;
+  source_title: string | null;
+  source_publisher: string | null;
+  provider: string | null;
   width: number | null;
   height: number | null;
   technical_status: string;
+};
+
+export type OrganizationImageQuerySource =
+  | "organization_name"
+  | "municipality"
+  | "category"
+  | "person"
+  | "manual_edit";
+
+export type OrganizationImageSearchContext = {
+  suggested_query: string;
+  query_sources: OrganizationImageQuerySource[];
+  municipalities: string[];
+  categories: Array<{ id: number; name: string }>;
+  people: Array<{ id: number; name: string }>;
+};
+
+export type OrganizationImageSearchResult = {
+  search_query: string;
+  query_sources: OrganizationImageQuerySource[];
+  candidates: OrganizationImageCandidate[];
 };
 
 export type ProcessedOrganizationImage = {

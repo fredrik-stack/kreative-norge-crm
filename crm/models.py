@@ -591,7 +591,7 @@ class OrganizationImageSelection(models.Model):
         blank=True,
         related_name="organization_selections",
     )
-    alt_text = models.CharField(max_length=500)
+    alt_text = models.CharField(max_length=500, blank=True, default="")
     public_credit = models.CharField(max_length=500, blank=True, default="")
     revision = models.PositiveIntegerField()
     status = models.CharField(max_length=8, choices=Status.choices)
@@ -632,8 +632,11 @@ class OrganizationImageSelection(models.Model):
                 name="img_sel_kind_rset_xor",
             ),
             models.CheckConstraint(
-                condition=~models.Q(alt_text=""),
-                name="img_sel_alt_text_not_empty",
+                condition=(
+                    models.Q(selection_kind="asset")
+                    | ~models.Q(alt_text="")
+                ),
+                name="img_sel_fallback_alt_required",
             ),
         ]
 
@@ -663,8 +666,15 @@ class OrganizationImageSelection(models.Model):
         ):
             errors["rendition_set"] = "System fallback selections cannot have a rendition set."
 
-        if not self.alt_text or not self.alt_text.strip():
-            errors["alt_text"] = "Alt text cannot be empty or whitespace only."
+        if self.alt_text is None:
+            errors["alt_text"] = "Alt text cannot be null."
+        elif (
+            self.selection_kind == self.SelectionKind.SYSTEM_FALLBACK
+            and not self.alt_text
+        ):
+            errors["alt_text"] = "System fallback alt text cannot be empty."
+        elif self.alt_text and not self.alt_text.strip():
+            errors["alt_text"] = "Alt text cannot contain only whitespace."
         if self.public_credit and not self.public_credit.strip():
             errors["public_credit"] = "Public credit cannot contain only whitespace."
 
@@ -1011,7 +1021,7 @@ class ImageReviewEvent(models.Model):
     )
     actor_user_id_snapshot = models.PositiveBigIntegerField()
     actor_username_snapshot = models.CharField(max_length=255)
-    alt_text_snapshot = models.CharField(max_length=500)
+    alt_text_snapshot = models.CharField(max_length=500, blank=True, default="")
     public_credit_snapshot = models.CharField(max_length=500, blank=True, default="")
     source_type_snapshot = models.CharField(
         max_length=32,
@@ -1179,6 +1189,7 @@ class ImageReviewEvent(models.Model):
                 condition=(
                     models.Q(source_type_snapshot="", source_url_snapshot="")
                     | models.Q(source_type_snapshot="upload")
+                    | models.Q(source_type_snapshot="brave_image_search")
                     | ~models.Q(source_url_snapshot="")
                 ),
                 name="img_evt_source_url_contract",
@@ -1187,7 +1198,6 @@ class ImageReviewEvent(models.Model):
                 condition=(
                     ~models.Q(organization_name_snapshot="")
                     & ~models.Q(actor_username_snapshot="")
-                    & ~models.Q(alt_text_snapshot="")
                 ),
                 name="img_evt_required_text_not_empty",
             ),

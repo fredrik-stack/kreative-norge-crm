@@ -8,14 +8,23 @@ import { saveLabel } from "../editor-utils";
 import { useRouteSyncedSelection } from "../hooks/useRouteSyncedSelection";
 import {
   ApiError,
-  approveOfficialImage,
+  approveOrganizationImage,
+  createDirectUrlCandidate,
   discoverOfficialImages,
   getCandidatePreview,
+  getImageSearchContext,
   getOrganizationImageState,
   getRenditionPreview,
-  processOfficialImage,
+  processOrganizationImage,
+  processUploadedOrganizationImage,
+  searchBraveImages,
 } from "../api";
-import type { OfficialImageCandidate, OrganizationImageState, ProcessedOrganizationImage } from "../types";
+import type {
+  OrganizationImageCandidate,
+  OrganizationImageSearchContext,
+  OrganizationImageState,
+  ProcessedOrganizationImage,
+} from "../types";
 
 export function OrganizationsPage() {
   const editor = useEditor();
@@ -620,12 +629,144 @@ function OrganizationEditorPanel(props: {
 
 type ImageVariant = "square" | "landscape" | "share";
 const IMAGE_VARIANTS: ImageVariant[] = ["square", "landscape", "share"];
+const IMAGE_VARIANT_LABELS: Record<ImageVariant, string> = {
+  square: "Kvadrat",
+  landscape: "Landskap",
+  share: "Deling",
+};
+const MAX_CANDIDATE_PREVIEW_CONCURRENCY = 4;
 
-function imageFlowError(error: unknown): string {
-  if (error instanceof ApiError && error.data && typeof error.data === "object" && "detail" in error.data) {
-    return String((error.data as { detail: unknown }).detail);
+type ImageSourcePanel = "brave" | "url" | "upload" | null;
+type ImageFlowOperation = "generic" | "brave" | "direct_url" | "upload";
+type CandidatePreviewTask = {
+  candidateRef: string;
+  generation: number;
+  candidateSetVersion: number;
+};
+
+const QUERY_SOURCE_LABELS: Record<string, string> = {
+  organization_name: "aktørnavn",
+  municipality: "kommune",
+  category: "kategori",
+  person: "tilknyttet person",
+  manual_edit: "redigert av redaktør",
+};
+
+function imageFlowError(error: unknown, operation: ImageFlowOperation = "generic"): string {
+  if (error instanceof ApiError && error.status === 413) {
+    return "Bildet er for stort. Velg en fil på maks 15 MB.";
   }
-  return "Bildehandlingen kunne ikke fullføres. Prøv igjen eller hent kandidatene på nytt.";
+
+  const code = error instanceof ApiError && error.data && typeof error.data === "object" && "code" in error.data
+    ? String((error.data as { code: unknown }).code)
+    : "";
+
+  if (
+    operation === "direct_url"
+    && ["content_type", "html_instead_of_image", "image_mismatch", "html_mismatch"].includes(code)
+  ) {
+    return "Lenken peker ikke direkte til et støttet bilde.";
+  }
+  if (["provider_not_configured", "brave_not_configured", "missing_provider_key"].includes(code)) {
+    return "Bildesøk er ikke konfigurert i dette miljøet.";
+  }
+  if (["provider_unavailable", "provider_timeout", "provider_rate_limited", "rate_limited"].includes(code)) {
+    return "Bildesøket er midlertidig utilgjengelig. Prøv igjen senere.";
+  }
+
+  switch (code) {
+    case "upscale_required":
+      return "Bildet er for lite til å lage alle nødvendige formater uten kvalitetstap. Velg et større bilde.";
+    case "invalid_url":
+    case "credentials_forbidden":
+    case "private_host":
+    case "metadata_host":
+    case "private_address":
+    case "https_downgrade":
+    case "invalid_redirect":
+    case "too_many_redirects":
+      return "Bilde-URL-en er ugyldig eller kan ikke brukes.";
+    case "content_type":
+    case "image_mismatch":
+    case "html_mismatch":
+      return "Bildekilden returnerte ikke et støttet bilde.";
+    case "unsupported_format":
+    case "mime_mismatch":
+    case "decoder_format_mismatch":
+      return "Bildeformatet støttes ikke. Bruk JPEG, PNG eller WebP.";
+    case "animated_not_supported":
+    case "preview_animated":
+      return "Animerte bilder støttes ikke. Velg et statisk JPEG-, PNG- eller WebP-bilde.";
+    case "file_too_large":
+    case "response_too_large":
+    case "preview_size_limit":
+      return "Bildet er for stort. Velg en fil på maks 15 MB.";
+    case "pixel_limit":
+    case "preview_pixel_limit":
+      return "Bildet har for mange bildepunkter. Velg et mindre bilde.";
+    case "dns_failed":
+    case "peer_mismatch":
+    case "http_error":
+    case "invalid_length":
+    case "connection_failed":
+      return "Bildekilden kunne ikke hentes. Kontroller lenken og prøv igjen.";
+    case "timeout":
+      return operation === "brave"
+        ? "Bildesøket svarte ikke i tide. Prøv igjen."
+        : "Bildekilden svarte ikke i tide. Prøv igjen.";
+    case "decode_failed":
+    case "preview_decode":
+    case "empty_upload":
+    case "empty_response":
+    case "corrupt_icc_profile":
+    case "icc_conversion_failed":
+      return "Bildet er skadet eller kan ikke leses.";
+    case "expired_ref":
+    case "invalid_ref":
+    case "wrong_scope":
+      return "Bildeforslaget er utløpt eller ugyldig. Hent forslagene på nytt.";
+    case "revision_conflict":
+      return "Bildevalget er endret av en annen redaktør. Last inn siden på nytt og prøv igjen.";
+    case "permission_denied":
+      return "Du har ikke tilgang til denne bildehandlingen.";
+    default:
+      return "Bildehandlingen kunne ikke fullføres. Prøv igjen eller hent kandidatene på nytt.";
+  }
+}
+
+function defaultSearchMunicipality(context: OrganizationImageSearchContext): string | null {
+  return context.municipalities.length === 1 && context.query_sources.includes("municipality")
+    ? context.municipalities[0]
+    : null;
+}
+
+function searchBaseQuery(context: OrganizationImageSearchContext): string {
+  const municipality = defaultSearchMunicipality(context);
+  const suffix = municipality ? ` ${municipality}` : "";
+  return suffix && context.suggested_query.endsWith(suffix)
+    ? context.suggested_query.slice(0, -suffix.length)
+    : context.suggested_query;
+}
+
+function buildRefinedSearchQuery(
+  context: OrganizationImageSearchContext,
+  municipality: string | null,
+  categoryId: number | null,
+  personId: number | null,
+): string {
+  const category = context.categories.find((item) => item.id === categoryId)?.name ?? null;
+  const person = context.people.find((item) => item.id === personId)?.name ?? null;
+  return [searchBaseQuery(context), municipality, category, person].filter(Boolean).join(" ");
+}
+
+function candidateSourceDetails(candidate: OrganizationImageCandidate): string {
+  const values = [candidate.source_publisher, candidate.source_domain]
+    .map((value) => value?.trim() ?? "")
+    .filter(Boolean);
+  const uniqueValues = values.filter(
+    (value, index) => values.findIndex((item) => item.toLocaleLowerCase() === value.toLocaleLowerCase()) === index,
+  );
+  return uniqueValues.join(" · ") || "Ukjent kilde";
 }
 
 export function OrganizationImagePanel(props: {
@@ -636,9 +777,20 @@ export function OrganizationImagePanel(props: {
   const { tenantId, organizationId, organizationName } = props;
   const objectUrls = useRef<string[]>([]);
   const scopeGeneration = useRef(0);
-  const [candidates, setCandidates] = useState<OfficialImageCandidate[]>([]);
-  const [candidatePreviews, setCandidatePreviews] = useState<Record<string, string>>({});
+  const candidateSetVersion = useRef(0);
+  const candidateRefs = useRef(new Set<string>());
+  const candidatePreviewQueue = useRef<CandidatePreviewTask[]>([]);
+  const candidatePreviewWorkers = useRef(0);
+  const selectedPreviewRequest = useRef(0);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const [candidates, setCandidates] = useState<OrganizationImageCandidate[]>([]);
+  const [candidatePreviews, setCandidatePreviews] = useState<Record<string, string | null>>({});
+  const [candidateOriginalPreviews, setCandidateOriginalPreviews] = useState<Record<string, string>>({});
   const [selectedRef, setSelectedRef] = useState<string | null>(null);
+  const [selectedOriginalLoading, setSelectedOriginalLoading] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [uploadSelected, setUploadSelected] = useState(false);
   const [imageKind, setImageKind] = useState<"photo" | "logo">("photo");
   const [focusX, setFocusX] = useState(0.5);
   const [focusY, setFocusY] = useState(0.5);
@@ -648,12 +800,28 @@ export function OrganizationImagePanel(props: {
   const [imageState, setImageState] = useState<OrganizationImageState | null>(null);
   const [altText, setAltText] = useState("");
   const [publicCredit, setPublicCredit] = useState("");
-  const [busy, setBusy] = useState<"state" | "discover" | "process" | "approve" | null>(null);
+  const [officialAttempted, setOfficialAttempted] = useState(false);
+  const [sourcePanel, setSourcePanel] = useState<ImageSourcePanel>(null);
+  const [searchContext, setSearchContext] = useState<OrganizationImageSearchContext | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQueryEdited, setSearchQueryEdited] = useState(false);
+  const [selectedMunicipality, setSelectedMunicipality] = useState<string | null>(null);
+  const [municipalityExplicit, setMunicipalityExplicit] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
+  const [lastSearch, setLastSearch] = useState<{ query: string; sources: string[] } | null>(null);
+  const [directImageUrl, setDirectImageUrl] = useState("");
+  const [busy, setBusy] = useState<
+    "state" | "discover" | "search-context" | "brave" | "url" | "process" | "approve" | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
 
-  function rememberObjectUrl(blob: Blob, generation: number): string {
+  function rememberObjectUrl(blob: Blob, generation: number, expectedCandidateSetVersion?: number): string {
     const url = URL.createObjectURL(blob);
-    if (scopeGeneration.current !== generation) {
+    if (
+      scopeGeneration.current !== generation
+      || (typeof expectedCandidateSetVersion === "number" && candidateSetVersion.current !== expectedCandidateSetVersion)
+    ) {
       URL.revokeObjectURL(url);
       return "";
     }
@@ -661,10 +829,80 @@ export function OrganizationImagePanel(props: {
     return url;
   }
 
-  function revokePreviewUrls(urls: Partial<Record<ImageVariant, string>> | Record<string, string>) {
+  function revokePreviewUrls(
+    urls: Partial<Record<ImageVariant, string>> | Record<string, string | null>,
+  ) {
     const revoked = new Set(Object.values(urls).filter(Boolean));
-    revoked.forEach((url) => URL.revokeObjectURL(url));
+    revoked.forEach((url) => URL.revokeObjectURL(url!));
     objectUrls.current = objectUrls.current.filter((url) => !revoked.has(url));
+  }
+
+  function pumpCandidatePreviewQueue() {
+    while (
+      candidatePreviewWorkers.current < MAX_CANDIDATE_PREVIEW_CONCURRENCY
+      && candidatePreviewQueue.current.length > 0
+    ) {
+      const task = candidatePreviewQueue.current.shift()!;
+      candidatePreviewWorkers.current += 1;
+      getCandidatePreview(tenantId, organizationId, task.candidateRef)
+        .then((blob) => {
+          const url = rememberObjectUrl(blob, task.generation, task.candidateSetVersion);
+          if (!url) return;
+          setCandidatePreviews((current) => ({ ...current, [task.candidateRef]: url }));
+        })
+        .catch(() => {
+          if (
+            scopeGeneration.current === task.generation
+            && candidateSetVersion.current === task.candidateSetVersion
+          ) {
+            setCandidatePreviews((current) => ({ ...current, [task.candidateRef]: null }));
+          }
+        })
+        .finally(() => {
+          candidatePreviewWorkers.current -= 1;
+          pumpCandidatePreviewQueue();
+        });
+    }
+  }
+
+  function enqueueCandidatePreviews(nextCandidates: OrganizationImageCandidate[], generation: number) {
+    const version = candidateSetVersion.current;
+    candidatePreviewQueue.current.push(
+      ...nextCandidates.map((candidate) => ({
+        candidateRef: candidate.candidate_ref,
+        generation,
+        candidateSetVersion: version,
+      })),
+    );
+    pumpCandidatePreviewQueue();
+  }
+
+  function clearSelectedCandidate() {
+    selectedPreviewRequest.current += 1;
+    setSelectedRef(null);
+    setUploadSelected(false);
+    setSelectedOriginalLoading(false);
+  }
+
+  function replaceCandidates(nextCandidates: OrganizationImageCandidate[], generation: number) {
+    candidateSetVersion.current += 1;
+    candidatePreviewQueue.current = [];
+    candidateRefs.current = new Set(nextCandidates.map((candidate) => candidate.candidate_ref));
+    revokePreviewUrls(candidatePreviews);
+    revokePreviewUrls(candidateOriginalPreviews);
+    setCandidatePreviews({});
+    setCandidateOriginalPreviews({});
+    setCandidates(nextCandidates);
+    clearSelectedCandidate();
+    enqueueCandidatePreviews(nextCandidates, generation);
+  }
+
+  function appendCandidates(nextCandidates: OrganizationImageCandidate[], generation: number) {
+    const additions = nextCandidates.filter((candidate) => !candidateRefs.current.has(candidate.candidate_ref));
+    if (additions.length === 0) return;
+    additions.forEach((candidate) => candidateRefs.current.add(candidate.candidate_ref));
+    setCandidates((current) => [...current, ...additions]);
+    enqueueCandidatePreviews(additions, generation);
   }
 
   async function loadPreviews(
@@ -714,15 +952,38 @@ export function OrganizationImagePanel(props: {
   useEffect(() => {
     const generation = scopeGeneration.current + 1;
     scopeGeneration.current = generation;
+    candidateSetVersion.current += 1;
+    selectedPreviewRequest.current += 1;
+    candidateRefs.current = new Set();
+    candidatePreviewQueue.current = [];
     setCandidates([]);
     setCandidatePreviews({});
+    setCandidateOriginalPreviews({});
     setSelectedRef(null);
+    setSelectedOriginalLoading(false);
+    setUploadFile(null);
+    setUploadPreview(null);
+    setUploadSelected(false);
+    setImageKind("photo");
+    setFocusX(0.5);
+    setFocusY(0.5);
     setProcessed(null);
     setProcessedPreviews({});
     setActivePreviews({});
     setImageState(null);
     setAltText("");
     setPublicCredit("");
+    setOfficialAttempted(false);
+    setSourcePanel(null);
+    setSearchContext(null);
+    setSearchQuery("");
+    setSearchQueryEdited(false);
+    setSelectedMunicipality(null);
+    setMunicipalityExplicit(false);
+    setSelectedCategoryId(null);
+    setSelectedPersonId(null);
+    setLastSearch(null);
+    setDirectImageUrl("");
     let cancelled = false;
     setBusy("state");
     setError(null);
@@ -745,32 +1006,14 @@ export function OrganizationImagePanel(props: {
 
   async function onDiscover() {
     const generation = scopeGeneration.current;
+    setOfficialAttempted(true);
     setBusy("discover");
     setError(null);
     invalidateProcessing();
     try {
       const discovered = await discoverOfficialImages(tenantId, organizationId);
       if (scopeGeneration.current !== generation) return;
-      setCandidates(discovered);
-      setSelectedRef(null);
-      const previews = await Promise.all(
-        discovered.map(async (candidate) => {
-          try {
-            return [
-              candidate.candidate_ref,
-              rememberObjectUrl(
-                await getCandidatePreview(tenantId, organizationId, candidate.candidate_ref),
-                generation,
-              ),
-            ] as const;
-          } catch {
-            return [candidate.candidate_ref, ""] as const;
-          }
-        }),
-      );
-      if (scopeGeneration.current !== generation) return;
-      revokePreviewUrls(candidatePreviews);
-      setCandidatePreviews(Object.fromEntries(previews));
+      replaceCandidates(discovered, generation);
     } catch (nextError) {
       if (scopeGeneration.current === generation) setError(imageFlowError(nextError));
     } finally {
@@ -778,17 +1021,210 @@ export function OrganizationImagePanel(props: {
     }
   }
 
+  function applySearchContext(context: OrganizationImageSearchContext) {
+    setSearchContext(context);
+    setSearchQuery(context.suggested_query);
+    setSearchQueryEdited(false);
+    setSelectedMunicipality(defaultSearchMunicipality(context));
+    setMunicipalityExplicit(false);
+    setSelectedCategoryId(null);
+    setSelectedPersonId(null);
+    setLastSearch(null);
+  }
+
+  async function onOpenBraveSearch() {
+    setSourcePanel("brave");
+    if (searchContext) return;
+    const generation = scopeGeneration.current;
+    setBusy("search-context");
+    setError(null);
+    try {
+      const context = await getImageSearchContext(tenantId, organizationId);
+      if (scopeGeneration.current !== generation) return;
+      applySearchContext(context);
+    } catch (nextError) {
+      if (scopeGeneration.current === generation) setError(imageFlowError(nextError, "brave"));
+    } finally {
+      if (scopeGeneration.current === generation) setBusy(null);
+    }
+  }
+
+  function resetSearchSuggestion() {
+    if (searchContext) applySearchContext(searchContext);
+  }
+
+  function updateMunicipality(value: string) {
+    if (!searchContext) return;
+    const nextValue = selectedMunicipality === value && municipalityExplicit ? null : value;
+    setSelectedMunicipality(nextValue);
+    setMunicipalityExplicit(nextValue !== null);
+    setSearchQuery(buildRefinedSearchQuery(searchContext, nextValue, selectedCategoryId, selectedPersonId));
+    setSearchQueryEdited(false);
+  }
+
+  function updateCategory(categoryId: number) {
+    if (!searchContext) return;
+    const nextId = selectedCategoryId === categoryId ? null : categoryId;
+    setSelectedCategoryId(nextId);
+    setSearchQuery(buildRefinedSearchQuery(searchContext, selectedMunicipality, nextId, selectedPersonId));
+    setSearchQueryEdited(false);
+  }
+
+  function updatePerson(personId: number) {
+    if (!searchContext) return;
+    const nextId = selectedPersonId === personId ? null : personId;
+    setSelectedPersonId(nextId);
+    setSearchQuery(buildRefinedSearchQuery(searchContext, selectedMunicipality, selectedCategoryId, nextId));
+    setSearchQueryEdited(false);
+  }
+
+  async function onBraveSearch() {
+    if (!searchContext || !searchQuery.trim()) return;
+    const generation = scopeGeneration.current;
+    setBusy("brave");
+    setError(null);
+    invalidateProcessing();
+    try {
+      const result = await searchBraveImages(tenantId, organizationId, {
+        query: searchQuery,
+        municipality: searchQueryEdited && !municipalityExplicit ? null : selectedMunicipality,
+        category_id: selectedCategoryId,
+        person_id: selectedPersonId,
+        query_edited: searchQueryEdited,
+      });
+      if (scopeGeneration.current !== generation) return;
+      setLastSearch({ query: result.search_query, sources: result.query_sources });
+      appendCandidates(result.candidates, generation);
+      clearSelectedCandidate();
+    } catch (nextError) {
+      if (scopeGeneration.current === generation) setError(imageFlowError(nextError, "brave"));
+    } finally {
+      if (scopeGeneration.current === generation) setBusy(null);
+    }
+  }
+
+  async function onDirectUrlCandidate() {
+    if (!directImageUrl.trim()) return;
+    const generation = scopeGeneration.current;
+    setBusy("url");
+    setError(null);
+    invalidateProcessing();
+    try {
+      const candidate = await createDirectUrlCandidate(tenantId, organizationId, directImageUrl.trim());
+      if (scopeGeneration.current !== generation) return;
+      const previewBlob = await getCandidatePreview(
+        tenantId,
+        organizationId,
+        candidate.candidate_ref,
+        { original: true },
+      );
+      const previewUrl = rememberObjectUrl(previewBlob, generation, candidateSetVersion.current);
+      if (scopeGeneration.current !== generation || !previewUrl) return;
+      if (!candidateRefs.current.has(candidate.candidate_ref)) {
+        candidateRefs.current.add(candidate.candidate_ref);
+        setCandidates((current) => [...current, candidate]);
+      }
+      setCandidatePreviews((current) => ({ ...current, [candidate.candidate_ref]: previewUrl }));
+      setCandidateOriginalPreviews((current) => ({ ...current, [candidate.candidate_ref]: previewUrl }));
+      clearSelectedCandidate();
+    } catch (nextError) {
+      if (scopeGeneration.current === generation) setError(imageFlowError(nextError, "direct_url"));
+    } finally {
+      if (scopeGeneration.current === generation) setBusy(null);
+    }
+  }
+
+  function onUploadFile(nextFile: File | null) {
+    if (uploadPreview) revokePreviewUrls({ upload: uploadPreview });
+    setUploadFile(nextFile);
+    clearSelectedCandidate();
+    invalidateProcessing();
+    if (!nextFile) {
+      setUploadPreview(null);
+      return;
+    }
+    setUploadPreview(rememberObjectUrl(nextFile, scopeGeneration.current));
+  }
+
+  async function selectRemoteCandidate(candidateRef: string) {
+    const generation = scopeGeneration.current;
+    const version = candidateSetVersion.current;
+    const request = selectedPreviewRequest.current + 1;
+    selectedPreviewRequest.current = request;
+    setSelectedRef(candidateRef);
+    setUploadSelected(false);
+    setError(null);
+    setFocusX(0.5);
+    setFocusY(0.5);
+    invalidateProcessing();
+    if (candidateOriginalPreviews[candidateRef]) {
+      setSelectedOriginalLoading(false);
+      return;
+    }
+    setSelectedOriginalLoading(true);
+    try {
+      const blob = await getCandidatePreview(tenantId, organizationId, candidateRef, { original: true });
+      if (
+        scopeGeneration.current !== generation
+        || candidateSetVersion.current !== version
+        || selectedPreviewRequest.current !== request
+      ) return;
+      const url = rememberObjectUrl(blob, generation, version);
+      if (!url || selectedPreviewRequest.current !== request) return;
+      setCandidateOriginalPreviews((current) => ({ ...current, [candidateRef]: url }));
+    } catch (nextError) {
+      if (
+        scopeGeneration.current === generation
+        && candidateSetVersion.current === version
+        && selectedPreviewRequest.current === request
+      ) {
+        const candidate = candidates.find((item) => item.candidate_ref === candidateRef);
+        setError(imageFlowError(nextError, candidate?.source_type === "pasted_url" ? "direct_url" : "generic"));
+      }
+    } finally {
+      if (selectedPreviewRequest.current === request) setSelectedOriginalLoading(false);
+    }
+  }
+
+  function selectUploadCandidate() {
+    if (!uploadFile) return;
+    selectedPreviewRequest.current += 1;
+    setSelectedRef(null);
+    setUploadSelected(true);
+    setSelectedOriginalLoading(false);
+    setFocusX(0.5);
+    setFocusY(0.5);
+    invalidateProcessing();
+  }
+
+  function updateFocus(axis: "x" | "y", value: number) {
+    if (axis === "x") setFocusX(value);
+    else setFocusY(value);
+    invalidateProcessing();
+  }
+
   async function onProcess() {
-    if (!selectedRef) return;
+    if (
+      !(uploadSelected && uploadFile)
+      && (!selectedRef || !candidateOriginalPreviews[selectedRef])
+    ) return;
     const generation = scopeGeneration.current;
     setBusy("process");
     setError(null);
     try {
-      const result = await processOfficialImage(tenantId, organizationId, {
-        candidate_ref: selectedRef,
+      const processingPayload = {
         image_kind: imageKind,
         ...(imageKind === "photo" ? { focus_x: focusX, focus_y: focusY } : {}),
-      });
+      };
+      const result = uploadSelected && uploadFile
+        ? await processUploadedOrganizationImage(tenantId, organizationId, {
+            file: uploadFile,
+            ...processingPayload,
+          })
+        : await processOrganizationImage(tenantId, organizationId, {
+            candidate_ref: selectedRef!,
+            ...processingPayload,
+          });
       if (scopeGeneration.current !== generation) return;
       const previews = await loadPreviews(result.rendition_preview_ref, generation);
       if (scopeGeneration.current !== generation) return;
@@ -796,19 +1232,21 @@ export function OrganizationImagePanel(props: {
       setProcessed(result);
       setProcessedPreviews(previews);
     } catch (nextError) {
-      if (scopeGeneration.current === generation) setError(imageFlowError(nextError));
+      if (scopeGeneration.current === generation) {
+        setError(imageFlowError(nextError, uploadSelected ? "upload" : "generic"));
+      }
     } finally {
       if (scopeGeneration.current === generation) setBusy(null);
     }
   }
 
   async function onApprove() {
-    if (!processed || !altText.trim() || !imageState) return;
+    if (!processed || !imageState) return;
     const generation = scopeGeneration.current;
     setBusy("approve");
     setError(null);
     try {
-      await approveOfficialImage(tenantId, organizationId, {
+      await approveOrganizationImage(tenantId, organizationId, {
         approval_ref: processed.approval_ref,
         expected_revision: imageState.expected_revision,
         alt_text: altText.trim(),
@@ -824,6 +1262,35 @@ export function OrganizationImagePanel(props: {
       if (scopeGeneration.current === generation) setBusy(null);
     }
   }
+
+  const selectedPreviewUrl = uploadSelected
+    ? uploadPreview
+    : selectedRef
+      ? candidateOriginalPreviews[selectedRef] ?? null
+      : null;
+  const hasSelectedCandidate = Boolean(
+    (uploadSelected && uploadFile)
+    || (selectedRef && candidateOriginalPreviews[selectedRef]),
+  );
+  const currentQuerySources = searchQueryEdited
+    ? [
+        "manual_edit",
+        ...(municipalityExplicit && selectedMunicipality ? ["municipality"] : []),
+        ...(selectedCategoryId ? ["category"] : []),
+        ...(selectedPersonId ? ["person"] : []),
+      ]
+    : [
+        "organization_name",
+        ...(selectedMunicipality ? ["municipality"] : []),
+        ...(selectedCategoryId ? ["category"] : []),
+        ...(selectedPersonId ? ["person"] : []),
+      ];
+  const unusedQuerySources = [
+    ...(searchContext?.municipalities.length && !selectedMunicipality ? ["kommune"] : []),
+    ...(!selectedCategoryId ? ["kategorier"] : []),
+    "tags",
+    ...(!selectedPersonId ? ["personer"] : []),
+  ];
 
   return (
     <section className="organization-image-panel" aria-labelledby="organization-image-heading">
@@ -843,14 +1310,14 @@ export function OrganizationImagePanel(props: {
       {imageState?.active_selection ? (
         <div className="image-active-state">
           <strong>Aktivt låst bilde · revisjon {imageState.active_selection.revision}</strong>
-          <span className="meta">{imageState.active_selection.alt_text}</span>
+          <span className="meta">{imageState.active_selection.alt_text || "Ingen alt-tekst"}</span>
           <ImagePreviewGrid urls={activePreviews} label="Aktiv selection-preview" />
         </div>
       ) : busy !== "state" ? (
         <div className="empty-state compact">Ingen aktiv bildeselection.</div>
       ) : null}
 
-      {candidates.length > 0 ? (
+      {candidates.length > 0 || uploadFile ? (
         <div className="image-candidate-grid">
           {candidates.map((candidate) => (
             <button
@@ -858,33 +1325,214 @@ export function OrganizationImagePanel(props: {
               key={candidate.candidate_ref}
               className={`image-candidate-card ${selectedRef === candidate.candidate_ref ? "active" : ""}`}
               disabled={busy !== null}
-              onClick={() => {
-                setSelectedRef(candidate.candidate_ref);
-                invalidateProcessing();
-              }}
+              onClick={() => { void selectRemoteCandidate(candidate.candidate_ref); }}
             >
               {candidatePreviews[candidate.candidate_ref] ? (
-                <img src={candidatePreviews[candidate.candidate_ref]} alt="" />
-              ) : (
+                <img src={candidatePreviews[candidate.candidate_ref]!} alt="" />
+              ) : candidatePreviews[candidate.candidate_ref] === null ? (
                 <span className="empty-state compact">Preview utilgjengelig</span>
+              ) : (
+                <span className="empty-state compact">Laster preview...</span>
               )}
               <strong>{candidate.source_label}</strong>
-              <span className="meta">{candidate.source_domain}</span>
+              {candidate.source_title ? <span>{candidate.source_title}</span> : null}
+              <span className="meta">{candidateSourceDetails(candidate)}</span>
               <span className="meta">
                 {candidate.width && candidate.height ? `${candidate.width} × ${candidate.height}` : "Ukjente dimensjoner"}
-                {" · "}{candidate.technical_status}
               </span>
               <span>{selectedRef === candidate.candidate_ref ? "Valgt bilde" : "Velg bilde"}</span>
             </button>
           ))}
+          {uploadFile ? (
+            <button
+              type="button"
+              className={`image-candidate-card ${uploadSelected ? "active" : ""}`}
+              disabled={busy !== null}
+              onClick={selectUploadCandidate}
+            >
+              {uploadPreview ? <img src={uploadPreview} alt="" /> : <span className="empty-state compact">Preview utilgjengelig</span>}
+              <strong>Lastet opp</strong>
+              <span>{uploadFile.name}</span>
+              <span className="meta">{Math.max(1, Math.round(uploadFile.size / 1024))} kB · kontrolleres av serveren ved processing</span>
+              <span>{uploadSelected ? "Valgt bilde" : "Velg bilde"}</span>
+            </button>
+          ) : null}
         </div>
+      ) : busy === null && officialAttempted ? (
+        <div className="empty-state compact">Ingen kandidater funnet fra offisiell nettside. Prøv en alternativ kilde.</div>
       ) : busy === null ? (
         <div className="empty-state compact">Klikk «Finn bilder» for å hente kandidater fra offisiell nettside.</div>
       ) : null}
 
-      {selectedRef ? (
+      {selectedRef && selectedOriginalLoading ? (
+        <div className="empty-state compact" role="status">Henter originalbilde for live crop...</div>
+      ) : null}
+
+      {officialAttempted ? (
+        <div className="image-source-section">
+          <div className="image-source-actions" aria-label="Alternative bildekilder">
+            <button type="button" className="ghost-button" aria-pressed={sourcePanel === "brave"} disabled={busy !== null} onClick={onOpenBraveSearch}>
+              Søk etter flere bilder
+            </button>
+            <button type="button" className="ghost-button" aria-pressed={sourcePanel === "url"} disabled={busy !== null} onClick={() => setSourcePanel("url")}>
+              Lim inn bilde-URL
+            </button>
+            <button type="button" className="ghost-button" aria-pressed={sourcePanel === "upload"} disabled={busy !== null} onClick={() => setSourcePanel("upload")}>
+              Last opp bilde
+            </button>
+          </div>
+          <p className="muted">
+            Du som redaktør må kontrollere bruksrettigheter og eventuell kreditering før bildet godkjennes.
+          </p>
+
+          {sourcePanel === "brave" ? (
+            <div className="image-source-panel" aria-label="Bildesøk">
+              {searchContext ? (
+                <>
+                  <Field label={searchQueryEdited ? "Søk" : "Forslått søk"}>
+                    <input
+                      value={searchQuery}
+                      disabled={busy !== null}
+                      onChange={(event) => {
+                        setSearchQuery(event.target.value);
+                        setSearchQueryEdited(true);
+                        setSelectedMunicipality(null);
+                        setMunicipalityExplicit(false);
+                        setSelectedCategoryId(null);
+                        setSelectedPersonId(null);
+                      }}
+                    />
+                  </Field>
+                  <div className="image-query-explanation">
+                    <span><strong>Basert på:</strong> {currentQuerySources.map((source) => QUERY_SOURCE_LABELS[source] ?? source).join(" + ")}</span>
+                    <span className="meta"><strong>Ikke brukt:</strong> {unusedQuerySources.join(", ")}</span>
+                  </div>
+
+                  {searchContext.municipalities.length > 1 ? (
+                    <fieldset className="image-refinement-group">
+                      <legend>Refiner med sted</legend>
+                      <div className="image-choice-row">
+                        {searchContext.municipalities.map((municipality) => (
+                          <button
+                            key={municipality}
+                            type="button"
+                            className="ghost-button"
+                            aria-pressed={municipalityExplicit && selectedMunicipality === municipality}
+                            disabled={busy !== null}
+                            onClick={() => updateMunicipality(municipality)}
+                          >
+                            {municipality}
+                          </button>
+                        ))}
+                      </div>
+                    </fieldset>
+                  ) : null}
+
+                  {searchContext.categories.length > 0 ? (
+                    <fieldset className="image-refinement-group">
+                      <legend>Legg til kategori</legend>
+                      <div className="image-choice-row">
+                        {searchContext.categories.map((category) => (
+                          <button
+                            key={category.id}
+                            type="button"
+                            className="ghost-button"
+                            aria-pressed={selectedCategoryId === category.id}
+                            disabled={busy !== null}
+                            onClick={() => updateCategory(category.id)}
+                          >
+                            {category.name}
+                          </button>
+                        ))}
+                      </div>
+                    </fieldset>
+                  ) : null}
+
+                  {searchContext.people.length > 0 ? (
+                    <fieldset className="image-refinement-group">
+                      <legend>Søk med tilknyttet person</legend>
+                      <div className="image-choice-row">
+                        {searchContext.people.map((person) => (
+                          <button
+                            key={person.id}
+                            type="button"
+                            className="ghost-button"
+                            aria-pressed={selectedPersonId === person.id}
+                            disabled={busy !== null}
+                            onClick={() => updatePerson(person.id)}
+                          >
+                            {person.name}
+                          </button>
+                        ))}
+                      </div>
+                    </fieldset>
+                  ) : null}
+
+                  <div className="image-source-actions">
+                    <button type="button" className="primary-button" disabled={!searchQuery.trim() || busy !== null} onClick={onBraveSearch}>
+                      {busy === "brave" ? "Søker..." : "Søk"}
+                    </button>
+                    <button type="button" className="ghost-button" disabled={busy !== null} onClick={resetSearchSuggestion}>
+                      Tilbakestill til forslag
+                    </button>
+                  </div>
+                  {lastSearch ? (
+                    <div className="image-query-result" aria-live="polite">
+                      <span><strong>Søk:</strong> «{lastSearch.query}»</span>
+                      <span className="meta"><strong>Basert på:</strong> {lastSearch.sources.map((source) => QUERY_SOURCE_LABELS[source] ?? source).join(" + ")}</span>
+                    </div>
+                  ) : null}
+                  <p className="muted">Bildesøk viser forslag fra nettet. Kontroller at bildet kan brukes før du godkjenner det.</p>
+                </>
+              ) : (
+                <div className="empty-state compact">{busy === "search-context" ? "Laster søkeforslag..." : "Søkeforslaget kunne ikke lastes."}</div>
+              )}
+            </div>
+          ) : null}
+
+          {sourcePanel === "url" ? (
+            <div className="image-source-panel" aria-label="Direkte bilde-URL">
+              <Field label="Direkte bilde-URL">
+                <input
+                  type="url"
+                  value={directImageUrl}
+                  disabled={busy !== null}
+                  placeholder="https://eksempel.no/bilde.jpg"
+                  onChange={(event) => setDirectImageUrl(event.target.value)}
+                />
+              </Field>
+              <button type="button" className="primary-button" disabled={!directImageUrl.trim() || busy !== null} onClick={onDirectUrlCandidate}>
+                {busy === "url" ? "Henter bilde..." : "Hent bilde"}
+              </button>
+            </div>
+          ) : null}
+
+          {sourcePanel === "upload" ? (
+            <div className="image-source-panel" aria-label="Last opp bilde">
+              <input
+                ref={uploadInputRef}
+                className="visually-hidden-input"
+                aria-label="Velg JPEG-, PNG- eller WebP-bilde"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                disabled={busy !== null}
+                onChange={(event) => onUploadFile(event.target.files?.[0] ?? null)}
+              />
+              <div className="file-picker-field">
+                <button type="button" className="ghost-button" disabled={busy !== null} onClick={() => uploadInputRef.current?.click()}>
+                  Velg fil
+                </button>
+                <span className="meta">{uploadFile?.name || "Ingen fil valgt"}</span>
+              </div>
+              <p className="muted">Støttede formater: JPEG, PNG og WebP. Filen kontrolleres av serveren når du prosesserer bildet.</p>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {hasSelectedCandidate ? (
         <div className="image-processing-controls">
-          <div className="grid two">
+          <div className="image-processing-layout">
             <Field label="Bildetype">
               <select
                 value={imageKind}
@@ -899,35 +1547,45 @@ export function OrganizationImagePanel(props: {
               </select>
             </Field>
             {imageKind === "photo" ? (
-              <div className="grid two">
-                <Field label={`Fokus X (${focusX.toFixed(2)})`}>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    value={focusX}
-                    disabled={busy !== null}
-                    onChange={(event) => {
-                      setFocusX(Number(event.target.value));
-                      invalidateProcessing();
-                    }}
-                  />
-                </Field>
-                <Field label={`Fokus Y (${focusY.toFixed(2)})`}>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    value={focusY}
-                    disabled={busy !== null}
-                    onChange={(event) => {
-                      setFocusY(Number(event.target.value));
-                      invalidateProcessing();
-                    }}
-                  />
-                </Field>
+              <div className="image-focus-and-preview">
+                <div className="image-focus-controls">
+                  <fieldset className="image-focus-group">
+                    <legend>Horisontalt</legend>
+                    <div className="image-choice-row">
+                      {([0, 0.5, 1] as const).map((value, index) => (
+                        <button
+                          key={value}
+                          type="button"
+                          className="ghost-button"
+                          aria-pressed={focusX === value}
+                          disabled={busy !== null}
+                          onClick={() => updateFocus("x", value)}
+                        >
+                          {(["Venstre", "Midt", "Høyre"] as const)[index]}
+                        </button>
+                      ))}
+                    </div>
+                  </fieldset>
+                  <fieldset className="image-focus-group">
+                    <legend>Vertikalt</legend>
+                    <div className="image-choice-row">
+                      {([0, 0.5, 1] as const).map((value, index) => (
+                        <button
+                          key={value}
+                          type="button"
+                          className="ghost-button"
+                          aria-pressed={focusY === value}
+                          disabled={busy !== null}
+                          onClick={() => updateFocus("y", value)}
+                        >
+                          {(["Topp", "Midt", "Bunn"] as const)[index]}
+                        </button>
+                      ))}
+                    </div>
+                  </fieldset>
+                </div>
+                <LiveCropPreviewGrid url={selectedPreviewUrl} focusX={focusX} focusY={focusY} />
+                <p className="muted">Fokus brukes bare for Foto. Forhåndsvisningen oppdateres med én gang. Det endelige utsnittet lages når du trykker «Prosesser valgt bilde».</p>
               </div>
             ) : (
               <p className="muted">Logo bruker contain og er ikke avhengig av fokus.</p>
@@ -945,13 +1603,14 @@ export function OrganizationImagePanel(props: {
           {processed.warnings.length > 0 ? (
             <div className="inline-banner warn">Tekniske varsler: {processed.warnings.join(", ")}</div>
           ) : null}
-          <Field label="Alt-tekst" required>
-            <input value={altText} onChange={(event) => setAltText(event.target.value)} placeholder={`Beskriv bildet av ${organizationName}`} />
+          <Field label="Alt-tekst (valgfritt)">
+            <input maxLength={500} value={altText} onChange={(event) => setAltText(event.target.value)} placeholder={`Beskriv bildet av ${organizationName}`} />
+            <span className="meta">Anbefalt for tilgjengelighet.</span>
           </Field>
           <Field label="Offentlig kreditering (valgfritt)">
             <input value={publicCredit} onChange={(event) => setPublicCredit(event.target.value)} />
           </Field>
-          <button type="button" className="primary-button" onClick={onApprove} disabled={!altText.trim() || busy !== null}>
+          <button type="button" className="primary-button" onClick={onApprove} disabled={busy !== null}>
             {busy === "approve"
               ? "Godkjenner..."
               : imageState?.active_selection
@@ -964,6 +1623,33 @@ export function OrganizationImagePanel(props: {
   );
 }
 
+function LiveCropPreviewGrid(props: {
+  url: string | null;
+  focusX: number;
+  focusY: number;
+}) {
+  return (
+    <div className="image-live-crop-grid" aria-label="Live crop-preview">
+      {IMAGE_VARIANTS.map((variant) => (
+        <figure key={variant}>
+          <div className={`image-live-crop-frame ${variant}`}>
+            {props.url ? (
+              <img
+                src={props.url}
+                alt={`Live crop-preview: ${variant}`}
+                style={{ objectPosition: `${props.focusX * 100}% ${props.focusY * 100}%` }}
+              />
+            ) : (
+              <div className="empty-state compact">Laster preview...</div>
+            )}
+          </div>
+          <figcaption>{IMAGE_VARIANT_LABELS[variant]}</figcaption>
+        </figure>
+      ))}
+    </div>
+  );
+}
+
 function ImagePreviewGrid(props: {
   urls: Partial<Record<ImageVariant, string>>;
   label: string;
@@ -973,7 +1659,7 @@ function ImagePreviewGrid(props: {
       {IMAGE_VARIANTS.map((variant) => (
         <figure key={variant}>
           {props.urls[variant] ? <img src={props.urls[variant]} alt={`${props.label}: ${variant}`} /> : <div className="empty-state compact">Laster...</div>}
-          <figcaption>{variant}</figcaption>
+          <figcaption>{IMAGE_VARIANT_LABELS[variant]}</figcaption>
         </figure>
       ))}
     </div>
