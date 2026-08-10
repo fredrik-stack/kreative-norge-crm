@@ -31,6 +31,10 @@ Den nattlige jobben tar:
 
 Backupen tar ikke private SSH-nøkler, Borg recovery-secret, eksportert repositorynøkkel, hele `/etc`, home-kataloger, rått live PostgreSQL-volume, image layers, caches, staticfiles, `node_modules`, Python-cache eller store logger. `export-recovery-key` avviser destinasjoner i applikasjonsrepo, backup-state, beskyttede mediaområder og allowlistede serverkonfigurasjonsfiler. Destinasjonsparent må være eid av operatøren og ikke group/world-writable, og sluttfilen opprettes atomisk uten overskriving; directory- og symlinktarget avvises.
 
+Den aktive allowlisten inneholder allerede `/srv/kreative-norge/media/private` og `/srv/kreative-norge/media/public`. Før første stagingaktivering skal en kontrollert PNG-probe skrives gjennom Django-aliasene, finnes med samme checksum på hosten, overleve API-recreate og fortsatt kunne leses gjennom begge aliasene. Proben beholdes gjennom neste manuelle backup og isolerte restore, slik at manifestets representative media-checksum beviser at faktiske host-media er med. Eksakt kommando- og cleanuprekkefølge ligger i [stagingrunbooken](../../deploy/staging/README.md#10-image-persistence-and-activation-gate).
+
+`public`-katalogen inneholder i denne fasen bare interne processing-renditions. Backupinkludering gjør den ikke offentlig, og katalogen er ikke montert i web-containeren eller eksponert gjennom nginx/Caddy.
+
 Verifisert kodekontrakt for dagens eneste `FileField`-familier er:
 
 - `ImportJob.file`: `imports/tenant_<id>/job_<id>/<filename>`
