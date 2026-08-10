@@ -2,7 +2,7 @@
 
 **Status:** Godkjent strategisk arbeidsrekkefølge
 
-**Sist oppdatert:** 2026-08-09
+**Sist oppdatert:** 2026-08-10
 
 Roadmapen skiller mellom produktfaser og et parallelt infrastrukturløp. En fase beskriver prioritert rekkefølge, ikke at innholdet allerede er implementert. Større implementering krever fortsatt et godkjent ADR når arbeidet innebærer et vesentlig arkitekturvalg.
 
@@ -165,7 +165,7 @@ Fase 3C.7 legger til Pillow 12.3.0 bak intern adapter og `ingest_uploaded_image`
 
 ### Fase 3D – Editor-flyt for aktørbilde
 
-**Status:** Påbegynt. Fase 3D.1s første offisielle kandidatflyt er implementert lokalt bak avslått feature; øvrige kilder, fallback-/historikk-UI og public projection gjenstår.
+**Status:** Påbegynt. Fase 3D.1s første offisielle kandidatflyt er merget med PR #30 bak fortsatt avslått feature; øvrige kilder, fallback-/historikk-UI og public projection gjenstår.
 
 - offisiell website/Open Graph-discovery, kortlivet signert kandidat, ephemeral kandidat-preview og valgt processing er implementert i 3D.1
 - intern square/landscape/share-preview, «Godkjenn og lås bilde» og eksplisitt replacement er implementert i 3D.1
