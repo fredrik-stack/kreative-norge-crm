@@ -1,6 +1,6 @@
 # Editor
 
-**Status:** implementert grunnløsning; fase 2-standarder for kontaktpublisering implementert; fase 3D.1 offisiell bildekandidatflyt teknisk aktivert og visuelt godkjent i staging bak miljøstyrt featuregate
+**Status:** implementert grunnløsning; fase 2-standarder for kontaktpublisering implementert; fase 3D.1 offisiell bildekandidatflyt teknisk aktivert og visuelt godkjent i staging; fase 3D.2 er implementert og lokalt backendtestet på aktiv featurebranch, men er ikke CI-, staging- eller eiergodkjent
 
 React-editoren støtter tenantvalg, rollebasert tilgang, aktører, personer, relasjoner, kontaktkanaler, søk, taksonomifiltrering og import/eksport-side.
 
@@ -8,17 +8,38 @@ Editoren har håndtering av ulagrede endringer og egne URL-er for oversikter og 
 
 ## Implementert Aktørbilde-flyt bak featureflag
 
-Når `IMAGE_ASSET_FEATURE_ENABLED=True` for et miljø, viser Organization-editoren seksjonen `Aktørbilde`. Redaktøren kan eksplisitt finne kandidater fra aktørens `website_url`, se servergenererte kandidatpreviews uten hotlinking, velge én kandidat, velge `Foto`/cover eller `Logo`/contain, justere valgfritt fotofokus, prosessere bare det valgte bildet og kontrollere interne `square`-, `landscape`- og `share`-previews. Alt-tekst er påkrevd, offentlig kreditering er valgfri, og bare `Godkjenn og lås bilde` eller `Godkjenn og erstatt bilde` oppretter en aktiv `OrganizationImageSelection`.
+Når `IMAGE_ASSET_FEATURE_ENABLED=True` for et miljø, viser Organization-editoren seksjonen `Aktørbilde`. Kildereisen presenteres i denne prioriterte rekkefølgen:
 
-Aktiv selection vises med revisjon og tre interne previews. Expected-revision-konflikter og nettverks-/processingfeil vises kontrollert. Vanlig Organization-save, discovery, kandidat-preview og processing kan ikke velge eller erstatte bilde. Den eksisterende `Public Preview (legacy)` er fortsatt en separat legacyvisning; de nye previewene er ikke offentlig publisert.
+1. `Finn bilder` fra aktørens offisielle nettside og Open Graph
+2. Brave Image Search
+3. direkte, innlimt bilde-URL
+4. manuell opplasting av JPEG, PNG eller WebP
 
-Seksjonen er skjult når flagget er av, som fortsatt er standard. Brave/generelt bildesøk, limt URL, brukerrettet upload, historikk-/restore-UI, takedown, public projection og PUBLIC-bildebruk er ikke implementert i denne leveransen.
+Alternative kilder blir synlige etter at den offisielle discoveryen er forsøkt. Redaktøren velger fortsatt ett konkret bilde og må eksplisitt prosessere og godkjenne det; discovery, søk, kandidat-preview, opplasting og processing kan ikke opprette eller erstatte en aktiv selection alene.
 
-## Besluttet neste Aktørbilde-leveranse – ikke implementert
+### Deterministisk og synlig Brave-søk
 
-Fase 3D.2 skal gi norske processingfeil, fokusforvalg Venstre/Midt/Høyre og Topp/Midt/Bunn, live crop-preview for Foto og valgfri alt-tekst. Kildene prioriteres offisiell nettside/Open Graph, Brave/generelt bildesøk, limt bilde-URL og manuell upload.
+Det foreslåtte søket starter alltid med lagret aktørnavn. Nøyaktig én lagret kommune legges automatisk til; ingen eller flere kommuner gir ikke automatisk stedstillegg, og ved flere kommuner må redaktøren velge én eksplisitt. Kategori og aktivt tilknyttet person kan legges til med egne valg. Tags brukes aldri. Det brukes ingen AI til å bygge, utvide eller rangere søket.
 
-Brave-søk skal alltid starte med aktørnavnet og kan bruke lagret kommune/sted deterministisk. Kategori, tags og personer legges ikke automatisk til. Redaktøren skal se og kunne redigere den eksakte søketeksten, og et menneske skal alltid gjøre det endelige bildevalget. Dette beskriver besluttet neste leveranse; dagens 3D.1-UI krever fortsatt alt-tekst og tilbyr ikke disse nye kildene eller UX-kontrollene.
+Den eksakte søketeksten og hvilke CRM-kilder den bygger på vises før søk og kan redigeres manuelt. UI-et viser også hvilke tilgjengelige kilder som ikke er brukt. Kommune-, kategori- og personchips gjelder bare så lenge det deterministiske forslaget er urørt; ved første manuelle tekstendring nullstilles alle chips og ID-er. Backend avviser `query_edited=true` kombinert med et nonempty refinement og signerer da provenance kun som `manual_edit`, slik at ingen skjulte refinement-signaler påvirker lokal rangering. Backend sender den eksakte teksten til Brave med `country=NO`, `search_lang=nb`, `safesearch=strict`, `spellcheck=false` og `count=30`, og rangerer resultatene deterministisk med offisielt domene som sterkeste lokale signal. `nb` er bevisst valgt fordi Braves offisielle `search_lang`-enum ikke støtter `no`.
+
+Full providerrespons lagres aldri. Bare eksakt query og normaliserte nødvendige kandidatfelt bæres i kortlivede, bruker-/tenant-/aktørbundne signerte referanser; appen oppretter ingen kandidatmodell eller søkehistorikk. Dette følger begrensningen for lagring/caching i Braves standardvilkår, og valgt bilde må fortsatt rettighetsgodkjennes av redaktøren. Den lokale signed-refen varer omtrent 30 minutter, mens Brave opplyser at providerens standard query-logger kan beholdes i opptil 90 dager; Zero Data Retention krever Enterprise/egen avtale.
+
+Brave-kontrollen skal forbli uten servernøkkel frem til prosjekteier eller annen avtaleeier har dokumentert hvordan redaktørene omfattes av standardvilkårenes punkt 4(c), samt hvilke personvernvarsler eller samtykker som kreves når søket kan inneholde personnavn eller manuelt skrevet tekst. Dette er en aktiveringsgate, ikke en ny automatisk godkjenningsmekanisme i Editor.
+
+### Processing, fokus og godkjenning
+
+Redaktøren kan se servergenererte kandidatpreviews uten hotlinking, velge `Foto`/cover eller `Logo`/contain og prosessere bare det valgte bildet. Brave-gridet kan bruke providerens thumbnail for rask kandidatvisning. Når en fjernkandidat velges, henter klienten eksplisitt et privat preview med `original=true` fra den signerte originale bilde-URL-en; den samme signerte originalen brukes senere av serverprocessing. Foto har fokusforvalgene Venstre/Midt/Høyre og Topp/Midt/Bunn med sentrum som standard. Den umiddelbare crop-previewen av originalen i klienten er veiledende. Etter `Prosesser valgt bilde` er serverens faktiske `square`-, `landscape`- og `share`-renditions fasit før godkjenning. Logo bruker contain og har ikke fokuskontroller.
+
+Alt-tekst for en asset-selection er valgfri. Tom streng bevares som tom streng og erstattes ikke skjult med aktørnavnet; whitespace-only avvises. Eksplisitt systemfallback-selection beholder sitt separate krav om ikke-tom tekst. Offentlig kreditering er valgfri. Bare `Godkjenn og lås bilde` eller `Godkjenn og erstatt bilde` oppretter en aktiv `OrganizationImageSelection` og tilhørende event.
+
+Aktiv selection vises med revisjon, eventuell `Ingen alt-tekst` og tre interne previews. Expected-revision-konflikter og nettverks-, provider-, fetch- og processingfeil vises kontrollert på norsk. Den eksisterende `Public Preview (legacy)` er fortsatt separat; kandidatpreviewene og de interne renditions er ikke public projection eller offentlig publisert.
+
+### Leveransestatus og gjenstående gater
+
+Fase 3D.2-koden og automatisert testdekning finnes på aktiv featurebranch. Fase 3D.1 er tidligere teknisk og visuelt verifisert i staging, men fase 3D.2 er ennå ikke verifisert i CI eller staging og er ikke visuelt godkjent av prosjekteier. Featureflaggets kode-default er fortsatt avslått.
+
+Historikk-/restore-UI, takedown, permanent kandidatlagring, public release/materialisering, public projection og PUBLIC-bildebruk er ikke implementert av 3D.2.
 
 ## Implementert kontaktopplevelse
 

@@ -39,6 +39,14 @@ Første fase 3C-leveranse konfigurerte `IMAGE_ASSET_FEATURE_ENABLED=False` som s
 
 Staging har fra 2026-08-10 host-persistent intern bilde-runtime. API-containeren bind-mounter `/srv/kreative-norge/media/private` og `/srv/kreative-norge/media/public` til de samme absolutte pathene i containeren. `web` har ingen mediamount, og artifact-aliaset er fortsatt ikke en offentlig origin. Kode og eksempelkonfigurasjon beholder feature avslått; bare den ignorerte stagingkonfigurasjonen har `IMAGE_ASSET_FEATURE_ENABLED=True` etter grønn persistence-, backup- og restore-gate. Detaljert evidens finnes i [stagingaktiveringen 2026-08-10](../status/STAGING_IMAGE_RUNTIME_ACTIVATION_2026-08-10.md).
 
+## Fase 3D.2 – operativ konfigurasjon i repo, ikke live-verifisert
+
+Fase 3D.2 legger til Brave-bildesøk som en valgfri intern kilde. `BRAVE_IMAGE_SEARCH_API_KEY` leses bare av Django fra servermiljøet og har tom standardverdi. Staging-Compose bruker `.env.staging` som `env_file` for `api`, slik at en eventuell nøkkel kan injiseres ved runtime uten frontendvariabel eller frontend-buildargument. Nøkkelen skal aldri eksponeres til frontend, API-responser eller logger. Manglende nøkkel gir kontrollert `503` med kode `brave_not_configured`; dette er fail-closed og blokkerer live-verifikasjon av Brave-sporet, men er ikke dokumentasjon på at staging har eller mangler en faktisk nøkkel. En nøkkel skal først aktiveres når prosjekteier eller annen avtaleeier har dokumentert redaktørenes dekning under Braves gjeldende standardvilkår punkt 4(c), samt nødvendige personvernvarsler eller samtykker for querydata.
+
+Nginx-konfigurasjonen i repoet setter `client_max_body_size 16m`. Det gir nødvendig proxy-headroom for applikasjonens maksimale kildefil på 15 MiB og multipart-overhead. Fase 3D.2 gjenbruker de eksisterende persistente `image_originals_private`-/`image_renditions_public`-aliasene, Borg-backupen og `cleanup_image_storage_orphans`; den endrer ingen storage-root, backupkontrakt eller cleanup-semantikk.
+
+En fersk, grønn Borg-backup er obligatorisk før stagingdeploy av leveransen. Selve stagingdeployen og live-verifikasjonen er ikke dokumentert som gjennomført her. Leveransen endrer ikke PUBLIC-flyt, oppretter ingen public release og aktiverer ingenting i produksjon.
+
 `cleanup_image_storage_orphans` gir en begrenset dry-run-first cleanup for de to bildealiasene. Apply krever PostgreSQL, validerte lokale roots og eksplisitt operatørvalg, revaliderer databasereferanser under lås og sletter bare gamle, urefererte regulære filer. Den er ikke en generell retention- eller public purge-mekanisme.
 
 ## Backupgrunnmur

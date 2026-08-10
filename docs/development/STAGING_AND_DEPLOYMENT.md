@@ -35,6 +35,18 @@ Prosjekteiers eksplisitt godkjente `--apply`-kjøring opprettet kontakt-ID `233`
 
 Serveren bruker fortsatt eldre Docker Compose `1.29.2`. Denne økten oppgraderte ikke Compose og kjørte ingen restart, recreate eller deploy. Ved fremtidig drift skal unødvendig recreate unngås; dersom den kjente `ContainerConfig`-feilen oppstår, skal kjøringen stoppes og håndteres som kontrollert feilretting med ny helsekontroll, ikke som del av en datareparasjon.
 
+## Fase 3D.2 staginggate – planlagt, ikke gjennomført
+
+Repoet har operativ konfigurasjon for fase 3D.2, men dette dokumentet påstår verken stagingdeploy, live-verifikasjon eller at Brave-nøkkelen finnes. Før leveransen deployes til staging skal operatøren:
+
+1. ta en fersk Borg-backup og stoppe dersom backupjobben ikke er grønn
+2. beholde `BRAVE_IMAGE_SEARCH_API_KEY` tom frem til prosjekteier eller annen avtaleeier har dokumentert redaktørenes dekning under Braves gjeldende standardvilkår punkt 4(c), samt nødvendige personvernvarsler eller samtykker; etter godkjenning er nøkkelen fortsatt en server-side verdi i den ignorerte `.env.staging` og skal aldri legges i `VITE_`-variabler, frontend-buildargumenter, API-responser eller logger
+3. bekrefte at Compose fortsatt gir `.env.staging` til `api` via `env_file`, uten å sende nøkkelen til `web`
+4. bekrefte at nginx laster `client_max_body_size 16m`, som gir headroom for applikasjonens 15 MiB kildefilgrense og multipart-overhead
+5. verifisere den interne Organization Editor-flyten etter deploy; hvis nøkkelen mangler, skal Brave-kallet gi kontrollert `503`/`brave_not_configured`, og live-verifikasjonen av Brave-sporet skal stå som blokkert
+
+Deployen skal beholde dagens host-persistente `image_originals_private`-/`image_renditions_public`-aliaser, Borg-oppsett og dry-run-first `cleanup_image_storage_orphans` uendret. Fase 3D.2 gir ingen PUBLIC-endring og innebærer ingen produksjonssetting. En eventuell kontroll av eksisterende PUBLIC-baseline er bare en regresjonssjekk, ikke aktivering eller publisering av den nye bildeflyten.
+
 ## Ønsket neste steg
 
 Push til avtalt branch skal kunne utløse en sikker automatisk deploy til staging etter at obligatoriske tester er bestått.

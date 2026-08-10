@@ -53,10 +53,15 @@ DB_PASSWORD=...
 IMAGE_ASSET_FEATURE_ENABLED=False
 IMAGE_ORIGINALS_ROOT=/srv/kreative-norge/media/private
 IMAGE_RENDITIONS_ROOT=/srv/kreative-norge/media/public
+BRAVE_IMAGE_SEARCH_API_KEY=
 VITE_API_BASE=
 ```
 
 Keep `IMAGE_ASSET_FEATURE_ENABLED=False` until the persistence and Borg gates below are green. The two image roots are still required explicitly so the same Compose configuration can be verified before activation.
+
+`BRAVE_IMAGE_SEARCH_API_KEY` is optional and server-side only. The `api` service receives it through Compose `env_file: .env.staging`; never put it in a `VITE_` variable, frontend build argument, browser response, command output, or logs. If it is empty, Brave search returns the controlled `503` code `brave_not_configured`. That is a valid fail-closed runtime state. Do not supply the credential until the project or contract owner has documented editor coverage under the current Brave Search API Terms section 4(c), plus any required privacy notices or consents for query data. After that approval, live Brave verification may proceed without exposing the value.
+
+Phase 3D.2 does not change the existing `image_originals_private` or `image_renditions_public` storage aliases, host-persistent roots, Borg coverage, or dry-run-first orphan cleanup. It activates no PUBLIC image release or production behavior.
 
 ## 4. Prepare image storage
 
@@ -82,6 +87,8 @@ docker-compose -f docker-compose.staging.yml --env-file .env.staging up -d --bui
 ```
 
 The repository compose file binds the web container to `127.0.0.1:8080:80`.
+
+The repository nginx configuration sets `client_max_body_size 16m`. This is intentional headroom for the application limit of a 15 MiB source image plus multipart framing. Keep the proxy limit above the application limit; do not raise either limit ad hoc during deploy.
 
 ## 6. Create an admin user
 
@@ -118,6 +125,15 @@ Caddy terminates HTTPS and must forward:
 Nginx inside the `web` container must pass the incoming `X-Forwarded-Proto` header onward to Django for `/api/`, `/admin/`, and `/public/`. That matches Django's `SECURE_PROXY_SSL_HEADER` setting and prevents HTTPS redirect loops.
 
 ## 9. Updating staging
+
+Take and verify a fresh Borg backup before pulling or rebuilding a phase 3D.2 staging deploy:
+
+```bash
+sudo systemctl start kreative-norge-backup.service
+sudo systemctl status kreative-norge-backup.service --no-pager
+```
+
+Stop before deploy if the backup is not green. A successful backup does not by itself verify Brave configuration or the 3D.2 user journey.
 
 ```bash
 git pull

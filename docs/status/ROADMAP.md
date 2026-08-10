@@ -2,7 +2,7 @@
 
 **Status:** Godkjent strategisk arbeidsrekkefølge
 
-**Sist oppdatert:** 2026-08-10
+**Sist oppdatert:** 2026-08-11
 
 Roadmapen skiller mellom produktfaser og et parallelt infrastrukturløp. En fase beskriver prioritert rekkefølge, ikke at innholdet allerede er implementert. Større implementering krever fortsatt et godkjent ADR når arbeidet innebærer et vesentlig arkitekturvalg.
 
@@ -54,15 +54,15 @@ Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCH
 
 ## Fase 3 – Robust thumbnail-, bilde- og kortarkitektur
 
-**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; fase 3B.1R og fase 3B.3 godkjent; fase 3B.3-A har additiv public release-domenegrunnmur; ADR-008s lokale Hetzner storage-/backup-MVP er ACTIVE; fase 3C har domene-/selection- og processinggrunnmur; fase 3D.1 er teknisk aktivert og visuelt godkjent i staging med intern host-persistent bilde-runtime, uten offentlig bildebruk.
+**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; fase 3B.1R og fase 3B.3 godkjent; fase 3B.3-A har additiv public release-domenegrunnmur; ADR-008s lokale Hetzner storage-/backup-MVP er ACTIVE; fase 3C har domene-/selection- og processinggrunnmur; fase 3D.1 er teknisk aktivert og visuelt godkjent i staging; fase 3D.2 er implementert og lokalt backendtestet på aktiv featurebranch, men venter på CI, staging og eiergodkjenning. Ingen offentlig bildebruk er aktivert.
 
 Fase 3A kartla dagens legacy URL-, Open Graph-, kort-, import-, storage- og driftsflyt. [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag.
 
-`ImageAsset`, `ImageRenditionSet`, `ImageRendition`, den typed `OrganizationImageSelection` og den organization-typed public release aggregaten er implementert additivt med constraints og migrasjoner. `ImageReviewEvent` og de feature-gated selection-kommandoene dekker atomisk første låsing, replacement, ordinær fjerning fra aktivt asset til systemfallback og restore av en eksplisitt arkivert asset-selection som ny revisjon. Release-tjenesten kan opprette et komplett immutable release-aggregate med interne canonical keys. Fase 3C.7 legger til intern upload-only dekoding, processing, immutable artifact-storage og atomisk asset-/rendition-aggregate. Fase 3D.1 kaller processing og locking gjennom en avgrenset feature-gated API-/Editor-flyt for offisielle kandidater. Dette endrer ikke dagens public `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- eller faviconflyt; disse gjelder fortsatt frem til en kontrollert public overgang er levert og verifisert.
+`ImageAsset`, `ImageRenditionSet`, `ImageRendition`, den typed `OrganizationImageSelection` og den organization-typed public release aggregaten er implementert additivt med constraints og migrasjoner. `ImageReviewEvent` og de feature-gated selection-kommandoene dekker atomisk første låsing, replacement, ordinær fjerning fra aktivt asset til systemfallback og restore av en eksplisitt arkivert asset-selection som ny revisjon. Release-tjenesten kan opprette et komplett immutable release-aggregate med interne canonical keys. Fase 3C.7 legger til intern upload-only dekoding, processing, immutable artifact-storage og atomisk asset-/rendition-aggregate. Fase 3D.1 kaller processing og locking gjennom en avgrenset feature-gated API-/Editor-flyt for offisielle kandidater. Fase 3D.2 utvider samme interne flyt med Brave, limt URL, brukerupload, fokusforvalg, live crop-preview og valgfri asset-alttekst. Dette endrer ikke dagens public `thumbnail_image_url`-, `auto_thumbnail_url`-, `og_image_url`- eller faviconflyt; disse gjelder fortsatt frem til en kontrollert public overgang er levert og verifisert.
 
 Bildeløsningen skal gå fra ustabile eksterne treff til en varig, redaksjonelt kontrollerbar ressurs:
 
-- kandidater fra offisiell nettside, Open Graph, opplasting, limt URL og senere en kontrollert Brave-provider
+- kandidater i prioritert brukerreise fra offisiell nettside/Open Graph via kontrollert Brave-provider og limt URL til manuell upload
 - kontrollert fetch og teknisk validering før menneskelig godkjenning
 - tenant-eid asset med privat original og nødvendig proveniens
 - typed aktør-selection med fit, ett fokuspunkt, eksplisitt approval og låsing
@@ -165,24 +165,30 @@ Fase 3C.7 legger til Pillow 12.3.0 bak intern adapter og `ingest_uploaded_image`
 
 ### Fase 3D – Editor-flyt for aktørbilde
 
-**Status:** Påbegynt. Fase 3D.1s første offisielle kandidatflyt er merget med PR #30 og teknisk aktivert og visuelt godkjent i staging bak en miljøstyrt featuregate. Fase 3D.2 er besluttet som neste leveranse, men ikke implementert. Fallback-/historikk-UI og public projection gjenstår.
+**Status:** Påbegynt. Fase 3D.1s første offisielle kandidatflyt er merget med PR #30 og teknisk aktivert og visuelt godkjent i staging bak en miljøstyrt featuregate. Fase 3D.2 er implementert og lokalt backendtestet på aktiv featurebranch, men er ikke CI- eller stagingverifisert og ikke visuelt godkjent av prosjekteier. Fallback-/historikk-UI og public projection gjenstår.
 
 - offisiell website/Open Graph-discovery, kortlivet signert kandidat, ephemeral kandidat-preview og valgt processing er implementert i 3D.1
 - intern square/landscape/share-preview, «Godkjenn og lås bilde» og eksplisitt replacement er implementert i 3D.1
-- Brave/generelt bildesøk, limt URL og manuell upload inngår i besluttet fase 3D.2; de er ikke implementert
+- Brave Image Search, limt URL, manuell upload, norske feiltekster, fokusforvalg, live Foto-crop og valgfri asset-alttekst er implementert i 3D.2 på featurebranch
 - ordinær arkivering, restore og historikk; takedown-UI forberedes deaktivert til deny-gaten er verifisert
 - aktiv selection-preview er intern; preview fra samme public projection som PUBLIC gjenstår
 
-#### Fase 3D.2 – besluttet neste leveranse, ikke implementert
+#### Fase 3D.2 – implementert på featurebranch; leveransegater gjenstår
 
-Redaktøren skal få forståelige norske processingfeil, fokusforvalg Venstre/Midt/Høyre og Topp/Midt/Bunn, live crop-preview for Foto og valgfri alt-tekst. Nye kilder prioriteres slik:
+Editor presenterer kildene slik:
 
 1. offisiell nettside / Open Graph
-2. Brave / generelt bildesøk
+2. Brave Image Search
 3. limt direkte bilde-URL
 4. manuell upload
 
-Brave-søket skal bygge på faktiske CRM-fakta, ikke AI-gjetting. Aktørnavn brukes alltid; kommune eller sted kan legges til deterministisk. Kategori, tags og tilknyttede personer legges ikke automatisk inn i første søk. Den eksakte søketeksten skal være synlig og redigerbar, og endelig bildevalg gjøres alltid av en menneskelig redaktør.
+Brave-forslaget bygger deterministisk på faktiske CRM-fakta, uten AI: lagret aktørnavn er basis, og nøyaktig én kommune legges automatisk til. Ingen eller flere kommuner gir ikke automatisk sted; ved flere kommuner velger redaktøren eksplisitt. Kategori og aktivt tilknyttet person er også eksplisitte tillegg. Tags brukes aldri. Den eksakte queryen og kildene den bygger på er synlige og redigerbare, og endelig bildevalg gjøres alltid av en menneskelig redaktør.
+
+Provideradapteren bruker `country=NO`, `search_lang=nb`, `safesearch=strict`, `spellcheck=false` og `count=30`. `nb` brukes fordi Braves offisielle språk-enum ikke støtter `no`. Full providerrespons lagres aldri; bare eksakt query og normaliserte nødvendige kandidatfelt beholdes i omtrent 30 minutter gamle signerte refs, ikke i en persistent kandidatmodell eller søkehistorikk. Valgt Brave-event beholder source type/provider, men ikke providerens bilde- eller side-URL, i tråd med begrensningen på persistent lagring/caching i standardvilkårene. Braves egne standard query-logger kan samtidig beholdes i opptil 90 dager; Zero Data Retention krever Enterprise/egen avtale og er ikke en egenskap ved appens signed-ref.
+
+Foto har fokusforvalgene Venstre/Midt/Høyre og Topp/Midt/Bunn. Klientens live crop-preview er veiledende; de faktiske serverrenderte `square`-, `landscape`- og `share`-previewene er fasit før approval. Logo bruker contain. Asset-alttekst er valgfri og tom streng bevares uten skjult aktørnavn-fallback; whitespace-only avvises. Eksplisitt systemfallback-selection krever fortsatt tekst. Schema-migrasjon `0027` er uten datarewrite, men blir forward-only etter første blanke asset-/event-alt. Fra det tidspunktet er operativ rollback feature-off og fremoverrettet retting; pre-deploy-backup må tas og verifiseres før aktivering. Skjult utfylling med aktørnavn er aldri en rollbackmekanisme.
+
+3D.2 oppretter ingen public release, public projection eller persistent kandidatrad og endrer ikke PUBLIC. Lokal samlet verifikasjon er grønn med 365 backendtester, 22 frontendtester, 10 Playwright-tester, migrasjons-/staging-/backupkontrakter og begge produksjonscontainerbyggene. Før en Brave-nøkkel aktiveres må prosjekteier eller annen avtaleeier dokumentere hvordan redaktørene omfattes av Braves gjeldende standardvilkår punkt 4(c), samt nødvendige personvernvarsler eller samtykker for querydata. Neste stoppunkt er ordinær CI, kontrollert stagingverifikasjon og deretter prosjekteiers visuelle godkjenning. Ingen av disse tre gatene eller avtale-/personverngaten er godkjent ennå.
 
 ### Fase 3E – PUBLIC, API, deling og kort
 
@@ -293,7 +299,7 @@ Alle personvern-, migrerings-, rollback-, API- og datakrav i ADR-005 gjelder for
 
 AI er ikke en egen sprint. Det brukes der det gir målbar hjelp og alltid innen tydelige regler:
 
-- bilde- og logokandidater i fase 3
+- bilde- og logokandidater kan senere få AI-støtte der det gir dokumentert verdi, men fase 3D.2s querybygging og lokale rangering er eksplisitt deterministisk og bruker ingen AI
 - matching, manglende verdier, berikelse, kategoriforslag og prioritering av usikre rader i Import 2.0
 - ingen automatisk overskriving uten eksplisitt regel eller menneskelig godkjenning
 - AI kan peke ut informasjon eller publiseringsvalg som bør vurderes, men skal aldri aktivere, endre eller utvide offentlig publisering automatisk. Publisering krever en eksplisitt regel eller menneskelig godkjenning.
