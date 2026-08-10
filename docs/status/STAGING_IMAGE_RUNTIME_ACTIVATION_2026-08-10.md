@@ -82,3 +82,13 @@ Den manuelle visuelle gaten for Leveranse 2 er dermed gjennomført. Norske proce
 - default storage for import-/eksport-/rapportfiler er fortsatt ikke host-persistent
 - permanent reservation-/deny-journal, retentionpolicy, public cache/purge og full katastrofe-RTO gjenstår
 - ordinær PR-review/merge gjenstår
+
+## Review-hardening verifisert på ny staginghead
+
+Runtimecommit `17919df0d8778ad2600914d4459415466bfcf8e2` lukket de uavhengige reviewfunnene. GitHub Actions-kjøring `31435574917` var grønn i alle fem jobber. Backendjobben fant og kjørte 336 tester og logget eksplisitt ingest, processing, uppercase og negativ HTML-sniffing, directory-swap og advisory-lock-concurrencytesten. Den nye `staging-runtime`-jobben kjørte 3 strukturelle kontrakttester, `bash -n` og ShellCheck 0.9.0 på Ubuntu 24.04.
+
+Stagingrepoet ble fast-forwardet fra `5d35a6a` til runtimecommitten. API-imaget ble bygget mens gammel API kjørte, før bare den eksakte API-containeren ble stoppet, fjernet og opprettet på nytt for å unngå den kjente Compose 1.29.2-feilen. Ingen database-, web-, volume- eller mediaoperasjon ble utført.
+
+Etterpå var featureflagget fortsatt `True`, Django system check var grønn, og API, web og database kjørte med null restarter. Docker-inspect viste private- og renditionmount bare i API; web hadde bare det forventede read-only staticvolumet. Databasen hadde 4 assets, 12 renditions, 4 aktive selections og 0 public releases. Alle 16 refererte filer fantes, og alle checksums matchet. Orphan-cleanup dry-run fant 0 kvalifiserte og 0 unge orphans og slettet 0 filer. `/`, `/api/auth/session/` og `/public/actors/` svarte alle `200`.
+
+Det ble ikke kjørt cleanup apply, ingen ny produktmutasjon ble utført, og den tidligere Borg restore-evidensen ble ikke gjentatt fordi paths og backupkontrakt er uendret.

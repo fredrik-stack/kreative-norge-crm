@@ -16,6 +16,8 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 - la til dry-run-first orphan-cleanup med lokal-root-, symlink-, missing-reference-, alder-, PostgreSQL-lock- og recheck-gater
 - rettet case-insensitiv bytes-sniffing av HTML i official discovery etter at den faktiske stagingreisen avdekket `bytes.casefold`-feilen
 - verifiserte 336 backendtester gjennom full discovery, 64 berørte image-/candidate-/runtime-tester, 3 stagingkontrakttester, ShellCheck 0.10.0, 15 frontendtester, frontendbuild og begge produksjonscontainerbuildene
+- verifiserte samme kontrakt i GitHub CI med 336 backendtester, eksplisitt logging av de nye testmodulene, 3 stagingkontrakttester, ShellCheck 0.9.0 og alle fem jobber grønne
+- deployet runtimecommit `17919df` kontrollert til staging og verifiserte feature `True`, API-only imagemounts, 16 av 16 DB-refererte filer med korrekte checksums, 0 public releases, grønn orphan dry-run uten sletting og tre HTTPS-smokes på `200`
 - gjennomførte faktisk official discovery, kandidat-preview, processing og first lock i staging; opprettet ett privat asset, tre interne renditions, aktiv selection og ett review-event uten public release
 - verifiserte to separate Borg-arkiver og isolerte restore-smokes: én med deterministisk probe og én med faktisk fase 3D.1-original; eksakte uttrekk matchet forventede checksums
 - bekreftet at aktiv selection, previews og storagechecksums overlevde en ny kontrollert API-recreate
