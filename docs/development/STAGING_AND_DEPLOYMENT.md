@@ -35,6 +35,22 @@ Prosjekteiers eksplisitt godkjente `--apply`-kjøring opprettet kontakt-ID `233`
 
 Serveren bruker fortsatt eldre Docker Compose `1.29.2`. Denne økten oppgraderte ikke Compose og kjørte ingen restart, recreate eller deploy. Ved fremtidig drift skal unødvendig recreate unngås; dersom den kjente `ContainerConfig`-feilen oppstår, skal kjøringen stoppes og håndteres som kontrollert feilretting med ny helsekontroll, ikke som del av en datareparasjon.
 
+## Fase 3D.2 staginggate – teknisk gjennomført 2026-08-11
+
+Fase 3D.2-commit `971a9c0` ble deployet til staging etter følgende gjennomførte gater:
+
+1. fersk Borg-backup ble tatt og fullført grønt før deploy
+2. en gyldig `BRAVE_IMAGE_SEARCH_API_KEY` ble midlertidig installert bare direkte i serverens ignorerte `/srv/kreative-norge-crm/.env.staging`; nøkkelen ble aldri lagt i Git, chat, PR, `.env.staging.example`, `VITE_`-variabler, frontend-buildargumenter, API-responser eller logger, og runtimekontrollen rapporterte bare configured/missing
+3. Compose gir fortsatt `.env.staging` til `api` via `env_file`, uten frontendvariabel eller buildargument for nøkkelen
+4. nginx laster `client_max_body_size 16m`, som gir headroom for applikasjonens 15 MiB kildefilgrense og multipart-overhead
+5. direkte URL, faktisk multipart-upload, private previews, processing, blank alttekst, storage og PUBLIC-regresjon ble teknisk verifisert; den senere live-gaten returnerte 30 ekte Brave-kandidater og fullførte privat originalpreview, secure fetch og processing
+
+Deployen beholdt dagens host-persistente `image_originals_private`-/`image_renditions_public`-aliaser, Borg-oppsett og dry-run-first `cleanup_image_storage_orphans` uendret. Orphan-dry-run rapporterte 0 avvik og 0 slettinger. Fase 3D.2 ga ingen PUBLIC-endring og innebar ingen produksjonssetting. Full evidens og eierens manuelle testinstruks står i [stagingrapporten](../status/STAGING_IMAGE_SOURCES_2026-08-11.md).
+
+Precision/zoom-oppfølgingen ble senere deployet som runtimecommit `3686f08` etter grønn CI-run `31471806873` og grønt Borg-arkiv `kreative-norge-staging-20260811T081243Z`. Bare API og web ble rekreert i kontrollert rekkefølge; migrasjon `0028` ble anvendt uten database-/volumrecreate. En faktisk staging-API-reise prosesserte X/Y `0.3700/0.6800` og zoom `1.5000` til tre private no-store-previews uten selection-, event-, publiserings- eller public-releaseendring. Storagechecksum og orphan-dry-run var grønne. Lokal origin svarte 200, mens ekstern server-side curl traff Cloudflares browserchallenge. Prosjekteier fullførte senere browser-/visuell kontroll, og den separate live Brave-gaten ble teknisk grønn.
+
+Etter at live-evidensen var sikret, ble `BRAVE_IMAGE_SEARCH_API_KEY` med hensikt satt tilbake til tom verdi 2026-08-11. Bare API-containeren ble stoppet, fjernet og opprettet med `--no-deps`; database, web, volum og media ble ikke rekreert. Django rapporterte boolsk `brave_configured=False`, og providerproben ga kontrollert `brave_not_configured`. Live-verifikasjonen består som historisk evidens, men Brave er nå **operativt ikke aktiv** for ordinære Editor-sluttbrukere. Senere reaktivering krever dokumentert oppfyllelse av sluttbrukerkravet i Braves gjeldende [Search API Terms of Use](https://api-dashboard.search.brave.com/documentation/resources/terms-of-service) punkt 4(c), inkludert skriftlig avtale med forpliktelser vesentlig tilsvarende 3(b), samt nødvendige privacy notices/samtykker. Dette er en manuell drifts-/avtalegate, ikke manglende applikasjonskode.
+
 ## Ønsket neste steg
 
 Push til avtalt branch skal kunne utløse en sikker automatisk deploy til staging etter at obligatoriske tester er bestått.

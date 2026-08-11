@@ -205,8 +205,11 @@ def _validate_asset_evidence(evidence: AssetApprovalEvidence) -> list[str]:
         raise InvalidImageSelectionError("Approval evidence text values must be strings.")
     if evidence.source_type not in ImageReviewEvent.SourceType.values:
         raise InvalidImageSelectionError("Approval evidence has an unsupported source type.")
-    if evidence.source_type != ImageReviewEvent.SourceType.UPLOAD and not evidence.source_url:
-        raise InvalidImageSelectionError("Non-upload approval evidence requires a source URL.")
+    if evidence.source_type not in {
+        ImageReviewEvent.SourceType.UPLOAD,
+        ImageReviewEvent.SourceType.BRAVE_IMAGE_SEARCH,
+    } and not evidence.source_url:
+        raise InvalidImageSelectionError("This approval source requires a source URL.")
     if not isinstance(evidence.technical_warnings, tuple):
         raise InvalidImageSelectionError("Technical warnings must be a typed list of short text values.")
     _validate_snapshot_url(evidence.source_url, "source_url")

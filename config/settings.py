@@ -84,6 +84,7 @@ IMAGE_ASSET_FEATURE_ENABLED = _read_fail_closed_bool(
     "IMAGE_ASSET_FEATURE_ENABLED",
     default=False,
 )
+BRAVE_IMAGE_SEARCH_API_KEY = os.getenv("BRAVE_IMAGE_SEARCH_API_KEY", "").strip()
 
 # --- Production security settings ---
 if not DEBUG:

@@ -80,6 +80,7 @@ def _render_config(processed: ProcessedImage) -> dict[str, object]:
     return {
         "fit_mode": processed.fit_mode,
         "focus": [round(processed.focus_x, 4), round(processed.focus_y, 4)],
+        "zoom": round(processed.zoom, 4),
         "processing_version": processed.processing_version,
         "source_checksum_sha256": processed.source.checksum_sha256,
         "variants": [
@@ -164,6 +165,7 @@ def _create_or_reuse_database_aggregate(
     expected_renditions = _expected_rendition_values(tenant.pk, processed, render_config_hash)
     focus_x = Decimal(str(round(processed.focus_x, 4))).quantize(Decimal("0.0001"))
     focus_y = Decimal(str(round(processed.focus_y, 4))).quantize(Decimal("0.0001"))
+    zoom = Decimal(str(round(processed.zoom, 4))).quantize(Decimal("0.0001"))
 
     try:
         with transaction.atomic():
@@ -179,6 +181,7 @@ def _create_or_reuse_database_aggregate(
                 "fit_mode": processed.fit_mode,
                 "focus_x": focus_x,
                 "focus_y": focus_y,
+                "zoom": zoom,
                 "processing_version": processed.processing_version,
             }
             rendition_set, set_created = ImageRenditionSet.objects.get_or_create(
@@ -247,6 +250,7 @@ def ingest_uploaded_image(
     content_mode: str,
     focus_x: float | None = None,
     focus_y: float | None = None,
+    zoom: float | None = None,
     processing_profile: str = PROCESSING_PROFILE,
 ) -> ImageIngestResult:
     if not settings.IMAGE_ASSET_FEATURE_ENABLED:
@@ -265,6 +269,7 @@ def ingest_uploaded_image(
         fit_mode=content_mode,
         focus_x=focus_x,
         focus_y=focus_y,
+        zoom=zoom,
     )
     render_config_hash = _canonical_hash(_render_config(processed))
     source_key = _source_key(tenant.pk, processed)

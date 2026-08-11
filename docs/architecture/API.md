@@ -16,18 +16,48 @@ Eksport har foreløpig grunnleggende oppretting, listing og visning av eksportjo
 
 ## Intern bildekandidatflyt og planlagt public bildekontrakt – ADR-007
 
-[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent målarkitektur. Fase 3D.1 implementerer første interne Editor-flyt bak `IMAGE_ASSET_FEATURE_ENABLED`: offisiell discovery, kandidat-preview, valgt processing, rendition-preview, eksplisitt approval og tenant-scopet image state. Det aktive public API-et returnerer fortsatt bare legacy bilde-URL-er.
+[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent målarkitektur. Fase 3D.1s offisielle flyt er aktivert og visuelt godkjent i staging. Fase 3D.2 utvider den interne, feature-gated API-flyten med Brave-søk, limt URL, manuell upload, fokusforvalg, presis X/Y, Foto-zoom og valgfri asset-alttekst. Precision/zoom-oppfølgingen på draft-PR #33 er CI-grønn, teknisk stagingverifisert, historisk live Brave-verifisert og visuelt eiergodkjent. Brave-credentialen er deretter deaktivert; providerkallet er operativt ikke aktivt for ordinære Editor-sluttbrukere før sluttbrukeravtalegaten er dokumentert oppfylt. Det aktive public API-et returnerer fortsatt bare legacy bilde-URL-er.
 
-På én tenant-scopet Organization finnes følgende interne handlinger:
+På én tenant-scopet Organization finnes følgende interne handlinger under `images/`:
 
-- `POST images/discover/` finner maksimalt seks kandidater fra `website_url`, lagret Open Graph og én kontrollert sidefetch
-- `POST images/candidate-preview/` tar en kortlivet signert `candidate_ref` i body og returnerer et begrenset, privat/no-store rasterpreview
-- `POST images/process/` verifiserer kandidaten og sender bare det valgte bildet gjennom processing profile v1
-- `POST images/rendition-preview/` tar en signert previewref og én av `square`, `landscape` eller `share` i body; privat original og storage key eksponeres aldri
-- `POST images/approve/` tar signert `approval_ref`, `expected_revision`, alt-tekst og eventuell offentlig kreditering og bruker eksisterende locking/replacement
-- `GET images/state/` returnerer aktiv selection, expected revision og signert intern previewinformasjon
+- `POST discover/` finner maksimalt seks kandidater fra `website_url`, lagret Open Graph og én kontrollert sidefetch
+- `GET search-context/` returnerer det deterministiske Brave-forslaget og eksplisitt valgbare kommuner, kategorier og aktive tilknyttede personer
+- `POST brave-search/` tar eksakt synlig `query`, `query_edited` og eventuelle eksplisitte refinement-ID-er og returnerer transient signerte kandidater
+- `POST url-candidate/` normaliserer én direkte bilde-URL og returnerer en transient signert kandidat uten å fetche eller velge bildet
+- `POST candidate-preview/` tar en kortlivet signert `candidate_ref` og returnerer et begrenset, privat/no-store rasterpreview; `original=true` tvinger preview fra den signerte originale bilde-URL-en i stedet for eventuell provider-thumbnail
+- `POST process/` verifiserer og fetcher den samme signerte originale bilde-URL-en for én official-, Brave- eller URL-kandidat og sender bare det valgte bildet gjennom processing profile v1; Foto kan sende komplett `focus_x`, `focus_y` og `zoom`
+- `POST upload-process/` tar multipart-upload og prosesserer bare valgt JPEG, PNG eller WebP gjennom samme profil og samme Foto-oppskrift
+- `POST rendition-preview/` tar en signert previewref og én av `square`, `landscape` eller `share`; privat original og storage key eksponeres aldri
+- `POST approve/` tar signert `approval_ref`, `expected_revision`, valgfri asset-alttekst og eventuell offentlig kreditering og bruker eksisterende locking/replacement
+- `GET state/` returnerer aktiv selection, expected revision og signert intern previewinformasjon
 
-Referansene er tidsstemplet, omtrent 30 minutter gamle maksimalt, og bundet til tenant, Organization og autentisert bruker. Caller kan ikke levere fri kandidat-URL, proveniens, asset-ID eller rendition-sett ved approval. Lesere kan lese image state, men kan ikke starte discovery/fetch/processing eller godkjenne. Når featureflagget er av, feiler de nye rutene før nettverk, storage eller bildedomene-write.
+Kildeprioriteten i Editor er offisiell nettside/Open Graph → Brave → direkte URL → upload. Dette er en presentert brukerreise, ikke automatisk godkjenning: søk, discovery, preview, URL-oppretting, upload og processing kan ikke opprette selection eller event alene.
+
+### Brave-kontrakt
+
+Standardforslaget består av lagret aktørnavn og automatisk kommune bare når aktøren har nøyaktig én kommune. Ved flere kommuner må én velges eksplisitt. Kategori og aktivt tilknyttet person legges bare til ved eksplisitt valg; tags brukes aldri. Den eksakte teksten er synlig og redigerbar, og det brukes ingen AI. Strukturerte kommune-/kategori-/person-refinements gjelder bare det urørte deterministiske forslaget. Ved første manuelle tekstendring nullstiller klienten alle chips og ID-er. Backend avviser en crafted request med `query_edited=true` og nonempty refinement, signerer provenance kun som `manual_edit` og lar dermed ingen skjulte refinement-signaler påvirke lokal rangering. Manuell tekst sendes uendret innenfor lengde-/ordgrensene.
+
+Provideradapteren bruker `GET https://api.search.brave.com/res/v1/images/search`, server-side `X-Subscription-Token` og de eiergodkjente faste parameterne `country=NO`, `search_lang=nb`, `safesearch=strict`, `spellcheck=false` og `count=30`, i tråd med Braves offisielle [API-referanse](https://api-dashboard.search.brave.com/api-reference/images/image_search) og [Image Search-dokumentasjon](https://api-dashboard.search.brave.com/documentation/services/image-search). `search_lang=nb` er godkjent fordi den offisielle enumen ikke støtter `no`. Timeout, rate limit, providerfeil og malformed respons oversettes til kontrollerte API-feil uten å eksponere nøkkelen.
+
+Full providerrespons lagres aldri. Bare eksakt query og det normaliserte, nødvendige delsettet for kandidaten — blant annet tittel, publisher/domene, dimensjoner, thumbnail, bilde-URL og kildeside når feltene finnes — bæres i kortlivede signerte referanser; appen oppretter ingen persistent kandidatmodell eller søkehistorikk. Ved valgt Brave-bilde lagres `brave_image_search` og provider på review-eventet, mens source-URL og side-URL er tomme. Dette følger Braves [standardvilkårs](https://api-dashboard.search.brave.com/documentation/resources/terms-of-service) begrensning på lagring/caching uten særskilte storage-rettigheter; redaktørens godkjenning må fortsatt dekke rettighetene til selve bildet.
+
+Appens omtrent 30 minutter gamle signed-ref må ikke forveksles med providerens egen logging. Braves [privacy policy](https://api-dashboard.search.brave.com/privacy-policy) opplyser at standard query-logger kan beholdes i opptil 90 dager; Zero Data Retention krever Enterprise/egen avtale.
+
+Editor viser før søk at queryen sendes til Brave, kan lagres der i opptil 90 dager og ikke skal inneholde sensitiv eller intern informasjon. Ved resultater vises rettighetspåminnelsen om at redaktøren må kontrollere bruken før godkjenning. Prosjekteier har godkjent parametrene og denne copyen. Braves gjeldende Terms punkt 4(c) krever at hver End User er bundet av en skriftlig avtale med Customer med forpliktelser vesentlig tilsvarende 3(b), og legger ansvaret for nødvendige privacy notices/samtykker på Customer. Dette er en manuell operativ avtaleplikt, ikke en egen samtykkemotor i API-et. Staginggaten 2026-08-11 bekreftet 30 live-kandidater, privat originalpreview, secure fetch og processing med `search_lang=nb`; ingen credentialverdi ble eksponert. Credentialen ble deretter deaktivert, og staging gir igjen kontrollert `brave_not_configured`.
+
+Foto krever enten ingen fokusverdier eller begge verdiene; manglende zoom betyr `1.0000`. Fokus må være endelig tall i intervallet 0–1 og zoom et endelig tall i intervallet 1–3. Logo/contain avviser enhver fokus- eller zoomverdi. Zoom krymper det gyldige cover-vinduet rundt fokuspunktet og klamper det til kildekanten, slik at tom flate aldri oppstår. No-upscale, source byte-/pixelgrenser, tenant-scope og secure fetch er uendret.
+
+### Signering, tilgang og approval
+
+Referansene er tidsstemplet, omtrent 30 minutter gamle maksimalt, og bundet til tenant, Organization og autentisert bruker. Caller kan ikke levere fri proveniens, asset-ID eller rendition-sett ved approval. Lesere kan lese image state og interne rendition-previews, men kan ikke starte discovery, søk, URL-oppretting, fetch, upload, processing eller approval. Når featureflagget er av, feiler rutene før nettverk, storage eller bildedomene-write.
+
+Asset-alttekst kan være eksakt tom streng; den fylles ikke skjult med aktørnavn. En ikke-tom whitespace-only verdi avvises. Den separate systemfallback-selectiontjenesten krever fortsatt ikke-tom fallbacktekst. Brave og upload kan ha tom `source_url` i eventet; øvrige ikke-tomme source types krever URL.
+
+Schema-migrasjon `0027` omskriver ingen data og kan reverseres mens alle selection- og event-altverdier fortsatt er ikke-tomme. Etter første blanke asset-/event-alt er den forward-only fordi de gamle databaseconstraintene avviser raden. Operativ rollback er da feature-off og en fremoverrettet retting; en pre-deploy-backup må tas og verifiseres før aktivering. Data skal aldri omskrives til en skjult aktørnavn-fallback for å tvinge schemaet bakover.
+
+Schema-migrasjon `0028` legger additivt til `ImageRenditionSet.zoom` med default `1.0000` og constraint 1–3. Eksisterende rows beholder dermed dagens cropsemantikk. Reverse er tillatt så lenge alle rows fortsatt har default; den blokkeres før feltet droppes dersom en non-default zoomoppskrift finnes, fordi tap av zoom da ville gjøre historisk rendermetadata uriktig.
+
+Uploadtjenestens filgrense er 15 MiB. Staging-nginx har 16 MiB request-body-grense for å gi plass til multipart-overhead. 3D.2-konfigurasjonen og faktisk multipartflyt er deployet og stagingverifisert.
 
 Den planlagte overgangen er additiv:
 

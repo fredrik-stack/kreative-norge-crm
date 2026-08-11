@@ -2,6 +2,42 @@
 
 Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små kosmetiske justeringer trenger ikke registreres.
 
+## 2026-08-11
+
+### Fase 3D.2: flere bildekilder, synlig søk og fokus-UX implementert på featurebranch
+
+- bevart den grønne Brave-liveverifikasjonen som historisk evidens, men deaktivert staging-credentialen etter testen; bare API ble rekreert, `brave_configured=False` og kontrollert `brave_not_configured` er verifisert, mens DB, web, volum, media, PUBLIC og 0 public releases er uendret
+- dokumentert at Brave er `LIVE VERIFIED`, men `CURRENTLY ACTIVE: NOT ACTIVE` for ordinære Editor-sluttbrukere inntil avtaleeier har dokumentert skriftlige sluttbrukerforpliktelser etter gjeldende Terms punkt 4(c) og nødvendige privacy notices/samtykker; ingen consent-/termsmotor legges til i PR #33
+- synkronisert ADR-, staging-, backup-, arkitektur-, roadmap- og prosjektstatus etter siste review og registrert grønn sluttreview-baseline i CI-run `31520955798` på head `964a97d89f5489aeaff26cb822b2753c76b40d6e`
+- fulgt opp prosjekteiers visuelle stagingtest med presis X/Y-finjustering og 100–300 % Foto-zoom, mens Venstre/Midt/Høyre og Topp/Midt/Bunn beholdes som snarveier til samme cropoppskrift
+- lagt additiv migrasjon `0028` med `ImageRenditionSet.zoom=1.0000` som historisk default, databaseconstraint 1–3, zoom i immutable renderhash og reverse-guard etter at non-default zoom finnes
+- brukt samme kantklampede cover-geometri i alle tre live-previewene og serverprocessing, slik at 100 % tilsvarer dagens maksimale cover-utsnitt uten tom flate; Logo viser hele motivet med contain og avviser/skjuler fokus og zoom
+- erstattet synlig domenespråk med `Ingen aktivt valgt bilde ennå.` og `Aktivt bilde`, og lagt korte forklaringer av Foto versus Logo
+- lagt godkjent Brave privacy-copy ved queryen og rettighetscopy ved resultatene; `country=NO`, `search_lang=nb`, `safesearch=strict` og `spellcheck=false` er nå uttrykkelig eiergodkjent
+- utvidet den interne, feature-gated kildereisen i Editor fra offisiell nettside/Open Graph til Brave Image Search, limt direkte bilde-URL og manuell JPEG-/PNG-/WebP-upload, uten at discovery, søk, preview eller processing kan velge bilde automatisk
+- gjort Brave-forslaget deterministisk og synlig: lagret aktørnavn er basis, nøyaktig én kommune legges automatisk til, mens flere kommuner, kategori og aktivt tilknyttet person krever eksplisitt valg; tags brukes aldri og det brukes ingen AI
+- bevart redaktørens eksakte manuelle query og vist både brukte og ikke brukte CRM-kilder før søk; lagt deterministisk lokal rangering med offisielt domene som sterkeste signal
+- lagt server-side Brave-adapter mot official Image Search-endepunkt med `country=NO`, `search_lang=nb`, `safesearch=strict`, `spellcheck=false` og `count=30`, kontrollerte timeout-/rate limit-/providerfeil og uten eksponering av API-nøkkel
+- dokumentert `search_lang=nb` som bevisst avvik fra ønsket `no`, fordi Braves offisielle enum ikke støtter `no`
+- lagret aldri full providerrespons; bundet bare eksakt query, querykilder og normaliserte nødvendige kandidatfelt til omtrent 30 minutter gamle, tenant-/Organization-/brukerbundne signerte refs uten persistent kandidatmodell eller søkehistorikk
+- skilt appens transient signed-ref fra providerens retention: Brave opplyser at standard query-logger kan beholdes i opptil 90 dager, mens Zero Data Retention krever Enterprise/egen avtale
+- beholdt valgt Brave-events `source_type` og provider, men ikke providerens bilde-/side-URL eller query, i tråd med standardvilkårenes begrensning på persistent lagring/caching; rettighetsgodkjenning av selve bildet forblir et menneskelig ansvar
+- gjenbrukt den sikre fetch-, preview-, processing- og approvalkjeden for Brave og limt URL; Brave-gridet kan bruke provider-thumbnail, mens valgt live-preview og serverprocessing bruker samme signerte original-URL
+- lagt multipart-upload direkte gjennom samme kontrollerte ingest-/renditionprofil og økt staging-nginxgrensen fra 10 til 16 MiB for 15 MiB filgrense pluss multipart-overhead; grensen og faktisk multipartflyt er verifisert i staging
+- lagt norske provider-/fetch-/processingfeil, fokusforvalg Venstre/Midt/Høyre og Topp/Midt/Bunn og umiddelbar, veiledende Foto-crop-preview; serverens faktiske `square`-, `landscape`- og `share`-previews er fortsatt fasit før approval
+- gjort asset-alttekst valgfri med schema-only migrasjon `0027`; eksakt tom streng bevares uten skjult aktørnavn-fallback, whitespace-only avvises, og eksplisitt systemfallback-selection krever fortsatt tekst
+- dokumentert og testet migrasjonens rollbackgrense: reverse fungerer før blanke verdier finnes, men blokkeres av de gamle constraintene etter første blanke asset-/event-alt; da er operativ rollback feature-off og fremoverrettet retting, med krav om verifisert pre-deploy-backup før aktivering og aldri skjult datautfylling
+- verifisert 124 målrettede provider-, kandidat-, API-, modell-, selection- og migrasjonstester, deretter hele lokale leveransen med 365 backendtester, 22 frontendtester, 10 Playwright-tester, backup-/stagingkontrakter, produksjonsbygg og begge containerbygg; `makemigrations --check --dry-run` viser ingen modellavvik
+- beholdt featureflaggets kode-default avslått og PUBLIC, public release/materialisering, public projection, serving, legacybilder og persistent kandidathistorikk uendret
+- fullverifisert precision/zoom-oppfølgingen lokalt med 372 backendtester på ren migrert database, 28 frontendtester, 11 Playwright-reiser, 4 stagingkontrakttester, 68 backuptester, frontendbuild og begge produksjonscontainerbyggene
+- verifisert precision/zoom-oppfølgingen i alle fem CI-jobber i run `31471806873`, tatt grønn Borg-backup `kreative-norge-staging-20260811T081243Z` og deployet runtimecommit `3686f08` kontrollert uten database-/volumrecreate
+- anvendt migrasjon `0028` i staging og gjennomført faktisk API-processing med X/Y `0.3700/0.6800`, zoom `1.5000` og tre private no-store-previews; dette la bare til ett immutable rendition-sett og tre interne renditions, med 0 selection-/event-/publiserings-/releaseendring
+- verifisert 0 storagechecksumavvik, 0 orphans, 0 slettinger, 0 public releases, uendret 122 publiserte aktører og grønne origin-smokes; prosjekteier har senere fullført vanlig browser-smoke og visuelt godkjent precision/zoom-, Foto/Logo-, blank-alt- og live/server-previewreisen
+- verifisert alle fem GitHub CI-jobber grønne i run `31441538397`, deployet commit `971a9c0` etter fersk grønn Borg-backup og dokumentert URL-/upload-/blank-alt-/PUBLIC-/storageevidens i [stagingrapporten](STAGING_IMAGE_SOURCES_2026-08-11.md)
+- aktivert eksisterende server-side Brave-credential i staging og verifisert boolsk konfigurasjonsstatus, 30 ekte kandidater for den foreslåtte queryen `Festspillene Helgeland VEFSN`, privat originalpreview, secure fetch, processing og tre private no-store-renditionpreviews med aktiv `search_lang=nb`
+- bekreftet at den endelige Brave-kontrollen bare la til ett privat asset, ett immutable rendition-sett og tre interne renditions: selection-, review-event-, publiserings- og public-releaseantall var uendret, fortsatt med 0 public releases og 0 orphans
+- registrert prosjekteiers aksept av Foto-zoom som innzooming og retur til standard cover-nivå uten zoom ut til tom flate, og Logo uten crop-/zoomkontroller som riktig kontrakt
+
 ## 2026-08-10
 
 ### Fase 3D.1: host-persistent staging-runtime aktivert

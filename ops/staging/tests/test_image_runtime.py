@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 import unittest
 
 import yaml
@@ -46,6 +47,19 @@ class StagingImageRuntimeContractTests(unittest.TestCase):
         self.assertIn(
             "IMAGE_RENDITIONS_ROOT=/srv/kreative-norge/media/public",
             environment,
+        )
+
+    def test_nginx_accepts_the_15_mib_image_upload_contract(self):
+        nginx_config = (REPOSITORY_ROOT / "deploy/staging/nginx.conf").read_text(
+            encoding="utf-8"
+        )
+        match = re.search(r"client_max_body_size\s+(\d+)m;", nginx_config)
+
+        self.assertIsNotNone(match)
+        self.assertGreaterEqual(
+            int(match.group(1)),
+            16,
+            "Staging ingress must allow a 15 MiB file plus multipart overhead.",
         )
 
     def test_backup_allowlist_already_covers_both_host_roots(self):

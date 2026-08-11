@@ -53,10 +53,15 @@ DB_PASSWORD=...
 IMAGE_ASSET_FEATURE_ENABLED=False
 IMAGE_ORIGINALS_ROOT=/srv/kreative-norge/media/private
 IMAGE_RENDITIONS_ROOT=/srv/kreative-norge/media/public
+BRAVE_IMAGE_SEARCH_API_KEY=
 VITE_API_BASE=
 ```
 
 Keep `IMAGE_ASSET_FEATURE_ENABLED=False` until the persistence and Borg gates below are green. The two image roots are still required explicitly so the same Compose configuration can be verified before activation.
+
+`BRAVE_IMAGE_SEARCH_API_KEY` is optional and server-side only. On staging, install an existing valid credential directly in the ignored `/srv/kreative-norge-crm/.env.staging`; never put it in Git, chat, a PR, `.env.staging.example`, a `VITE_` variable, frontend build argument, browser/API response, command output, or logs. Recreate only `api`, and verify only `configured`/`missing`, never the value. If it is empty, Brave search returns the controlled `503` code `brave_not_configured`. The live staging gate on 2026-08-11 verified 30 real candidates, private original preview, secure fetch and processing with `search_lang=nb`; the credential value was never emitted. After preserving that evidence, the credential was intentionally cleared and only `api` was recreated. Staging now reports `brave_configured=False` and controlled `brave_not_configured`: live verification remains **PASS**, but current operational activation is **NOT ACTIVE**. Do not reactivate Brave for ordinary Editor end users until the contract owner has documented compliance with the written End User agreement requirement in the current [Brave Search API Terms](https://api-dashboard.search.brave.com/documentation/resources/terms-of-service) section 4(c), including obligations substantially similar to section 3(b), and any required privacy notices/consents under the current [Privacy Policy](https://api-dashboard.search.brave.com/privacy-policy). This is a manual operational gate; this runbook does not introduce a consent or terms engine.
+
+Phase 3D.2 does not change the existing `image_originals_private` or `image_renditions_public` storage aliases, host-persistent roots, Borg coverage, or dry-run-first orphan cleanup. It activates no PUBLIC image release or production behavior.
 
 ## 4. Prepare image storage
 
@@ -82,6 +87,8 @@ docker-compose -f docker-compose.staging.yml --env-file .env.staging up -d --bui
 ```
 
 The repository compose file binds the web container to `127.0.0.1:8080:80`.
+
+The repository nginx configuration sets `client_max_body_size 16m`. This is intentional headroom for the application limit of a 15 MiB source image plus multipart framing. Keep the proxy limit above the application limit; do not raise either limit ad hoc during deploy.
 
 ## 6. Create an admin user
 
@@ -118,6 +125,15 @@ Caddy terminates HTTPS and must forward:
 Nginx inside the `web` container must pass the incoming `X-Forwarded-Proto` header onward to Django for `/api/`, `/admin/`, and `/public/`. That matches Django's `SECURE_PROXY_SSL_HEADER` setting and prevents HTTPS redirect loops.
 
 ## 9. Updating staging
+
+Take and verify a fresh Borg backup before pulling or rebuilding a phase 3D.2 staging deploy:
+
+```bash
+sudo systemctl start kreative-norge-backup.service
+sudo systemctl status kreative-norge-backup.service --no-pager
+```
+
+Stop before deploy if the backup is not green. A successful backup does not by itself verify Brave configuration or the 3D.2 user journey.
 
 ```bash
 git pull

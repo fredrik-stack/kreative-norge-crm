@@ -2,7 +2,7 @@
 
 ## Status
 
-Godkjent som arkitekturgrunnlag. Fase 3A, de isolerte fase 3B.1- og 3B.2-prototypene og fase 3B.1R med representativ kvalitetsvalidering er gjennomført. Fase 3B.3 har fastsatt separat UUIDv4-basert public release identity, canonical public release keys og varig release-reservasjon. Fase 3B.3-A har implementert den additive organization-typed release-aggregaten, canonical key-builderen, immutable historisk mapping og atomisk feature-gated opprettelse i databasedomenet. Fase 3C.7 har implementert intern processing/storage, og fase 3D.1 har implementert første offisielle website/Open Graph-kandidatflyt til eksplisitt Organization-selection bak det fortsatt avslåtte featureflagget. Prosjekteier har godkjent processing profile v1, den representative kvalitetskontrakten og storage-, delivery-, takedown-, restore- og release identity-prinsippene nedenfor. [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokal one-server media og kryptert Hetzner Storage Box-backup som operasjonell MVP; fase 3B.3-B med permanent restore-sikker reservation-/deny-journal i separat failure-domain og all public bilde-runtime er fortsatt ikke implementert.
+Godkjent som arkitekturgrunnlag. Fase 3A, de isolerte fase 3B.1- og 3B.2-prototypene og fase 3B.1R med representativ kvalitetsvalidering er gjennomført. Fase 3B.3 har fastsatt separat UUIDv4-basert public release identity, canonical public release keys og varig release-reservasjon. Fase 3B.3-A har implementert den additive organization-typed release-aggregaten, canonical key-builderen, immutable historisk mapping og atomisk feature-gated opprettelse i databasedomenet. Fase 3C.7 har implementert intern processing/storage, og fase 3D.1 har implementert første offisielle website/Open Graph-kandidatflyt til eksplisitt Organization-selection bak det fortsatt avslåtte kode-default-flagget. Fase 3D.2 er implementert, fullverifisert lokalt, CI-grønn, teknisk stagingverifisert, live-provider-verifisert og visuelt eiergodkjent med Brave, limt URL, upload, fokus-/zoom-UX og valgfri asset-alttekst. Brave-integrasjonen er likevel **operativt ikke aktiv** for ordinære Editor-sluttbrukere: staging-credentialen er deaktivert etter live-testen, og senere reaktivering krever at den manuelle sluttbrukeravtalegaten nedenfor er dokumentert oppfylt. [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokal one-server media og kryptert Hetzner Storage Box-backup som operasjonell MVP; fase 3B.3-B med permanent restore-sikker reservation-/deny-journal i separat failure-domain og all public bilde-runtime er fortsatt ikke implementert.
 
 **Beslutningsdato:** 2026-07-30
 
@@ -14,7 +14,9 @@ Godkjent som arkitekturgrunnlag. Fase 3A, de isolerte fase 3B.1- og 3B.2-prototy
 
 **Fase 3B.3-valg godkjent:** 2026-08-07
 
-**Dokumentert i repo:** 2026-08-07
+**Fase 3D.2 implementert og verifisert på featurebranch:** 2026-08-11; ny uavhengig sluttreview gjenstår etter dokumentasjonssynkronisering
+
+**Dokumentert i repo:** 2026-08-11
 
 Fase 3B.3-dokumentasjonsleveransen innebærer ingen applikasjonskode, datamodell, migrasjon, storage-konfigurasjon, API-endring, frontendendring, dataendring eller deploy. Dagens legacyflyt med eksterne bilde-URL-er gjelder fortsatt frem til en kontrollert overgang er implementert og verifisert.
 
@@ -107,7 +109,7 @@ Selection skal minst kunne bære:
 - assetreferanse når kind er asset
 - fit-modus
 - ett normalisert fokuspunkt
-- alt-tekst
+- alt-tekst; valgfri for asset-selection, men påkrevd for eksplisitt systemfallback-selection
 - offentlig kreditering når den er relevant eller påkrevd
 - status, revisjon og tidspunkt
 - hvem som godkjente og låste valget
@@ -120,6 +122,10 @@ En selection er et eksklusivt valg:
 - fallback-selection skal ikke peke på et tenantasset
 
 Et godkjent og låst valg overskrives aldri automatisk. «Godkjenn og erstatt bilde» oppretter en ny aktiv revisjon, arkiverer forrige selection og registrerer hendelsen. Gjenoppretting av et ordinært arkivert bilde oppretter også en ny revisjon, slik at historikken ikke omskrives.
+
+Asset-alttekst kan være eksakt tom streng. Tom verdi er en eksplisitt redaksjonell verdi og skal ikke omskrives eller fylles skjult med aktørnavn; en ikke-tom verdi som bare består av whitespace er ugyldig. Eksplisitt systemfallback-selection beholder krav om ikke-tom tekst i domenetjenesten og databaseconstraintet. `ImageReviewEvent.alt_text_snapshot` følger selectionverdien og kan derfor også være tom for asset-events.
+
+Schema-migrasjon `0027` er uten datarewrite og kan reverseres mens alle selection- og event-altverdier fortsatt er ikke-tomme. Etter første blanke asset-/event-alt er migrasjonen forward-only fordi de gamle nonempty-constraintene blokkerer reverse. Operativ rollback er da feature-off og en fremoverrettet retting; en pre-deploy-backup må tas og verifiseres før aktivering. Eksisterende verdier skal ikke omskrives, og aktørnavnet skal aldri brukes som skjult alttekstfallback for å tvinge schemaet bakover.
 
 Fit og ett fokuspunkt lagres på selection i første MVP. En egen `ImagePlacement` og flere fokuspunkter utsettes til fase 3B viser et faktisk behov.
 
@@ -407,11 +413,15 @@ Fallback-nøkkelen skal versjoneres når navn, hovedkategori, renderer eller des
 - Logo og navnetrekk bruker `contain` og skal ikke kuttes.
 - Foto bruker `cover` og det lagrede fokuspunktet.
 - Sentrum er standard fokus når et bedre punkt ikke er valgt.
+- Editor tilbyr for Foto de diskrete fokusforvalgene Venstre/Midt/Høyre og Topp/Midt/Bunn, tilsvarende normaliserte verdier `0`, `0.5` og `1` per akse.
+- Editor tilbyr i tillegg presis X/Y-finjustering og Foto-zoom fra `1.0000` til `3.0000`, der `1.0000` er det største cover-utsnittet uten tom flate og høyere verdi zoomer inn.
+- Fokus og zoom er én immutable Foto-renderoppskrift. Hurtigvalgene endrer de samme normaliserte fokusverdiene som presisjonskontrollene; Logo/contain avviser fokus og zoom.
+- Klientens live crop-preview bruker samme kantklampede cover-geometri per aspect ratio som serveren. Etter eksplisitt processing er serverens faktiske `square`-, `landscape`- og `share`-renditions autoritativ fasit før approval.
 - Bilder skal ikke strekkes eller skaleres opp automatisk for å skjule for lav kildeoppløsning.
 - Når nødvendig rendition ikke kan produseres uten oppskalering, skal flyten be om en bedre kilde, velge et annet bilde eller bruke en kontrollert Kreative Norge-komposisjon eller fallback.
 - Square, landscape og share bruker samme godkjente original, fit og fokusintensjon.
 - Ulike aspect ratios kan ikke ha identisk pikselutsnitt; tilsvarende visninger med samme ratio skal bruke samme cropkontrakt.
-- Aktørnavn er trygg standard for alt-tekst når ingen bedre redaksjonell tekst finnes.
+- Asset-alttekst er valgfri. Eksakt tom streng bevares som tom streng uten skjult fallback; whitespace-only er ugyldig. Dette endrer ikke kravet om tekst for en eksplisitt systemfallback-selection.
 
 ### 15. Kort og PUBLIC
 
@@ -526,27 +536,56 @@ Restore kan ikke publisere media før en separat, varig takedown-/deny-journal e
 
 ### 19. Bildekilder og providergrense
 
-Godkjente kandidatkilder er:
+Editor presenterer kildereisen i denne prioriterte rekkefølgen:
 
-- offisiell nettside
-- Open Graph
-- vanlige bilder på offisiell nettside
-- Brave Image Search
-- opplasting
-- manuelt limt kilde-URL
-- systemfallback
+1. offisiell nettside, inkludert Open Graph og vanlige bilder på nettsiden
+2. Brave Image Search
+3. manuelt limt direkte bilde-URL
+4. manuell upload
 
-Brave skal ligge bak en egen provider-adapter og implementeres ikke før følgende er kontrollert:
+Systemfallback er et separat selectionvalg, ikke et eksternt kandidatsøk. Ingen kilde kan godkjenne, låse eller erstatte automatisk.
 
-- API-vilkår
-- caching
-- retention
-- attribusjon
-- SafeSearch
-- kostnad
-- rate limits
+#### Deterministisk Brave-query
 
-Full providerrespons lagres ikke. Bare nødvendig proveniens for valgt kandidat beholdes permanent. URL-er og metadata skal renses slik at credentials eller tokens ikke lagres utilsiktet.
+Fase 3D.2s foreslåtte query bygges bare fra eksplisitte CRM-fakta:
+
+- lagret aktørnavn er alltid basis i det automatiske forslaget
+- nøyaktig én lagret kommune legges automatisk til
+- ingen eller flere kommuner gir ikke automatisk sted; ved flere kommuner velger redaktøren én eksplisitt
+- kategori og aktivt tilknyttet person er eksplisitte tillegg
+- tags brukes aldri
+- det brukes ingen AI til querybygging, utvidelse eller lokal rangering
+- eksakt query og kildene den bygger på vises før søket og kan redigeres manuelt
+
+Manuelt redigert query sendes eksakt videre innenfor den validerte grensen på 400 tegn og 50 ord. Resultater rangeres lokalt og deterministisk med offisielt domene som sterkeste signal, deretter aktørnavn, eksplisitte refinements og til slutt providerrekkefølge.
+
+Strukturerte kommune-/kategori-/person-refinements gjelder bare det urørte deterministiske forslaget. Ved første manuelle tekstendring skal klienten nullstille alle chips og refinement-ID-er. Backend skal avvise `query_edited=true` kombinert med et nonempty refinement og signere queryproveniens kun som `manual_edit`. Dermed kan ingen skjulte kommune-, kategori- eller personsignaler påvirke rangeringen av et manuelt redigert søk.
+
+#### Offisiell Brave API-kontrakt og vilkårsgrense
+
+Provideradapteren bruker `GET https://api.search.brave.com/res/v1/images/search` og autentiserer server-side med `X-Subscription-Token`. Følgende parametre er faste i 3D.2:
+
+- `country=NO`
+- `search_lang=nb`
+- `safesearch=strict`
+- `spellcheck=false`
+- `count=30`
+
+`search_lang=nb` er et bevisst og dokumentert avvik fra ønsket norskekode `no`: Braves offisielle [API-referanse](https://api-dashboard.search.brave.com/api-reference/images/image_search) og [Image Search-dokumentasjon](https://api-dashboard.search.brave.com/documentation/services/image-search) støtter `nb`, men ikke `no`, i enumen for `search_lang`. `spellcheck=false` hindrer at provider omskriver den synlige queryen. Timeout, HTTP-feil, `429`, ugyldig content type, for stor/malformed JSON og manglende servernøkkel feiler kontrollert uten å eksponere nøkkelen.
+
+[Braves standard API-vilkår](https://api-dashboard.search.brave.com/documentation/resources/terms-of-service) begrenser lagring/caching av Search Results til transient bruk med mindre egne storage-rettigheter er avtalt. Derfor gjelder følgende:
+
+- full providerrespons lagres aldri
+- bare eksakt query, querykilder og det normaliserte nødvendige delsettet av bilde-URL, kildeside, domene, tittel, publisher, dimensjoner og thumbnail kan ligge i omtrent 30 minutter gamle signerte refs bundet til tenant, Organization og bruker
+- det opprettes ingen persistent `ImageCandidate` eller søkehistorikk
+- når et Brave-bilde velges og prosesseres, beholder eventet `source_type=brave_image_search` og provider, men `source_url` og `source_page_url` lagres tomme; query og providerresultatmetadata kopieres ikke til databasen
+- selve valgte bildebytene behandles som redaktørgodkjent tredjepartsinnhold, ikke som en rettighet Brave har gitt; den versjonerte menneskelige bildegodkjenningen gjelder fortsatt
+
+Denne app-retensjonen er ikke det samme som providerens logging. Braves [privacy policy](https://api-dashboard.search.brave.com/privacy-policy) opplyser at standard query-logger kan beholdes i opptil 90 dager. Zero Data Retention krever Enterprise/egen avtale og er ikke aktivert eller dokumentert for denne leveransen.
+
+Live provideraktivering har i tillegg en manuell, operativ avtaleplikt. Braves gjeldende [Search API Terms of Use](https://api-dashboard.search.brave.com/documentation/resources/terms-of-service) punkt 4(c) krever at hver End User er bundet av en skriftlig avtale med Customer med forpliktelser vesentlig tilsvarende bruksbegrensningene i punkt 3(b). Customer har også ansvar for nødvendige privacy notices og samtykker; se dessuten Braves gjeldende [Privacy Policy](https://api-dashboard.search.brave.com/privacy-policy). Prosjekteier har godkjent providerparametrene og den synlige privacy-/rettighetscopyen, men sluttbrukeravtalegaten er ikke dokumentert oppfylt. Brave skal derfor være operativt deaktivert for ordinære Editor-sluttbrukere frem til avtaleeier har dokumentert oppfyllelse. Dette er ikke manglende kode i 3D.2, og ingen consent-, terms- eller brukeravtalemotor skal bygges i PR #33. Om gaten senere dekkes av eksisterende arbeids-/oppdragsvilkår, egne Editor-vilkår eller eksplisitt digital aksept avgjøres separat.
+
+Direkte URL går gjennom samme normalisering, sikre fetch, preview og processing som official/Brave. Upload går direkte gjennom samme begrensede ingest-/processingprofil. URL-er som kan lagres som tillatt proveniens renses slik at credentials, fragmenter eller kjente signatur-/tokenparametre ikke lagres utilsiktet.
 
 Skjermbildeanalyse er ikke del av første implementering.
 
@@ -664,7 +703,7 @@ Processing profile v1 er:
 | Dynamisk fallback `square`/`landscape` | relevant variantstørrelse | WebP |
 | Fallback `share` | 1200 × 630 | JPEG |
 
-Format, encoderinnstillinger, source checksum, fit, normalisert fokus, renditionvariant og processing-version inngår i immutable key. Endring av en av disse verdiene gir ny key og overskriver aldri historisk output. AVIF er utsatt og er ikke et MVP-krav.
+Format, encoderinnstillinger, source checksum, fit, normalisert fokus, normalisert Foto-zoom, renditionvariant og processing-version inngår i immutable key. Endring av en av disse verdiene gir ny key og overskriver aldri historisk output. AVIF er utsatt og er ikke et MVP-krav.
 
 Offentlige renditions følger denne godkjente MVP-kontrakten:
 
@@ -686,7 +725,7 @@ Profilfri sRGB-normalisert output er valgt for MVP fordi den representative kjø
 #### Fit, fokus, oppskalering og metadata
 
 - Logo bruker `contain` og skal ikke kuttes eller strekkes.
-- Foto bruker `cover` og lagret normalisert fokuspunkt; sentrum er standard.
+- Foto bruker `cover`, lagret normalisert fokuspunkt og zoom; sentrum og `1.0000` er standard.
 - EXIF-orientering skjer før crop.
 - Sensitive metadata fjernes fra offentlige renditions.
 - Ingen kildepiksler skaleres opp automatisk. For lavt reelt cropområde håndteres med bedre kilde, annet bilde eller kontrollert komposisjon/fallback, ikke et uskarpt offentlig bilde.
@@ -1105,7 +1144,7 @@ Utsatt, ikke permanent avvist. Fase 3B.1 målte omtrent dobbelt så lav veggtid 
 
 ## Implementeringsleveranser og akseptansekriterier
 
-Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkjent. Leveransene skal være additive og reversible frem til separat legacyopprydding.
+Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkjent. Leveransene skal være additive og reversible frem til en eksplisitt dokumentert datakontrakt gjør en migrasjon forward-only eller separat legacyopprydding starter. Før en slik grense aktiveres, må pre-deploy-backup tas og verifiseres; feature-off og fremoverrettet retting er deretter operativ rollback.
 
 ### Fase 3B: teknisk prototype og kontrakt
 
@@ -1192,12 +1231,14 @@ Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkj
 
 ### Fase 3D: Editor-flyt for aktørbilde
 
-**Implementeringsstatus 2026-08-10:** Første avgrensede leveranse er implementert bak miljøstyrt featuregate med official website/Open Graph-discovery, transient signert kandidat, ephemeral kandidat-preview, valgt 3C.7-processing, intern rendition-preview og eksplisitt first lock/replacement. Den interne host-persistente storage-runtimeen er teknisk aktivert og backup-/restore-verifisert i staging; kode-default er fortsatt avslått, public serving er uendret og manuell visuell kontroll gjenstår. Punktene om upload, limt URL, systemfallback-/historikk-UI, takedownforberedelse og public projection er fortsatt ikke implementert.
+**Implementeringsstatus 2026-08-11:** Fase 3D.1 er implementert bak miljøstyrt featuregate med official website/Open Graph-discovery, transient signert kandidat, ephemeral kandidat-preview, valgt 3C.7-processing, intern rendition-preview og eksplisitt first lock/replacement. Den interne host-persistente storage-runtimeen er teknisk aktivert, backup-/restore-verifisert og visuelt godkjent for 3D.1 i staging. Kode-default er fortsatt avslått og public serving er uendret. Fase 3D.2 er implementert på draft-PR #33 med Brave, limt URL, upload, fokusforvalg, presis X/Y, Foto-zoom, live crop, norske feil og valgfri asset-alttekst. Precision/zoom-oppfølgingen er fullverifisert lokalt, CI-grønn, live Brave-verifisert og visuelt eiergodkjent i staging. Brave-credentialen ble deretter deaktivert; ordinær Editor-bruk er operativt blokkert frem til sluttbrukeravtalegaten er dokumentert oppfylt. Ny uavhengig sluttreview gjenstår. Systemfallback-/historikk-UI, takedownforberedelse og public projection er fortsatt ikke implementert.
 
 **Omfang:**
 
-- kandidatfunn, upload, limt URL og systemfallback
+- prioritert kandidatfunn fra official/Open Graph via Brave og limt URL til upload; systemfallback forblir et separat selectionvalg
 - teknisk status, varsler, kildegrunnlag og previews
+- synlig/redigerbar deterministisk Brave-query uten AI og med eksplisitte refinementvalg
+- Foto-fokusforvalg, presis X/Y og 100–300 % zoom med felles klient-/servergeometri og autoritative serverrenditions
 - «Godkjenn og lås bilde»
 - «Godkjenn og erstatt bilde»
 - ordinær arkivering, fjerning til fallback, restore og historikk
@@ -1206,6 +1247,7 @@ Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkj
 **Akseptansekriterier:**
 
 - standardgodkjenning krever ett tydelig klikk etter ferdig teknisk behandling
+- asset-alttekst kan være tom uten skjult fallback; whitespace-only avvises, og systemfallback-selection beholder tekstkravet
 - godkjenningstekst versjon og snapshot lagres
 - kjent krediteringskrav blokkerer til kravet er løst eller særskilt vurdert
 - låst bilde erstattes aldri av bakgrunnsjobb, refresh eller import
@@ -1213,6 +1255,7 @@ Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkj
 - redigerer kan ikke utføre formell takedown
 - gruppeadmin, tenant-superadmin og plattform-superadmin følger riktig scope
 - Editor-preview bruker den nye projection i shadow/feature-flag-modus
+- search/providerdata er transient og oppretter ingen persistent kandidatrad
 - takedownhandling er ikke tilgjengelig før legacy HTML, aktivt public API, Editor-preview og ny projection følger samme deny-status
 
 **Testkrav:**
@@ -1227,6 +1270,8 @@ Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkj
 - UI og skriveruter kan deaktiveres
 - lagrede assets, selections og events beholdes
 - aktiv lesing kan gå til systemfallback uten å gjenaktivere blokkert legacybilde
+- migrasjon `0027` kan reverseres bare før blank asset-/event-alt finnes; etter første blanke rad er schemaet forward-only
+- operativ rollback etter denne grensen er feature-off og fremoverrettet retting; pre-deploy-backup må tas og verifiseres før aktivering, og data omskrives aldri til en skjult aktørnavn-fallback
 
 ### Fase 3E: public projection, API, delingsmetadata og kort
 

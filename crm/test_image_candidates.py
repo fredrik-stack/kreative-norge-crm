@@ -3,11 +3,14 @@ from __future__ import annotations
 from io import BytesIO
 from pathlib import Path
 import socket
+import struct
 import tempfile
 import time
 from unittest.mock import Mock, patch
+import zlib
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files.storage import storages
 from django.test import SimpleTestCase, TestCase, override_settings
 from PIL import Image
@@ -27,13 +30,20 @@ from crm.services.images.candidates import (
     CandidatePreview,
     ImageCandidateFeatureDisabledError,
     ImageCandidateFlowError,
+    approve_image_candidate,
     approve_official_image_candidate,
+    create_pasted_url_candidate,
+    discover_brave_image_candidates,
     discover_official_image_candidates,
+    get_brave_search_context,
     get_organization_image_state,
+    process_image_candidate,
     process_official_image_candidate,
+    process_uploaded_image_candidate,
     read_rendition_preview,
     render_candidate_preview,
 )
+from crm.services.images.brave import BraveImageResult
 from crm.services.images.fetch import (
     MAX_REDIRECTS,
     SecureFetchResult,
@@ -57,6 +67,19 @@ def transparent_palette_png_bytes() -> bytes:
     buffer = BytesIO()
     image.save(buffer, "PNG", transparency=0)
     return buffer.getvalue()
+
+
+def declared_png(width: int, height: int) -> bytes:
+    def chunk(kind: bytes, payload: bytes) -> bytes:
+        body = kind + payload
+        return (
+            struct.pack(">I", len(payload))
+            + body
+            + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
+        )
+
+    ihdr = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IEND", b"")
 
 
 class FakeResponse:
@@ -416,6 +439,7 @@ class OfficialImageCandidateFlowTests(TestCase):
         rendition_set = ImageRenditionSet.objects.get(pk=first.rendition_set_id)
         self.assertEqual(rendition_set.fit_mode, "cover")
         self.assertEqual((float(rendition_set.focus_x), float(rendition_set.focus_y)), (0.5, 0.5))
+        self.assertEqual(float(rendition_set.zoom), 1.0)
         self.assertEqual(OrganizationImageSelection.objects.count(), 0)
         self.assertEqual(ImageReviewEvent.objects.count(), 0)
         self.assertEqual(OrganizationImageRelease.objects.count(), 0)
@@ -432,6 +456,21 @@ class OfficialImageCandidateFlowTests(TestCase):
                 image_kind="logo",
             )
         self.assertEqual(ImageRenditionSet.objects.get(pk=result.rendition_set_id).fit_mode, "contain")
+
+    def test_photo_zoom_is_persisted_and_logo_crop_recipe_is_rejected(self):
+        candidate = self.discover()[0]
+        zoomed = self.process(candidate.candidate_ref, focus_x=0.4, focus_y=0.6, zoom=1.1)
+        self.assertEqual(float(ImageRenditionSet.objects.get(pk=zoomed.rendition_set_id).zoom), 1.1)
+        with self.assertRaises(ImageCandidateFlowError) as context:
+            process_official_image_candidate(
+                actor=self.actor,
+                tenant_id=self.tenant.pk,
+                organization_id=self.organization.pk,
+                candidate_ref=candidate.candidate_ref,
+                image_kind="logo",
+                zoom=1,
+            )
+        self.assertEqual(context.exception.code, "invalid_crop_recipe")
 
     def test_tampered_wrong_user_and_cross_tenant_candidate_refs_are_rejected(self):
         candidate_ref = self.discover()[0].candidate_ref
@@ -661,6 +700,31 @@ class OfficialImageCandidateFlowTests(TestCase):
                 organization_id=self.organization.pk,
                 candidate_ref="unused",
             ),
+            lambda: get_brave_search_context(
+                actor=self.actor,
+                tenant_id=self.tenant.pk,
+                organization_id=self.organization.pk,
+            ),
+            lambda: discover_brave_image_candidates(
+                actor=self.actor,
+                tenant_id=self.tenant.pk,
+                organization_id=self.organization.pk,
+                query="Unused",
+                query_edited=True,
+            ),
+            lambda: create_pasted_url_candidate(
+                actor=self.actor,
+                tenant_id=self.tenant.pk,
+                organization_id=self.organization.pk,
+                image_url="https://example.com/unused.jpg",
+            ),
+            lambda: process_uploaded_image_candidate(
+                actor=self.actor,
+                tenant_id=self.tenant.pk,
+                organization_id=self.organization.pk,
+                upload=BytesIO(self.image),
+                image_kind="photo",
+            ),
             lambda: process_official_image_candidate(
                 actor=self.actor,
                 tenant_id=self.tenant.pk,
@@ -708,6 +772,346 @@ class OfficialImageCandidateFlowTests(TestCase):
         self.assertEqual(ImageRendition.objects.count(), 0)
         self.assertEqual(OrganizationImageSelection.objects.count(), 0)
         self.assertEqual(ImageReviewEvent.objects.count(), 0)
+
+
+@override_settings(IMAGE_ASSET_FEATURE_ENABLED=True)
+class AlternativeImageSourceFlowTests(TestCase):
+    def setUp(self):
+        self.temporary_directory = tempfile.TemporaryDirectory()
+        root = Path(self.temporary_directory.name)
+        self.storage_override = override_settings(
+            STORAGES={
+                "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+                "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+                "image_originals_private": {
+                    "BACKEND": "django.core.files.storage.FileSystemStorage",
+                    "OPTIONS": {"location": root / "private", "base_url": None},
+                },
+                "image_renditions_public": {
+                    "BACKEND": "django.core.files.storage.FileSystemStorage",
+                    "OPTIONS": {"location": root / "artifacts", "base_url": None},
+                },
+            }
+        )
+        self.storage_override.enable()
+        self.tenant = Tenant.objects.create(name="Alternative tenant", slug="alternative-tenant")
+        self.organization = Organization.objects.create(
+            tenant=self.tenant,
+            name="Alternative actor",
+            municipalities="Bodø",
+            is_published=True,
+            publish_phone=True,
+        )
+        self.actor = get_user_model().objects.create_user(username="alternative-editor", password="pw")
+        TenantMembership.objects.create(
+            tenant=self.tenant,
+            user=self.actor,
+            role=TenantMembership.Role.REDIGERER,
+        )
+        self.image = image_bytes()
+
+    def tearDown(self):
+        self.storage_override.disable()
+        self.temporary_directory.cleanup()
+
+    def fake_fetch(self, url, *, expected, **kwargs):
+        return SecureFetchResult(url, url, "image/jpeg", self.image, 0)
+
+    def test_pasted_url_uses_common_preview_processing_and_blank_alt_approval(self):
+        source_url = "https://images.example/actor.jpg?size=large"
+        candidate = create_pasted_url_candidate(
+            actor=self.actor,
+            tenant_id=self.tenant.pk,
+            organization_id=self.organization.pk,
+            image_url=source_url,
+        )
+        self.assertEqual(candidate.source_type, ImageReviewEvent.SourceType.PASTED_URL)
+        self.assertEqual(candidate.source_label, "Direkte bilde-URL")
+
+        with patch("crm.services.images.candidates.fetch_external_resource", side_effect=self.fake_fetch):
+            preview = render_candidate_preview(
+                actor=self.actor,
+                tenant_id=self.tenant.pk,
+                organization_id=self.organization.pk,
+                candidate_ref=candidate.candidate_ref,
+            )
+            processed = process_image_candidate(
+                actor=self.actor,
+                tenant_id=self.tenant.pk,
+                organization_id=self.organization.pk,
+                candidate_ref=candidate.candidate_ref,
+                image_kind="photo",
+            )
+        self.assertEqual(preview.content_type, "image/webp")
+
+        approved = approve_image_candidate(
+            actor=self.actor,
+            tenant_id=self.tenant.pk,
+            organization_id=self.organization.pk,
+            approval_ref=processed.approval_ref,
+            expected_revision=0,
+            alt_text="",
+        )
+        self.assertEqual(approved.selection.alt_text, "")
+        self.assertEqual(approved.event.source_type_snapshot, ImageReviewEvent.SourceType.PASTED_URL)
+        self.assertEqual(approved.event.source_url_snapshot, source_url)
+        self.assertEqual(approved.event.source_page_url_snapshot, "")
+        self.organization.refresh_from_db()
+        self.assertTrue(self.organization.is_published)
+        self.assertTrue(self.organization.publish_phone)
+        self.assertEqual(OrganizationImageRelease.objects.count(), 0)
+
+    def test_upload_process_uses_internal_keys_and_common_approval_without_temp_candidate(self):
+        upload = SimpleUploadedFile(
+            "../../caller-controlled-name.jpg",
+            self.image,
+            content_type="image/jpeg",
+        )
+        processed = process_uploaded_image_candidate(
+            actor=self.actor,
+            tenant_id=self.tenant.pk,
+            organization_id=self.organization.pk,
+            upload=upload,
+            image_kind="photo",
+            focus_x=0.5,
+            focus_y=0.5,
+        )
+        asset = ImageAsset.objects.get(pk=processed.asset_id)
+        self.assertNotIn("caller-controlled-name", asset.private_storage_key)
+        self.assertTrue(asset.private_storage_key.startswith(f"tenants/{self.tenant.pk}/originals/"))
+
+        approved = approve_image_candidate(
+            actor=self.actor,
+            tenant_id=self.tenant.pk,
+            organization_id=self.organization.pk,
+            approval_ref=processed.approval_ref,
+            expected_revision=0,
+            alt_text="",
+        )
+        self.assertEqual(approved.event.source_type_snapshot, ImageReviewEvent.SourceType.UPLOAD)
+        self.assertEqual(approved.event.source_url_snapshot, "")
+        self.assertEqual(approved.event.source_page_url_snapshot, "")
+        self.assertEqual(approved.event.provider_snapshot, "manual_upload")
+        self.assertEqual(ImageAsset.objects.count(), 1)
+        self.assertEqual(ImageRendition.objects.count(), 3)
+        self.assertEqual(OrganizationImageRelease.objects.count(), 0)
+
+    def test_brave_result_metadata_is_transient_and_approval_persists_no_source_urls(self):
+        provider_result = BraveImageResult(
+            image_url="https://images.example/brave.jpg",
+            thumbnail_url="https://thumbs.example/brave.jpg",
+            source_page_url="https://publisher.example/story",
+            source_domain="publisher.example",
+            title="Alternative actor Bodø",
+            publisher="Publisher",
+            width=1600,
+            height=900,
+            provider_index=0,
+        )
+        with patch(
+            "crm.services.images.candidates.search_brave_images",
+            return_value=(provider_result,),
+        ):
+            _, _, candidates = discover_brave_image_candidates(
+                actor=self.actor,
+                tenant_id=self.tenant.pk,
+                organization_id=self.organization.pk,
+                query="Alternative actor Bodø",
+            )
+        with patch("crm.services.images.candidates.fetch_external_resource", side_effect=self.fake_fetch):
+            processed = process_image_candidate(
+                actor=self.actor,
+                tenant_id=self.tenant.pk,
+                organization_id=self.organization.pk,
+                candidate_ref=candidates[0].candidate_ref,
+                image_kind="photo",
+            )
+        approved = approve_image_candidate(
+            actor=self.actor,
+            tenant_id=self.tenant.pk,
+            organization_id=self.organization.pk,
+            approval_ref=processed.approval_ref,
+            expected_revision=0,
+            alt_text="",
+        )
+        self.assertEqual(
+            approved.event.source_type_snapshot,
+            ImageReviewEvent.SourceType.BRAVE_IMAGE_SEARCH,
+        )
+        self.assertEqual(approved.event.provider_snapshot, "brave_image_search")
+        self.assertEqual(approved.event.source_url_snapshot, "")
+        self.assertEqual(approved.event.source_page_url_snapshot, "")
+        event_values = ImageReviewEvent.objects.values().get(pk=approved.event.pk)
+        self.assertNotIn("search_query", event_values)
+        self.assertNotIn("Publisher", str(event_values))
+
+    def test_brave_grid_preview_may_use_thumbnail_but_original_mode_uses_signed_image_url(self):
+        provider_result = BraveImageResult(
+            image_url="https://images.example/original-wide.jpg",
+            thumbnail_url="https://thumbs.example/cropped-square.jpg",
+            source_page_url="https://publisher.example/story",
+            source_domain="publisher.example",
+            title="Alternative actor",
+            publisher="Publisher",
+            width=1800,
+            height=1200,
+            provider_index=0,
+        )
+        with patch(
+            "crm.services.images.candidates.search_brave_images",
+            return_value=(provider_result,),
+        ):
+            _, _, candidates = discover_brave_image_candidates(
+                actor=self.actor,
+                tenant_id=self.tenant.pk,
+                organization_id=self.organization.pk,
+                query="Alternative actor Bodø",
+            )
+
+        fetched_urls = []
+
+        def fetch(url, *, expected, **kwargs):
+            fetched_urls.append(url)
+            return self.fake_fetch(url, expected=expected, **kwargs)
+
+        with patch(
+            "crm.services.images.candidates.fetch_external_resource",
+            side_effect=fetch,
+        ):
+            render_candidate_preview(
+                actor=self.actor,
+                tenant_id=self.tenant.pk,
+                organization_id=self.organization.pk,
+                candidate_ref=candidates[0].candidate_ref,
+            )
+            render_candidate_preview(
+                actor=self.actor,
+                tenant_id=self.tenant.pk,
+                organization_id=self.organization.pk,
+                candidate_ref=candidates[0].candidate_ref,
+                original=True,
+            )
+
+        self.assertEqual(
+            fetched_urls,
+            [provider_result.thumbnail_url, provider_result.image_url],
+        )
+
+        self.client.force_login(self.actor)
+        base = f"/api/tenants/{self.tenant.pk}/organizations/{self.organization.pk}/images"
+        with patch("crm.services.images.candidates.fetch_external_resource") as fetch:
+            for invalid_original in ("true", 1, 0, None, [], {}):
+                with self.subTest(invalid_original=invalid_original):
+                    response = self.client.post(
+                        f"{base}/candidate-preview/",
+                        data={
+                            "candidate_ref": candidates[0].candidate_ref,
+                            "original": invalid_original,
+                        },
+                        content_type="application/json",
+                    )
+                    self.assertEqual(response.status_code, 400)
+                    self.assertEqual(response.json()["code"], "invalid_preview_mode")
+        fetch.assert_not_called()
+
+    def test_original_preview_uses_processing_pixel_limit_while_grid_stays_stricter(self):
+        candidate = create_pasted_url_candidate(
+            actor=self.actor,
+            tenant_id=self.tenant.pk,
+            organization_id=self.organization.pk,
+            image_url="https://images.example/large.jpg",
+        )
+        between_preview_and_processing_limits = image_bytes(size=(4001, 3000))
+
+        with patch(
+            "crm.services.images.candidates.fetch_external_resource",
+            return_value=SecureFetchResult(
+                "https://images.example/large.jpg",
+                "https://images.example/large.jpg",
+                "image/jpeg",
+                between_preview_and_processing_limits,
+                0,
+            ),
+        ):
+            with self.assertRaises(ImageCandidateFlowError) as context:
+                render_candidate_preview(
+                    actor=self.actor,
+                    tenant_id=self.tenant.pk,
+                    organization_id=self.organization.pk,
+                    candidate_ref=candidate.candidate_ref,
+                )
+            self.assertEqual(context.exception.code, "preview_pixel_limit")
+
+            original_preview = render_candidate_preview(
+                actor=self.actor,
+                tenant_id=self.tenant.pk,
+                organization_id=self.organization.pk,
+                candidate_ref=candidate.candidate_ref,
+                original=True,
+            )
+        self.assertLessEqual(max(original_preview.width, original_preview.height), 640)
+
+        over_processing_limit = declared_png(6001, 6000)
+        with patch(
+            "crm.services.images.candidates.fetch_external_resource",
+            return_value=SecureFetchResult(
+                "https://images.example/large.png",
+                "https://images.example/large.png",
+                "image/png",
+                over_processing_limit,
+                0,
+            ),
+        ):
+            with self.assertRaises(ImageCandidateFlowError) as context:
+                render_candidate_preview(
+                    actor=self.actor,
+                    tenant_id=self.tenant.pk,
+                    organization_id=self.organization.pk,
+                    candidate_ref=candidate.candidate_ref,
+                    original=True,
+                )
+        self.assertEqual(context.exception.code, "preview_pixel_limit")
+
+        decompression_bomb = declared_png(20_000, 20_000)
+        with patch(
+            "crm.services.images.candidates.fetch_external_resource",
+            return_value=SecureFetchResult(
+                "https://images.example/bomb.png",
+                "https://images.example/bomb.png",
+                "image/png",
+                decompression_bomb,
+                0,
+            ),
+        ):
+            with self.assertRaises(ImageCandidateFlowError) as context:
+                render_candidate_preview(
+                    actor=self.actor,
+                    tenant_id=self.tenant.pk,
+                    organization_id=self.organization.pk,
+                    candidate_ref=candidate.candidate_ref,
+                    original=True,
+                )
+        self.assertEqual(context.exception.code, "preview_pixel_limit")
+
+    def test_upload_process_endpoint_rejects_reader_before_processing(self):
+        reader = get_user_model().objects.create_user(username="alternative-reader", password="pw")
+        TenantMembership.objects.create(
+            tenant=self.tenant,
+            user=reader,
+            role=TenantMembership.Role.LESER,
+        )
+        self.client.force_login(reader)
+        base = f"/api/tenants/{self.tenant.pk}/organizations/{self.organization.pk}/images"
+        with patch("crm.views.process_uploaded_image_candidate") as process_upload:
+            response = self.client.post(
+                f"{base}/upload-process/",
+                data={
+                    "file": SimpleUploadedFile("actor.jpg", self.image, content_type="image/jpeg"),
+                    "image_kind": "photo",
+                },
+            )
+        self.assertEqual(response.status_code, 403)
+        process_upload.assert_not_called()
 
 
 @override_settings(IMAGE_ASSET_FEATURE_ENABLED=True)
