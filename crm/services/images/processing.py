@@ -12,6 +12,8 @@ from PIL import Image, ImageCms, ImageOps, UnidentifiedImageError
 
 MAX_SOURCE_BYTES = 15 * 1024 * 1024
 MAX_SOURCE_PIXELS = 36_000_000
+MIN_COVER_ZOOM = 1.0
+MAX_COVER_ZOOM = 3.0
 PROCESSING_PROFILE = "phase3c-pillow-v1"
 VALIDATION_VERSION = "phase3c-validation-v1"
 
@@ -67,6 +69,7 @@ class ProcessedImage:
     fit_mode: str
     focus_x: float
     focus_y: float
+    zoom: float
     processing_version: str
 
 
@@ -119,8 +122,9 @@ def normalize_focus(
     if fit_mode not in {"contain", "cover"}:
         raise ImageProcessingError("invalid_fit", "Fit mode must be contain or cover.")
     if fit_mode == "contain":
-        warning = ("focus_ignored_for_contain",) if focus_x is not None or focus_y is not None else ()
-        return 0.5, 0.5, warning
+        if focus_x is not None or focus_y is not None:
+            raise ImageProcessingError("invalid_focus", "Contain processing does not accept focus.")
+        return 0.5, 0.5, ()
     if focus_x is None and focus_y is None:
         return 0.5, 0.5, ()
     if focus_x is None or focus_y is None:
@@ -144,6 +148,27 @@ def normalize_focus(
         float(Decimal(str(y)).quantize(quantum)),
         (),
     )
+
+
+def normalize_zoom(fit_mode: str, zoom: float | None) -> float:
+    if fit_mode not in {"contain", "cover"}:
+        raise ImageProcessingError("invalid_fit", "Fit mode must be contain or cover.")
+    if fit_mode == "contain":
+        if zoom is not None:
+            raise ImageProcessingError("invalid_zoom", "Contain processing does not accept zoom.")
+        return MIN_COVER_ZOOM
+    if zoom is None:
+        return MIN_COVER_ZOOM
+    try:
+        value = float(zoom)
+    except (TypeError, ValueError) as error:
+        raise ImageProcessingError("invalid_zoom", "Zoom must be numeric.") from error
+    if not math.isfinite(value) or not MIN_COVER_ZOOM <= value <= MAX_COVER_ZOOM:
+        raise ImageProcessingError(
+            "invalid_zoom",
+            f"Zoom must be between {MIN_COVER_ZOOM} and {MAX_COVER_ZOOM}.",
+        )
+    return float(Decimal(str(value)).quantize(Decimal("0.0001")))
 
 
 def _normalize_color(image: Image.Image, icc_bytes: bytes | None) -> tuple[Image.Image, str]:
@@ -198,21 +223,20 @@ def _cover_crop_box(
     source_size: tuple[int, int],
     target_size: tuple[int, int],
     focus: tuple[float, float],
+    zoom: float = MIN_COVER_ZOOM,
 ) -> tuple[int, int, int, int]:
     source_width, source_height = source_size
     target_width, target_height = target_size
     source_ratio = source_width / source_height
     target_ratio = target_width / target_height
     if source_ratio > target_ratio:
-        crop_height = source_height
+        crop_height = max(1, round(source_height / zoom))
         crop_width = max(1, round(crop_height * target_ratio))
-        left = min(max(0, round(focus[0] * source_width - crop_width / 2)), source_width - crop_width)
-        top = 0
     else:
-        crop_width = source_width
+        crop_width = max(1, round(source_width / zoom))
         crop_height = max(1, round(crop_width / target_ratio))
-        left = 0
-        top = min(max(0, round(focus[1] * source_height - crop_height / 2)), source_height - crop_height)
+    left = min(max(0, round(focus[0] * source_width - crop_width / 2)), source_width - crop_width)
+    top = min(max(0, round(focus[1] * source_height - crop_height / 2)), source_height - crop_height)
     return left, top, left + crop_width, top + crop_height
 
 
@@ -231,8 +255,9 @@ def _render_cover(
     image: Image.Image,
     target: tuple[int, int],
     focus: tuple[float, float],
+    zoom: float,
 ) -> Image.Image:
-    crop = _cover_crop_box(image.size, target, focus)
+    crop = _cover_crop_box(image.size, target, focus, zoom)
     crop_width = crop[2] - crop[0]
     crop_height = crop[3] - crop[1]
     if crop_width < target[0] or crop_height < target[1]:
@@ -291,6 +316,7 @@ def process_uploaded_image(
     fit_mode: str,
     focus_x: float | None = None,
     focus_y: float | None = None,
+    zoom: float | None = None,
 ) -> ProcessedImage:
     original_bytes = read_upload_bounded(upload)
     source_checksum = checksum_bytes(original_bytes)
@@ -306,6 +332,7 @@ def process_uploaded_image(
         focus_x,
         focus_y,
     )
+    normalized_zoom = normalize_zoom(fit_mode, zoom)
 
     try:
         with warnings.catch_warnings():
@@ -351,7 +378,12 @@ def process_uploaded_image(
         rendered = (
             _render_contain(normalized, target)
             if fit_mode == "contain"
-            else _render_cover(normalized, target, (normalized_focus_x, normalized_focus_y))
+            else _render_cover(
+                normalized,
+                target,
+                (normalized_focus_x, normalized_focus_y),
+                normalized_zoom,
+            )
         )
         output_format = "png" if fit_mode == "contain" else "jpeg" if variant == "share" else "webp"
         encoded = _encode(rendered, output_format)
@@ -384,5 +416,6 @@ def process_uploaded_image(
         fit_mode=fit_mode,
         focus_x=normalized_focus_x,
         focus_y=normalized_focus_y,
+        zoom=normalized_zoom,
         processing_version=PROCESSING_PROFILE,
     )

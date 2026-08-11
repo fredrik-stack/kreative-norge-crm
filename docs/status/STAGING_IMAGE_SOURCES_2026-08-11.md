@@ -1,6 +1,6 @@
 # Fase 3D.2 – stagingverifisering 2026-08-11
 
-**Status:** teknisk stagingverifisering gjennomført for direkte URL, multipart-upload, private previews, processing, valgfri alttekst, storage og PUBLIC-regresjon. Brave live-søk og prosjekteiers visuelle UI-gate er ikke godkjent.
+**Status:** første tekniske stagingverifisering er gjennomført for direkte URL, multipart-upload, private previews, processing, valgfri alttekst, storage og PUBLIC-regresjon. Prosjekteiers påfølgende visuelle test godkjente grunnreisen og bestilte presis fokus/zoom; oppfølgingen venter på ny stagingdeploy og visuell retest. Brave-parametere/copy er godkjent, men live-søk venter på servercredential.
 
 ## Leveransegrunnlag
 
@@ -59,7 +59,11 @@ Codex stagingtest 3D.2 2026-08-11 Bodø
 
 Querykildene var eksakt `organization_name,municipality`. Dette bekrefter hovedregelen om lagret aktørnavn som basis og automatisk kommune bare når nøyaktig én kommune finnes. Automatiserte backend-/frontendtester dekker i tillegg flere kommuner uten default, eksplisitt kategori/person, aldri tags eller AI, og at første manuelle tekstendring nullstiller alle strukturerte refinements og gir bare `manual_edit`-proveniens.
 
-Brave-kallet returnerte kontrollert `503` med `brave_not_configured`. Live providerrespons er derfor ikke verifisert. Nøkkelen skal fortsatt være tom frem til både credential og avtale-/personverngaten for de gjeldende Brave-vilkårene punkt 4(c) er eiergodkjent.
+Brave-kallet returnerte kontrollert `503` med `brave_not_configured`. Live providerrespons er derfor ikke verifisert. Prosjekteier har senere godkjent providerparametrene og privacy-/rettighetscopyen. En ny sikker kontroll fant fortsatt ingen credential lokalt eller i staging-runtime; en gyldig nøkkel må installeres server-side før live-test. Avtaleeier må samtidig sikre skriftlige sluttbrukerforpliktelser etter gjeldende standardvilkår punkt 3(b).
+
+## Prosjekteiers visuelle oppfølging og bestilt retting
+
+Prosjekteier bekreftet etter første deploy at official discovery, direkte URL, upload, private previews, fokusforvalg, blank alttekst og uendret PUBLIC fungerer visuelt. Testen avdekket at teknisk tomtilstandstekst måtte erstattes, og at de ni fokusforvalgene var for grove. Oppfølgingen på samme draft-PR implementerer derfor vanlig språk, tydelig Foto/Logo-forskjell, presis X/Y, 100–300 % Foto-zoom, reset og felles live/server-cropgeometri. Additiv migrasjon `0028` gir eksisterende rendition-sett zoom `1.0000`. Ny backup, deploy, teknisk staginggate og visuell eierretest dokumenteres i dette dokumentet når de faktisk er utført.
 
 Direkte URL-flyten gjennomførte:
 
@@ -107,6 +111,6 @@ Prosjekteier skal teste [staging](https://staging.northernsound.no/) slik:
 7. Trykk `Prosesser valgt bilde` og kontroller serverens faktiske Kvadrat-, Landskap- og Deling-preview. La alttekst stå tom. `Godkjenn og erstatt bilde` skal være aktiv uten skjult navnefallback. Godkjenn bare dersom du ønsker en ny testrevisjon.
 8. Gjenta med `Last opp bilde` og en statisk JPEG, PNG eller WebP under 15 MiB. Kontroller samme fokus- og previewreise. En fil over grensen skal gi den norske meldingen om maks 15 MB.
 9. Åpne [PUBLIC-oversikten](https://staging.northernsound.no/public/actors/) og kontroller at den nye testaktøren ikke vises, at eksisterende legacybilder er uendret, og at ingen ny intern rendition er offentlig tilgjengelig.
-10. Godkjenn separat at `search_lang=nb` erstatter oppgavens ugyldige `no`, fordi Braves offisielle enum støtter `nb`, men ikke `no`. Avklar også skriftlige redaktørforpliktelser og nødvendige personvernvarsler/samtykker før en Brave-nøkkel aktiveres.
+10. `search_lang=nb` er eiergodkjent fordi Braves offisielle enum støtter `nb`, men ikke `no`. Før en nøkkel installeres skal avtaleeier sikre de skriftlige redaktørforpliktelsene som følger av gjeldende standardvilkår punkt 3(b).
 
 Ingen produksjonssetting eller merge er utført.

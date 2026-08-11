@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -20,7 +20,7 @@ vi.mock("../api", async () => {
   return { ...actual, ...api };
 });
 
-import { OrganizationImagePanel } from "./OrganizationsPage";
+import { calculateCoverCrop, OrganizationImagePanel } from "./OrganizationsPage";
 import { ApiError } from "../api";
 
 function deferred<T>() {
@@ -127,14 +127,14 @@ describe("OrganizationImagePanel", () => {
       });
 
     render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Kreativ Demo AS" />);
-    expect(await screen.findByText("Ingen aktiv bildeselection.")).toBeInTheDocument();
+    expect(await screen.findByText("Ingen aktivt valgt bilde ennå.")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Finn bilder" }));
     expect(await screen.findByText("official.example")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /Open Graph/ }));
     await userEvent.click(screen.getByRole("button", { name: "Prosesser valgt bilde" }));
 
-    expect(await screen.findByLabelText("Intern processing-preview")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Serverens bildeformater")).toBeInTheDocument();
     expect(api.getRenditionPreview).toHaveBeenCalledTimes(3);
     expect(screen.getByText(/untagged_assumed_srgb/)).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText(/Alt-tekst/), "Offisielt foto");
@@ -147,13 +147,14 @@ describe("OrganizationImagePanel", () => {
       alt_text: "Offisielt foto",
       public_credit: "Fotograf",
     }));
-    expect(await screen.findByText("Aktivt låst bilde · revisjon 1")).toBeInTheDocument();
+    expect(await screen.findByText("Aktivt bilde")).toBeInTheDocument();
+    expect(screen.getByText("Revisjon 1")).toBeInTheDocument();
   });
 
   it("shows controlled discovery errors", async () => {
     api.discoverOfficialImages.mockRejectedValue(new Error("network"));
     render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Kreativ Demo AS" />);
-    await screen.findByText("Ingen aktiv bildeselection.");
+    await screen.findByText("Ingen aktivt valgt bilde ennå.");
     await userEvent.click(screen.getByRole("button", { name: "Finn bilder" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Bildehandlingen kunne ikke fullføres");
   });
@@ -161,11 +162,14 @@ describe("OrganizationImagePanel", () => {
   it("does not send focus when Logo is selected", async () => {
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:test");
     render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Kreativ Demo AS" />);
-    await screen.findByText("Ingen aktiv bildeselection.");
+    await screen.findByText("Ingen aktivt valgt bilde ennå.");
     await userEvent.click(screen.getByRole("button", { name: "Finn bilder" }));
     await userEvent.click(await screen.findByRole("button", { name: /Open Graph/ }));
     await userEvent.selectOptions(screen.getByLabelText("Bildetype"), "logo");
-    expect(screen.queryByLabelText(/Fokus X/)).not.toBeInTheDocument();
+    expect(screen.getByText("Logo viser hele motivet uten beskjæring.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Zoom")).not.toBeInTheDocument();
+    expect(screen.queryByText("Finjuster utsnitt")).not.toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Forhåndsvisning av hele logoen" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Prosesser valgt bilde" }));
     await waitFor(() => expect(api.processOrganizationImage).toHaveBeenCalledWith(1, 10, {
       candidate_ref: "candidate-ref",
@@ -213,18 +217,18 @@ describe("OrganizationImagePanel", () => {
         organizationName="Organisasjon B"
       />,
     );
-    expect(await screen.findByText("Ingen aktiv bildeselection.")).toBeInTheDocument();
+    expect(await screen.findByText("Ingen aktivt valgt bilde ennå.")).toBeInTheDocument();
 
     latePreview.resolve(new Blob(["late-a"], { type: "image/webp" }));
     await waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:late-a"));
     expect(screen.queryByText("Bilde fra organisasjon A")).not.toBeInTheDocument();
-    expect(screen.getByText("Ingen aktiv bildeselection.")).toBeInTheDocument();
+    expect(screen.getByText("Ingen aktivt valgt bilde ennå.")).toBeInTheDocument();
   });
 
   it("requires new processing after focus or image kind changes", async () => {
     vi.mocked(URL.createObjectURL).mockReturnValue("blob:test");
     render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Kreativ Demo AS" />);
-    await screen.findByText("Ingen aktiv bildeselection.");
+    await screen.findByText("Ingen aktivt valgt bilde ennå.");
     await userEvent.click(screen.getByRole("button", { name: "Finn bilder" }));
     await userEvent.click(await screen.findByRole("button", { name: /Open Graph/ }));
     await userEvent.click(screen.getByRole("button", { name: "Prosesser valgt bilde" }));
@@ -245,10 +249,52 @@ describe("OrganizationImagePanel", () => {
     expect(api.processOrganizationImage).toHaveBeenCalledTimes(3);
   });
 
+  it("uses presets and precise focus and zoom in the same live crop recipe", async () => {
+    vi.mocked(URL.createObjectURL).mockReturnValue("blob:test");
+    render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Kreativ Demo AS" />);
+    await screen.findByText("Ingen aktivt valgt bilde ennå.");
+    await userEvent.click(screen.getByRole("button", { name: "Finn bilder" }));
+    await userEvent.click(await screen.findByRole("button", { name: /Open Graph/ }));
+
+    const previews = screen.getAllByRole("img", { name: /Live crop-preview/ });
+    previews.forEach((preview) => {
+      Object.defineProperty(preview, "naturalWidth", { configurable: true, value: 1600 });
+      Object.defineProperty(preview, "naturalHeight", { configurable: true, value: 900 });
+      fireEvent.load(preview);
+    });
+    const initialStyles = previews.map((preview) => preview.getAttribute("style"));
+
+    await userEvent.click(screen.getByText("Finjuster utsnitt"));
+    fireEvent.change(screen.getByLabelText("Horisontal plassering"), { target: { value: "0.37" } });
+    fireEvent.change(screen.getByLabelText("Vertikal plassering"), { target: { value: "0.68" } });
+    fireEvent.change(screen.getByLabelText("Zoom"), { target: { value: "1.75" } });
+
+    expect(screen.getByText("Horisontal plassering: 37 %")).toBeInTheDocument();
+    expect(screen.getByText("Vertikal plassering: 68 %")).toBeInTheDocument();
+    expect(screen.getByText("Zoom: 175 %")).toBeInTheDocument();
+    previews.forEach((preview, index) => expect(preview.getAttribute("style")).not.toBe(initialStyles[index]));
+
+    await userEvent.click(screen.getByRole("button", { name: "Prosesser valgt bilde" }));
+    await waitFor(() => expect(api.processOrganizationImage).toHaveBeenCalledWith(1, 10, {
+      candidate_ref: "candidate-ref",
+      image_kind: "photo",
+      focus_x: 0.37,
+      focus_y: 0.68,
+      zoom: 1.75,
+    }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Tilbakestill utsnitt" }));
+    expect(screen.getByLabelText("Horisontal plassering")).toHaveValue("0.5");
+    expect(screen.getByLabelText("Vertikal plassering")).toHaveValue("0.5");
+    expect(screen.getByLabelText("Zoom")).toHaveValue("1");
+    expect(within(screen.getByRole("group", { name: "Horisontalt" })).getByRole("button", { name: "Midt" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(screen.getByRole("group", { name: "Vertikalt" })).getByRole("button", { name: "Midt" })).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("runs direct URL through private preview, live crop, processing, and blank-alt approval", async () => {
     vi.mocked(URL.createObjectURL).mockReturnValue("blob:test");
     render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Kreativ Demo AS" />);
-    await screen.findByText("Ingen aktiv bildeselection.");
+    await screen.findByText("Ingen aktivt valgt bilde ennå.");
 
     expect(screen.queryByRole("button", { name: "Lim inn bilde-URL" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Finn bilder" }));
@@ -267,9 +313,7 @@ describe("OrganizationImagePanel", () => {
     const vertical = screen.getByRole("group", { name: "Vertikalt" });
     await userEvent.click(within(horizontal).getByRole("button", { name: "Høyre" }));
     await userEvent.click(within(vertical).getByRole("button", { name: "Bunn" }));
-    screen.getAllByRole("img", { name: /Live crop-preview/ }).forEach((preview) => {
-      expect(preview).toHaveStyle({ objectPosition: "100% 100%" });
-    });
+    expect(screen.getByText("Foto fyller hele bildeflaten og kan derfor beskjæres. Bruk fokus og zoom for å styre utsnittet.")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Prosesser valgt bilde" }));
     await waitFor(() => expect(api.processOrganizationImage).toHaveBeenCalledWith(1, 10, {
@@ -277,6 +321,7 @@ describe("OrganizationImagePanel", () => {
       image_kind: "photo",
       focus_x: 1,
       focus_y: 1,
+      zoom: 1,
     }));
     expect(await screen.findByRole("textbox", { name: /Alt-tekst \(valgfritt\)/ })).toHaveValue("");
     await userEvent.click(screen.getByRole("button", { name: "Godkjenn og lås bilde" }));
@@ -315,9 +360,13 @@ describe("OrganizationImagePanel", () => {
     });
 
     render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Kreativ Demo AS" />);
-    await screen.findByText("Ingen aktiv bildeselection.");
+    await screen.findByText("Ingen aktivt valgt bilde ennå.");
     await userEvent.click(screen.getByRole("button", { name: "Finn bilder" }));
     await userEvent.click(screen.getByRole("button", { name: "Søk etter flere bilder" }));
+
+    expect(await screen.findByText(
+      "Bildesøket utføres via Brave Search. Søketeksten sendes til Brave og kan lagres der i opptil 90 dager. Ikke skriv sensitiv eller intern informasjon i søket.",
+    )).toBeInTheDocument();
 
     const query = await screen.findByLabelText("Forslått søk");
     expect(query).toHaveValue("Kreativ Demo AS");
@@ -341,6 +390,7 @@ describe("OrganizationImagePanel", () => {
       query_edited: true,
     }));
     expect(await screen.findByText("Kreativ Demo på scenen")).toBeInTheDocument();
+    expect(screen.getByText("Bildesøk viser forslag fra nettet. Kontroller at bildet kan brukes før du godkjenner det.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Prosesser valgt bilde" })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Tilbakestill til forslag" }));
@@ -382,7 +432,7 @@ describe("OrganizationImagePanel", () => {
     );
 
     render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Kreativ Demo AS" />);
-    await screen.findByText("Ingen aktiv bildeselection.");
+    await screen.findByText("Ingen aktivt valgt bilde ennå.");
     await userEvent.click(screen.getByRole("button", { name: "Finn bilder" }));
     await userEvent.click(screen.getByRole("button", { name: "Søk etter flere bilder" }));
     await screen.findByLabelText("Forslått søk");
@@ -408,7 +458,7 @@ describe("OrganizationImagePanel", () => {
   it("creates a browser-local upload candidate and sends the selected file only at processing", async () => {
     vi.mocked(URL.createObjectURL).mockReturnValue("blob:upload");
     render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Kreativ Demo AS" />);
-    await screen.findByText("Ingen aktiv bildeselection.");
+    await screen.findByText("Ingen aktivt valgt bilde ennå.");
     await userEvent.click(screen.getByRole("button", { name: "Finn bilder" }));
     await userEvent.click(screen.getByRole("button", { name: "Last opp bilde" }));
 
@@ -426,6 +476,7 @@ describe("OrganizationImagePanel", () => {
       image_kind: "photo",
       focus_x: 0.5,
       focus_y: 0.5,
+      zoom: 1,
     }));
   });
 
@@ -435,7 +486,7 @@ describe("OrganizationImagePanel", () => {
       new ApiError(413, "API 413", "Request Entity Too Large"),
     );
     render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Kreativ Demo AS" />);
-    await screen.findByText("Ingen aktiv bildeselection.");
+    await screen.findByText("Ingen aktivt valgt bilde ennå.");
     await userEvent.click(screen.getByRole("button", { name: "Finn bilder" }));
     await userEvent.click(screen.getByRole("button", { name: "Last opp bilde" }));
 
@@ -460,7 +511,7 @@ describe("OrganizationImagePanel", () => {
       },
     );
     render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Kreativ Demo AS" />);
-    await screen.findByText("Ingen aktiv bildeselection.");
+    await screen.findByText("Ingen aktivt valgt bilde ennå.");
     await userEvent.click(screen.getByRole("button", { name: "Finn bilder" }));
     await userEvent.click(screen.getByRole("button", { name: "Lim inn bilde-URL" }));
     await userEvent.type(screen.getByRole("textbox", { name: "Direkte bilde-URL" }), "https://example.com/page");
@@ -494,7 +545,7 @@ describe("OrganizationImagePanel", () => {
     });
 
     render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Kreativ Demo AS" />);
-    await screen.findByText("Ingen aktiv bildeselection.");
+    await screen.findByText("Ingen aktivt valgt bilde ennå.");
     await userEvent.click(screen.getByRole("button", { name: "Finn bilder" }));
     await waitFor(() => expect(api.getCandidatePreview).toHaveBeenCalledTimes(4));
     await act(async () => {
@@ -504,5 +555,17 @@ describe("OrganizationImagePanel", () => {
     await act(async () => {
       previews.slice(1).forEach((preview) => preview.resolve(new Blob(["preview"], { type: "image/webp" })));
     });
+  });
+});
+
+describe("calculateCoverCrop", () => {
+  it.each([
+    [[1600, 900], [512, 512], 0.5, 0.5, 1, { left: 350, top: 0, width: 900, height: 900 }],
+    [[1600, 900], [512, 512], 0, 0, 2, { left: 0, top: 0, width: 450, height: 450 }],
+    [[1600, 900], [512, 512], 1, 1, 2, { left: 1150, top: 450, width: 450, height: 450 }],
+    [[1000, 1600], [512, 512], 0.5, 0.5, 1, { left: 0, top: 300, width: 1000, height: 1000 }],
+    [[1600, 900], [800, 450], 0.5, 0.5, 2, { left: 400, top: 225, width: 800, height: 450 }],
+  ] as const)("matches the server crop contract for %#", (source, target, focusX, focusY, zoom, expected) => {
+    expect(calculateCoverCrop(source, target, focusX, focusY, zoom)).toEqual(expected);
   });
 });

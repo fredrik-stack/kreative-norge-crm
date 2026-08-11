@@ -439,6 +439,7 @@ class OfficialImageCandidateFlowTests(TestCase):
         rendition_set = ImageRenditionSet.objects.get(pk=first.rendition_set_id)
         self.assertEqual(rendition_set.fit_mode, "cover")
         self.assertEqual((float(rendition_set.focus_x), float(rendition_set.focus_y)), (0.5, 0.5))
+        self.assertEqual(float(rendition_set.zoom), 1.0)
         self.assertEqual(OrganizationImageSelection.objects.count(), 0)
         self.assertEqual(ImageReviewEvent.objects.count(), 0)
         self.assertEqual(OrganizationImageRelease.objects.count(), 0)
@@ -455,6 +456,21 @@ class OfficialImageCandidateFlowTests(TestCase):
                 image_kind="logo",
             )
         self.assertEqual(ImageRenditionSet.objects.get(pk=result.rendition_set_id).fit_mode, "contain")
+
+    def test_photo_zoom_is_persisted_and_logo_crop_recipe_is_rejected(self):
+        candidate = self.discover()[0]
+        zoomed = self.process(candidate.candidate_ref, focus_x=0.4, focus_y=0.6, zoom=1.1)
+        self.assertEqual(float(ImageRenditionSet.objects.get(pk=zoomed.rendition_set_id).zoom), 1.1)
+        with self.assertRaises(ImageCandidateFlowError) as context:
+            process_official_image_candidate(
+                actor=self.actor,
+                tenant_id=self.tenant.pk,
+                organization_id=self.organization.pk,
+                candidate_ref=candidate.candidate_ref,
+                image_kind="logo",
+                zoom=1,
+            )
+        self.assertEqual(context.exception.code, "invalid_crop_recipe")
 
     def test_tampered_wrong_user_and_cross_tenant_candidate_refs_are_rejected(self):
         candidate_ref = self.discover()[0].candidate_ref

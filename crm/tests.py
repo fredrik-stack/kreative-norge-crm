@@ -3064,6 +3064,7 @@ class ImageDomainModelTests(TestCase):
                 "fit_mode",
                 "focus_x",
                 "focus_y",
+                "zoom",
                 "processing_version",
                 "render_config_hash_sha256",
             },
@@ -3216,6 +3217,7 @@ class ImageDomainModelTests(TestCase):
         rendition_set = self.create_rendition_set(asset=asset)
         self.assertEqual(rendition_set.focus_x, 0.5)
         self.assertEqual(rendition_set.focus_y, 0.5)
+        self.assertEqual(rendition_set.zoom, 1)
         self.assertEqual(
             set(ImageRenditionSet.FitMode.values),
             {"cover", "contain"},
@@ -3271,6 +3273,31 @@ class ImageDomainModelTests(TestCase):
                             asset=asset,
                             render_hash=self.checksum_a,
                             **{field_name: invalid_value},
+                        )
+
+    def test_rendition_set_zoom_is_inclusive_and_database_constrained(self):
+        lower = self.create_rendition_set(zoom=1)
+        upper_asset = self.create_asset(storage_key="assets/zoom-upper.jpeg", checksum=self.checksum_b)
+        upper = self.create_rendition_set(
+            asset=upper_asset,
+            render_hash=self.checksum_c,
+            zoom=3,
+        )
+        self.assertEqual(lower.zoom, 1)
+        self.assertEqual(upper.zoom, 3)
+
+        for invalid_value in (0.9999, 3.0001):
+            with self.subTest(invalid_value=invalid_value):
+                asset = self.create_asset(
+                    storage_key=f"assets/zoom-{str(invalid_value).replace('.', '_')}.jpeg",
+                    checksum=self.checksum_c,
+                )
+                with self.assertRaises(IntegrityError):
+                    with transaction.atomic():
+                        self.create_rendition_set(
+                            asset=asset,
+                            render_hash=self.checksum_a,
+                            zoom=invalid_value,
                         )
 
     def test_rendition_choices_uniqueness_and_rendition_set_protection(self):

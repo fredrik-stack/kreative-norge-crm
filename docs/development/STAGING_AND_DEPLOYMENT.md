@@ -40,7 +40,7 @@ Serveren bruker fortsatt eldre Docker Compose `1.29.2`. Denne økten oppgraderte
 Fase 3D.2-commit `971a9c0` er deployet til staging etter følgende gjennomførte gater:
 
 1. fersk Borg-backup ble tatt og fullført grønt før deploy
-2. beholde `BRAVE_IMAGE_SEARCH_API_KEY` tom frem til prosjekteier eller annen avtaleeier har dokumentert redaktørenes dekning under Braves gjeldende standardvilkår punkt 4(c), samt nødvendige personvernvarsler eller samtykker; etter godkjenning er nøkkelen fortsatt en server-side verdi i den ignorerte `.env.staging` og skal aldri legges i `VITE_`-variabler, frontend-buildargumenter, API-responser eller logger
+2. installere en eventuell gyldig `BRAVE_IMAGE_SEARCH_API_KEY` bare direkte i serverens ignorerte `/srv/kreative-norge-crm/.env.staging`; nøkkelen skal aldri legges i Git, chat, PR, `.env.staging.example`, `VITE_`-variabler, frontend-buildargumenter, API-responser eller logger, og runtimekontrollen skal bare rapportere configured/missing. Sikker kontroll 2026-08-11 fant ingen credential, så live providerverifisering gjenstår. Avtaleeier må fortsatt sikre skriftlige sluttbrukerforpliktelser etter gjeldende Brave-vilkår punkt 3(b)
 3. Compose gir fortsatt `.env.staging` til `api` via `env_file`, uten frontendvariabel eller buildargument for nøkkelen
 4. nginx laster `client_max_body_size 16m`, som gir headroom for applikasjonens 15 MiB kildefilgrense og multipart-overhead
 5. direkte URL, faktisk multipart-upload, private previews, processing, blank alttekst, storage og PUBLIC-regresjon er teknisk verifisert; manglende nøkkel gir kontrollert `503`/`brave_not_configured`, og live-verifikasjonen av Brave-sporet står blokkert

@@ -378,6 +378,7 @@ export async function processOrganizationImage(
     image_kind: "photo" | "logo";
     focus_x?: number;
     focus_y?: number;
+    zoom?: number;
   },
 ): Promise<ProcessedOrganizationImage> {
   return request<ProcessedOrganizationImage>(organizationImagePath(tenantId, organizationId, "process"), {
@@ -394,6 +395,7 @@ export async function processUploadedOrganizationImage(
     image_kind: "photo" | "logo";
     focus_x?: number;
     focus_y?: number;
+    zoom?: number;
   },
 ): Promise<ProcessedOrganizationImage> {
   const form = new FormData();
@@ -401,6 +403,7 @@ export async function processUploadedOrganizationImage(
   form.append("image_kind", payload.image_kind);
   if (typeof payload.focus_x === "number") form.append("focus_x", String(payload.focus_x));
   if (typeof payload.focus_y === "number") form.append("focus_y", String(payload.focus_y));
+  if (typeof payload.zoom === "number") form.append("zoom", String(payload.zoom));
   return request<ProcessedOrganizationImage>(organizationImagePath(tenantId, organizationId, "upload-process"), {
     method: "POST",
     body: form,

@@ -381,6 +381,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 image_kind=request.data.get("image_kind"),
                 focus_x=request.data.get("focus_x"),
                 focus_y=request.data.get("focus_y"),
+                zoom=request.data.get("zoom"),
             )
             return Response(
                 {
@@ -412,6 +413,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 image_kind=request.data.get("image_kind"),
                 focus_x=request.data.get("focus_x"),
                 focus_y=request.data.get("focus_y"),
+                zoom=request.data.get("zoom"),
             )
             return Response(
                 {

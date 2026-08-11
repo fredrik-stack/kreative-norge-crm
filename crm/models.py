@@ -293,6 +293,7 @@ class ImageRenditionSet(models.Model):
     fit_mode = models.CharField(max_length=8, choices=FitMode.choices)
     focus_x = models.DecimalField(max_digits=5, decimal_places=4, default=Decimal("0.5000"))
     focus_y = models.DecimalField(max_digits=5, decimal_places=4, default=Decimal("0.5000"))
+    zoom = models.DecimalField(max_digits=5, decimal_places=4, default=Decimal("1.0000"))
     processing_version = models.CharField(max_length=64)
     render_config_hash_sha256 = models.CharField(max_length=64, validators=[validate_sha256])
     created_at = models.DateTimeField(auto_now_add=True)
@@ -310,6 +311,10 @@ class ImageRenditionSet(models.Model):
             models.CheckConstraint(
                 condition=models.Q(focus_y__gte=0, focus_y__lte=1),
                 name="image_rset_focus_y_range",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(zoom__gte=1, zoom__lte=3),
+                name="image_rset_zoom_range",
             ),
         ]
 

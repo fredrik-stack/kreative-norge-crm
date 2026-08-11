@@ -414,7 +414,9 @@ Fallback-nøkkelen skal versjoneres når navn, hovedkategori, renderer eller des
 - Foto bruker `cover` og det lagrede fokuspunktet.
 - Sentrum er standard fokus når et bedre punkt ikke er valgt.
 - Editor tilbyr for Foto de diskrete fokusforvalgene Venstre/Midt/Høyre og Topp/Midt/Bunn, tilsvarende normaliserte verdier `0`, `0.5` og `1` per akse.
-- Klientens live crop-preview er veiledende. Etter eksplisitt processing er serverens faktiske `square`-, `landscape`- og `share`-renditions autoritativ fasit før approval.
+- Editor tilbyr i tillegg presis X/Y-finjustering og Foto-zoom fra `1.0000` til `3.0000`, der `1.0000` er det største cover-utsnittet uten tom flate og høyere verdi zoomer inn.
+- Fokus og zoom er én immutable Foto-renderoppskrift. Hurtigvalgene endrer de samme normaliserte fokusverdiene som presisjonskontrollene; Logo/contain avviser fokus og zoom.
+- Klientens live crop-preview bruker samme kantklampede cover-geometri per aspect ratio som serveren. Etter eksplisitt processing er serverens faktiske `square`-, `landscape`- og `share`-renditions autoritativ fasit før approval.
 - Bilder skal ikke strekkes eller skaleres opp automatisk for å skjule for lav kildeoppløsning.
 - Når nødvendig rendition ikke kan produseres uten oppskalering, skal flyten be om en bedre kilde, velge et annet bilde eller bruke en kontrollert Kreative Norge-komposisjon eller fallback.
 - Square, landscape og share bruker samme godkjente original, fit og fokusintensjon.
@@ -581,7 +583,7 @@ Provideradapteren bruker `GET https://api.search.brave.com/res/v1/images/search`
 
 Denne app-retensjonen er ikke det samme som providerens logging. Braves [privacy policy](https://api-dashboard.search.brave.com/privacy-policy) opplyser at standard query-logger kan beholdes i opptil 90 dager. Zero Data Retention krever Enterprise/egen avtale og er ikke aktivert eller dokumentert for denne leveransen.
 
-Live provideraktivering har i tillegg en eksplisitt avtale-/personverngate. Før en Brave-nøkkel legges inn i staging eller et senere miljø skal prosjekteier eller annen avtaleeier dokumentere hvordan redaktørene omfattes av de gjeldende standardvilkårene, herunder punkt 4(c) om skriftlige sluttbrukerforpliktelser der redaktørene klassifiseres som `End Users`, og hvilke personvernvarsler eller samtykker som kreves for querydata som kan inneholde personnavn eller manuelt skrevet tekst. En teknisk fungerende nøkkel eller et grønt mockbasert CI-løp oppfyller ikke denne gaten alene.
+Live provideraktivering har i tillegg en operativ avtaleplikt. Prosjekteier har godkjent providerparametrene og den synlige privacy-/rettighetscopyen. Før en Brave-nøkkel legges inn i staging eller et senere miljø skal prosjekteier eller annen avtaleeier fortsatt sikre at redaktørene omfattes av skriftlige sluttbrukerforpliktelser etter de gjeldende standardvilkårene punkt 3(b), og vurdere eventuelle lovpålagte varsler eller samtykker for querydata. Dette krever ikke en egen samtykkemotor i bildedomenet. En teknisk fungerende nøkkel eller et grønt mockbasert CI-løp oppfyller ikke avtaleplikten alene.
 
 Direkte URL går gjennom samme normalisering, sikre fetch, preview og processing som official/Brave. Upload går direkte gjennom samme begrensede ingest-/processingprofil. URL-er som kan lagres som tillatt proveniens renses slik at credentials, fragmenter eller kjente signatur-/tokenparametre ikke lagres utilsiktet.
 
@@ -701,7 +703,7 @@ Processing profile v1 er:
 | Dynamisk fallback `square`/`landscape` | relevant variantstørrelse | WebP |
 | Fallback `share` | 1200 × 630 | JPEG |
 
-Format, encoderinnstillinger, source checksum, fit, normalisert fokus, renditionvariant og processing-version inngår i immutable key. Endring av en av disse verdiene gir ny key og overskriver aldri historisk output. AVIF er utsatt og er ikke et MVP-krav.
+Format, encoderinnstillinger, source checksum, fit, normalisert fokus, normalisert Foto-zoom, renditionvariant og processing-version inngår i immutable key. Endring av en av disse verdiene gir ny key og overskriver aldri historisk output. AVIF er utsatt og er ikke et MVP-krav.
 
 Offentlige renditions følger denne godkjente MVP-kontrakten:
 
@@ -723,7 +725,7 @@ Profilfri sRGB-normalisert output er valgt for MVP fordi den representative kjø
 #### Fit, fokus, oppskalering og metadata
 
 - Logo bruker `contain` og skal ikke kuttes eller strekkes.
-- Foto bruker `cover` og lagret normalisert fokuspunkt; sentrum er standard.
+- Foto bruker `cover`, lagret normalisert fokuspunkt og zoom; sentrum og `1.0000` er standard.
 - EXIF-orientering skjer før crop.
 - Sensitive metadata fjernes fra offentlige renditions.
 - Ingen kildepiksler skaleres opp automatisk. For lavt reelt cropområde håndteres med bedre kilde, annet bilde eller kontrollert komposisjon/fallback, ikke et uskarpt offentlig bilde.
@@ -1229,14 +1231,14 @@ Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkj
 
 ### Fase 3D: Editor-flyt for aktørbilde
 
-**Implementeringsstatus 2026-08-11:** Fase 3D.1 er implementert bak miljøstyrt featuregate med official website/Open Graph-discovery, transient signert kandidat, ephemeral kandidat-preview, valgt 3C.7-processing, intern rendition-preview og eksplisitt first lock/replacement. Den interne host-persistente storage-runtimeen er teknisk aktivert, backup-/restore-verifisert og visuelt godkjent for 3D.1 i staging. Kode-default er fortsatt avslått og public serving er uendret. Fase 3D.2 er implementert og målrettet backendtestet på aktiv featurebranch med Brave, limt URL, upload, fokusforvalg, live Foto-crop, norske feil og valgfri asset-alttekst. 3D.2 er ikke CI- eller stagingverifisert og ikke visuelt godkjent av prosjekteier. Systemfallback-/historikk-UI, takedownforberedelse og public projection er fortsatt ikke implementert.
+**Implementeringsstatus 2026-08-11:** Fase 3D.1 er implementert bak miljøstyrt featuregate med official website/Open Graph-discovery, transient signert kandidat, ephemeral kandidat-preview, valgt 3C.7-processing, intern rendition-preview og eksplisitt first lock/replacement. Den interne host-persistente storage-runtimeen er teknisk aktivert, backup-/restore-verifisert og visuelt godkjent for 3D.1 i staging. Kode-default er fortsatt avslått og public serving er uendret. Fase 3D.2 er implementert på draft-PR #33 med Brave, limt URL, upload, fokusforvalg, presis X/Y, Foto-zoom, live crop, norske feil og valgfri asset-alttekst. Første URL-/upload-versjon er teknisk stagingverifisert; precision/zoom-oppfølgingen er lokalt målrettet testet, men venter på full CI, ny stagingverifisering og prosjekteiers visuelle retest. Systemfallback-/historikk-UI, takedownforberedelse og public projection er fortsatt ikke implementert.
 
 **Omfang:**
 
 - prioritert kandidatfunn fra official/Open Graph via Brave og limt URL til upload; systemfallback forblir et separat selectionvalg
 - teknisk status, varsler, kildegrunnlag og previews
 - synlig/redigerbar deterministisk Brave-query uten AI og med eksplisitte refinementvalg
-- Foto-fokusforvalg med veiledende klient-crop og autoritative serverrenditions
+- Foto-fokusforvalg, presis X/Y og 100–300 % zoom med felles klient-/servergeometri og autoritative serverrenditions
 - «Godkjenn og lås bilde»
 - «Godkjenn og erstatt bilde»
 - ordinær arkivering, fjerning til fallback, restore og historikk

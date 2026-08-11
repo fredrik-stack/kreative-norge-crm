@@ -526,11 +526,12 @@ def _validate_processing_options(
     image_kind: object,
     focus_x: float | None,
     focus_y: float | None,
+    zoom: float | None,
 ) -> str:
     if image_kind not in {"photo", "logo"}:
         raise ImageCandidateFlowError("invalid_image_kind", "Image kind must be photo or logo.")
-    if image_kind == "logo" and (focus_x is not None or focus_y is not None):
-        raise ImageCandidateFlowError("invalid_focus", "Logo processing does not accept focus.")
+    if image_kind == "logo" and (focus_x is not None or focus_y is not None or zoom is not None):
+        raise ImageCandidateFlowError("invalid_crop_recipe", "Logo processing does not accept focus or zoom.")
     return str(image_kind)
 
 
@@ -595,6 +596,7 @@ def process_image_candidate(
     image_kind: str,
     focus_x: float | None = None,
     focus_y: float | None = None,
+    zoom: float | None = None,
 ) -> ProcessedOfficialCandidate:
     payload = _candidate_context(
         actor=actor,
@@ -606,6 +608,7 @@ def process_image_candidate(
         image_kind=image_kind,
         focus_x=focus_x,
         focus_y=focus_y,
+        zoom=zoom,
     )
     fetched = fetch_external_resource(str(payload["image_url"]), expected="image")
     upload = BytesIO(fetched.body)
@@ -619,6 +622,7 @@ def process_image_candidate(
         content_mode="cover" if normalized_kind == "photo" else "contain",
         focus_x=focus_x,
         focus_y=focus_y,
+        zoom=zoom,
     )
     source_type = str(payload["source_type"])
     transient_query_sources = payload.get("query_sources")
@@ -656,6 +660,7 @@ def process_uploaded_image_candidate(
     image_kind: str,
     focus_x: float | None = None,
     focus_y: float | None = None,
+    zoom: float | None = None,
 ) -> ProcessedOfficialCandidate:
     _feature_guard()
     _validate_actor(actor, tenant_id)
@@ -664,6 +669,7 @@ def process_uploaded_image_candidate(
         image_kind=image_kind,
         focus_x=focus_x,
         focus_y=focus_y,
+        zoom=zoom,
     )
     tenant = Tenant.objects.filter(pk=tenant_id).first()
     if tenant is None:
@@ -674,6 +680,7 @@ def process_uploaded_image_candidate(
         content_mode="cover" if normalized_kind == "photo" else "contain",
         focus_x=focus_x,
         focus_y=focus_y,
+        zoom=zoom,
     )
     return _processed_candidate_result(
         actor=actor,

@@ -29,8 +29,11 @@ from crm.services.images.ingest import (
     ingest_uploaded_image,
 )
 from crm.services.images.processing import (
+    MAX_COVER_ZOOM,
     MAX_SOURCE_BYTES,
+    MIN_COVER_ZOOM,
     ImageProcessingError,
+    _cover_crop_box,
     process_uploaded_image,
 )
 from crm.services.images.storage import (
@@ -159,23 +162,60 @@ class ImageProcessingAdapterTests(TestCase):
                     process_uploaded_image(upload(data), fit_mode="cover", focus_x=focus_x, focus_y=focus_y)
                 self.assertEqual(context.exception.code, "invalid_focus")
 
-    def test_contain_does_not_depend_on_focus_and_never_upscales_content(self):
+    def test_cover_zoom_defaults_to_existing_crop_and_validates_range_and_type(self):
+        data = image_bytes("JPEG", size=(3600, 2400))
+        default = process_uploaded_image(upload(data), fit_mode="cover")
+        explicit = process_uploaded_image(upload(data), fit_mode="cover", zoom=1)
+        zoomed = process_uploaded_image(upload(data), fit_mode="cover", zoom=2)
+        self.assertEqual(default.zoom, MIN_COVER_ZOOM)
+        self.assertEqual(
+            [item.checksum_sha256 for item in default.renditions],
+            [item.checksum_sha256 for item in explicit.renditions],
+        )
+        self.assertNotEqual(
+            [item.checksum_sha256 for item in default.renditions],
+            [item.checksum_sha256 for item in zoomed.renditions],
+        )
+        for value in (0.99, MAX_COVER_ZOOM + 0.01, "many", float("nan")):
+            with self.subTest(value=value), self.assertRaises(ImageProcessingError) as context:
+                process_uploaded_image(upload(data), fit_mode="cover", zoom=value)
+            self.assertEqual(context.exception.code, "invalid_zoom")
+
+    def test_cover_crop_geometry_clamps_focus_and_never_leaves_empty_space(self):
+        cases = (
+            ((1600, 900), (512, 512), (0.5, 0.5), 1, (350, 0, 1250, 900)),
+            ((1600, 900), (512, 512), (0, 0), 2, (0, 0, 450, 450)),
+            ((1600, 900), (512, 512), (1, 1), 2, (1150, 450, 1600, 900)),
+            ((1000, 1600), (512, 512), (0.5, 0.5), 1, (0, 300, 1000, 1300)),
+            ((1600, 900), (800, 450), (0.5, 0.5), 2, (400, 225, 1200, 675)),
+        )
+        for source, target, focus, zoom, expected in cases:
+            with self.subTest(source=source, target=target, focus=focus, zoom=zoom):
+                box = _cover_crop_box(source, target, focus, zoom)
+                self.assertEqual(box, expected)
+                self.assertGreaterEqual(box[0], 0)
+                self.assertGreaterEqual(box[1], 0)
+                self.assertLessEqual(box[2], source[0])
+                self.assertLessEqual(box[3], source[1])
+                self.assertAlmostEqual(
+                    (box[2] - box[0]) / (box[3] - box[1]),
+                    target[0] / target[1],
+                    places=2,
+                )
+
+    def test_contain_rejects_crop_recipe_and_never_upscales_content(self):
         data = image_bytes("PNG", size=(40, 20), mode="RGBA")
         default = process_uploaded_image(
             upload(data, name="logo.png", content_type="image/png"),
             fit_mode="contain",
         )
-        supplied = process_uploaded_image(
-            upload(data, name="logo.png", content_type="image/png"),
-            fit_mode="contain",
-            focus_x=0.1,
-            focus_y=0.9,
-        )
-        self.assertEqual(
-            [item.checksum_sha256 for item in default.renditions],
-            [item.checksum_sha256 for item in supplied.renditions],
-        )
-        self.assertIn("focus_ignored_for_contain", supplied.source.warnings)
+        for crop_recipe in ({"focus_x": 0.1, "focus_y": 0.9}, {"zoom": 1}):
+            with self.subTest(crop_recipe=crop_recipe), self.assertRaises(ImageProcessingError):
+                process_uploaded_image(
+                    upload(data, name="logo.png", content_type="image/png"),
+                    fit_mode="contain",
+                    **crop_recipe,
+                )
         with Image.open(BytesIO(default.renditions[0].encoded_bytes)) as rendered:
             alpha_box = rendered.convert("RGBA").getchannel("A").getbbox()
         self.assertEqual((alpha_box[2] - alpha_box[0], alpha_box[3] - alpha_box[1]), (40, 20))
@@ -410,6 +450,19 @@ class ImageIngestServiceTests(TestCase):
         self.assertEqual(first.asset.pk, second.asset.pk)
         self.assertEqual(first.rendition_set.pk, second.rendition_set.pk)
         self.assertEqual([item.pk for item in first.renditions], [item.pk for item in second.renditions])
+
+    def test_zoom_is_immutable_hashed_and_idempotent(self):
+        source = image_bytes("JPEG", size=(3600, 2400))
+        first = self.ingest(source, focus_x=0.37, focus_y=0.62, zoom=1.5)
+        retry = self.ingest(source, focus_x=0.37, focus_y=0.62, zoom=1.5)
+        changed = self.ingest(source, focus_x=0.37, focus_y=0.62, zoom=1.6)
+        self.assertEqual(first.rendition_set.pk, retry.rendition_set.pk)
+        self.assertEqual(float(first.rendition_set.zoom), 1.5)
+        self.assertNotEqual(first.rendition_set.pk, changed.rendition_set.pk)
+        self.assertNotEqual(
+            first.rendition_set.render_config_hash_sha256,
+            changed.rendition_set.render_config_hash_sha256,
+        )
 
     def test_existing_storage_key_with_different_bytes_fails_closed(self):
         result = self.ingest()

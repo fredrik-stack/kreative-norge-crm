@@ -786,6 +786,7 @@ select,
 }
 
 .image-live-crop-frame {
+  position: relative;
   width: 100%;
   overflow: hidden;
   border-radius: 10px;
@@ -811,8 +812,48 @@ select,
 }
 
 .image-live-crop-frame img {
+  position: absolute;
   display: block;
-  object-fit: cover;
+  max-width: none;
+}
+
+.image-fine-crop-controls {
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.image-fine-crop-controls summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.image-slider-grid {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0.8rem 0;
+}
+
+.image-slider-grid label {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.image-slider-grid input[type="range"] {
+  width: 100%;
+}
+
+.image-logo-preview-block {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.image-logo-preview {
+  width: min(100%, 520px);
+  max-height: 280px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #f4f4f1;
 }
 
 .image-live-crop-grid figcaption {

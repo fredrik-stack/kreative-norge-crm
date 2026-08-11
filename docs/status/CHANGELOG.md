@@ -6,6 +6,11 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 
 ### Fase 3D.2: flere bildekilder, synlig søk og fokus-UX implementert på featurebranch
 
+- fulgt opp prosjekteiers visuelle stagingtest med presis X/Y-finjustering og 100–300 % Foto-zoom, mens Venstre/Midt/Høyre og Topp/Midt/Bunn beholdes som snarveier til samme cropoppskrift
+- lagt additiv migrasjon `0028` med `ImageRenditionSet.zoom=1.0000` som historisk default, databaseconstraint 1–3, zoom i immutable renderhash og reverse-guard etter at non-default zoom finnes
+- brukt samme kantklampede cover-geometri i alle tre live-previewene og serverprocessing, slik at 100 % tilsvarer dagens maksimale cover-utsnitt uten tom flate; Logo viser hele motivet med contain og avviser/skjuler fokus og zoom
+- erstattet synlig domenespråk med `Ingen aktivt valgt bilde ennå.` og `Aktivt bilde`, og lagt korte forklaringer av Foto versus Logo
+- lagt godkjent Brave privacy-copy ved queryen og rettighetscopy ved resultatene; `country=NO`, `search_lang=nb`, `safesearch=strict` og `spellcheck=false` er nå uttrykkelig eiergodkjent
 - utvidet den interne, feature-gated kildereisen i Editor fra offisiell nettside/Open Graph til Brave Image Search, limt direkte bilde-URL og manuell JPEG-/PNG-/WebP-upload, uten at discovery, søk, preview eller processing kan velge bilde automatisk
 - gjort Brave-forslaget deterministisk og synlig: lagret aktørnavn er basis, nøyaktig én kommune legges automatisk til, mens flere kommuner, kategori og aktivt tilknyttet person krever eksplisitt valg; tags brukes aldri og det brukes ingen AI
 - bevart redaktørens eksakte manuelle query og vist både brukte og ikke brukte CRM-kilder før søk; lagt deterministisk lokal rangering med offisielt domene som sterkeste signal
@@ -21,8 +26,9 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 - dokumentert og testet migrasjonens rollbackgrense: reverse fungerer før blanke verdier finnes, men blokkeres av de gamle constraintene etter første blanke asset-/event-alt; da er operativ rollback feature-off og fremoverrettet retting, med krav om verifisert pre-deploy-backup før aktivering og aldri skjult datautfylling
 - verifisert 124 målrettede provider-, kandidat-, API-, modell-, selection- og migrasjonstester, deretter hele lokale leveransen med 365 backendtester, 22 frontendtester, 10 Playwright-tester, backup-/stagingkontrakter, produksjonsbygg og begge containerbygg; `makemigrations --check --dry-run` viser ingen modellavvik
 - beholdt featureflaggets kode-default avslått og PUBLIC, public release/materialisering, public projection, serving, legacybilder og persistent kandidathistorikk uendret
+- fullverifisert precision/zoom-oppfølgingen lokalt med 372 backendtester på ren migrert database, 28 frontendtester, 11 Playwright-reiser, 4 stagingkontrakttester, 68 backuptester, frontendbuild og begge produksjonscontainerbyggene
 - verifisert alle fem GitHub CI-jobber grønne i run `31441538397`, deployet commit `971a9c0` etter fersk grønn Borg-backup og dokumentert URL-/upload-/blank-alt-/PUBLIC-/storageevidens i [stagingrapporten](STAGING_IMAGE_SOURCES_2026-08-11.md)
-- beholdt live Brave blokkert med kontrollert `503` fordi servernøkkel og avtale-/personverngate mangler; prosjekteiers visuelle live crop-/UI-godkjenning gjenstår
+- beholdt live Brave blokkert med kontrollert `503` fordi sikker kontroll ikke fant en servernøkkel; ekte providerrespons og prosjekteiers visuelle retest av precision/zoom gjenstår
 
 ## 2026-08-10
 

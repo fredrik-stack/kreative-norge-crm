@@ -634,6 +634,13 @@ const IMAGE_VARIANT_LABELS: Record<ImageVariant, string> = {
   landscape: "Landskap",
   share: "Deling",
 };
+const IMAGE_VARIANT_SIZES: Record<ImageVariant, readonly [number, number]> = {
+  square: [512, 512],
+  landscape: [800, 450],
+  share: [1200, 630],
+};
+const MIN_COVER_ZOOM = 1;
+const MAX_COVER_ZOOM = 3;
 const MAX_CANDIDATE_PREVIEW_CONCURRENCY = 4;
 
 type ImageSourcePanel = "brave" | "url" | "upload" | null;
@@ -677,6 +684,9 @@ function imageFlowError(error: unknown, operation: ImageFlowOperation = "generic
   switch (code) {
     case "upscale_required":
       return "Bildet er for lite til å lage alle nødvendige formater uten kvalitetstap. Velg et større bilde.";
+    case "invalid_zoom":
+    case "invalid_crop_recipe":
+      return "Utsnittet er ugyldig. Tilbakestill utsnittet og prøv igjen.";
     case "invalid_url":
     case "credentials_forbidden":
     case "private_host":
@@ -794,6 +804,7 @@ export function OrganizationImagePanel(props: {
   const [imageKind, setImageKind] = useState<"photo" | "logo">("photo");
   const [focusX, setFocusX] = useState(0.5);
   const [focusY, setFocusY] = useState(0.5);
+  const [zoom, setZoom] = useState(MIN_COVER_ZOOM);
   const [processed, setProcessed] = useState<ProcessedOrganizationImage | null>(null);
   const [processedPreviews, setProcessedPreviews] = useState<Partial<Record<ImageVariant, string>>>({});
   const [activePreviews, setActivePreviews] = useState<Partial<Record<ImageVariant, string>>>({});
@@ -967,6 +978,7 @@ export function OrganizationImagePanel(props: {
     setImageKind("photo");
     setFocusX(0.5);
     setFocusY(0.5);
+    setZoom(MIN_COVER_ZOOM);
     setProcessed(null);
     setProcessedPreviews({});
     setActivePreviews({});
@@ -1156,6 +1168,7 @@ export function OrganizationImagePanel(props: {
     setError(null);
     setFocusX(0.5);
     setFocusY(0.5);
+    setZoom(MIN_COVER_ZOOM);
     invalidateProcessing();
     if (candidateOriginalPreviews[candidateRef]) {
       setSelectedOriginalLoading(false);
@@ -1194,12 +1207,25 @@ export function OrganizationImagePanel(props: {
     setSelectedOriginalLoading(false);
     setFocusX(0.5);
     setFocusY(0.5);
+    setZoom(MIN_COVER_ZOOM);
     invalidateProcessing();
   }
 
   function updateFocus(axis: "x" | "y", value: number) {
     if (axis === "x") setFocusX(value);
     else setFocusY(value);
+    invalidateProcessing();
+  }
+
+  function updateZoom(value: number) {
+    setZoom(value);
+    invalidateProcessing();
+  }
+
+  function resetCropRecipe() {
+    setFocusX(0.5);
+    setFocusY(0.5);
+    setZoom(MIN_COVER_ZOOM);
     invalidateProcessing();
   }
 
@@ -1214,7 +1240,7 @@ export function OrganizationImagePanel(props: {
     try {
       const processingPayload = {
         image_kind: imageKind,
-        ...(imageKind === "photo" ? { focus_x: focusX, focus_y: focusY } : {}),
+        ...(imageKind === "photo" ? { focus_x: focusX, focus_y: focusY, zoom } : {}),
       };
       const result = uploadSelected && uploadFile
         ? await processUploadedOrganizationImage(tenantId, organizationId, {
@@ -1309,12 +1335,13 @@ export function OrganizationImagePanel(props: {
       {error ? <div className="inline-banner warn" role="alert">{error}</div> : null}
       {imageState?.active_selection ? (
         <div className="image-active-state">
-          <strong>Aktivt låst bilde · revisjon {imageState.active_selection.revision}</strong>
+          <strong>Aktivt bilde</strong>
+          <span className="meta">Revisjon {imageState.active_selection.revision}</span>
           <span className="meta">{imageState.active_selection.alt_text || "Ingen alt-tekst"}</span>
-          <ImagePreviewGrid urls={activePreviews} label="Aktiv selection-preview" />
+          <ImagePreviewGrid urls={activePreviews} label="Forhåndsvisning av aktivt bilde" />
         </div>
       ) : busy !== "state" ? (
-        <div className="empty-state compact">Ingen aktiv bildeselection.</div>
+        <div className="empty-state compact">Ingen aktivt valgt bilde ennå.</div>
       ) : null}
 
       {candidates.length > 0 || uploadFile ? (
@@ -1382,13 +1409,16 @@ export function OrganizationImagePanel(props: {
             </button>
           </div>
           <p className="muted">
-            Du som redaktør må kontrollere bruksrettigheter og eventuell kreditering før bildet godkjennes.
+            Oppgi eventuell kreditering før bildet godkjennes.
           </p>
 
           {sourcePanel === "brave" ? (
             <div className="image-source-panel" aria-label="Bildesøk">
               {searchContext ? (
                 <>
+                  <p className="muted">
+                    Bildesøket utføres via Brave Search. Søketeksten sendes til Brave og kan lagres der i opptil 90 dager. Ikke skriv sensitiv eller intern informasjon i søket.
+                  </p>
                   <Field label={searchQueryEdited ? "Søk" : "Forslått søk"}>
                     <input
                       value={searchQuery}
@@ -1548,6 +1578,7 @@ export function OrganizationImagePanel(props: {
             </Field>
             {imageKind === "photo" ? (
               <div className="image-focus-and-preview">
+                <p className="muted">Foto fyller hele bildeflaten og kan derfor beskjæres. Bruk fokus og zoom for å styre utsnittet.</p>
                 <div className="image-focus-controls">
                   <fieldset className="image-focus-group">
                     <legend>Horisontalt</legend>
@@ -1584,11 +1615,61 @@ export function OrganizationImagePanel(props: {
                     </div>
                   </fieldset>
                 </div>
-                <LiveCropPreviewGrid url={selectedPreviewUrl} focusX={focusX} focusY={focusY} />
-                <p className="muted">Fokus brukes bare for Foto. Forhåndsvisningen oppdateres med én gang. Det endelige utsnittet lages når du trykker «Prosesser valgt bilde».</p>
+                <details className="image-fine-crop-controls">
+                  <summary>Finjuster utsnitt</summary>
+                  <div className="image-slider-grid">
+                    <label>
+                      <span>Horisontal plassering: {Math.round(focusX * 100)} %</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={focusX}
+                        disabled={busy !== null}
+                        aria-label="Horisontal plassering"
+                        onChange={(event) => updateFocus("x", Number(event.target.value))}
+                      />
+                    </label>
+                    <label>
+                      <span>Vertikal plassering: {Math.round(focusY * 100)} %</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={focusY}
+                        disabled={busy !== null}
+                        aria-label="Vertikal plassering"
+                        onChange={(event) => updateFocus("y", Number(event.target.value))}
+                      />
+                    </label>
+                    <label>
+                      <span>Zoom: {Math.round(zoom * 100)} %</span>
+                      <input
+                        type="range"
+                        min={MIN_COVER_ZOOM}
+                        max={MAX_COVER_ZOOM}
+                        step="0.01"
+                        value={zoom}
+                        disabled={busy !== null}
+                        aria-label="Zoom"
+                        onChange={(event) => updateZoom(Number(event.target.value))}
+                      />
+                    </label>
+                  </div>
+                  <button type="button" className="ghost-button" disabled={busy !== null} onClick={resetCropRecipe}>
+                    Tilbakestill utsnitt
+                  </button>
+                </details>
+                <LiveCropPreviewGrid url={selectedPreviewUrl} focusX={focusX} focusY={focusY} zoom={zoom} />
+                <p className="muted">Forhåndsvisningen oppdateres med én gang. Det endelige utsnittet lages med samme fokus og zoom når du trykker «Prosesser valgt bilde».</p>
               </div>
             ) : (
-              <p className="muted">Logo bruker contain og er ikke avhengig av fokus.</p>
+              <div className="image-logo-preview-block">
+                <p className="muted">Logo viser hele motivet uten beskjæring.</p>
+                {selectedPreviewUrl ? <img className="image-logo-preview" src={selectedPreviewUrl} alt="Forhåndsvisning av hele logoen" /> : null}
+              </div>
             )}
           </div>
           <button type="button" className="primary-button" onClick={onProcess} disabled={busy !== null}>
@@ -1599,7 +1680,7 @@ export function OrganizationImagePanel(props: {
 
       {processed ? (
         <div className="image-approval-panel">
-          <ImagePreviewGrid urls={processedPreviews} label="Intern processing-preview" />
+          <ImagePreviewGrid urls={processedPreviews} label="Serverens bildeformater" />
           {processed.warnings.length > 0 ? (
             <div className="inline-banner warn">Tekniske varsler: {processed.warnings.join(", ")}</div>
           ) : null}
@@ -1627,17 +1708,30 @@ function LiveCropPreviewGrid(props: {
   url: string | null;
   focusX: number;
   focusY: number;
+  zoom: number;
 }) {
+  const [sourceSize, setSourceSize] = useState<readonly [number, number] | null>(null);
+  useEffect(() => setSourceSize(null), [props.url]);
   return (
     <div className="image-live-crop-grid" aria-label="Live crop-preview">
-      {IMAGE_VARIANTS.map((variant) => (
+      {IMAGE_VARIANTS.map((variant) => {
+        const geometry = sourceSize
+          ? calculateCoverCrop(sourceSize, IMAGE_VARIANT_SIZES[variant], props.focusX, props.focusY, props.zoom)
+          : null;
+        return (
         <figure key={variant}>
           <div className={`image-live-crop-frame ${variant}`}>
             {props.url ? (
               <img
                 src={props.url}
                 alt={`Live crop-preview: ${variant}`}
-                style={{ objectPosition: `${props.focusX * 100}% ${props.focusY * 100}%` }}
+                onLoad={(event) => setSourceSize([event.currentTarget.naturalWidth, event.currentTarget.naturalHeight])}
+                style={geometry ? {
+                  width: `${(sourceSize![0] / geometry.width) * 100}%`,
+                  height: `${(sourceSize![1] / geometry.height) * 100}%`,
+                  left: `${(-geometry.left / geometry.width) * 100}%`,
+                  top: `${(-geometry.top / geometry.height) * 100}%`,
+                } : undefined}
               />
             ) : (
               <div className="empty-state compact">Laster preview...</div>
@@ -1645,9 +1739,40 @@ function LiveCropPreviewGrid(props: {
           </div>
           <figcaption>{IMAGE_VARIANT_LABELS[variant]}</figcaption>
         </figure>
-      ))}
+      );})}
     </div>
   );
+}
+
+function roundHalfEven(value: number): number {
+  const floor = Math.floor(value);
+  const fraction = value - floor;
+  if (fraction < 0.5) return floor;
+  if (fraction > 0.5) return floor + 1;
+  return floor % 2 === 0 ? floor : floor + 1;
+}
+
+export function calculateCoverCrop(
+  source: readonly [number, number],
+  target: readonly [number, number],
+  focusX: number,
+  focusY: number,
+  zoom: number,
+) {
+  const sourceRatio = source[0] / source[1];
+  const targetRatio = target[0] / target[1];
+  let width: number;
+  let height: number;
+  if (sourceRatio > targetRatio) {
+    height = Math.max(1, roundHalfEven(source[1] / zoom));
+    width = Math.max(1, roundHalfEven(height * targetRatio));
+  } else {
+    width = Math.max(1, roundHalfEven(source[0] / zoom));
+    height = Math.max(1, roundHalfEven(width / targetRatio));
+  }
+  const left = Math.min(Math.max(0, roundHalfEven(focusX * source[0] - width / 2)), source[0] - width);
+  const top = Math.min(Math.max(0, roundHalfEven(focusY * source[1] - height / 2)), source[1] - height);
+  return { left, top, width, height };
 }
 
 function ImagePreviewGrid(props: {
