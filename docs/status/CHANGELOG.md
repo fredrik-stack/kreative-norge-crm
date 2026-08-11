@@ -6,6 +6,9 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 
 ### Fase 3D.2: flere bildekilder, synlig søk og fokus-UX implementert på featurebranch
 
+- bevart den grønne Brave-liveverifikasjonen som historisk evidens, men deaktivert staging-credentialen etter testen; bare API ble rekreert, `brave_configured=False` og kontrollert `brave_not_configured` er verifisert, mens DB, web, volum, media, PUBLIC og 0 public releases er uendret
+- dokumentert at Brave er `LIVE VERIFIED`, men `CURRENTLY ACTIVE: NOT ACTIVE` for ordinære Editor-sluttbrukere inntil avtaleeier har dokumentert skriftlige sluttbrukerforpliktelser etter gjeldende Terms punkt 4(c) og nødvendige privacy notices/samtykker; ingen consent-/termsmotor legges til i PR #33
+- synkronisert ADR-, staging-, backup-, arkitektur-, roadmap- og prosjektstatus etter siste review og registrert grønn sluttreview-baseline i CI-run `31520955798` på head `964a97d89f5489aeaff26cb822b2753c76b40d6e`
 - fulgt opp prosjekteiers visuelle stagingtest med presis X/Y-finjustering og 100–300 % Foto-zoom, mens Venstre/Midt/Høyre og Topp/Midt/Bunn beholdes som snarveier til samme cropoppskrift
 - lagt additiv migrasjon `0028` med `ImageRenditionSet.zoom=1.0000` som historisk default, databaseconstraint 1–3, zoom i immutable renderhash og reverse-guard etter at non-default zoom finnes
 - brukt samme kantklampede cover-geometri i alle tre live-previewene og serverprocessing, slik at 100 % tilsvarer dagens maksimale cover-utsnitt uten tom flate; Logo viser hele motivet med contain og avviser/skjuler fokus og zoom

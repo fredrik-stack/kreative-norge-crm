@@ -1,6 +1,6 @@
 # Fase 3D.2 – stagingverifisering 2026-08-11
 
-**Status:** fase 3D.2 med precision/zoom er fullverifisert lokalt, CI-grønn, teknisk stagingverifisert, live Brave-verifisert og visuelt eiergodkjent. Direkte URL, multipart-upload, private previews, processing, valgfri alttekst, storage og PUBLIC-regresjon er grønne. Draft-PR #33 venter på uavhengig sluttreview; ingen merge eller produksjonssetting er utført.
+**Status:** fase 3D.2 med precision/zoom er fullverifisert lokalt, CI-grønn, teknisk stagingverifisert, live Brave-verifisert og visuelt eiergodkjent. Direkte URL, multipart-upload, private previews, processing, valgfri alttekst, storage og PUBLIC-regresjon er grønne. Etter live-verifikasjonen ble Brave-credentialen med hensikt deaktivert; historisk live-status er **PASS**, mens dagens operative stagingstatus er **NOT ACTIVE** frem til sluttbrukeravtalegaten er dokumentert oppfylt. Draft-PR #33 venter på ny uavhengig sluttreview; ingen merge eller produksjonssetting er utført.
 
 ## Leveransegrunnlag
 
@@ -10,6 +10,7 @@
 - draft-PR: [#33](https://github.com/fredrik-stack/kreative-norge-crm/pull/33)
 - første GitHub Actions-run: [31441538397](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/31441538397), alle fem jobber grønne
 - precision/zoom GitHub Actions-run: [31471806873](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/31471806873), alle fem jobber grønne
+- sluttreview-baseline GitHub Actions-run: [31520955798](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/31520955798), alle fem jobber grønne på PR-head `964a97d89f5489aeaff26cb822b2753c76b40d6e`
 - precision/zoom lokal verifikasjon: 372 backendtester på ren database migrert gjennom `0028`, 28 frontendtester, 11 Playwright-tester, 4 stagingkontrakttester, 68 backuptester, frontendproduksjonsbygg og begge produksjonscontainerbygg
 
 ## Pre-deploy-gater
@@ -61,7 +62,7 @@ Codex stagingtest 3D.2 2026-08-11 Bodø
 
 Querykildene var eksakt `organization_name,municipality`. Dette bekrefter hovedregelen om lagret aktørnavn som basis og automatisk kommune bare når nøyaktig én kommune finnes. Automatiserte backend-/frontendtester dekker i tillegg flere kommuner uten default, eksplisitt kategori/person, aldri tags eller AI, og at første manuelle tekstendring nullstiller alle strukturerte refinements og gir bare `manual_edit`-proveniens.
 
-Brave-kallet i den første stagingreisen returnerte kontrollert `503` med `brave_not_configured`. Det dokumenterer pre-credential-baselinen. Prosjekteier godkjente senere providerparametrene og privacy-/rettighetscopyen, og credentialen ble deretter installert bare server-side før den endelige live-gaten. Avtaleeier må fortsatt sikre skriftlige sluttbrukerforpliktelser etter gjeldende standardvilkår punkt 3(b).
+Brave-kallet i den første stagingreisen returnerte kontrollert `503` med `brave_not_configured`. Det dokumenterer pre-credential-baselinen. Prosjekteier godkjente senere providerparametrene og privacy-/rettighetscopyen, og credentialen ble deretter installert bare server-side før den endelige live-gaten. Gaten nedenfor dokumenterer historisk live-verifikasjon, ikke dagens operative aktivering.
 
 ## Prosjekteiers visuelle oppfølging og bestilt retting
 
@@ -150,6 +151,22 @@ Den dedikerte Codex-testaktørens mer kunstige forslag returnerte også ekte res
 
 Kontrollen stoppet før approval. Deltaet var derfor +1 privat asset, +1 immutable rendition-sett og +3 interne renditions, men 0 selections, 0 review-events, 0 publiserte aktører og 0 public releases. `Festspillene Helgeland` beholdt sin eksisterende publiseringsstatus, det globale publiserte antallet var fortsatt 122 og public releases var fortsatt 0. Etterpå rapporterte orphan-dry-run 8/8 refererte private originaler, 33/33 refererte interne renditions, 0 eligible orphans, 0 unge urefererte filer og 0 slettinger.
 
+## Operativ deaktivering etter live-verifikasjon
+
+Etter at live-evidensen var kontrollert og lagret, ble `BRAVE_IMAGE_SEARCH_API_KEY` satt tilbake til tom verdi i serverens ignorerte `.env.staging`. Credentialverdien ble aldri lest eller skrevet ut. Bare API-containeren ble stoppet, fjernet og opprettet med `--no-deps`; database, web, volum og media ble ikke rekreert. Etterpå var database, API og web fortsatt `Up`, Django system check var grønn, serverrepoet var rent, og de boolske/kontrollerte probene rapporterte:
+
+```text
+brave_configured=False
+brave_probe_code=brave_not_configured
+```
+
+Dermed er statusen eksplisitt todelt:
+
+- **LIVE VERIFIED: PASS** – 30 ekte kandidater, privat originalpreview, secure fetch, processing og private renditions er historisk verifisert.
+- **CURRENTLY ACTIVE: NOT ACTIVE** – ordinære Editor-sluttbrukere skal ikke få Brave aktivert før den manuelle sluttbrukeravtalegaten er dokumentert oppfylt.
+
+Braves gjeldende [Search API Terms of Use](https://api-dashboard.search.brave.com/documentation/resources/terms-of-service) punkt 4(c) krever at hver End User er bundet av en skriftlig avtale med Customer med forpliktelser vesentlig tilsvarende punkt 3(b), og legger ansvaret for nødvendige privacy notices/samtykker på Customer. Se også Braves [Privacy Policy](https://api-dashboard.search.brave.com/privacy-policy). Prosjektet påstår ikke at denne gaten er oppfylt. Det skal ikke bygges en consent-, terms- eller brukeravtalemotor i PR #33; senere valg mellom eksisterende arbeids-/oppdragsvilkår, egne Editor-vilkår eller eksplisitt digital aksept er en separat beslutning.
+
 ## Gjennomført visuell eiergate
 
 Prosjekteier har gjennom vanlig browser-smoke bekreftet:
@@ -159,7 +176,7 @@ Prosjekteier har gjennom vanlig browser-smoke bekreftet:
 - finjustering og zoom fungerer i praksis; Foto-zoom betyr innzooming og retur til standard cover-nivå, aldri zoom ut til tomme flater
 - live previews og serverprocessing oppleves som samsvarende
 - blank alttekst er akseptert uten skjult navnefallback
-- `Brave konfigurert: True` vises, `Søk etter flere bilder` returnerer ekte resultater, og den tidligere ikke-konfigurert-feilen er borte
+- under den historiske live-testen ble `Brave konfigurert: True` vist, `Søk etter flere bilder` returnerte ekte resultater, og den tidligere ikke-konfigurert-feilen var borte
 - privacy- og rettighetscopyen samt aktiv bruk av `search_lang=nb` er godkjent
 - PUBLIC og legacybildene er uendret, og ingen public release er opprettet
 
