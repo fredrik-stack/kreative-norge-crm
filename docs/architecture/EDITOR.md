@@ -1,6 +1,6 @@
 # Editor
 
-**Status:** implementert grunnløsning; fase 2-standarder for kontaktpublisering implementert; fase 3D.1 offisiell bildekandidatflyt teknisk aktivert og visuelt godkjent i staging; fase 3D.2s første URL-/upload-versjon er CI-grønn og teknisk stagingverifisert, mens precision/zoom-oppfølgingen på draft-PR #33 venter på full CI, ny stagingverifisering og visuell eierretest
+**Status:** implementert grunnløsning; fase 2-standarder for kontaktpublisering implementert; fase 3D.1 offisiell bildekandidatflyt teknisk aktivert og visuelt godkjent i staging; fase 3D.2 med precision/zoom på draft-PR #33 er fullverifisert lokalt, CI-grønn og teknisk stagingverifisert, mens visuell eierretest og live Brave ved tilgjengelig credential gjenstår
 
 React-editoren støtter tenantvalg, rollebasert tilgang, aktører, personer, relasjoner, kontaktkanaler, søk, taksonomifiltrering og import/eksport-side.
 
@@ -39,7 +39,7 @@ Et aktivt valg vises som `Aktivt bilde`, med revisjon separat, eventuell `Ingen 
 
 ### Leveransestatus og gjenstående gater
 
-Fase 3D.2-koden og automatisert testdekning finnes på draft-PR #33. Første versjon har fem grønne CI-jobber og teknisk stagingevidens for direkte URL, multipart-upload, private previews, blank alttekst og uendret PUBLIC. Prosjekteier har visuelt bekreftet denne grunnreisen og bestilt precision/zoom-oppfølgingen. Oppfølgingen er målrettet testet lokalt, men venter på full CI, ny stagingdeploy og prosjekteiers visuelle retest. Brave live-søk er fortsatt blokkert bare av manglende servercredential; parameter- og copybeslutningen er godkjent. Featureflaggets kode-default er fortsatt avslått. Se [datert stagingevidens](../status/STAGING_IMAGE_SOURCES_2026-08-11.md).
+Fase 3D.2-koden og automatisert testdekning finnes på draft-PR #33. Første versjon har fem grønne CI-jobber og teknisk stagingevidens for direkte URL, multipart-upload, private previews, blank alttekst og uendret PUBLIC. Prosjekteier har visuelt bekreftet denne grunnreisen og bestilt precision/zoom-oppfølgingen. Oppfølgingen har en ny grønn CI-run og er teknisk stagingverifisert med faktisk API-processing av presis X/Y og 150 % zoom samt tre private serverpreviews; prosjekteiers visuelle retest gjenstår. Brave live-søk er fortsatt blokkert bare av manglende servercredential; parameter- og copybeslutningen er godkjent. Featureflaggets kode-default er fortsatt avslått. Se [datert stagingevidens](../status/STAGING_IMAGE_SOURCES_2026-08-11.md).
 
 Historikk-/restore-UI, takedown, permanent kandidatlagring, public release/materialisering, public projection og PUBLIC-bildebruk er ikke implementert av 3D.2.
 

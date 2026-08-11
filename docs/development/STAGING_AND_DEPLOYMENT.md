@@ -47,6 +47,8 @@ Fase 3D.2-commit `971a9c0` er deployet til staging etter følgende gjennomførte
 
 Deployen beholdt dagens host-persistente `image_originals_private`-/`image_renditions_public`-aliaser, Borg-oppsett og dry-run-first `cleanup_image_storage_orphans` uendret. Orphan-dry-run rapporterte 0 avvik og 0 slettinger. Fase 3D.2 ga ingen PUBLIC-endring og innebar ingen produksjonssetting. Full evidens og eierens manuelle testinstruks står i [stagingrapporten](../status/STAGING_IMAGE_SOURCES_2026-08-11.md).
 
+Precision/zoom-oppfølgingen ble senere deployet som runtimecommit `3686f08` etter grønn CI-run `31471806873` og grønt Borg-arkiv `kreative-norge-staging-20260811T081243Z`. Bare API og web ble rekreert i kontrollert rekkefølge; migrasjon `0028` ble anvendt uten database-/volumrecreate. En faktisk staging-API-reise prosesserte X/Y `0.3700/0.6800` og zoom `1.5000` til tre private no-store-previews uten selection-, event-, publiserings- eller public-releaseendring. Storagechecksum og orphan-dry-run var grønne. Lokal origin svarte 200, mens ekstern server-side curl traff Cloudflares browserchallenge; ekstern browser-/visuell kontroll og live Brave står derfor eksplisitt igjen.
+
 ## Ønsket neste steg
 
 Push til avtalt branch skal kunne utløse en sikker automatisk deploy til staging etter at obligatoriske tester er bestått.

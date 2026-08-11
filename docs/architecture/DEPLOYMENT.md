@@ -47,6 +47,8 @@ Nginx-konfigurasjonen i repoet setter `client_max_body_size 16m`. Det gir nødve
 
 En fersk, grønn Borg-backup er obligatorisk før stagingdeploy av migrasjon `0028`. Leveransen endrer ikke PUBLIC-flyt, oppretter ingen public release og aktiverer ingenting i produksjon.
 
+Precision/zoom-runtimecommit `3686f08` ble deployet kontrollert 2026-08-11 etter grønt Borg-arkiv `kreative-norge-staging-20260811T081243Z`. Bare API og deretter web ble rekreert; database, volum og media ble ikke rekreert. Migrasjon `0028`, historisk zoomdefault, faktisk 150 % zoomprocessing, private previews, storagechecksums og orphan-dry-run var grønne. Ekstern curl ble møtt av en eksplisitt Cloudflare-browserchallenge; lokal origin var grønn, og vanlig nettlesersmoke inngår derfor i prosjekteiers retest. Se [datert stagingevidens](../status/STAGING_IMAGE_SOURCES_2026-08-11.md).
+
 `cleanup_image_storage_orphans` gir en begrenset dry-run-first cleanup for de to bildealiasene. Apply krever PostgreSQL, validerte lokale roots og eksplisitt operatørvalg, revaliderer databasereferanser under lås og sletter bare gamle, urefererte regulære filer. Den er ikke en generell retention- eller public purge-mekanisme.
 
 ## Backupgrunnmur
