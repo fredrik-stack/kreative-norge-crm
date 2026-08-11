@@ -1,6 +1,6 @@
 # Fase 3D.2 – stagingverifisering 2026-08-11
 
-**Status:** første tekniske stagingverifisering er gjennomført for direkte URL, multipart-upload, private previews, processing, valgfri alttekst, storage og PUBLIC-regresjon. Prosjekteiers påfølgende visuelle test godkjente grunnreisen og bestilte presis fokus/zoom. Oppfølgingen er nå fullverifisert lokalt, CI-grønn og teknisk stagingverifisert; visuell eierretest gjenstår. Brave-parametere/copy er godkjent, men live-søk venter på servercredential.
+**Status:** fase 3D.2 med precision/zoom er fullverifisert lokalt, CI-grønn, teknisk stagingverifisert, live Brave-verifisert og visuelt eiergodkjent. Direkte URL, multipart-upload, private previews, processing, valgfri alttekst, storage og PUBLIC-regresjon er grønne. Draft-PR #33 venter på uavhengig sluttreview; ingen merge eller produksjonssetting er utført.
 
 ## Leveransegrunnlag
 
@@ -61,7 +61,7 @@ Codex stagingtest 3D.2 2026-08-11 Bodø
 
 Querykildene var eksakt `organization_name,municipality`. Dette bekrefter hovedregelen om lagret aktørnavn som basis og automatisk kommune bare når nøyaktig én kommune finnes. Automatiserte backend-/frontendtester dekker i tillegg flere kommuner uten default, eksplisitt kategori/person, aldri tags eller AI, og at første manuelle tekstendring nullstiller alle strukturerte refinements og gir bare `manual_edit`-proveniens.
 
-Brave-kallet returnerte kontrollert `503` med `brave_not_configured`. Live providerrespons er derfor ikke verifisert. Prosjekteier har senere godkjent providerparametrene og privacy-/rettighetscopyen. En ny sikker kontroll fant fortsatt ingen credential lokalt eller i staging-runtime; en gyldig nøkkel må installeres server-side før live-test. Avtaleeier må samtidig sikre skriftlige sluttbrukerforpliktelser etter gjeldende standardvilkår punkt 3(b).
+Brave-kallet i den første stagingreisen returnerte kontrollert `503` med `brave_not_configured`. Det dokumenterer pre-credential-baselinen. Prosjekteier godkjente senere providerparametrene og privacy-/rettighetscopyen, og credentialen ble deretter installert bare server-side før den endelige live-gaten. Avtaleeier må fortsatt sikre skriftlige sluttbrukerforpliktelser etter gjeldende standardvilkår punkt 3(b).
 
 ## Prosjekteiers visuelle oppfølging og bestilt retting
 
@@ -73,7 +73,7 @@ Før oppfølgingsdeployen var serverrepoet rent på `34f6f35`, database/API/web 
 
 Den obligatoriske ferske Borg-backupen fullførte med `Result=success`, dump- og repositoryverifikasjon `passed` og arkivnavn `kreative-norge-staging-20260811T081243Z`. Repoet ble fast-forwardet til eksakt `3686f08006a1396fd1e2ce250603044c4b62e041`, og API-/web-images ble bygget grønt. På grunn av den kjente Compose 1.29.2-risikoen ble bare API stoppet/fjernet/opprettet først; database, web, volum og media ble ikke berørt. API-loggen viste `Applying crm.0028_image_rendition_zoom... OK`, Django-check var grønn, alle migrasjoner gjennom `0028` var anvendt og Gunicorn startet tre workers. Deretter ble bare web stoppet/fjernet/opprettet.
 
-Alle seks historiske rendition-sett hadde etter migrasjonen zoom `1.0000`, og de fem aktive asset-selectionene var lesbare. Featureflagget var fortsatt `True`; Brave runtime rapporterte bare `missing`, aldri credentialverdien.
+Alle seks historiske rendition-sett hadde etter migrasjonen zoom `1.0000`, og de fem aktive asset-selectionene var lesbare. Featureflagget var fortsatt `True`; Brave runtime rapporterte på dette tidspunktet bare `missing`, aldri credentialverdien. Den senere sluttgaten nedenfor bekreftet `configured` på samme boolske måte.
 
 Den tekniske produktreisen brukte den eksisterende upubliserte testaktøren og eksisterende rettighetsavklarte private kildebytes. Første testharnessforsøk ble avvist før behandling fordi Django-testklienten brukte den ikke-tillatte standardhosten `testserver`; ny kjøring med faktisk staginghost gikk gjennom den virkelige multipart-API-ruten:
 
@@ -92,7 +92,7 @@ Processingstatus var `created`. Testen godkjente eller publiserte ikke bildet. D
 
 Alle 4 originaler og 21 renditions fantes og matchet lagret SHA-256. Orphan-dry-run rapporterte 4/4 og 21/21 refererte/faktiske filer, 0 eligible orphans, 0 unge urefererte filer og 0 slettinger. API/web/database var `Up` med 0 restarter; bare API hadde de to skrivbare mediamountene, mens web ikke hadde mediamount.
 
-Lokal origin med korrekte proxyheadere svarte `200` for `/`, `/api/auth/session/` og `/public/actors/`. Det deployede JS-bundlet inneholdt `Finjuster utsnitt` og `Ingen aktivt valgt bilde ennå.`, men ingen `BRAVE_IMAGE_SEARCH_API_KEY`- eller `X-Subscription-Token`-markør. Ekstern server-side curl traff `HTTP 403` med `cf-mitigated: challenge`, altså en eksplisitt Cloudflare-browserchallenge. Ingen kontrollert in-app- eller ekstern nettleser var tilgjengelig i økten. Ekstern HTTPS/browser-smoke og all visuell vurdering er derfor en eksplisitt del av prosjekteiers retest, ikke feilaktig rapportert som automatisert grønn.
+Lokal origin med korrekte proxyheadere svarte `200` for `/`, `/api/auth/session/` og `/public/actors/`. Det deployede JS-bundlet inneholdt `Finjuster utsnitt` og `Ingen aktivt valgt bilde ennå.`, men ingen `BRAVE_IMAGE_SEARCH_API_KEY`- eller `X-Subscription-Token`-markør. Ekstern server-side curl traff `HTTP 403` med `cf-mitigated: challenge`, altså en eksplisitt Cloudflare-browserchallenge. Ingen kontrollert in-app- eller ekstern nettleser var tilgjengelig i den tekniske deployøkten. Prosjekteier har senere gjennomført den vanlige browser-smoken og den visuelle retesten; denne eierverifiseringen holdes eksplisitt adskilt fra Codex-harnessen.
 
 Direkte URL-flyten gjennomførte:
 
@@ -127,19 +127,42 @@ Ingest gjenbrukte det eksisterende identiske assetet, slik at assetdelta var 0. 
 
 Orphan-cleanup ble kjørt i dry-run. Begge storagealiasene hadde nøyaktig like mange DB-refererte filer som faktiske filer, 0 eligible orphans, 0 unge urefererte filer og 0 slettinger.
 
-## Gjenstående eiergater
+## Endelig Brave live-gate
 
-Prosjekteier skal teste [staging](https://staging.northernsound.no/) slik:
+Sluttkontrollen kjørte på rent stagingrepo med eksakt PR-head `209b44b060db759d356e334cc288ee4e3e5cfde1`; database, API og web var `Up`. Credentialen ble aldri lest eller skrevet ut. Django rapporterte bare:
 
-1. Åpne staging i en vanlig nettleser og fullfør eventuell Cloudflare-challenge. Kontroller at Editor, session og PUBLIC åpner normalt; automatisert server-side HTTPS-curl kunne ikke passere challengen, mens lokal origin var grønn.
-2. Logg inn, velg tenant `musikkontoretnord`, åpne Aktører og finn `Codex stagingtest 3D.2 2026-08-11`. Kontroller at aktøren er upublisert, at aktivt bilde viser revisjon 2 og `Ingen alt-tekst`, og at tomtilstanden andre steder bruker `Ingen aktivt valgt bilde ennå.` – aldri «selection».
-3. Trykk `Finn bilder`. Alternative kilder skal vises i rekkefølgen Brave, direkte URL og upload.
-4. Åpne Brave-kilden. Kontroller privacyteksten ved queryen og rettighetsteksten ved resultatområdet. Standardqueryen skal være synlig som `Codex stagingtest 3D.2 2026-08-11 Bodø`. Prøv manuelt `Festspillene Helgeland logo`; fordi credential mangler skal kontrollert norsk ikke-konfigurert-feil vises. Dette er ikke en live-providerverifikasjon, og ingen nøkkel skal legges inn i UI.
-5. Åpne direkte URL og lim inn en rettighetsavklart, direkte JPEG-/PNG-/WebP-URL. Kandidaten skal ikke bli valgbart galleriinnhold før privat originalpreview er hentet og validert. Gjenta senere med `Last opp bilde` og en statisk fil under 15 MiB; en større fil skal gi den norske 15 MB-meldingen.
-6. Velg `Foto`. Kontroller forklaringsteksten, klikk Venstre/Midt/Høyre og Topp/Midt/Bunn og se at alle tre live-previewene endres. Åpne `Finjuster utsnitt`, flytt presis X og Y med mus og tastatur, zoom inn, zoom tilbake mot 100 %, og kontroller at Kvadrat, Landskap og Deling følger alle endringer uten nettverksventing.
-7. Trykk `Tilbakestill utsnitt` og kontroller Midt/Midt/100 %. Sett deretter et tydelig presist utsnitt og trykk `Prosesser valgt bilde`. Sammenlign serverens faktiske tre previews med det siste live-utsnittet; de skal visuelt samsvare.
-8. Velg `Logo`. Kontroller teksten `Logo viser hele motivet uten beskjæring.`, at hele logoen vises, og at presets, `Finjuster utsnitt` og zoom ikke vises.
-9. La alttekst stå tom. `Godkjenn og erstatt bilde` skal være aktiv uten skjult navnefallback. Godkjenn bare en rettighetsavklart kilde og bare dersom en ny testrevisjon er ønsket; reload skal beholde aktivt bilde og tom alttekst.
-10. Åpne [PUBLIC-oversikten](https://staging.northernsound.no/public/actors/) og kontroller at testaktøren ikke vises, at eksisterende legacybilder er uendret, og at ingen intern rendition er offentlig tilgjengelig. `search_lang=nb` er eiergodkjent; før en servernøkkel installeres skal avtaleeier sikre de skriftlige redaktørforpliktelsene i gjeldende standardvilkår punkt 3(b).
+```text
+brave_configured=True
+image_feature_enabled=True
+```
+
+Den eksisterende aktøren `Festspillene Helgeland` ga det deterministiske forslaget `Festspillene Helgeland VEFSN` med querykildene `organization_name,municipality`. Det deployede providerkallet brukte den eiergodkjente faste `search_lang=nb`-parameteren og returnerte `200` med 30 ekte kandidater. Første kandidat gjennomførte:
+
+```text
+privat originalpreview image/webp, private/no-store
+secure fetch og Foto-processing 200
+square image/webp private/no-store
+landscape image/webp private/no-store
+share image/jpeg private/no-store
+```
+
+Den dedikerte Codex-testaktørens mer kunstige forslag returnerte også ekte resultater og flere grønne originalpreviews, men kildene var for små for alle obligatoriske Foto-renditions og ble kontrollert avvist med `upscale_required`. Det bekrefter at no-upscale-kvalitetsvernet fortsatt gjelder; den egnede Festspillene-aktøren fullførte processing på første kandidat.
+
+Kontrollen stoppet før approval. Deltaet var derfor +1 privat asset, +1 immutable rendition-sett og +3 interne renditions, men 0 selections, 0 review-events, 0 publiserte aktører og 0 public releases. `Festspillene Helgeland` beholdt sin eksisterende publiseringsstatus, det globale publiserte antallet var fortsatt 122 og public releases var fortsatt 0. Etterpå rapporterte orphan-dry-run 8/8 refererte private originaler, 33/33 refererte interne renditions, 0 eligible orphans, 0 unge urefererte filer og 0 slettinger.
+
+## Gjennomført visuell eiergate
+
+Prosjekteier har gjennom vanlig browser-smoke bekreftet:
+
+- vanlig og teknisk bildespråk oppleves riktig, og Foto/Logo-skillet er logisk
+- Logo viser hele motivet og har med vilje ingen crop-, fokus- eller zoomkontroller
+- finjustering og zoom fungerer i praksis; Foto-zoom betyr innzooming og retur til standard cover-nivå, aldri zoom ut til tomme flater
+- live previews og serverprocessing oppleves som samsvarende
+- blank alttekst er akseptert uten skjult navnefallback
+- `Brave konfigurert: True` vises, `Søk etter flere bilder` returnerer ekte resultater, og den tidligere ikke-konfigurert-feilen er borte
+- privacy- og rettighetscopyen samt aktiv bruk av `search_lang=nb` er godkjent
+- PUBLIC og legacybildene er uendret, og ingen public release er opprettet
+
+Den kontrollerte nettleserflaten var ikke tilgjengelig i evidensøkten som oppdaterte denne rapporten. De synlige observasjonene ovenfor er derfor prosjekteiers evidens; den separate tekniske harnessen bekreftet live provider, privat preview, secure fetch, processing og null PUBLIC-/release-delta uavhengig.
 
 Ingen produksjonssetting eller merge er utført.

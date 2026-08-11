@@ -16,7 +16,7 @@ Eksport har foreløpig grunnleggende oppretting, listing og visning av eksportjo
 
 ## Intern bildekandidatflyt og planlagt public bildekontrakt – ADR-007
 
-[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent målarkitektur. Fase 3D.1s offisielle flyt er aktivert og visuelt godkjent i staging. Fase 3D.2 utvider den interne, feature-gated API-flyten med Brave-søk, limt URL, manuell upload, fokusforvalg, presis X/Y, Foto-zoom og valgfri asset-alttekst. Precision/zoom-oppfølgingen på draft-PR #33 er CI-grønn og teknisk stagingverifisert; visuell eierretest og live Brave ved tilgjengelig credential gjenstår. Det aktive public API-et returnerer fortsatt bare legacy bilde-URL-er.
+[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent målarkitektur. Fase 3D.1s offisielle flyt er aktivert og visuelt godkjent i staging. Fase 3D.2 utvider den interne, feature-gated API-flyten med Brave-søk, limt URL, manuell upload, fokusforvalg, presis X/Y, Foto-zoom og valgfri asset-alttekst. Precision/zoom-oppfølgingen på draft-PR #33 er CI-grønn, teknisk stagingverifisert, live Brave-verifisert og visuelt eiergodkjent. Det aktive public API-et returnerer fortsatt bare legacy bilde-URL-er.
 
 På én tenant-scopet Organization finnes følgende interne handlinger under `images/`:
 
@@ -43,7 +43,7 @@ Full providerrespons lagres aldri. Bare eksakt query og det normaliserte, nødve
 
 Appens omtrent 30 minutter gamle signed-ref må ikke forveksles med providerens egen logging. Braves [privacy policy](https://api-dashboard.search.brave.com/privacy-policy) opplyser at standard query-logger kan beholdes i opptil 90 dager; Zero Data Retention krever Enterprise/egen avtale.
 
-Editor viser før søk at queryen sendes til Brave, kan lagres der i opptil 90 dager og ikke skal inneholde sensitiv eller intern informasjon. Ved resultater vises rettighetspåminnelsen om at redaktøren må kontrollere bruken før godkjenning. Prosjekteier har godkjent parametrene og denne copyen. Gjeldende standardvilkår punkt 3(b) krever fortsatt at avtaleeier sikrer skriftlige sluttbrukerforpliktelser; dette er en operativ avtaleplikt, ikke en egen samtykkemotor i API-et. Sikker kontroll 2026-08-11 fant ingen stagingcredential, og live providerrespons er derfor fortsatt ikke verifisert.
+Editor viser før søk at queryen sendes til Brave, kan lagres der i opptil 90 dager og ikke skal inneholde sensitiv eller intern informasjon. Ved resultater vises rettighetspåminnelsen om at redaktøren må kontrollere bruken før godkjenning. Prosjekteier har godkjent parametrene og denne copyen. Gjeldende standardvilkår punkt 3(b) krever fortsatt at avtaleeier sikrer skriftlige sluttbrukerforpliktelser; dette er en operativ avtaleplikt, ikke en egen samtykkemotor i API-et. Den endelige staginggaten 2026-08-11 bekreftet boolsk server-side credentialstatus og en operativ live-providerrespons med 30 kandidater for foreslått query, privat originalpreview, secure fetch og processing. Den deployede adapteren brukte den eiergodkjente faste `search_lang=nb`-parameteren; ingen credentialverdi ble eksponert.
 
 Foto krever enten ingen fokusverdier eller begge verdiene; manglende zoom betyr `1.0000`. Fokus må være endelig tall i intervallet 0–1 og zoom et endelig tall i intervallet 1–3. Logo/contain avviser enhver fokus- eller zoomverdi. Zoom krymper det gyldige cover-vinduet rundt fokuspunktet og klamper det til kildekanten, slik at tom flate aldri oppstår. No-upscale, source byte-/pixelgrenser, tenant-scope og secure fetch er uendret.
 
@@ -57,7 +57,7 @@ Schema-migrasjon `0027` omskriver ingen data og kan reverseres mens alle selecti
 
 Schema-migrasjon `0028` legger additivt til `ImageRenditionSet.zoom` med default `1.0000` og constraint 1–3. Eksisterende rows beholder dermed dagens cropsemantikk. Reverse er tillatt så lenge alle rows fortsatt har default; den blokkeres før feltet droppes dersom en non-default zoomoppskrift finnes, fordi tap av zoom da ville gjøre historisk rendermetadata uriktig.
 
-Uploadtjenestens filgrense er 15 MiB. Staging-nginxmalen har 16 MiB request-body-grense for å gi plass til multipart-overhead, men 3D.2-konfigurasjonen er ennå ikke deployet eller stagingverifisert.
+Uploadtjenestens filgrense er 15 MiB. Staging-nginx har 16 MiB request-body-grense for å gi plass til multipart-overhead. 3D.2-konfigurasjonen og faktisk multipartflyt er deployet og stagingverifisert.
 
 Den planlagte overgangen er additiv:
 

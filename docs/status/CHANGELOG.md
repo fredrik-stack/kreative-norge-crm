@@ -29,9 +29,11 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 - fullverifisert precision/zoom-oppfølgingen lokalt med 372 backendtester på ren migrert database, 28 frontendtester, 11 Playwright-reiser, 4 stagingkontrakttester, 68 backuptester, frontendbuild og begge produksjonscontainerbyggene
 - verifisert precision/zoom-oppfølgingen i alle fem CI-jobber i run `31471806873`, tatt grønn Borg-backup `kreative-norge-staging-20260811T081243Z` og deployet runtimecommit `3686f08` kontrollert uten database-/volumrecreate
 - anvendt migrasjon `0028` i staging og gjennomført faktisk API-processing med X/Y `0.3700/0.6800`, zoom `1.5000` og tre private no-store-previews; dette la bare til ett immutable rendition-sett og tre interne renditions, med 0 selection-/event-/publiserings-/releaseendring
-- verifisert 0 storagechecksumavvik, 0 orphans, 0 slettinger, 0 public releases, uendret 122 publiserte aktører og grønne origin-smokes; ekstern curl ble stoppet av en eksplisitt Cloudflare challenge, så vanlig browser-smoke og prosjekteiers visuelle retest gjenstår
+- verifisert 0 storagechecksumavvik, 0 orphans, 0 slettinger, 0 public releases, uendret 122 publiserte aktører og grønne origin-smokes; prosjekteier har senere fullført vanlig browser-smoke og visuelt godkjent precision/zoom-, Foto/Logo-, blank-alt- og live/server-previewreisen
 - verifisert alle fem GitHub CI-jobber grønne i run `31441538397`, deployet commit `971a9c0` etter fersk grønn Borg-backup og dokumentert URL-/upload-/blank-alt-/PUBLIC-/storageevidens i [stagingrapporten](STAGING_IMAGE_SOURCES_2026-08-11.md)
-- beholdt live Brave blokkert med kontrollert `503` fordi sikker kontroll ikke fant en servernøkkel; ekte providerrespons og prosjekteiers visuelle retest av precision/zoom gjenstår
+- aktivert eksisterende server-side Brave-credential i staging og verifisert boolsk konfigurasjonsstatus, 30 ekte kandidater for den foreslåtte queryen `Festspillene Helgeland VEFSN`, privat originalpreview, secure fetch, processing og tre private no-store-renditionpreviews med aktiv `search_lang=nb`
+- bekreftet at den endelige Brave-kontrollen bare la til ett privat asset, ett immutable rendition-sett og tre interne renditions: selection-, review-event-, publiserings- og public-releaseantall var uendret, fortsatt med 0 public releases og 0 orphans
+- registrert prosjekteiers aksept av Foto-zoom som innzooming og retur til standard cover-nivå uten zoom ut til tom flate, og Logo uten crop-/zoomkontroller som riktig kontrakt
 
 ## 2026-08-10
 
