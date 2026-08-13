@@ -183,4 +183,4 @@ Prosjekteier har gjennom vanlig browser-smoke bekreftet:
 
 Den kontrollerte nettleserflaten var ikke tilgjengelig i evidensøkten som oppdaterte denne rapporten. De synlige observasjonene ovenfor er derfor prosjekteiers evidens; den separate tekniske harnessen bekreftet live provider, privat preview, secure fetch, processing og null PUBLIC-/release-delta uavhengig.
 
-Ingen produksjonssetting eller merge er utført.
+Ingen produksjonssetting eller merge ble utført som del av staging- og evidensøktene dokumentert i denne rapporten; PR #33 ble senere merget som angitt i leveransegrunnlaget.
