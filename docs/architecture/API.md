@@ -16,7 +16,7 @@ Eksport har foreløpig grunnleggende oppretting, listing og visning av eksportjo
 
 ## Intern bildekandidatflyt og planlagt public bildekontrakt – ADR-007
 
-[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent målarkitektur. Fase 3D.1s offisielle flyt er aktivert og visuelt godkjent i staging. Fase 3D.2 utvider den interne, feature-gated API-flyten med Brave-søk, limt URL, manuell upload, fokusforvalg, presis X/Y, Foto-zoom og valgfri asset-alttekst. Precision/zoom-oppfølgingen på draft-PR #33 er CI-grønn, teknisk stagingverifisert, historisk live Brave-verifisert og visuelt eiergodkjent. Brave-credentialen er deretter deaktivert; providerkallet er operativt ikke aktivt for ordinære Editor-sluttbrukere før sluttbrukeravtalegaten er dokumentert oppfylt. Det aktive public API-et returnerer fortsatt bare legacy bilde-URL-er.
+[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent målarkitektur. Fase 3D.1s offisielle flyt er aktivert og visuelt godkjent i staging. Fase 3D.2 utvider den interne, feature-gated API-flyten med Brave-søk, limt URL, manuell upload, fokusforvalg, presis X/Y, Foto-zoom og valgfri asset-alttekst. Precision/zoom-oppfølgingen er gjennomført og merget til `main` med PR #33, CI-grønn på mergecommiten, teknisk stagingverifisert, historisk live Brave-verifisert og visuelt eiergodkjent. Brave-credentialen er deretter deaktivert; providerkallet er operativt ikke aktivt for ordinære Editor-sluttbrukere før sluttbrukeravtalegaten er dokumentert oppfylt. Det aktive public API-et returnerer fortsatt bare legacy bilde-URL-er.
 
 På én tenant-scopet Organization finnes følgende interne handlinger under `images/`:
 

@@ -4,10 +4,12 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 
 ## 2026-08-11
 
-### Fase 3D.2: flere bildekilder, synlig søk og fokus-UX implementert på featurebranch
+### Fase 3D.2: flere bildekilder, synlig søk og fokus-UX merget til main
+
+- merget PR #33 til `main` som `48f23f183dacb8331a64b86f1d7574250cbfbe02`; alle fem jobber i main-CI-run `31535260891` er grønne på eksakt mergecommit
 
 - bevart den grønne Brave-liveverifikasjonen som historisk evidens, men deaktivert staging-credentialen etter testen; bare API ble rekreert, `brave_configured=False` og kontrollert `brave_not_configured` er verifisert, mens DB, web, volum, media, PUBLIC og 0 public releases er uendret
-- dokumentert at Brave er `LIVE VERIFIED`, men `CURRENTLY ACTIVE: NOT ACTIVE` for ordinære Editor-sluttbrukere inntil avtaleeier har dokumentert skriftlige sluttbrukerforpliktelser etter gjeldende Terms punkt 4(c) og nødvendige privacy notices/samtykker; ingen consent-/termsmotor legges til i PR #33
+- dokumentert at Brave er `LIVE VERIFIED`, men `CURRENTLY ACTIVE: NOT ACTIVE` for ordinære Editor-sluttbrukere inntil avtaleeier har dokumentert skriftlige sluttbrukerforpliktelser etter gjeldende Terms punkt 4(c) og nødvendige privacy notices/samtykker; ingen consent-/termsmotor inngår i fase 3D.2
 - synkronisert ADR-, staging-, backup-, arkitektur-, roadmap- og prosjektstatus etter siste review og registrert grønn sluttreview-baseline i CI-run `31520955798` på head `964a97d89f5489aeaff26cb822b2753c76b40d6e`
 - fulgt opp prosjekteiers visuelle stagingtest med presis X/Y-finjustering og 100–300 % Foto-zoom, mens Venstre/Midt/Høyre og Topp/Midt/Bunn beholdes som snarveier til samme cropoppskrift
 - lagt additiv migrasjon `0028` med `ImageRenditionSet.zoom=1.0000` som historisk default, databaseconstraint 1–3, zoom i immutable renderhash og reverse-guard etter at non-default zoom finnes

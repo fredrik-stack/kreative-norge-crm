@@ -260,6 +260,6 @@ Denne operasjonen krever eksplisitt hendelsesbeslutning og egen plan. Ikke bruk 
 - Ingen ekstern feilvarsling finnes.
 - Første restore-smoke er målt til 8,7 sekunder, men full katastrofe-RTO er ikke målt eller lovet.
 - Custody, Storage Box-snapshots og Cloud Backup-status krever fortsatt løpende manuell kontroll.
-- Bilde-runtime er teknisk deployet til staging, og manuell visuell Editor-kontroll er gjennomført. Brave-liveflyten er historisk verifisert, men credentialen er deretter deaktivert som en operativ avtalegate; ny uavhengig PR-review og ordinær merge gjenstår.
+- Bilde-runtime er teknisk deployet til staging, og manuell visuell Editor-kontroll er gjennomført. Fase 3D.2 er merget til `main` med PR #33. Brave-liveflyten er historisk verifisert, men credentialen er deretter deaktivert som en operativ avtalegate.
 
 Backupgrunnmuren er **ACTIVE** fordi Storage Box-, Borg-, recovery-key-/custody-, backup-, restore-, Console- og timerkravene er oppfylt. Cloud Backups og Storage Box-snapshots er fortsatt tilleggslag.

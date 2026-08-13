@@ -1,6 +1,6 @@
 # Editor
 
-**Status:** implementert grunnløsning; fase 2-standarder for kontaktpublisering implementert; fase 3D.1 offisiell bildekandidatflyt teknisk aktivert og visuelt godkjent i staging; fase 3D.2 med precision/zoom på draft-PR #33 er fullverifisert lokalt, CI-grønn, historisk live Brave-verifisert og visuelt eiergodkjent i staging; Brave er operativt deaktivert for ordinære Editor-sluttbrukere frem til sluttbrukeravtalegaten er dokumentert oppfylt
+**Status:** implementert grunnløsning; fase 2-standarder for kontaktpublisering implementert; fase 3D.1 offisiell bildekandidatflyt teknisk aktivert og visuelt godkjent i staging; fase 3D.2 med precision/zoom er gjennomført og merget til `main` med PR #33, fullverifisert lokalt, CI-grønn, historisk live Brave-verifisert og visuelt eiergodkjent i staging; Brave er operativt deaktivert for ordinære Editor-sluttbrukere frem til sluttbrukeravtalegaten er dokumentert oppfylt
 
 React-editoren støtter tenantvalg, rollebasert tilgang, aktører, personer, relasjoner, kontaktkanaler, søk, taksonomifiltrering og import/eksport-side.
 
@@ -39,7 +39,7 @@ Et aktivt valg vises som `Aktivt bilde`, med revisjon separat, eventuell `Ingen 
 
 ### Leveransestatus og gjenstående gater
 
-Fase 3D.2-koden og automatisert testdekning finnes på draft-PR #33. Første versjon har fem grønne CI-jobber og teknisk stagingevidens for direkte URL, multipart-upload, private previews, blank alttekst og uendret PUBLIC. Precision/zoom-oppfølgingen har en ny grønn CI-run og er teknisk stagingverifisert med faktisk API-processing av presis X/Y og 150 % zoom samt tre private serverpreviews. Prosjekteiers visuelle retest er gjennomført og aksepterer vanlig/teknisk bildespråk, Foto/Logo-skillet, Logo uten cropkontroller, finjustering, zoomkontrakten, live/server-samsvar og blank alttekst. Brave live-søk, privat originalpreview, secure fetch og processing er historisk verifisert uten PUBLIC- eller public-releaseendring. Credentialen er deretter deaktivert som operativ avtalegate. Featureflaggets kode-default er fortsatt avslått. Draft-PR #33 venter på ny uavhengig sluttreview. Se [datert stagingevidens](../status/STAGING_IMAGE_SOURCES_2026-08-11.md).
+Fase 3D.2-koden og den automatiserte testdekningen er merget til `main` med PR #33 som mergecommit `48f23f183dacb8331a64b86f1d7574250cbfbe02`; alle fem jobber i main-CI-run `31535260891` er grønne. Første versjon har teknisk stagingevidens for direkte URL, multipart-upload, private previews, blank alttekst og uendret PUBLIC. Precision/zoom-oppfølgingen er teknisk stagingverifisert med faktisk API-processing av presis X/Y og 150 % zoom samt tre private serverpreviews. Prosjekteiers visuelle retest er gjennomført og aksepterer vanlig/teknisk bildespråk, Foto/Logo-skillet, Logo uten cropkontroller, finjustering, zoomkontrakten, live/server-samsvar og blank alttekst. Brave live-søk, privat originalpreview, secure fetch og processing er historisk verifisert uten PUBLIC- eller public-releaseendring. Credentialen er deretter deaktivert som operativ avtalegate. Featureflaggets kode-default er fortsatt avslått. Se [datert stagingevidens](../status/STAGING_IMAGE_SOURCES_2026-08-11.md).
 
 Historikk-/restore-UI, takedown, permanent kandidatlagring, public release/materialisering, public projection og PUBLIC-bildebruk er ikke implementert av 3D.2.
 
