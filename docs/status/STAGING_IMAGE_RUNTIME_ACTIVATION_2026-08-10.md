@@ -73,7 +73,7 @@ Prosjekteier gjennomførte den visuelle kontrollen etter den tekniske aktivering
 
 Den manuelle visuelle gaten for Leveranse 2 er dermed gjennomført. Norske processingfeil, fokusforvalg, live Foto-crop, valgfri alt-tekst, Brave/generelt søk, limt URL og manuell upload er besluttet for fase 3D.2 og er ikke implementert her.
 
-## Nåstatus og åpne grenser
+## Status og åpne grenser ved rapporttidspunktet
 
 - staging: `IMAGE_ASSET_FEATURE_ENABLED=True`
 - kode/default og `.env.staging.example`: `False`
@@ -81,7 +81,7 @@ Den manuelle visuelle gaten for Leveranse 2 er dermed gjennomført. Norske proce
 - PUBLIC, public release, public projection og offentlig media-serving er uendret
 - default storage for import-/eksport-/rapportfiler er fortsatt ikke host-persistent
 - permanent reservation-/deny-journal, retentionpolicy, public cache/purge og full katastrofe-RTO gjenstår
-- ordinær PR-review/merge gjenstår
+- ordinær PR-review/merge gjenstod ved rapporttidspunktet
 
 ## Review-hardening verifisert på ny staginghead
 

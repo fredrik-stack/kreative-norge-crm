@@ -14,9 +14,9 @@ Godkjent som arkitekturgrunnlag. Fase 3A, de isolerte fase 3B.1- og 3B.2-prototy
 
 **Fase 3B.3-valg godkjent:** 2026-08-07
 
-**Fase 3D.2 implementert og verifisert på featurebranch:** 2026-08-11; ny uavhengig sluttreview gjenstår etter dokumentasjonssynkronisering
+**Fase 3D.2 gjennomført og merget:** 2026-08-11; PR #33 er merget til `main` som `48f23f183dacb8331a64b86f1d7574250cbfbe02`, med grønn main-CI-run `31535260891`
 
-**Dokumentert i repo:** 2026-08-11
+**Dokumentert i repo:** 2026-08-13
 
 Fase 3B.3-dokumentasjonsleveransen innebærer ingen applikasjonskode, datamodell, migrasjon, storage-konfigurasjon, API-endring, frontendendring, dataendring eller deploy. Dagens legacyflyt med eksterne bilde-URL-er gjelder fortsatt frem til en kontrollert overgang er implementert og verifisert.
 
@@ -583,7 +583,7 @@ Provideradapteren bruker `GET https://api.search.brave.com/res/v1/images/search`
 
 Denne app-retensjonen er ikke det samme som providerens logging. Braves [privacy policy](https://api-dashboard.search.brave.com/privacy-policy) opplyser at standard query-logger kan beholdes i opptil 90 dager. Zero Data Retention krever Enterprise/egen avtale og er ikke aktivert eller dokumentert for denne leveransen.
 
-Live provideraktivering har i tillegg en manuell, operativ avtaleplikt. Braves gjeldende [Search API Terms of Use](https://api-dashboard.search.brave.com/documentation/resources/terms-of-service) punkt 4(c) krever at hver End User er bundet av en skriftlig avtale med Customer med forpliktelser vesentlig tilsvarende bruksbegrensningene i punkt 3(b). Customer har også ansvar for nødvendige privacy notices og samtykker; se dessuten Braves gjeldende [Privacy Policy](https://api-dashboard.search.brave.com/privacy-policy). Prosjekteier har godkjent providerparametrene og den synlige privacy-/rettighetscopyen, men sluttbrukeravtalegaten er ikke dokumentert oppfylt. Brave skal derfor være operativt deaktivert for ordinære Editor-sluttbrukere frem til avtaleeier har dokumentert oppfyllelse. Dette er ikke manglende kode i 3D.2, og ingen consent-, terms- eller brukeravtalemotor skal bygges i PR #33. Om gaten senere dekkes av eksisterende arbeids-/oppdragsvilkår, egne Editor-vilkår eller eksplisitt digital aksept avgjøres separat.
+Live provideraktivering har i tillegg en manuell, operativ avtaleplikt. Braves gjeldende [Search API Terms of Use](https://api-dashboard.search.brave.com/documentation/resources/terms-of-service) punkt 4(c) krever at hver End User er bundet av en skriftlig avtale med Customer med forpliktelser vesentlig tilsvarende bruksbegrensningene i punkt 3(b). Customer har også ansvar for nødvendige privacy notices og samtykker; se dessuten Braves gjeldende [Privacy Policy](https://api-dashboard.search.brave.com/privacy-policy). Prosjekteier har godkjent providerparametrene og den synlige privacy-/rettighetscopyen, men sluttbrukeravtalegaten er ikke dokumentert oppfylt. Brave skal derfor være operativt deaktivert for ordinære Editor-sluttbrukere frem til avtaleeier har dokumentert oppfyllelse. Dette er ikke manglende kode i 3D.2, og ingen consent-, terms- eller brukeravtalemotor inngår i fase 3D.2. Om gaten senere dekkes av eksisterende arbeids-/oppdragsvilkår, egne Editor-vilkår eller eksplisitt digital aksept avgjøres separat.
 
 Direkte URL går gjennom samme normalisering, sikre fetch, preview og processing som official/Brave. Upload går direkte gjennom samme begrensede ingest-/processingprofil. URL-er som kan lagres som tillatt proveniens renses slik at credentials, fragmenter eller kjente signatur-/tokenparametre ikke lagres utilsiktet.
 
@@ -1231,7 +1231,7 @@ Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkj
 
 ### Fase 3D: Editor-flyt for aktørbilde
 
-**Implementeringsstatus 2026-08-11:** Fase 3D.1 er implementert bak miljøstyrt featuregate med official website/Open Graph-discovery, transient signert kandidat, ephemeral kandidat-preview, valgt 3C.7-processing, intern rendition-preview og eksplisitt first lock/replacement. Den interne host-persistente storage-runtimeen er teknisk aktivert, backup-/restore-verifisert og visuelt godkjent for 3D.1 i staging. Kode-default er fortsatt avslått og public serving er uendret. Fase 3D.2 er implementert på draft-PR #33 med Brave, limt URL, upload, fokusforvalg, presis X/Y, Foto-zoom, live crop, norske feil og valgfri asset-alttekst. Precision/zoom-oppfølgingen er fullverifisert lokalt, CI-grønn, live Brave-verifisert og visuelt eiergodkjent i staging. Brave-credentialen ble deretter deaktivert; ordinær Editor-bruk er operativt blokkert frem til sluttbrukeravtalegaten er dokumentert oppfylt. Ny uavhengig sluttreview gjenstår. Systemfallback-/historikk-UI, takedownforberedelse og public projection er fortsatt ikke implementert.
+**Implementeringsstatus 2026-08-13:** Fase 3D.1 er implementert bak miljøstyrt featuregate med official website/Open Graph-discovery, transient signert kandidat, ephemeral kandidat-preview, valgt 3C.7-processing, intern rendition-preview og eksplisitt first lock/replacement. Den interne host-persistente storage-runtimeen er teknisk aktivert, backup-/restore-verifisert og visuelt godkjent for 3D.1 i staging. Kode-default er fortsatt avslått og public serving er uendret. Fase 3D.2 er gjennomført og merget til `main` med PR #33 og omfatter Brave, limt URL, upload, fokusforvalg, presis X/Y, Foto-zoom, live crop, norske feil og valgfri asset-alttekst. Precision/zoom-oppfølgingen er fullverifisert lokalt, CI-grønn på mergecommiten, live Brave-verifisert og visuelt eiergodkjent i staging. Brave-credentialen ble deretter deaktivert; ordinær Editor-bruk er operativt blokkert frem til sluttbrukeravtalegaten er dokumentert oppfylt. Systemfallback-/historikk-/takedown-UI og den kontrollerte overgangen til public projection er fortsatt ikke implementert og prioriteres etter konkret brukerreise eller nødvendig sikkerhets-/driftsgaranti.
 
 **Omfang:**
 

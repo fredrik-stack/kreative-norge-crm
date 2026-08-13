@@ -1,13 +1,14 @@
 # Fase 3D.2 – stagingverifisering 2026-08-11
 
-**Status:** fase 3D.2 med precision/zoom er fullverifisert lokalt, CI-grønn, teknisk stagingverifisert, live Brave-verifisert og visuelt eiergodkjent. Direkte URL, multipart-upload, private previews, processing, valgfri alttekst, storage og PUBLIC-regresjon er grønne. Etter live-verifikasjonen ble Brave-credentialen med hensikt deaktivert; historisk live-status er **PASS**, mens dagens operative stagingstatus er **NOT ACTIVE** frem til sluttbrukeravtalegaten er dokumentert oppfylt. Draft-PR #33 venter på ny uavhengig sluttreview; ingen merge eller produksjonssetting er utført.
+**Status:** fase 3D.2 med precision/zoom er fullverifisert lokalt, CI-grønn, teknisk stagingverifisert, live Brave-verifisert og visuelt eiergodkjent. Direkte URL, multipart-upload, private previews, processing, valgfri alttekst, storage og PUBLIC-regresjon er grønne. Etter live-verifikasjonen ble Brave-credentialen med hensikt deaktivert; historisk live-status er **PASS**, mens dagens operative stagingstatus er **NOT ACTIVE** frem til sluttbrukeravtalegaten er dokumentert oppfylt. PR #33 ble senere merget til `main` som `48f23f183dacb8331a64b86f1d7574250cbfbe02`; rapporten dokumenterer fortsatt den historiske stagingreisen, og ingen produksjonssetting er utført.
 
 ## Leveransegrunnlag
 
 - branch: `feature/phase3d2-image-sources-ux`
 - første 3D.2-runtimecommit: `971a9c0e13783ab57a49782d3e131cf988c917f1`
 - deployet precision/zoom-runtimecommit: `3686f08006a1396fd1e2ce250603044c4b62e041`
-- draft-PR: [#33](https://github.com/fredrik-stack/kreative-norge-crm/pull/33)
+- senere merget PR: [#33](https://github.com/fredrik-stack/kreative-norge-crm/pull/33), mergecommit `48f23f183dacb8331a64b86f1d7574250cbfbe02`
+- main-CI etter merge: [31535260891](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/31535260891), alle fem jobber grønne på eksakt mergecommit
 - første GitHub Actions-run: [31441538397](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/31441538397), alle fem jobber grønne
 - precision/zoom GitHub Actions-run: [31471806873](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/31471806873), alle fem jobber grønne
 - sluttreview-baseline GitHub Actions-run: [31520955798](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/31520955798), alle fem jobber grønne på PR-head `964a97d89f5489aeaff26cb822b2753c76b40d6e`
@@ -66,7 +67,7 @@ Brave-kallet i den første stagingreisen returnerte kontrollert `503` med `brave
 
 ## Prosjekteiers visuelle oppfølging og bestilt retting
 
-Prosjekteier bekreftet etter første deploy at official discovery, direkte URL, upload, private previews, fokusforvalg, blank alttekst og uendret PUBLIC fungerer visuelt. Testen avdekket at teknisk tomtilstandstekst måtte erstattes, og at de ni fokusforvalgene var for grove. Oppfølgingen på samme draft-PR implementerer derfor vanlig språk, tydelig Foto/Logo-forskjell, presis X/Y, 100–300 % Foto-zoom, reset og felles live/server-cropgeometri. Additiv migrasjon `0028` gir eksisterende rendition-sett zoom `1.0000`.
+Prosjekteier bekreftet etter første deploy at official discovery, direkte URL, upload, private previews, fokusforvalg, blank alttekst og uendret PUBLIC fungerer visuelt. Testen avdekket at teknisk tomtilstandstekst måtte erstattes, og at de ni fokusforvalgene var for grove. Oppfølgingen ble gjennomført på samme daværende draft-PR med vanlig språk, tydelig Foto/Logo-forskjell, presis X/Y, 100–300 % Foto-zoom, reset og felles live/server-cropgeometri. Additiv migrasjon `0028` gir eksisterende rendition-sett zoom `1.0000`.
 
 ## Precision/zoom-deploy og teknisk gate
 
@@ -165,7 +166,7 @@ Dermed er statusen eksplisitt todelt:
 - **LIVE VERIFIED: PASS** – 30 ekte kandidater, privat originalpreview, secure fetch, processing og private renditions er historisk verifisert.
 - **CURRENTLY ACTIVE: NOT ACTIVE** – ordinære Editor-sluttbrukere skal ikke få Brave aktivert før den manuelle sluttbrukeravtalegaten er dokumentert oppfylt.
 
-Braves gjeldende [Search API Terms of Use](https://api-dashboard.search.brave.com/documentation/resources/terms-of-service) punkt 4(c) krever at hver End User er bundet av en skriftlig avtale med Customer med forpliktelser vesentlig tilsvarende punkt 3(b), og legger ansvaret for nødvendige privacy notices/samtykker på Customer. Se også Braves [Privacy Policy](https://api-dashboard.search.brave.com/privacy-policy). Prosjektet påstår ikke at denne gaten er oppfylt. Det skal ikke bygges en consent-, terms- eller brukeravtalemotor i PR #33; senere valg mellom eksisterende arbeids-/oppdragsvilkår, egne Editor-vilkår eller eksplisitt digital aksept er en separat beslutning.
+Braves gjeldende [Search API Terms of Use](https://api-dashboard.search.brave.com/documentation/resources/terms-of-service) punkt 4(c) krever at hver End User er bundet av en skriftlig avtale med Customer med forpliktelser vesentlig tilsvarende punkt 3(b), og legger ansvaret for nødvendige privacy notices/samtykker på Customer. Se også Braves [Privacy Policy](https://api-dashboard.search.brave.com/privacy-policy). Prosjektet påstår ikke at denne gaten er oppfylt. Det skal ikke bygges en consent-, terms- eller brukeravtalemotor som del av fase 3D.2; senere valg mellom eksisterende arbeids-/oppdragsvilkår, egne Editor-vilkår eller eksplisitt digital aksept er en separat beslutning.
 
 ## Gjennomført visuell eiergate
 
