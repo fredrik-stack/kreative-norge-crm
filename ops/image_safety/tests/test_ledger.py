@@ -363,6 +363,7 @@ class AnchorCrashAndRestoreTests(LedgerFixture):
             backend,
             expected_repository_id=REPOSITORY_ID,
             destination=restored_path,
+            recovery_mode="clean",
         )
         self.assertEqual(restored.release_state(self.release_id)["state"], "denied")
         self.assertTrue(restored.health(expected_repository_id=REPOSITORY_ID).ready)
@@ -375,9 +376,80 @@ class AnchorCrashAndRestoreTests(LedgerFixture):
             backend,
             expected_repository_id=REPOSITORY_ID,
             destination=restored_path,
+            recovery_mode="clean",
         )
         restored.rebuild()
         self.assertEqual(restored.bundle_bytes(), self.ledger.bundle_bytes())
+
+    def test_incident_restore_rejects_stale_visible_head_after_newest_tombstone(self):
+        self.reserve()
+        backend = self.anchor()
+        self.ledger.activate_release(event_id="activate.one", release_id=self.release_id)
+        self.anchor(backend)
+        self.ledger.deny_release(
+            event_id="deny.newest", release_id=self.release_id, reason_code="security_deny"
+        )
+        self.anchor(backend)
+        authoritative_head = self.ledger.head()
+        newest_archive = max(
+            backend.archives,
+            key=lambda name: int(name.split("-")[-2]),
+        )
+        newest_bytes = backend.archives.pop(newest_archive)
+
+        visible_names = backend.list_archives("image-safety-")
+        self.assertNotIn(newest_archive, visible_names)
+        stale_destination = self.root / "incident-stale.sqlite3"
+        with self.assertRaisesRegex(
+            AnchorBackendError, "authoritative incident recovery evidence"
+        ):
+            restore_latest_anchor(
+                backend,
+                expected_repository_id=REPOSITORY_ID,
+                destination=stale_destination,
+                recovery_mode="incident-recovered",
+                expected_authoritative_cursor=authoritative_head.sequence,
+                expected_authoritative_event_hash=authoritative_head.event_hash,
+            )
+        self.assertFalse(stale_destination.exists())
+
+        clean_destination = self.root / "clean-visible.sqlite3"
+        clean_visible = restore_latest_anchor(
+            backend,
+            expected_repository_id=REPOSITORY_ID,
+            destination=clean_destination,
+            recovery_mode="clean",
+        )
+        self.assertEqual(clean_visible.release_state(self.release_id)["state"], "active")
+
+        backend.archives[newest_archive] = newest_bytes
+        recovered_destination = self.root / "incident-recovered.sqlite3"
+        recovered = restore_latest_anchor(
+            backend,
+            expected_repository_id=REPOSITORY_ID,
+            destination=recovered_destination,
+            recovery_mode="incident-recovered",
+            expected_authoritative_cursor=authoritative_head.sequence,
+            expected_authoritative_event_hash=authoritative_head.event_hash,
+        )
+        recovered.rebuild()
+        self.assertEqual(recovered.head(), authoritative_head)
+        self.assertEqual(recovered.release_state(self.release_id)["state"], "denied")
+        self.assertTrue(recovered.health(expected_repository_id=REPOSITORY_ID).ready)
+
+    def test_incident_restore_requires_independent_authoritative_head(self):
+        self.reserve()
+        backend = self.anchor()
+        destination = self.root / "missing-incident-evidence.sqlite3"
+
+        with self.assertRaisesRegex(AnchorBackendError, "authoritative cursor"):
+            restore_latest_anchor(
+                backend,
+                expected_repository_id=REPOSITORY_ID,
+                destination=destination,
+                recovery_mode="incident-recovered",
+            )
+        self.assertFalse(destination.exists())
 
     def test_tampered_remote_archive_is_a_hard_conflict(self):
         self.reserve()

@@ -19,6 +19,9 @@ BORG_STABLE_VERSION_RE = re.compile(
 )
 MINIMUM_BORG_VERSION = (1, 2, 8)
 MAXIMUM_BORG_VERSION = (1, 3, 0)
+RESTORE_MODE_CLEAN = "clean"
+RESTORE_MODE_INCIDENT_RECOVERED = "incident-recovered"
+RESTORE_MODES = {RESTORE_MODE_CLEAN, RESTORE_MODE_INCIDENT_RECOVERED}
 
 
 class AnchorBackendError(Exception):
@@ -105,7 +108,29 @@ def restore_latest_anchor(
     *,
     expected_repository_id: str,
     destination: str | os.PathLike[str],
+    recovery_mode: str,
+    expected_authoritative_cursor: int | None = None,
+    expected_authoritative_event_hash: str | None = None,
 ) -> PublicImageSafetyLedger:
+    if recovery_mode not in RESTORE_MODES:
+        raise AnchorBackendError("Restore recovery mode must be explicit and supported.")
+    if recovery_mode == RESTORE_MODE_CLEAN:
+        if (
+            expected_authoritative_cursor is not None
+            or expected_authoritative_event_hash is not None
+        ):
+            raise AnchorBackendError(
+                "Clean restore does not accept incident recovery head arguments."
+            )
+    elif (
+        type(expected_authoritative_cursor) is not int
+        or expected_authoritative_cursor < 0
+        or not isinstance(expected_authoritative_event_hash, str)
+        or not REPOSITORY_ID_RE.fullmatch(expected_authoritative_event_hash)
+    ):
+        raise AnchorBackendError(
+            "Incident restore requires the recovered authoritative cursor and full event hash."
+        )
     repository_id = backend.verified_repository_id().lower()
     if repository_id != expected_repository_id.lower():
         raise AnchorBackendError("Off-server repository identity mismatch.")
@@ -141,6 +166,13 @@ def restore_latest_anchor(
         or not str(summary.get("event_head_hash", "")).startswith(archive_hash_prefix)
     ):
         raise AnchorBackendError("Anchor archive name does not match its bundle metadata.")
+    if recovery_mode == RESTORE_MODE_INCIDENT_RECOVERED and (
+        max_cursor != expected_authoritative_cursor
+        or summary.get("event_head_hash") != expected_authoritative_event_hash
+    ):
+        raise AnchorBackendError(
+            "Recovered repository head does not match the authoritative incident recovery evidence."
+        )
     restored = PublicImageSafetyLedger.restore_bundle(
         bundle=content,
         destination=destination,

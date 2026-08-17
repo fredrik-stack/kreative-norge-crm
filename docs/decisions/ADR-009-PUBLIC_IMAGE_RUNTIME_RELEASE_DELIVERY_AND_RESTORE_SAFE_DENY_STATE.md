@@ -287,7 +287,7 @@ Trinnvis innføring holder risikoen avgrenset: journal og restorebevis kommer f�
 
 ### Fase 3E.1A – journal, restore-gate og off-server anker
 
-**Implementasjonsstatus 2026-08-17:** Repoimplementasjon og syntetisk lokal evidens er levert. Ledgeren ligger planlagt i `/var/lib/kreative-norge-image-safety/ledger.sqlite3`, kjører host-side uten container-mount og bruker et dedikert append-only repository med stabil Borg `>=1.2.8,<1.3.0` og synkron create/read-back før lokal receipt. Dedikert Storage Box-subaccount/repository, unik subaccount-passordcustody, live delete-/compact-/raw-rm-capabilitytest, recovery og stagingrestart er fortsatt `MANUAL REQUIRED`; derfor er ingen public runtime aktivert. Se [runbook](../operations/PUBLIC_IMAGE_SAFETY_LEDGER.md) og [stagingforberedelse](../status/STAGING_PHASE_3E1A_PREPARATION_2026-08-17.md).
+**Implementasjonsstatus 2026-08-17:** Repoimplementasjon og syntetisk lokal evidens er levert. Ledgeren ligger planlagt i `/var/lib/kreative-norge-image-safety/ledger.sqlite3`, kjører host-side uten container-mount og bruker et dedikert append-only repository med stabil Borg `>=1.2.8,<1.3.0` og synkron create/read-back før lokal receipt. Restore krever nå eksplisitt `clean` eller `incident-recovered`; incidentmodus krever separat recoveret autoritativ cursor/full head-hash og avviser et stale synlig manifest før receipt. Dedikert Storage Box-subaccount/repository, unik subaccount-passordcustody, bevis på forskjellig safety-/ADR-008-repository-ID, live delete-/compact-/raw-rm-/newest-head-capabilitytest, transaction recovery og stagingrestart er fortsatt `MANUAL REQUIRED`; derfor er ingen public runtime aktivert. Se [runbook](../operations/PUBLIC_IMAGE_SAFETY_LEDGER.md) og [stagingforberedelse](../status/STAGING_PHASE_3E1A_PREPARATION_2026-08-17.md).
 
 **Omfang:**
 
@@ -302,6 +302,7 @@ Trinnvis innføring holder risikoen avgrenset: journal og restorebevis kommer f�
 - samme event-ID/samme payload er idempotent, mens samme ID/annen payload og ugyldig overgang feiler lukket
 - retired/denied release kan ikke aktiveres; gammel database + nyere journal kan ikke regenerere eller reaktivere keyen
 - manglende, korrupt, stale eller ukjent ledger/cursor blokkerer runtime
+- incident/unknown restore kan ikke bruke current manifest alene; separat append-only recovery må identifisere autoritativ cursor/head før restore kan skrive receipt og bli `READY`
 - avledet state kan bygges fra eventene med samme resultat
 - ubegrenset/admin Storage Box-credential finnes ikke i CRM-runtime, og recoverytilgang har separat custody
 - append-, overwrite-, delete-, restore- og credentialadferd er dokumentert med faktisk evidens uten absolutt WORM-påstand

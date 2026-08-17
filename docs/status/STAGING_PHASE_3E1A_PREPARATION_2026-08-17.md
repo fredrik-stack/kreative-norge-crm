@@ -17,7 +17,7 @@
 
 Målrettet lokal evidens ved dokumenttidspunkt:
 
-- 25 ledger-/idempotency-/transition-/concurrency-/corruption-/crash-/restore-/credential-/placement-/repository-bootstrap-/Borg-versjonstester: grønn lokalt og i Linux-container; forrige PR-head hadde 23 grønne tester i GitHub CI før de to additive versjonstestene
+- 27 ledger-/idempotency-/transition-/concurrency-/corruption-/crash-/clean-/incident-restore-/credential-/placement-/repository-bootstrap-/Borg-versjonstester: grønn lokalt og i Linux-container; 25 av disse var også grønne i CI-run `32069227961` på head `905ef93f1d17ef82d6bf12902383d8b2e6d66780` før de to additive incident-restoretestene
 - 26 eksisterende image release-/migrationtester: grønn mot lokal PostgreSQL
 - 372 backendtester: grønn på ren lokal PostgreSQL-testdatabase
 - 4 stagingkontrakttester: grønn
@@ -27,9 +27,9 @@ Målrettet lokal evidens ved dokumenttidspunkt:
 - systemd-analyze for nye services/timer: grønn i isolert Ubuntu 24.04-container
 - installerens root:root `0600` config, `0700` state og installpaths: grønn i isolert Ubuntu 24.04-container
 - API- og web-produksjonsimages: bygget grønt som `phase3e1a-verify`
-- alle seks PR-jobber i CI-run `32066750063`: grønn på implementasjonscommit `c75acc13bcec902752f19c07d8800f1353b364ab`
+- alle seks PR-jobber i CI-run `32069227961`: grønn på head `905ef93f1d17ef82d6bf12902383d8b2e6d66780`
 
-Pre-activation-reviewen er lokalt lukket med eksakt Borg `>=1.2.8,<1.3.0`, eksplisitt runtime/recovery-custody og obligatorisk compact-probe. Ny PR-CI må være grønn på reviewcommitten før denne kode-/dokumentasjonsgaten er ferdig.
+Pre-activation-reviewen på denne headen er lukket med eksakt Borg `>=1.2.8,<1.3.0`, eksplisitt runtime/recovery-custody og obligatorisk compact-probe. Den siste restore-gaten legger i neste reviewcommit til eksplisitt clean/incident restore og stale-head-avvisning; ny PR-CI må være grønn på den committen før kodegaten er ferdig.
 
 Draft-PR #36 er opprettet uten merge. Den eksterne manuelle staginggaten under er fortsatt uendret.
 
@@ -46,8 +46,9 @@ Prosjekteier/Storage Box-administrator må:
 1. opprette dedikert subaccount/repository og installere bare writerens public ED25519-key
 2. lagre et unikt subaccount-passord, main/admin, Borg recovery key og nødvendig passfraserecovery i separat off-server custody for minst to ansvarlige; aldri på runtimehosten
 3. kontrollere og pinne host key og repository-ID
-4. kjøre den syntetiske capability-/delete-/compact-/raw-rm-/restoreøvelsen i [runbooken](../operations/PUBLIC_IMAGE_SAFETY_LEDGER.md#8-obligatorisk-live-capability--og-restoreøvelse)
-5. dokumentere faktisk compact-exit-status og separat recovery av tombstonet probe
-6. godkjenne at dokumenterte Borg/Hetzner-begrensninger er akseptable
+4. verifisere og dokumentere at safety-repository-ID er forskjellig fra ADR-008-backuprepository-ID før destructive probe
+5. kjøre den syntetiske capability-/delete-/compact-/raw-rm-/newest-head-/restoreøvelsen i [runbooken](../operations/PUBLIC_IMAGE_SAFETY_LEDGER.md#8-obligatorisk-live-capability--og-restoreøvelse)
+6. dokumentere faktisk compact-exit-status, stale incident-restore-avvisning og separat recovery av tombstonet probe/deny-head
+7. godkjenne at dokumenterte Borg/Hetzner-begrensninger er akseptable
 
 Først deretter kan hostmodulen installeres, genesis ankres og status endres til `ACTIVE`. Det kreves ingen reell aktør eller public fil for øvelsen.

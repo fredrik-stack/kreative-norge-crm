@@ -11,6 +11,7 @@ import uuid
 from .anchor import (
     BorgAnchorBackend,
     BorgAnchorConfig,
+    RESTORE_MODES,
     anchor_current_head,
     restore_latest_anchor,
 )
@@ -81,6 +82,24 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("rebuild")
     restore = subparsers.add_parser("restore-latest")
     restore.add_argument("--destination", required=True)
+    restore.add_argument(
+        "--recovery-mode",
+        choices=sorted(RESTORE_MODES),
+        required=True,
+        help=(
+            "Required assurance: incident-recovered is valid only after separate "
+            "append-only transaction recovery."
+        ),
+    )
+    restore.add_argument(
+        "--expected-authoritative-cursor",
+        type=int,
+        help="Required recovered cursor for incident-recovered mode.",
+    )
+    restore.add_argument(
+        "--expected-authoritative-event-hash",
+        help="Required recovered full event head hash for incident-recovered mode.",
+    )
     return parser
 
 
@@ -154,8 +173,13 @@ def main(argv: list[str] | None = None) -> int:
             backend,
             expected_repository_id=config.expected_repository_id,
             destination=arguments.destination,
+            recovery_mode=arguments.recovery_mode,
+            expected_authoritative_cursor=arguments.expected_authoritative_cursor,
+            expected_authoritative_event_hash=(
+                arguments.expected_authoritative_event_hash
+            ),
         )
-        result = asdict(restored.head())
+        result = {"recovery_mode": arguments.recovery_mode, **asdict(restored.head())}
     else:  # pragma: no cover
         raise AssertionError("unreachable command")
     print(json.dumps(result, sort_keys=True))

@@ -19,6 +19,7 @@ Denne runbooken gjelder bare fase 3E.1A. Den aktiverer ikke public bytes, materi
 - immutable, lokalt verifiserte anchor receipts
 - canonical ankervariant som inneholder hele eventhistorikken, ledger-ID, cursor og head-hash
 - fail-closed `health` mot SQLite-integritet, schema/identity, full replay, read-model, cursor, repository-ID, siste ankercursor og eksakte bundle-bytes
+- eksplisitt restore-assurance: `clean` eller `incident-recovered`; incident restore krever separat identifisert autoritativ cursor og full head-hash
 
 `tenant_runtime_enrolled` og checksum-deny er ikke innført. Tenantvis runtimeaktivering er ikke en sikkerhetsgrense i 3E.1A, og checksum-deny tilhører 3E.4.
 
@@ -181,6 +182,16 @@ Health-timeren kan først aktiveres etter live restore-/capabilitygaten. Den er 
 
 Bruk bare dedikert safety-repository og syntetiske eventer. Ikke bruk reelle aktørbilder og ikke kjør delete/compact mot ADR-008-backuprepositoryet.
 
+Før første destructive probe skal operatøren gjennomføre og dokumentere denne repository-separasjonsgaten uten credentials:
+
+1. les og verifiser safety-repositoryets pinned repository-ID med safety-writerens read-only inspect/info-flyt
+2. les og verifiser det eksisterende ADR-008-backuprepositoryets pinned repository-ID med dets separate, skrivebeskyttede `inspect-repository`
+3. registrer begge repository-ID-ene i stagingevidensen; ID-ene er identiteter, ikke secrets
+4. assert eksplisitt at ID-ene er forskjellige og at safety-repositoryet er tomt/dedikert til image safety før genesis
+5. stopp før `delete`, `compact`, raw `rm` eller annen muterende probe dersom én ID er ukjent, mismatchende, lik den andre eller repositoryformålet ikke kan bevises
+
+Credentials, repositorypassfraser og nøkler skal aldri skrives i evidensen. Kontrollen bruker separate eksisterende credentialflater; ADR-008-credentialen skal ikke kopieres til image-safety-runtime.
+
 Live stagingrapporten må dokumentere uten credentials:
 
 1. eksakt repository-ID og at writer er dedikert subaccount, ikke main user
@@ -200,6 +211,25 @@ Live stagingrapporten må dokumentere uten credentials:
 9. host-restart beholder ledger/receipts
 10. API-/web-containerne mangler fortsatt safety-mount, Borg, secrets og public media
 
+Den separate probe-testen over beholdes. I tillegg skal siste autoritative safety-head testes med bare syntetiske events:
+
+1. opprett en synthetic reservation
+2. ankre reservationen
+3. aktiver releasen
+4. ankre activation
+5. opprett en nyere synthetic deny
+6. ankre deny og noter eksakt cursor/full head-hash
+7. bruk bare den dedikerte writeridentiteten til å tombstone det nyeste safety-anchorarkivet
+8. dokumenter hva vanlig current-manifest/`list` viser etter tombstoning, inkludert det eldre høyeste synlige headet
+9. behandle situasjonen som `INCIDENT / UNKNOWN`; forsøk `restore-latest --recovery-mode incident-recovered` med den noterte autoritative cursor/head-hashen og bevis at det stale synlige manifestet avvises før destination eller lokal receipt opprettes; ikke kjør eller godta `--recovery-mode clean`
+10. bruk separat admin/recovery-custody og Borgs append-only transaction/recovery-prosedyre til å identifisere og recovere siste autoritative repository-state
+11. verifiser at recovered manifest igjen inneholder det forventede deny-headet
+12. kjør incident restore med eksakt forventet cursor/head, deretter `rebuild` og `health`
+13. bevis at releasen fortsatt er `DENIED`
+14. dokumenter cursor/head før delete, under tombstone og etter recovery
+
+Hvis korrekt autoritativ cursor/head ikke kan identifiseres fra separat recovery, er resultatet `NOT READY`; current manifest eller et eldre synlig arkiv kan ikke brukes som erstatning.
+
 Delete, compact eller rå filprobe må aldri kjøres mot ADR-008s ordinære backuprepository eller med reelle CRM-data/aktørbilder. Faktisk live-resultat skal holdes adskilt fra forventet Borg-kontrakt, og testen gir aldri grunnlag for å påstå absolutt WORM.
 
 ### Pre-activation-gate
@@ -208,25 +238,45 @@ Status kan ikke endres til `ACTIVE` før alle disse gruppene er dokumentert grø
 
 - **Repo/code:** Borg `>=1.2.8,<1.3.0` håndheves; image-safety-, backup-, relevante staging-/backendtester og CI er grønne.
 - **Manuell ekstern kjede:** dedikert subaccount/repository; writer public key; unikt subaccount-passord bare i separat recovery/admin-custody; separat main/admin/recovery; pinned host key og repository-ID; eksportert recovery key; Borg-passfrase-recovery; nødvendig tilgang for minst to ansvarlige.
-- **Live capability/restore:** genesis, syntetisk reservation, create/read-back/receipt, conflicting bytes-avvisning, delete-, compact- og raw-rm-prober, separat recovery av tombstonet probe, restore/rebuild/health, nyere deny over eldre app/DB-state, corruption/stale-cursor `NOT READY`, restartpersistens og fortsatt containerisolasjon.
+- **Repository-separasjon:** safety- og ADR-008-backuprepository-ID er begge verifisert og dokumentert forskjellige før destructive probe; safety-repositoryet er dedikert til image safety.
+- **Live capability/restore:** genesis, syntetisk reservation, create/read-back/receipt, conflicting bytes-avvisning, delete-, compact- og raw-rm-prober, separat recovery av tombstonet probe, newest-safety-head tombstone med stale incident-restore-avvisning, append-only transaction recovery, restore/rebuild/health, `DENIED`-bevis, nyere deny over eldre app/DB-state, corruption/stale-cursor `NOT READY`, restartpersistens og fortsatt containerisolasjon.
 
 Før disse punktene er grønne er off-server status `PREPARED / MANUAL REQUIRED`, public runtime forblir av, og fase 3E.1A kan ikke kalles live aktiv.
 
-## 9. Restore etter hendelse
+## 9. Clean restore og incident/unknown restore
 
-1. Hold public runtime av; start aldri fra gammel DB eller gammel lokal ledger alene.
-2. Skaff dedikert writer-read eller separat recoverytilgang og verifiser repository-ID.
-3. Restore siste gyldige safety-anchor til en ny, tom hostpath:
+Alle restoreforløp holder public runtime av og skriver til en ny, tom hostpath. Gammel DB, app, media eller lokal ledger er aldri autoritativ alene.
+
+### A. CLEAN RESTORE
+
+`clean` kan bare brukes når repository-integritet er verifisert, writer misuse/logisk deletion ikke mistenkes og operatøren har positivt grunnlag for at current manifest er komplett. Denne klassifiseringen er en eksplisitt operatørgate; vanlig `list` kan ikke bevise fravær av tombstonede nyere anchors.
+
+```bash
+sudo /usr/local/lib/kreative-norge-image-safety/image-safety.sh restore-latest \
+  --recovery-mode clean \
+  --destination /var/lib/kreative-norge-image-safety-restored/ledger.sqlite3
+```
+
+### B. INCIDENT / UNKNOWN RESTORE
+
+Bruk denne flyten når lokal ledger er tapt/stale eller writer misuse, delete eller manifesttap ikke kan utelukkes:
+
+1. Ikke bruk `clean`, og ikke behandle høyeste arkiv i current manifest som autoritativt.
+2. Bruk separat admin/recovery-custody og Borgs append-only transaction/recovery-prosedyre til å identifisere og recovere siste autoritative safety-state.
+3. Registrer den recoverede bundleens eksakte ikke-hemmelige cursor og fulle event-head-hash i incident-evidensen.
+4. Kjør restore med disse forventningene:
 
    ```bash
    sudo /usr/local/lib/kreative-norge-image-safety/image-safety.sh restore-latest \
+     --recovery-mode incident-recovered \
+     --expected-authoritative-cursor '<recovered-cursor>' \
+     --expected-authoritative-event-hash '<64-lowercase-hex>' \
      --destination /var/lib/kreative-norge-image-safety-restored/ledger.sqlite3
    ```
 
-4. Kjør rebuild og health mot den restaurerte filen.
-5. Sammenlign remote cursor/head med enhver eldre lokal/DB/appkopi. Remote nyere reservation/retirement/deny vinner alltid.
-6. Bytt ledgerpath kontrollert først etter checksum, owner/mode, repository-ID og isolert replay er verifisert. Behold gammel fil i karantene; ikke slett journalhistorikk.
-7. 3E.1B+ må senere reconcile DB og filer mot safety-ledger før serving kan åpnes.
+5. Kommandoen avviser manglende recoveryevidens eller cursor/head-mismatch før destination og lokal receipt opprettes. Uten identifiserbar autoritativ head forblir systemet `NOT READY`.
+
+Etter begge flyter kjøres `rebuild` og `health`. Bytt ledgerpath kontrollert først etter checksum, owner/mode, repository-ID og isolert replay. Behold gammel fil i karantene. 3E.1B+ må senere reconcile DB og filer mot safety-ledger før serving kan åpnes.
 
 Full katastrofe-RTO er fortsatt uavklart frem til liveøvelsen er målt.
 
