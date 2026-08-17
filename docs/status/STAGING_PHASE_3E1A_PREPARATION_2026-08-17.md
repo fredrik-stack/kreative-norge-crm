@@ -17,7 +17,7 @@
 
 Målrettet lokal evidens ved dokumenttidspunkt:
 
-- 27 ledger-/idempotency-/transition-/concurrency-/corruption-/crash-/clean-/incident-restore-/credential-/placement-/repository-bootstrap-/Borg-versjonstester: grønn lokalt og i Linux-container; 25 av disse var også grønne i CI-run `32069227961` på head `905ef93f1d17ef82d6bf12902383d8b2e6d66780` før de to additive incident-restoretestene
+- 27 ledger-/idempotency-/transition-/concurrency-/corruption-/crash-/clean-/incident-restore-/credential-/placement-/repository-bootstrap-/Borg-versjonstester: grønn lokalt, i Linux-container og i CI-run `32071145941` på implementasjonscommit `58273dbff33def39280e428ae64e5c7ab431110e`; den opprinnelig etterspurte run `32069227961` var også grønn med 25 av testene på head `905ef93f1d17ef82d6bf12902383d8b2e6d66780`
 - 26 eksisterende image release-/migrationtester: grønn mot lokal PostgreSQL
 - 372 backendtester: grønn på ren lokal PostgreSQL-testdatabase
 - 4 stagingkontrakttester: grønn
@@ -27,9 +27,9 @@ Målrettet lokal evidens ved dokumenttidspunkt:
 - systemd-analyze for nye services/timer: grønn i isolert Ubuntu 24.04-container
 - installerens root:root `0600` config, `0700` state og installpaths: grønn i isolert Ubuntu 24.04-container
 - API- og web-produksjonsimages: bygget grønt som `phase3e1a-verify`
-- alle seks PR-jobber i CI-run `32069227961`: grønn på head `905ef93f1d17ef82d6bf12902383d8b2e6d66780`
+- alle seks PR-jobber i CI-run `32071145941`: grønn på implementasjonscommit `58273dbff33def39280e428ae64e5c7ab431110e`
 
-Pre-activation-reviewen på denne headen er lukket med eksakt Borg `>=1.2.8,<1.3.0`, eksplisitt runtime/recovery-custody og obligatorisk compact-probe. Den siste restore-gaten legger i neste reviewcommit til eksplisitt clean/incident restore og stale-head-avvisning; ny PR-CI må være grønn på den committen før kodegaten er ferdig.
+Pre-activation-reviewen er lukket i kode og CI med eksakt Borg `>=1.2.8,<1.3.0`, eksplisitt runtime/recovery-custody, obligatorisk compact-probe, eksplisitt clean/incident restore og stale-head-avvisning. Den eksterne live-gaten er fortsatt manuell.
 
 Draft-PR #36 er opprettet uten merge. Den eksterne manuelle staginggaten under er fortsatt uendret.
 
