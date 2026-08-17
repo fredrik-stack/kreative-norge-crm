@@ -14,6 +14,11 @@ from .ledger import AnchorConflictError, PublicImageSafetyLedger
 
 
 REPOSITORY_ID_RE = re.compile(r"^[0-9a-f]{64}$")
+BORG_STABLE_VERSION_RE = re.compile(
+    r"^borg ([0-9]|[1-9][0-9]*)\.([0-9]|[1-9][0-9]*)\.([0-9]|[1-9][0-9]*)$"
+)
+MINIMUM_BORG_VERSION = (1, 2, 8)
+MAXIMUM_BORG_VERSION = (1, 3, 0)
 
 
 class AnchorBackendError(Exception):
@@ -238,10 +243,22 @@ class BorgAnchorBackend:
         return repository_id
 
     def _validate_version(self) -> None:
-        version = self._run(["--version"]).stdout.decode().strip()
-        match = re.fullmatch(r"borg (\d+)\.(\d+)\.(\d+)", version)
-        if not match or (int(match.group(1)), int(match.group(2))) != (1, 2):
-            raise AnchorBackendError("Image safety anchor requires Borg 1.2.x.")
+        try:
+            version = self._run(["--version"]).stdout.decode("ascii").strip()
+        except UnicodeDecodeError as error:
+            raise AnchorBackendError(
+                "Image safety Borg version output is malformed or is a prerelease."
+            ) from error
+        match = BORG_STABLE_VERSION_RE.fullmatch(version)
+        if not match:
+            raise AnchorBackendError(
+                "Image safety Borg version output is malformed or is a prerelease."
+            )
+        parsed = tuple(int(part) for part in match.groups())
+        if not MINIMUM_BORG_VERSION <= parsed < MAXIMUM_BORG_VERSION:
+            raise AnchorBackendError(
+                "Image safety anchor requires Borg >=1.2.8 and <1.3.0."
+            )
 
     def initialize_repository(self) -> str:
         if self.config.expected_repository_id != "0" * 64:

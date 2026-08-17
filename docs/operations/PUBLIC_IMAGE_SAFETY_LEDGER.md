@@ -37,6 +37,25 @@ Valgt plassering er host/systemd:
 
 API- og web-containerne har ingen mount av disse områdene, ingen Borg-klient og ingen Storage Box-credential. Writeren skal bare ha en dedikert subaccount/repository og skal aldri bruke Storage Box main user, generell ADR-008-backupcredential eller recovery-/admincredential. Root-kjøring er valgt for å gjenbruke den etablerte systemd-/secretmodellen uten ny daemon, socket, sidecar eller nettverkstjeneste; remote credential er likevel avgrenset til det dedikerte safety-området. Kompromittert host-root er uttrykkelig utenfor garantien.
 
+Credentialkontrakten har to separate sider:
+
+**RUNTIME WRITER**
+
+- dedikert safety-subaccount og dedikert ED25519 private key på hosten
+- root-only Borg-passfrasefil på hosten
+- minst mulig rettighet mot bare safety-repositoryet
+- ingen Storage Box-subaccount-passord, main-/admincredential eller eksportert repository key
+
+**RECOVERY/ADMIN**
+
+- et unikt, sterkt tilfeldig passord for safety-subaccounten
+- Storage Box main-/admintilgang
+- eksportert kryptert Borg repository key
+- Borg-passfrasen i off-server recovery-custody etter ADR-008-kontrakten
+- ikke tilgjengelig for vanlig runtime; nødvendig recoverytilgang dokumenteres for minst to ansvarlige
+
+Subaccount-passordet skal aldri ligge på stagingserveren, i `image-safety.env`, Git, logger, PR eller chat. Den automatiske writerflyten bruker bare den dedikerte ED25519-nøkkelen. At password authentication ikke kan deaktiveres hos Storage Box gjør denne separate menneskelige custodyen obligatorisk; ingen operatør skal lime inn passord eller andre secrets i terminaloutput eller evidens.
+
 ## 3. Commit- og crashgrenser
 
 Hvert sikkerhetskritiske kall følger denne rekkefølgen:
@@ -52,7 +71,7 @@ Hvis steg 3–5 feiler, beholdes lokal event og health er `anchor_missing` eller
 
 ## 4. Hva append-only betyr her
 
-Safety-repositoryet skal opprettes med Borg 1.2 `--append-only` og være separat fra den aktive generelle backupen. Borg dokumenterer at append-only forhindrer at Borg overskriver eller fysisk sletter committed segmentdata, men at modusen kan reverseres av en ubegrenset administrator. `delete`/`prune` kan skrive tombstones, og en senere ubegrenset write/compact kan fysisk fjerne data. Andre verktøy med rå filtilgang kan omgå Borg. Dette er derfor WORM-orientert skadebegrensning, ikke absolutt WORM.
+Safety-repositoryet skal opprettes med stabil Borg `>=1.2.8` og `<1.3.0` og `--append-only`, separat fra den aktive generelle backupen. Adapteren avviser eldre 1.2-versjoner, 1.3.x, 2.x, prerelease og malformed/ukjent versjonsoutput fail-closed uten environment-bypass. Borg dokumenterer at append-only forhindrer at Borg overskriver eller fysisk sletter committed segmentdata, men at modusen kan reverseres av en ubegrenset administrator. `delete`/`prune` kan skrive tombstones, og en senere ubegrenset write/compact kan fysisk fjerne data. Andre verktøy med rå filtilgang kan omgå Borg. Dette er derfor WORM-orientert skadebegrensning, ikke absolutt WORM.
 
 Hetzner dokumenterer at en restricted Borg-klient fortsatt kan markere arkiver slettet, og at en ubegrenset klient senere kan gjøre slettingen fysisk. Storage Box main user har dessuten tilgang til subaccount-områder, og password authorization kan ikke deaktiveres. Løsningen beskytter ikke mot kompromittert Hetzner control plane, Storage Box main user, host-root eller en aktør som samtidig har writer- og admin/recoverytilgang.
 
@@ -76,23 +95,24 @@ sudo /usr/local/lib/kreative-norge-image-safety/install.sh generate-key
 Følgende krever prosjekteier/Storage Box-administrator og er **MANUAL REQUIRED**:
 
 1. Opprett en dedikert Storage Box-subaccount og tomt `public-image-safety`-område; ikke bruk den generelle backupens repository.
-2. Installer bare safety-writerens public key for port 23. Behold main-user/admin og eventuell recoverytilgang i separat custody.
-3. Pin host key fra uavhengig Hetzner-kilde i den dedikerte `known_hosts`-filen.
-4. Opprett en separat Borg-passfrasefil. Mens repository-ID står som eksplisitt 64 nuller i environmentfilen, initialiser et kryptert `repokey-blake2` repository med Borg 1.2 `--append-only`:
+2. Gi subaccounten et unikt, sterkt tilfeldig passord. Oppbevar det bare i separat admin/recovery-custody, aldri på runtimehosten eller i `image-safety.env`/Git/evidens.
+3. Installer bare safety-writerens public ED25519-key for port 23. Behold main-user/admin og all recoverytilgang separat fra runtime writer.
+4. Pin host key fra uavhengig Hetzner-kilde i den dedikerte `known_hosts`-filen.
+5. Opprett en separat Borg-passfrasefil. Mens repository-ID står som eksplisitt 64 nuller i environmentfilen, initialiser et kryptert `repokey-blake2` repository med stabil Borg `>=1.2.8,<1.3.0` og `--append-only`:
 
    ```bash
    sudo /usr/local/lib/kreative-norge-image-safety/image-safety.sh repository-init
    ```
 
-5. Skriv eksakt ID som kommandoen returnerer i root-only `image-safety.env`; repository-ID er ikke secret. Eksporter så kryptert repository key til en ny privat path:
+6. Skriv eksakt ID som kommandoen returnerer i root-only `image-safety.env`; repository-ID er ikke secret. Eksporter så kryptert repository key til en ny privat path:
 
    ```bash
    sudo /usr/local/lib/kreative-norge-image-safety/image-safety.sh repository-key-export \
      --destination /root/kreative-norge-image-safety-recovery-key.export
    ```
 
-6. Overfør eksporten gjennom separat godkjent kanal og oppbevar eksport + passfrase off-server med minst to ansvarlige, separat fra writercredentialen. Verifiser rapportert checksum før den midlertidige eksporten fjernes; ingen kommando lover secure erase på SSD.
-7. Gjennomfør capabilitytesten i punkt 8 før første reelle reservation.
+7. Overfør eksporten gjennom separat godkjent kanal og oppbevar eksport, Borg-passfrase, nødvendig Storage Box-identitet og subaccount-passord off-server med nødvendig recoverytilgang for minst to ansvarlige etter ADR-008. Verifiser rapportert checksum før den midlertidige eksporten fjernes; ingen kommando lover secure erase på SSD.
+8. Gjennomfør capabilitytesten i punkt 8 før første reelle reservation.
 
 Eksempelkonfigurasjonen i `ops/image_safety/image-safety.env.example` inneholder bare plassholdere. Filen og alle secrets skal være root-owned uten group/world access. Repository-ID er identitetslås, ikke secret.
 
@@ -164,15 +184,31 @@ Bruk bare dedikert safety-repository og syntetiske eventer. Ikke bruk reelle akt
 Live stagingrapporten må dokumentere uten credentials:
 
 1. eksakt repository-ID og at writer er dedikert subaccount, ikke main user
-2. genesis + syntetisk reservation med synkron create/read-back/ack
-3. at overwrite av eksisterende arkivnavn med andre bytes avvises
-4. faktisk Borg delete-adferd med et separat probe-arkiv, inkludert at sletting bare blir tombstone i append-only-modus
-5. om samme writer key kan nå rå `rm`/andre protokoller; enhver slik capability skal registreres som begrensning
-6. admin/recovery fra separat custody og restore av tombstonet probe etter Borgs append-only-prosedyre
-7. isolert `restore-latest` til ny path, deretter `rebuild` og grønn `health`
-8. eldre DB/appkopi mot nyere denied safety-ledger; nyere ledger skal vinne
-9. korrupt ledger og stale cursor gir `NOT READY`
-10. host-restart beholder ledger/receipt, mens API-/web-containerne fortsatt mangler safety-mount, Borg og public media
+2. genesis + syntetisk reservation med synkron create/read-back/receipt
+3. at samme arkivnavn med andre bytes avvises
+4. en kontrollert delete-/compact-probe på bare det dedikerte safety-repositoryet:
+   1. opprett et syntetisk probe-arkiv og verifiser at det kan leses
+   2. marker probe-arkivet slettet med Borg `delete`
+   3. verifiser og dokumenter faktisk append-only-adferd
+   4. forsøk Borg `compact` med den dedikerte writeridentiteten og registrer kommandoens faktiske exit-status/resultat
+   5. bruk separat admin/recoverytilgang og godkjent append-only recovery-prosedyre til å gjenopprette den tombstonede proben
+   6. dokumenter forskjellen mellom Borg-logisk sletting og fysisk tilgjengelige segmentdata
+5. om samme writer key/subaccount kan nå rå `rm` eller tilsvarende filoperasjoner; enhver slik capability registreres som rest-risiko, ikke skjules
+6. isolert `restore-latest` til ny path, deretter `rebuild` og grønn `health`
+7. eldre DB/appkopi mot nyere denied safety-ledger; nyere ledger skal vinne
+8. korrupt ledger og stale cursor gir `NOT READY`
+9. host-restart beholder ledger/receipts
+10. API-/web-containerne mangler fortsatt safety-mount, Borg, secrets og public media
+
+Delete, compact eller rå filprobe må aldri kjøres mot ADR-008s ordinære backuprepository eller med reelle CRM-data/aktørbilder. Faktisk live-resultat skal holdes adskilt fra forventet Borg-kontrakt, og testen gir aldri grunnlag for å påstå absolutt WORM.
+
+### Pre-activation-gate
+
+Status kan ikke endres til `ACTIVE` før alle disse gruppene er dokumentert grønne:
+
+- **Repo/code:** Borg `>=1.2.8,<1.3.0` håndheves; image-safety-, backup-, relevante staging-/backendtester og CI er grønne.
+- **Manuell ekstern kjede:** dedikert subaccount/repository; writer public key; unikt subaccount-passord bare i separat recovery/admin-custody; separat main/admin/recovery; pinned host key og repository-ID; eksportert recovery key; Borg-passfrase-recovery; nødvendig tilgang for minst to ansvarlige.
+- **Live capability/restore:** genesis, syntetisk reservation, create/read-back/receipt, conflicting bytes-avvisning, delete-, compact- og raw-rm-prober, separat recovery av tombstonet probe, restore/rebuild/health, nyere deny over eldre app/DB-state, corruption/stale-cursor `NOT READY`, restartpersistens og fortsatt containerisolasjon.
 
 Før disse punktene er grønne er off-server status `PREPARED / MANUAL REQUIRED`, public runtime forblir av, og fase 3E.1A kan ikke kalles live aktiv.
 

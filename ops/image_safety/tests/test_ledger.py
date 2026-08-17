@@ -473,3 +473,32 @@ class CredentialAndPlacementTests(unittest.TestCase):
         backend.config.expected_repository_id = REPOSITORY_ID
         with self.assertRaises(AnchorBackendError):
             backend.initialize_repository()
+
+    def test_supported_borg_versions_match_adr_008_contract(self):
+        for output in (b"borg 1.2.8\n", b"borg 1.2.9\n", b"borg 1.2.10\n"):
+            with self.subTest(output=output):
+                backend = object.__new__(BorgAnchorBackend)
+                backend._run = Mock(
+                    return_value=subprocess.CompletedProcess([], 0, output, b"")
+                )
+
+                backend._validate_version()
+
+    def test_unsupported_or_malformed_borg_versions_fail_closed(self):
+        for output in (
+            b"borg 1.2.7\n",
+            b"borg 1.3.0\n",
+            b"borg 2.0.0\n",
+            b"borg 1.2.8rc1\n",
+            b"borg 1.2\n",
+            b"unknown\n",
+            b"borg 01.2.8\n",
+        ):
+            with self.subTest(output=output):
+                backend = object.__new__(BorgAnchorBackend)
+                backend._run = Mock(
+                    return_value=subprocess.CompletedProcess([], 0, output, b"")
+                )
+
+                with self.assertRaises(AnchorBackendError):
+                    backend._validate_version()

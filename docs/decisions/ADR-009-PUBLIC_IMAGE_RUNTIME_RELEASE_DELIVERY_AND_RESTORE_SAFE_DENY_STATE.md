@@ -287,7 +287,7 @@ Trinnvis innføring holder risikoen avgrenset: journal og restorebevis kommer f�
 
 ### Fase 3E.1A – journal, restore-gate og off-server anker
 
-**Implementasjonsstatus 2026-08-17:** Repoimplementasjon og syntetisk lokal evidens er levert. Ledgeren ligger planlagt i `/var/lib/kreative-norge-image-safety/ledger.sqlite3`, kjører host-side uten container-mount og bruker et dedikert Borg 1.2 append-only repository med synkron create/read-back før lokal receipt. Dedikert Storage Box-subaccount/repository, live capabilitytest, recovery og stagingrestart er fortsatt `MANUAL REQUIRED`; derfor er ingen public runtime aktivert. Se [runbook](../operations/PUBLIC_IMAGE_SAFETY_LEDGER.md) og [stagingforberedelse](../status/STAGING_PHASE_3E1A_PREPARATION_2026-08-17.md).
+**Implementasjonsstatus 2026-08-17:** Repoimplementasjon og syntetisk lokal evidens er levert. Ledgeren ligger planlagt i `/var/lib/kreative-norge-image-safety/ledger.sqlite3`, kjører host-side uten container-mount og bruker et dedikert append-only repository med stabil Borg `>=1.2.8,<1.3.0` og synkron create/read-back før lokal receipt. Dedikert Storage Box-subaccount/repository, unik subaccount-passordcustody, live delete-/compact-/raw-rm-capabilitytest, recovery og stagingrestart er fortsatt `MANUAL REQUIRED`; derfor er ingen public runtime aktivert. Se [runbook](../operations/PUBLIC_IMAGE_SAFETY_LEDGER.md) og [stagingforberedelse](../status/STAGING_PHASE_3E1A_PREPARATION_2026-08-17.md).
 
 **Omfang:**
 
