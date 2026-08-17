@@ -17,7 +17,7 @@
 
 Målrettet lokal evidens ved dokumenttidspunkt:
 
-- 23 ledger-/idempotency-/transition-/concurrency-/corruption-/crash-/restore-/credential-/placement-/repository-bootstraptester: grønn lokalt; 22 av disse var også grønne i Linux-container før den siste additive bootstrapkontrakttesten
+- 23 ledger-/idempotency-/transition-/concurrency-/corruption-/crash-/restore-/credential-/placement-/repository-bootstraptester: grønn lokalt og i GitHub CI; 22 av disse var også grønne i lokal Linux-container før den siste additive bootstrapkontrakttesten
 - 26 eksisterende image release-/migrationtester: grønn mot lokal PostgreSQL
 - 372 backendtester: grønn på ren lokal PostgreSQL-testdatabase
 - 4 stagingkontrakttester: grønn
@@ -27,8 +27,9 @@ Målrettet lokal evidens ved dokumenttidspunkt:
 - systemd-analyze for nye services/timer: grønn i isolert Ubuntu 24.04-container
 - installerens root:root `0600` config, `0700` state og installpaths: grønn i isolert Ubuntu 24.04-container
 - API- og web-produksjonsimages: bygget grønt som `phase3e1a-verify`
+- alle seks PR-jobber i CI-run `32066750063`: grønn på implementasjonscommit `c75acc13bcec902752f19c07d8800f1353b364ab`
 
-GitHub CI registreres i PR-en før mergevurdering.
+Draft-PR #36 er opprettet uten merge. Den eksterne manuelle staginggaten under er fortsatt uendret.
 
 ## Hvorfor staging ikke er aktivert
 
