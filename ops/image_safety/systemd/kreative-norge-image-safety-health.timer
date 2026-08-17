@@ -1,0 +1,11 @@
+[Unit]
+Description=Regular public image safety ledger health verification
+
+[Timer]
+OnBootSec=5m
+OnUnitActiveSec=5m
+Persistent=true
+RandomizedDelaySec=30s
+
+[Install]
+WantedBy=timers.target

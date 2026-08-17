@@ -1,0 +1,16 @@
+[Unit]
+Description=Fail-closed public image safety ledger health gate
+ConditionPathExists=/etc/kreative-norge-image-safety/image-safety.env
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/kreative-norge-image-safety/image-safety.env
+ExecStart=/usr/local/lib/kreative-norge-image-safety/image-safety.sh health
+User=root
+Group=root
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadOnlyPaths=/var/lib/kreative-norge-image-safety

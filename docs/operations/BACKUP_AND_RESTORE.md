@@ -263,3 +263,9 @@ Denne operasjonen krever eksplisitt hendelsesbeslutning og egen plan. Ikke bruk 
 - Bilde-runtime er teknisk deployet til staging, og manuell visuell Editor-kontroll er gjennomført. Fase 3D.2 er merget til `main` med PR #33. Brave-liveflyten er historisk verifisert, men credentialen er deretter deaktivert som en operativ avtalegate.
 
 Backupgrunnmuren er **ACTIVE** fordi Storage Box-, Borg-, recovery-key-/custody-, backup-, restore-, Console- og timerkravene er oppfylt. Cloud Backups og Storage Box-snapshots er fortsatt tilleggslag.
+
+## 13. Separat 3E.1A safety-anchor
+
+Den aktive nattlige backupen er ikke autoritativ reservation-/deny-journal og skal ikke brukes til destructive capabilitytesting. Fase 3E.1A har en separat, host-eid SQLite-ledger og et planlagt dedikert Borg append-only repository med synkron read-back per sikkerhetshead. Den deler Borg 1.2-, SSH-, known-hosts-, repository-ID- og recoveryprinsippene fra ADR-008, men deler ikke repository, subaccount/writersecret, statepath eller RPO.
+
+Safety-ledgeren er implementert og syntetisk restore-verifisert; ekstern stagingkjede er fortsatt `PREPARED / MANUAL REQUIRED`. Se [egen runbook](PUBLIC_IMAGE_SAFETY_LEDGER.md) og [datert stagingstatus](../status/STAGING_PHASE_3E1A_PREPARATION_2026-08-17.md). Den generelle backupens `ACTIVE`-status er uendret.

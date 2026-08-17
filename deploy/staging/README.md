@@ -247,3 +247,15 @@ The Compose 1.29.2 `ContainerConfig` behavior remains a separate operational ris
 - Static files are shared from Django to nginx through the `django_static` volume.
 - Image originals and internal renditions use separate host bind mounts outside `/app` and outside staticfiles.
 - For contact-data repairs, run `python manage.py repair_person_contacts` as dry-run first. Use `--apply` only after backup and explicit approval.
+
+## 13. Fase 3E.1A safety-ledger – foreløpig PREPARED
+
+Public image safety-ledgeren installeres på hosten, ikke i Compose:
+
+```bash
+sudo /srv/kreative-norge-crm/ops/image_safety/install.sh prepare
+```
+
+Den planlagte ledgeren er `/var/lib/kreative-norge-image-safety/ledger.sqlite3`. Konfigurasjon og restricted writercredential ligger under `/etc/kreative-norge-image-safety/`. Ingen av pathene er montert i `api` eller `web`; Borg installeres ikke i images. Installer aktiverer ingen unit eller timer.
+
+Ikke kjør `init` mot den eksisterende generelle backup-repositoryen. Prosjekteier må først opprette dedikert Storage Box-subaccount/repository og fullføre capability-/restoregaten i [safety-runbooken](../../docs/operations/PUBLIC_IMAGE_SAFETY_LEDGER.md). Frem til den daterte stagingrapporten er grønn, er status `PREPARED / MANUAL REQUIRED`, public runtime forblir av, og 3E.1B skal ikke startes som del av denne deployen.

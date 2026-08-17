@@ -23,6 +23,28 @@ jobs:
           sudo install -m 0755 ops/backup/backup.sh ops/backup/verify.sh /usr/local/lib/kreative-norge-backup/
           systemd-analyze verify ops/backup/systemd/*.service ops/backup/systemd/*.timer
 
+  image-safety-ledger:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run ShellCheck
+        run: shellcheck ops/image_safety/*.sh
+
+      - name: Run ledger, crash, anchor, and restore tests
+        run: python3 -m unittest discover -s ops/image_safety/tests -v
+
+      - name: Verify systemd units
+        run: |
+          sudo install -d /usr/local/lib/kreative-norge-image-safety
+          sudo install -m 0755 ops/image_safety/image-safety.sh /usr/local/lib/kreative-norge-image-safety/
+          sudo install -m 0644 ops/image_safety/run.py /usr/local/lib/kreative-norge-image-safety/
+          systemd-analyze verify ops/image_safety/systemd/*.service ops/image_safety/systemd/*.timer
+
   staging-runtime:
     runs-on: ubuntu-24.04
     steps:

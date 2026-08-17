@@ -2,7 +2,7 @@
 
 ## Status
 
-Godkjent arkitekturretning. Ingen del av public image runtimeen i dette ADR-et er implementert eller aktivert.
+Godkjent arkitekturretning. Fase 3E.1A er implementert i repoet som lokal safety-ledger, host/systemd-anchorverktøy, restore/replay og fail-closed health, men den dedikerte off-serverkjeden er `PREPARED / MANUAL REQUIRED` og ikke aktivert i staging. Fase 3E.1B–3E.4 og all public runtime er fortsatt ikke implementert eller aktivert.
 
 **Beslutningsdato:** 2026-08-17
 
@@ -19,7 +19,7 @@ Fase 3B–3D har implementert og verifisert intern bildebehandling, immutable ar
 - dagens orphan-cleanup kjenner bare `ImageRendition.artifact_storage_key`; `releases/...` i samme root ville bli behandlet som urefererte filer og kunne slettes etter aldersgrensen
 - dagens public API har to ruteregistreringer for `/api/public/actors/`: `crm.urls_public` nås direkte fra `config.urls`, mens `crm.urls` registrerer en annen viewset og serializer under samme effektive path
 - legacyaliasene kan allerede divergere fordi `preview_image_url` og `thumbnail_image_url` bruker ulike resolvere
-- permanent reservation-/deny-state, kontrollert serving, public projection, API-cutover, cache-/purgekontrakt og formell takedown finnes ikke
+- permanent reservation-/lifecycle-ledger er senere implementert i 3E.1A, men live off-serverkjede, kontrollert serving, public projection, API-cutover, cache-/purgekontrakt og formell takedown finnes ikke
 
 ADR-007 krever at en eldre database- eller apprestore aldri kan reaktivere en nyere denied release eller gjenbruke en tidligere release-ID/key. ADR-008s nattlige Borg-kjede har et foreløpig RPO på omtrent 24 timer pluss timerforsinkelse og bruker ikke et append-only/admin-key-regime. Den generelle backupen kan derfor ikke alene være den autoritative sikkerhetstilstanden for public image runtime.
 
@@ -27,10 +27,9 @@ ADR-007 krever at en eldre database- eller apprestore aldri kan reaktivere en ny
 
 ### 1. Tydelig grense mellom implementert grunnmur og planlagt runtime
 
-Fase 3B–3D-grunnmuren forblir implementert. Følgende er godkjent arkitektur, men er ikke implementert før de respektive 3E-leveransene er grønne:
+Fase 3B–3D-grunnmuren forblir implementert. 3E.1A-ledger/read-model/restore/health er senere repoimplementert, med live off-servergate fortsatt manuell. Følgende gjenstår før de respektive 3E-leveransene er grønne:
 
-- permanent reservation-/release-/deny-journal
-- off-server sikkerhetsanker og restore-reconciliation
+- live aktivert off-server sikkerhetsanker og operativ restore-reconciliation
 - public release-materialisering og lifecycle
 - kontrollert media-serving og origin-konfigurasjon
 - `PublicImageProjection`, strukturert API-kontrakt og legacyalias-cutover
@@ -287,6 +286,8 @@ Trinnvis innføring holder risikoen avgrenset: journal og restorebevis kommer f�
 ## Implementeringsetapper og akseptansekriterier
 
 ### Fase 3E.1A – journal, restore-gate og off-server anker
+
+**Implementasjonsstatus 2026-08-17:** Repoimplementasjon og syntetisk lokal evidens er levert. Ledgeren ligger planlagt i `/var/lib/kreative-norge-image-safety/ledger.sqlite3`, kjører host-side uten container-mount og bruker et dedikert Borg 1.2 append-only repository med synkron create/read-back før lokal receipt. Dedikert Storage Box-subaccount/repository, live capabilitytest, recovery og stagingrestart er fortsatt `MANUAL REQUIRED`; derfor er ingen public runtime aktivert. Se [runbook](../operations/PUBLIC_IMAGE_SAFETY_LEDGER.md) og [stagingforberedelse](../status/STAGING_PHASE_3E1A_PREPARATION_2026-08-17.md).
 
 **Omfang:**
 

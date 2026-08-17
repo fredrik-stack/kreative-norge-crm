@@ -13,20 +13,12 @@ from crm.models import (
     OrganizationImageReleaseRendition,
     OrganizationImageSelection,
 )
-
-
-REQUIRED_RELEASE_VARIANTS = frozenset(
-    {
-        ImageRendition.Variant.SQUARE,
-        ImageRendition.Variant.LANDSCAPE,
-        ImageRendition.Variant.SHARE,
-    }
+from image_safety.release_keys import (
+    InvalidPublicReleaseKeyError,
+    PUBLIC_RELEASE_EXTENSIONS,
+    REQUIRED_RELEASE_VARIANTS,
+    build_public_release_key,
 )
-PUBLIC_RELEASE_EXTENSIONS = {
-    ImageRendition.OutputFormat.JPEG: "jpg",
-    ImageRendition.OutputFormat.PNG: "png",
-    ImageRendition.OutputFormat.WEBP: "webp",
-}
 
 
 class ImageReleaseError(Exception):
@@ -45,36 +37,10 @@ class IncompleteImageReleaseError(InvalidImageReleaseError):
     pass
 
 
-class InvalidPublicReleaseKeyError(ValueError):
-    pass
-
-
 @dataclass(frozen=True)
 class OrganizationImageReleaseResult:
     release: OrganizationImageRelease
     renditions: tuple[OrganizationImageReleaseRendition, ...]
-
-
-def build_public_release_key(
-    release_id: uuid.UUID | str,
-    variant: str,
-    output_format: str,
-) -> str:
-    try:
-        canonical_release_id = uuid.UUID(str(release_id))
-    except (AttributeError, TypeError, ValueError) as error:
-        raise InvalidPublicReleaseKeyError("Release ID must be a valid UUIDv4.") from error
-    if canonical_release_id.version != 4:
-        raise InvalidPublicReleaseKeyError("Release ID must be UUIDv4.")
-    if variant not in REQUIRED_RELEASE_VARIANTS:
-        raise InvalidPublicReleaseKeyError("Unsupported public image variant.")
-    try:
-        extension = PUBLIC_RELEASE_EXTENSIONS[output_format]
-    except KeyError as error:
-        raise InvalidPublicReleaseKeyError(
-            "Unsupported public image output format."
-        ) from error
-    return f"releases/{canonical_release_id}/{variant}.{extension}"
 
 
 def _validate_release_scope(

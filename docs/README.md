@@ -34,3 +34,5 @@ Kode, migrasjoner, aktive API-ruter og verifisert staging-adferd er teknisk fasi
 Se også `development/DOCUMENTATION_RULES.md`, `development/WORKFLOW.md` og `development/FREDRIK_SKILL_PACK.md`.
 
 For kontinuitet mellom ChatGPT og Codex, se `development/CHATGPT_SESSION_CONTINUITY.md` og `development/CHATGPT_SESSION_SUMMARY_TEMPLATE.md`.
+
+Operativ 3E.1A-kontrakt finnes i `operations/PUBLIC_IMAGE_SAFETY_LEDGER.md`; den skiller eksplisitt mellom implementert lokal safety-ledger og ekstern stagingkjede som fortsatt krever manuell aktivering/evidens.
