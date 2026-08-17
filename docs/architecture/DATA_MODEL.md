@@ -109,6 +109,35 @@ Interne keys er tenant-scopede og deterministiske, men er ikke public release ke
 
 Fase 3D.1 og 3D.2 oppretter ingen `ImageCandidate`-tabell. Offisielle, Brave- og direkte URL-kandidater bæres av en kortlivet signert `candidate_ref` som binder tenant, Organization, bruker, normalisert URL, kilde/proveniens, kjente dimensjoner og discoverytid. Brave-refen kan i tillegg bære eksakt query, querykilder og bare det normaliserte nødvendige delsettet av resultattittel, publisher, thumbnail og kildeside transient; full providerrespons lagres aldri. Etter processing binder en separat signert `approval_ref` proveniensen til asset-checksum, eksakt rendition-sett, Foto/Logo-modus og tekniske warnings. For Brave beholdes query og normaliserte kandidatfelt bare i de signerte referansene; permanent event beholder source type/provider, men tom source- og side-URL. Appen oppretter ingen søkehistorikk. Braves egne standard query-logger kan likevel beholdes i opptil 90 dager; Zero Data Retention er en separat Enterprise-/avtalekontrakt og er ikke egenskapen til vår signed-ref. Upload går direkte til processing og får signert approvalref uten persistent kandidatrad. Først ved eksplisitt approval kopieres tillatt proveniens til eksisterende `ImageReviewEvent` og eksisterende `OrganizationImageSelection` opprettes eller erstattes. Uvalgte kandidater og ephemeral kandidatpreviews etterlater ingen databasemodell eller eget storageobjekt.
 
+## Godkjent public runtime-state – ikke implementert
+
+[ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) skiller public runtimeens sikkerhetstilstand fra PostgreSQL-aggregatet. Første MVP bruker en lokal SQLite-ledger med append-only autoritative events og et restore-sikkert off-server anker i separat failure-domain. Dette finnes ikke i dagens modeller eller runtime.
+
+Ledgerskjemaet skal minst støtte idempotente event-ID-er og:
+
+- `release_reserved`
+- `release_activated`
+- `release_retired`
+- `release_denied`
+- `tenant_runtime_enrolled` dersom tenantvis aktivering faktisk brukes
+- senere tenant-scopet checksum-deny før formell takedown aktiveres
+
+Samme SQLite kan holde en avledet read-model og cursor når disse kan bygges deterministisk på nytt fra eventene. `retired` og `denied` er terminalt for release-ID-en; republisering bruker ny UUID/key. Databaseaggregatet fryser fortsatt historisk mapping, men bestemmer ikke alene om releasen er aktiv eller leverbar.
+
+Runtimeflyten blir konseptuelt:
+
+```text
+immutable ImageRendition artifacts
+    → permanent release_reserved i ledger/off-server anker
+    → OrganizationImageRelease-aggregate bundet til reservasjonen
+    → create-only/no-clobber kopi til separat public-delivery-root
+    → checksum-/dimensjons-/formatverifikasjon
+    → release_activated
+    → PublicImageProjection og kontrollert serving
+```
+
+`image_renditions_public` forblir intern artifact-storage. Materialiserte `releases/<release_uuid>/<variant>.<ext>` skal ligge i eget `/srv/kreative-norge/media/public-delivery/` med separat cleanup-/purgeeierskap. Dagens release-tjeneste utfører ingen av disse runtimeovergangene.
+
 Konseptuell målmodell:
 
 ```text
@@ -127,4 +156,4 @@ OrganizationImageSelection
     → canonical relative key releases/<release_uuid>/<variant>.<ext>
 ```
 
-Første låsing, replacement, ordinær fjerning til fallback og ordinær restore som ny revisjon har append-only bildehistorikk. Discovery og søk har ikke egne persistente kandidat-events; takedown- og retentionevents kommer i separate leveranser. Assetet eies av tenant og kan finnes før en aktør. Den implementerte typed selection-modellen og release aggregate gjelder bare `Organization`, uten `GenericForeignKey` eller en generell selection/release for andre objekttyper. Selection-revisjon er ikke release identity. Replacement, restore og senere autorisert republisering skal bruke ny release-UUID og nye keys, mens de samme immutable rendition-bytes kan gjenbrukes uten re-encoding. Fase 3B.1R-, fase 3B.3-, fase 3B.3-A-, fase 3C.7-processinggaten og fase 3D.1 er implementert i kodebasen; fase 3D.2s interne flyt er gjennomført og merget til `main` med PR #33, med grønne CI-, staging- og eiergater. Permanent public reservation-/deny-journal i separat failure-domain og senere serving-, purge-, public API-, retention-, sync/async- og observabilitygater må fortsatt være grønne før faktisk offentlig bildebruk kan aktiveres.
+Første låsing, replacement, ordinær fjerning til fallback og ordinær restore som ny revisjon har append-only bildehistorikk. Discovery og søk har ikke egne persistente kandidat-events; takedown- og retentionevents kommer i separate leveranser. Assetet eies av tenant og kan finnes før en aktør. Den implementerte typed selection-modellen og release aggregate gjelder bare `Organization`, uten `GenericForeignKey` eller en generell selection/release for andre objekttyper. Selection-revisjon er ikke release identity. Replacement, restore og senere autorisert republisering skal bruke ny release-UUID og nye keys, mens de samme immutable rendition-bytes kan gjenbrukes uten re-encoding. Fase 3B.1R-, fase 3B.3-, fase 3B.3-A-, fase 3C.7-processinggaten og fase 3D.1 er implementert i kodebasen; fase 3D.2s interne flyt er gjennomført og merget til `main` med PR #33, med grønne CI-, staging- og eiergater. ADR-009s ledger-, delivery-, serving-, projection-, API/PUBLIC- og takedowngater må fortsatt implementeres og bli grønne før faktisk offentlig bildebruk kan aktiveres.

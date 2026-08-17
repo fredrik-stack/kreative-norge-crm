@@ -2,7 +2,7 @@
 
 ## Status
 
-Godkjent som arkitekturgrunnlag. Fase 3A, de isolerte fase 3B.1- og 3B.2-prototypene og fase 3B.1R med representativ kvalitetsvalidering er gjennomført. Fase 3B.3 har fastsatt separat UUIDv4-basert public release identity, canonical public release keys og varig release-reservasjon. Fase 3B.3-A har implementert den additive organization-typed release-aggregaten, canonical key-builderen, immutable historisk mapping og atomisk feature-gated opprettelse i databasedomenet. Fase 3C.7 har implementert intern processing/storage, og fase 3D.1 har implementert første offisielle website/Open Graph-kandidatflyt til eksplisitt Organization-selection bak det fortsatt avslåtte kode-default-flagget. Fase 3D.2 er implementert, fullverifisert lokalt, CI-grønn, teknisk stagingverifisert, live-provider-verifisert og visuelt eiergodkjent med Brave, limt URL, upload, fokus-/zoom-UX og valgfri asset-alttekst. Brave-integrasjonen er likevel **operativt ikke aktiv** for ordinære Editor-sluttbrukere: staging-credentialen er deaktivert etter live-testen, og senere reaktivering krever at den manuelle sluttbrukeravtalegaten nedenfor er dokumentert oppfylt. [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokal one-server media og kryptert Hetzner Storage Box-backup som operasjonell MVP; fase 3B.3-B med permanent restore-sikker reservation-/deny-journal i separat failure-domain og all public bilde-runtime er fortsatt ikke implementert.
+Godkjent som arkitekturgrunnlag. Fase 3A, de isolerte fase 3B.1- og 3B.2-prototypene og fase 3B.1R med representativ kvalitetsvalidering er gjennomført. Fase 3B.3 har fastsatt separat UUIDv4-basert public release identity, canonical public release keys og varig release-reservasjon. Fase 3B.3-A har implementert den additive organization-typed release-aggregaten, canonical key-builderen, immutable historisk mapping og atomisk feature-gated opprettelse i databasedomenet. Fase 3C.7 har implementert intern processing/storage, og fase 3D.1 har implementert første offisielle website/Open Graph-kandidatflyt til eksplisitt Organization-selection bak det fortsatt avslåtte kode-default-flagget. Fase 3D.2 er implementert, fullverifisert lokalt, CI-grønn, teknisk stagingverifisert, live-provider-verifisert og visuelt eiergodkjent med Brave, limt URL, upload, fokus-/zoom-UX og valgfri asset-alttekst. Brave-integrasjonen er likevel **operativt ikke aktiv** for ordinære Editor-sluttbrukere: staging-credentialen er deaktivert etter live-testen, og senere reaktivering krever at den manuelle sluttbrukeravtalegaten nedenfor er dokumentert oppfylt. [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokal one-server media og kryptert Hetzner Storage Box-backup som operasjonell MVP. [ADR-009](ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) formaliserer den godkjente fase 3E-runtimearkitekturen, men permanent journal, materialisering, controlled serving, projection, API/PUBLIC-cutover og takedown er fortsatt ikke implementert.
 
 **Beslutningsdato:** 2026-07-30
 
@@ -31,6 +31,8 @@ ADR-007 viderefører:
 - [ADR-006](ADR-006-SESSION_WORKFLOW.md): godkjent retning skal lagres varig før større implementering starter
 
 ADR-007 endrer ikke kontaktmodellen eller publiseringsreglene i ADR-003 og ADR-005. Et bilde kan være godkjent og låst uten at aktøren er publisert. En bildehandling skal aldri aktivere eller endre aktør-, person- eller kontaktpublisering.
+
+ADR-009 presiserer public runtimeen som bygger videre på dette ADR-et: lokal append-only SQLite-ledger med restore-sikkert off-server anker, separat public delivery-root, create-only materialisering, kontrollert serving, én `PublicImageProjection` og trinnvis aktivering før formell takedown.
 
 ## Bakgrunn
 
@@ -467,7 +469,7 @@ Følgende er besluttet:
 - kreditering eksponeres bare når den finnes og skal vises
 - `thumbnail_image_url` og `preview_image_url` beholdes midlertidig som deprecated kompatibilitetsaliaser
 - aliasene peker etter cutover til dokumenterte rendition-URL-er fra samme resolver
-- eksakt alias-til-variant-mapping fastsettes og dokumenteres før API-implementeringen
+- ADR-009 har senere fastsatt at begge deprecated aliasene peker til `image.square.url` fra samme projection
 - aliaser og strukturert objekt kan ikke divergere
 - fjerning skjer bare i en senere eksplisitt API-versjon eller integrasjonsfase
 - alle offentlige URL-er er absolutte HTTPS-URL-er i eksterne miljøer
@@ -838,7 +840,7 @@ Takedown-/deny-sporet er append-only eller WORM-orientert, har eget backup- og f
 
 Manglende eller korrupt autoritativ journal feiler lukket til fallback. Journalen skal replikeres, overvåkes og ha schema-version. Normal takedown bruker deny-first: varig deny-registrering før origin-delete og purge.
 
-Permanent journalteknologi er fortsatt åpen. JSONL-filen i fase 3B.2 er bare domene- og replaybevis og beviser ikke WORM, tamper evidence, tilgangskontroll eller katastrofegjenoppretting.
+Fase 3B.2 lot permanent journalteknologi stå åpen. ADR-009 har senere valgt en lokal append-only SQLite-ledger med et restore-sikkert WORM-orientert off-server anker. JSONL-filen i fase 3B.2 er fortsatt bare domene- og replaybevis og beviser ikke WORM, tamper evidence, tilgangskontroll eller katastrofegjenoppretting.
 
 #### Journal og runtime read-model
 
@@ -872,7 +874,7 @@ Det observerte gapet der unsigned GET med eksplisitt `versionId` nådde en eldre
 
 ADR-008 velger Hetzner one-server storage, stabil lokal Borg `>=1.2.8` og `<1.3.0` med remote path `borg-1.2` mot separat Storage Box, retention 14/8/12 og en obligatorisk restore-gate. Repo-grunnmuren er forberedt, men den eksterne kjeden må være ACTIVE før fase 3C kan skrive nye varige bildefiler.
 
-Fase 3B.3-A har implementert release-aggregate- og canonical key-domenegrunnmuren uten storage- eller public runtime. Før reell bildebehandling eller offentlig serving kan aktiveres, gjenstår fase 3B.3-B med permanent restore-sikker reservation-/deny-journal, separat failure-domain, materialisert read-model, journalcursor og fail-closed reconciliation; create-only/no-clobber storage-skriving; lokal private/public-storage, materialisering og serving; lokal cache-/purge-/verifikasjonskontrakt; SVG-policy og eventuell sikker rasterisering; eventuell skadevarekontroll og bakgrunnskø; endelig public API-schema og aliasmapping; retensjonsmekanisme; sync/async-grense og observability. Backupkjeden er aktivert og restore-smoke er målt, men full katastrofe-RTO er fortsatt åpen. S3-/CDN-provider, region, ekstern IAM, bucket-policy, KMS, Object Lock og provider-spesifikk purge/`versionId`-verifikasjon er utsatt og blir bare en betinget senere gate ved dokumentert behov.
+Fase 3B.3-A har implementert release-aggregate- og canonical key-domenegrunnmuren uten storage- eller public runtime. ADR-009 har senere besluttet lokal append-only SQLite-ledger, restore-sikkert off-server anker, separat public delivery-root, create-only/no-clobber materialisering, kontrollert serving, origins, projection/API-kontrakt og fasegater frem til takedown. Alt dette er fortsatt uimplementert. Backupkjeden er aktivert og restore-smoke er målt, men full katastrofe-RTO er fortsatt åpen. S3-/CDN-provider, region, ekstern IAM, bucket-policy, KMS, Object Lock og provider-spesifikk purge/`versionId`-verifikasjon er utsatt og blir bare en betinget senere gate ved dokumentert behov.
 
 ### 25. Fase 3B.3: godkjent public release identity og key-kontrakt
 
@@ -997,7 +999,7 @@ UUIDv4 gir svært sterk praktisk unikhet, men no-reuse-kontrakten bygger ikke ba
 
 Ved restore av en eldre database skal nyeste reservation-/deny-state lastes og reconciles før public serving. En restaurert selection-revisjon, PK eller annen databaseidentitet kan aldri brukes til å beregne eller reaktivere en tidligere release key. Takedown/deny vinner alltid over restore.
 
-Eksakt permanent journalteknologi, cursor, takedown-/publish-saga og materialiseringsrekkefølge er ikke besluttet i fase 3B.3.
+Disse detaljene var ikke besluttet i fase 3B.3. ADR-009 har senere fastsatt journaltype, restore-safe anker, materialiseringsrekkefølge og faseinndeling; eksakt SQLite-schema/writer, credential-/execution placement, cacheverdier og operatørprosedyrer skal bevises i 3E.1A–3E.4.
 
 #### Livssyklusvirkning uten ny selection-kommando
 
@@ -1039,9 +1041,9 @@ Akseptansekriterier og tester:
 
 Rollback: feature forblir av; additive tabeller kan migreres tilbake så lenge ingen release-reservasjoner er opprettet. Når reelle reservasjoner finnes, brukes fremoverrettet migrasjon og data slettes ikke.
 
-**Leveranse 3B.3-B – varig reservation-/deny-integrasjon:**
+**Erstattet av fase 3E.1A–3E.1B – varig reservation-/deny-integrasjon og materialisering:**
 
-- gjennomføres først etter separat godkjenning av permanent journalteknologi, cursor og failure-domain
+- følger ADR-009s godkjente SQLite-ledger, restore-sikre off-server anker, cursor/failure-domain og separate public delivery-root
 - reserverer release-ID og keys varig før DB-/filmaterialisering og støtter idempotent replay/reconciliation
 - simulerer gammel database + nyere reservation-/deny-state og beviser at gammel key aldri regenereres eller aktiveres
 
@@ -1148,7 +1150,7 @@ Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkj
 
 ### Fase 3B: teknisk prototype og kontrakt
 
-**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, fase 3B.1R er gjennomført og godkjent med representativ kvalitets- og sRGB-evidens, og fase 3B.3 har godkjent eksakt UUIDv4-basert public release identity, canonical key-format og varig reservasjonsinvariant. Fase 3B.3-A har implementert den additive release-domenegrunnmuren uten public runtime. ADR-008s lokale Hetzner storage-/backup-MVP er **ACTIVE**. Fase 3B er fortsatt aktiv fordi fase 3B.3-B med permanent restore-sikker reservation-/deny-journal i separat failure-domain, create-only/no-clobber storage-skriving og serving/purge, read-model/cursor, API-schema/aliasmapping, retention, sync/async og observability fortsatt gjenstår.
+**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, fase 3B.1R er gjennomført og godkjent med representativ kvalitets- og sRGB-evidens, og fase 3B.3 har godkjent eksakt UUIDv4-basert public release identity, canonical key-format og varig reservasjonsinvariant. Fase 3B.3-A har implementert den additive release-domenegrunnmuren uten public runtime. ADR-008s lokale Hetzner storage-/backup-MVP er **ACTIVE**. ADR-009 har flyttet gjenstående journal-, materialiserings-, serving-, projection-, API/PUBLIC- og takedowngater til fase 3E.1A–3E.4; de er godkjent arkitektur, men ikke implementert.
 
 **Omfang:**
 
@@ -1400,15 +1402,15 @@ ADR-007 regnes som implementert først når:
 Følgende gjenstår etter de godkjente fase 3B.1-, 3B.1R-, 3B.2- og 3B.3-valgene:
 
 - konkret trigger og migreringsplan dersom objektlagring/CDN senere blir nødvendig
-- lokale private/public-paths, permissions og same-origin/media-origin-kontrakt
-- permanent deny-journalteknologi, WORM/tamper evidence, read-model og cursor
+- eksakte permissions, SQLite-path/schema/writer og execution placement innenfor ADR-009s besluttede ledger-/deliverykontrakt
+- konkret credentialmodell og append-/recoverybevis for ADR-009s WORM-orienterte off-server anker
 - full katastrofe-RTO og senere eventuell ekstra regionredundans; ADR-008-backupen er aktivert og restore-smoke er målt
 - SVG-rasteriseringsverktøy
 - eventuell bakgrunnskø
 - eventuell skadevarekontroll
 - om mer enn ett fokuspunkt eller en placementmodell senere trengs
-- eksakt public API-feltnavn, enum og alias-til-variant-mapping
-- konkret lokal cache-, purge- og verifikasjonskontrakt; provider/CDN bare ved senere dokumentert behov
+- endelig fallbackgrafikk og fallback-alttekst; ADR-009 har fastsatt `image`, enum og aliasmapping
+- konkret lokal cache-TTL, headers, purge- og verifikasjonskontrakt; provider/CDN bare ved senere dokumentert behov
 - om første MVP tillater logisk same-tenant assetgjenbruk
 - retensjonsfrist for godkjente, aldri tilknyttede assets
 - om fallback-selection låser innholdssnapshot eller rendereroppskrift
@@ -1416,15 +1418,15 @@ Følgende gjenstår etter de godkjente fase 3B.1-, 3B.1R-, 3B.2- og 3B.3-valgene
 - auditretensjon og eventuell kontrollert anonymisering
 - scheduler-/workergrense for retensjon
 
-Disse valgene endrer ikke hovedarkitekturen. Fase 3B.1R, fase 3B.3, fase 3B.3-A-domenegrunnmuren og operativ aktivering av ADR-008-backupen er gjennomført som beslutnings-, implementerings- og evidensgater. Fase 3B.3-B med permanent restore-sikker reservation-/deny-journal og create-only/no-clobber storage-skriving samt øvrige runtimegater skal implementeres eller dokumenteres før reell processing eller offentlig serving aktiveres.
+Disse valgene endrer ikke hovedarkitekturen. Fase 3B.1R, fase 3B.3, fase 3B.3-A-domenegrunnmuren og operativ aktivering av ADR-008-backupen er gjennomført som beslutnings-, implementerings- og evidensgater. ADR-009s fase 3E.1A–3E.4 skal implementeres og bevises før offentlig serving eller formell takedown aktiveres.
 
 ## Beslutninger som fortsatt krever eksplisitt godkjenning
 
 Gjenstående fase 3B-resultater må godkjennes før de respektive produksjonsrettede runtimeleveransene aktiveres. Godkjenningen skal minst omfatte:
 
-- konkret lokal storage-/media-origin-, tilgangs-, purge- og restoreadferd for første MVP
-- permanent deny-journal-, read-model- og cursorløsning innenfor de godkjente fail-closed-prinsippene
-- endelig API-schema og aliasmapping
+- konkret implementasjonsevidens for ADR-009s lokale ledger, off-server anker, delivery-root, controlled serving, origins, purge og restoreadferd
+- SQLite-schema, read-model/cursor og minst-privilegert credential-/execution placement innenfor ADR-009
+- fallbackgrafikk/-alttekst og cache-TTL/headerverdier som ADR-009 bevisst lar åpne
 - sync/async-grense og cleanupmekanisme
 - same-tenant reuse- og orphan-retensjonsregel
 
