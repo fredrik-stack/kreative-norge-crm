@@ -1,8 +1,8 @@
 # Public Architecture
 
-**Status:** Implementert grunnløsning; kontaktregel og fase 2-stabilisering implementert
+**Status:** Implementert grunnløsning; kontaktregel og fase 2-stabilisering implementert; public image runtime godkjent, ikke implementert
 
-**Sist verifisert:** 2026-07-29
+**Sist verifisert:** 2026-08-17
 
 **Verifisert mot:** public-ruter, `PublicActorViewSet`, public serializer, modeller, public HTML-template, importtjenester, React-editor og regresjonstester.
 
@@ -117,9 +117,9 @@ Direkte `Person.phone` brukes fortsatt aldri som PUBLIC-fallback. Offentlig tele
 
 Dagens løsning velger mellom manuell thumbnail, automatisk thumbnail og Open Graph-bilde. Eksterne bilde-URL-er kan forsvinne, endres, blokkere hotlinking eller ha feil format.
 
-[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som målarkitektur. Den er ikke implementert; dagens eksterne URL- og fallbackflyt gjelder fortsatt.
+[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som målarkitektur, og fase 3B–3D har implementert intern bilde-/selection-/rendition-/release-domenegrunnmur. [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) har godkjent public runtimeen. Journal, public materialisering, serving, projection, API/PUBLIC-cutover og takedown er ikke implementert; dagens eksterne URL- og fallbackflyt gjelder fortsatt.
 
-Planlagt retning:
+Godkjent retning:
 
 - kandidater fra offisiell nettside, Open Graph, upload, limt URL og senere en kontrollert Brave-provider
 - kontrollert fetch og teknisk validering før eksplisitt menneskelig godkjenning
@@ -130,11 +130,24 @@ Planlagt retning:
 - én felles public image projection for Editor-preview, PUBLIC HTML, public API og delingsmetadata
 - ingen endring av aktør-, person- eller kontaktpublisering som følge av bildehandlinger
 
+Før cutover skal public runtimeen bruke:
+
+- lokal append-only SQLite-ledger med restore-sikkert off-server anker, der nyere deny/no-reuse-state alltid vinner over eldre DB/apprestore
+- separat `/srv/kreative-norge/media/public-delivery/`; dagens `image_renditions_public` er intern artifact-storage og skal aldri eksponeres
+- canonical release keys `releases/<release_uuid>/<variant>.<ext>`, permanent reservasjon før materialisering og create-only/no-clobber-verifikasjon
+- Django release-gate og intern Nginx `X-Accel-Redirect` eller dokumentert likeverdig serving; ingen anonym filesystem-alias
+- eksplisitte `PUBLIC_SITE_ORIGIN` og `PUBLIC_MEDIA_ORIGIN`, aldri vilkårlig `Host` eller `X-Forwarded-Host`
+- én read-only `PublicImageProjection` som bruker samme ledger/read-model som serving-gaten og gjør ingen nettverks-, decode-, render- eller storage-writekall
+
+Manglende eller korrupt journal, stale/ukjent cursor, denied/retired release, scope mismatch, upublisert aktør eller manglende/ufullstendige filer feiler lukket til statisk systemfallback eller ingen levering. Fallback finnes som uavhengige, versjonerte square-, landscape- og sharefiler; endelig grafikk og alttekst avgjøres i fase 3E.3.
+
 PUBLIC skal etter cutover bare bruke CRM-kontrollerte renditions eller systemfallback. Rå kilde-URL, intern proveniens, audit og privat original skal ikke eksponeres.
 
 Godkjente kortmål beholder 90 × 90 i PUBLIC-oversikten og bruker 160 × 160 på desktop-detaljen. Mobil detalj forblir rektangulær; eksakt felles høyde avgjøres i fase 3B. Logo bruker `contain`, foto bruker `cover` og fokuspunkt, PUBLIC-tags er grønne, og lange navn, kommuner, tags og knapper skal ikke gi overflow.
 
 PUBLIC-detaljen skal få absolutt canonical, Open Graph og Twitter Card. Canonical app-origin og public media-origin skal være miljøkonfigurerte og allowlistede, ikke avledet fra vilkårlig request-host. `og:image` bruker CRM-kontrollert share-rendition eller fallback på 1200 × 630. Korrekt metadata kan leveres, men det kan ikke loves at alle meldingsklienter viser preview.
+
+Cache-TTL og eventuell `immutable`-header fastsettes først etter serving-/purgeevidens i fase 3E.1C og 3E.4. Formell takedown forblir deaktivert til release-deny, tenant-scopet checksum-deny, legacyguard, felles projection/gateway-state, originblokkering, cache expiry/purge/verifikasjon, gammel restore og republisering med ny UUID/key er bevist. Global checksum-deny er ikke del av godkjent MVP.
 
 ## Videre integrasjon
 
