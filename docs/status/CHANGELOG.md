@@ -2,6 +2,18 @@
 
 Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små kosmetiske justeringer trenger ikke registreres.
 
+## 2026-08-20
+
+### Fase 3E.1A: safety-ledger og restore-gate aktivert i staging
+
+- aktivert host-side SQLite safety-ledger, dedikert kryptert Borg off-server anchor og femminutters fail-closed health-timer uten safety-mount eller credentials i API/web
+- verifisert forskjellig repository-ID fra ADR-008-backupen, separat recovery-custody for minst to ansvarlige, genesis og syntetisk reservation/ACTIVE/DENIED med synkron create/read-back/receipt
+- bevist idempotent retry, konfliktavvisning, logical delete, compact exit `0` uten fysisk komprimering, writerens raw-`rm`-capability og separat transaction recovery av både probe og nyeste DENIED-head
+- bevist at stale manifest med eldre ACTIVE-head avvises i incident restore før destination/receipt, mens separat recovery av autoritativ cursor/fullhash gir rebuildbar `DENIED` og `READY`
+- bevist nyere safety-DENIED over eldre ACTIVE-state, isolert fail-closed corruption/stale cursor/repository mismatch og identisk ledger/receipts/repository-ID etter host-restart
+- registrert prosjekteiers aksept av Borg/Hetzner- og raw-`rm`-restrisikoen; status er bare `ACTIVE` for 3E.1A og aktiverer ikke public bytes, materialisering, serving, PUBLIC, takedown eller 3E.1B–3E.4
+- dokumentert full stagingevidens i [aktiveringsrapporten](STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md); PR #36 forblir draft og umerget
+
 ## 2026-08-11
 
 ### Fase 3D.2: flere bildekilder, synlig søk og fokus-UX merget til main

@@ -2,11 +2,11 @@
 
 ## Status
 
-Godkjent arkitekturretning. Ingen del av public image runtimeen i dette ADR-et er implementert eller aktivert.
+Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som lokal safety-ledger, dedikert off-server Borg-anchor, separat recovery-gate og fail-closed health. Fase 3E.1B–3E.4 og all public runtime er fortsatt ikke implementert eller aktivert.
 
 **Beslutningsdato:** 2026-08-17
 
-**Dokumentert i repo:** 2026-08-17
+**Dokumentert i repo:** 2026-08-20
 
 ADR-et formaliserer fase 3E og supplerer [ADR-007](ADR-007-IMAGE_ASSET_ARCHITECTURE.md) og [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md). Det endrer ikke de implementerte fase 3B–3D-modellene, dagens legacybildebruk eller den aktive generelle Borg-backupen.
 
@@ -19,7 +19,7 @@ Fase 3B–3D har implementert og verifisert intern bildebehandling, immutable ar
 - dagens orphan-cleanup kjenner bare `ImageRendition.artifact_storage_key`; `releases/...` i samme root ville bli behandlet som urefererte filer og kunne slettes etter aldersgrensen
 - dagens public API har to ruteregistreringer for `/api/public/actors/`: `crm.urls_public` nås direkte fra `config.urls`, mens `crm.urls` registrerer en annen viewset og serializer under samme effektive path
 - legacyaliasene kan allerede divergere fordi `preview_image_url` og `thumbnail_image_url` bruker ulike resolvere
-- permanent reservation-/deny-state, kontrollert serving, public projection, API-cutover, cache-/purgekontrakt og formell takedown finnes ikke
+- permanent reservation-/lifecycle-ledger og dedikert off-serverkjede er implementert og live-verifisert i staging i 3E.1A, men kontrollert serving, public projection, API-cutover, cache-/purgekontrakt og formell takedown finnes ikke
 
 ADR-007 krever at en eldre database- eller apprestore aldri kan reaktivere en nyere denied release eller gjenbruke en tidligere release-ID/key. ADR-008s nattlige Borg-kjede har et foreløpig RPO på omtrent 24 timer pluss timerforsinkelse og bruker ikke et append-only/admin-key-regime. Den generelle backupen kan derfor ikke alene være den autoritative sikkerhetstilstanden for public image runtime.
 
@@ -27,10 +27,8 @@ ADR-007 krever at en eldre database- eller apprestore aldri kan reaktivere en ny
 
 ### 1. Tydelig grense mellom implementert grunnmur og planlagt runtime
 
-Fase 3B–3D-grunnmuren forblir implementert. Følgende er godkjent arkitektur, men er ikke implementert før de respektive 3E-leveransene er grønne:
+Fase 3B–3D-grunnmuren forblir implementert. 3E.1A-ledger/read-model/restore/health og live off-servergate er implementert og aktivert i staging. Følgende gjenstår før de respektive senere 3E-leveransene er grønne:
 
-- permanent reservation-/release-/deny-journal
-- off-server sikkerhetsanker og restore-reconciliation
 - public release-materialisering og lifecycle
 - kontrollert media-serving og origin-konfigurasjon
 - `PublicImageProjection`, strukturert API-kontrakt og legacyalias-cutover
@@ -288,6 +286,8 @@ Trinnvis innføring holder risikoen avgrenset: journal og restorebevis kommer f�
 
 ### Fase 3E.1A – journal, restore-gate og off-server anker
 
+**Implementasjonsstatus 2026-08-20:** Repoimplementasjonen og den eksterne staginggaten er levert. Ledgeren ligger i `/var/lib/kreative-norge-image-safety/ledger.sqlite3`, kjører host-side uten safety-mount i API/web og bruker et dedikert append-only Borg-repository med stabil Borg `>=1.2.8,<1.3.0` og synkron create/read-back før lokal receipt. Safety- og ADR-008-repository-ID er verifisert forskjellige; separat custody for minst to ansvarlige, delete-/compact-/raw-`rm`-capability, separat transaction recovery av probe og nyeste DENIED-head, stale incident-restore-avvisning, rebuild/health og host-restart er live-verifisert. Raw filtilgang gjør løsningen WORM-orientert, ikke absolutt WORM; prosjekteier har akseptert restrisikoen. 3E.1A er `ACTIVE` i staging, men dette aktiverer ingen public runtime. Se [runbook](../operations/PUBLIC_IMAGE_SAFETY_LEDGER.md), [aktiveringsrapport](../status/STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md) og [historisk stagingforberedelse](../status/STAGING_PHASE_3E1A_PREPARATION_2026-08-17.md).
+
 **Omfang:**
 
 - versjonert lokal SQLite-ledger med idempotente append-only events
@@ -301,6 +301,7 @@ Trinnvis innføring holder risikoen avgrenset: journal og restorebevis kommer f�
 - samme event-ID/samme payload er idempotent, mens samme ID/annen payload og ugyldig overgang feiler lukket
 - retired/denied release kan ikke aktiveres; gammel database + nyere journal kan ikke regenerere eller reaktivere keyen
 - manglende, korrupt, stale eller ukjent ledger/cursor blokkerer runtime
+- incident/unknown restore kan ikke bruke current manifest alene; separat append-only recovery må identifisere autoritativ cursor/head før restore kan skrive receipt og bli `READY`
 - avledet state kan bygges fra eventene med samme resultat
 - ubegrenset/admin Storage Box-credential finnes ikke i CRM-runtime, og recoverytilgang har separat custody
 - append-, overwrite-, delete-, restore- og credentialadferd er dokumentert med faktisk evidens uten absolutt WORM-påstand
