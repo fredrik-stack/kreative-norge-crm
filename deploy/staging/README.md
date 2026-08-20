@@ -248,7 +248,7 @@ The Compose 1.29.2 `ContainerConfig` behavior remains a separate operational ris
 - Image originals and internal renditions use separate host bind mounts outside `/app` and outside staticfiles.
 - For contact-data repairs, run `python manage.py repair_person_contacts` as dry-run first. Use `--apply` only after backup and explicit approval.
 
-## 13. Fase 3E.1A safety-ledger – foreløpig PREPARED
+## 13. Fase 3E.1A safety-ledger – ACTIVE i staging
 
 Public image safety-ledgeren installeres på hosten, ikke i Compose:
 
@@ -256,6 +256,6 @@ Public image safety-ledgeren installeres på hosten, ikke i Compose:
 sudo /srv/kreative-norge-crm/ops/image_safety/install.sh prepare
 ```
 
-Den planlagte ledgeren er `/var/lib/kreative-norge-image-safety/ledger.sqlite3`. Konfigurasjon og restricted writercredential ligger under `/etc/kreative-norge-image-safety/`. Ingen av pathene er montert i `api` eller `web`; Borg installeres ikke i images. Installer aktiverer ingen unit eller timer.
+Ledgeren ligger i `/var/lib/kreative-norge-image-safety/ledger.sqlite3`. Konfigurasjon og restricted writercredential ligger under `/etc/kreative-norge-image-safety/`. Ingen av pathene er montert i `api` eller `web`; Borg installeres ikke i images. `prepare` aktiverer fortsatt ingen unit eller timer alene.
 
-Ikke kjør `init` mot den eksisterende generelle backup-repositoryen. Prosjekteier må først opprette dedikert Storage Box-subaccount/repository og fullføre capability-/restoregaten i [safety-runbooken](../../docs/operations/PUBLIC_IMAGE_SAFETY_LEDGER.md). Frem til den daterte stagingrapporten er grønn, er status `PREPARED / MANUAL REQUIRED`, public runtime forblir av, og 3E.1B skal ikke startes som del av denne deployen.
+Ikke kjør `init` mot den eksisterende generelle backup-repositoryen. Staging bruker et dedikert safety-subaccount/repository, separat recovery-custody og aktiv health-timer etter fullført capability-/transaction-recovery-/restartgate 2026-08-20. Se [safety-runbooken](../../docs/operations/PUBLIC_IMAGE_SAFETY_LEDGER.md) og [aktiveringsevidensen](../../docs/status/STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md). `ACTIVE` gjelder bare 3E.1A; public runtime forblir av, og 3E.1B skal ikke startes som del av denne deployen.
