@@ -1,10 +1,12 @@
 # Public image safety ledger og restore-gate
 
-**Status:** kode og host-oppsett `PREPARED`; dedikert off-server repository og live stagingbevis `MANUAL REQUIRED`
+**Status:** 3E.1A safety-ledger, dedikert off-server anchor og restore-gate er `ACTIVE` i staging fra 2026-08-20
 
 **Arkitektur:** [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md)
 
 Denne runbooken gjelder bare fase 3E.1A. Den aktiverer ikke public bytes, materialisering, serving, projection, API/PUBLIC-cutover eller formell takedown.
+
+Faktisk aktiveringsevidens, inkludert repository-separasjon, raw-`rm`-restrisiko, separat transaction recovery av probe og DENIED-head, restartpersistens og containerisolasjon, finnes i [stagingrapporten 2026-08-20](../status/STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md).
 
 ## 1. Implementert kontrakt
 
@@ -232,7 +234,7 @@ Hvis korrekt autoritativ cursor/head ikke kan identifiseres fra separat recovery
 
 Delete, compact eller rå filprobe må aldri kjøres mot ADR-008s ordinære backuprepository eller med reelle CRM-data/aktørbilder. Faktisk live-resultat skal holdes adskilt fra forventet Borg-kontrakt, og testen gir aldri grunnlag for å påstå absolutt WORM.
 
-### Pre-activation-gate
+### Activation-gate
 
 Status kan ikke endres til `ACTIVE` før alle disse gruppene er dokumentert grønne:
 
@@ -241,7 +243,7 @@ Status kan ikke endres til `ACTIVE` før alle disse gruppene er dokumentert grø
 - **Repository-separasjon:** safety- og ADR-008-backuprepository-ID er begge verifisert og dokumentert forskjellige før destructive probe; safety-repositoryet er dedikert til image safety.
 - **Live capability/restore:** genesis, syntetisk reservation, create/read-back/receipt, conflicting bytes-avvisning, delete-, compact- og raw-rm-prober, separat recovery av tombstonet probe, newest-safety-head tombstone med stale incident-restore-avvisning, append-only transaction recovery, restore/rebuild/health, `DENIED`-bevis, nyere deny over eldre app/DB-state, corruption/stale-cursor `NOT READY`, restartpersistens og fortsatt containerisolasjon.
 
-Før disse punktene er grønne er off-server status `PREPARED / MANUAL REQUIRED`, public runtime forblir av, og fase 3E.1A kan ikke kalles live aktiv.
+Før disse punktene er grønne er off-server status `PREPARED / MANUAL REQUIRED`, public runtime forblir av, og fase 3E.1A kan ikke kalles live aktiv. Staging fullførte alle gruppene 2026-08-20; dette endrer ikke kravet for andre miljøer.
 
 ## 9. Clean restore og incident/unknown restore
 

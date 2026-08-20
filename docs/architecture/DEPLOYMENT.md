@@ -33,7 +33,7 @@ Dagens dokumentasjon beskriver manuell oppdatering med `git pull` og rebuild. M�
 - hybridbackup omfatter private originaler, canonical metadata/profil, nødvendige referanser og audit, aktive public rendition-bytes og deny-journal i separat failure-domain
 - restore går gjennom karantene, deny-replay og fail-closed reconciliation før public serving kan åpnes
 
-S3, AWS, Backblaze, CDN og flerleverandørløsning er utsatt til dokumentert vekst- eller driftsbehov. Fase 3B.3-A har implementert den organization-typed release-aggregaten og canonical key-domenegrunnmuren med intern UUIDv4-/key-generering, eksakt builder-binding, immutable historisk mapping, databaseconstraints og atomisk feature-gated opprettelse. Fase 3E.1A implementerer nå permanent reservation-/lifecycle-ledger, rebuildbar read-model, restore og host/systemd Borg-anchor i repoet. Dedikert off-server stagingrepository og live recoverybevis er `MANUAL REQUIRED`. Canonical public release-materialisering, public create-only/no-clobber og runtime deny-reconciliation kommer fortsatt først i 3E.1B+.
+S3, AWS, Backblaze, CDN og flerleverandørløsning er utsatt til dokumentert vekst- eller driftsbehov. Fase 3B.3-A har implementert den organization-typed release-aggregaten og canonical key-domenegrunnmuren med intern UUIDv4-/key-generering, eksakt builder-binding, immutable historisk mapping, databaseconstraints og atomisk feature-gated opprettelse. Fase 3E.1A har implementert og stagingaktivert permanent reservation-/lifecycle-ledger, rebuildbar read-model, incident restore og host/systemd Borg-anchor med dedikert off-server repository og separat recovery-custody. Canonical public release-materialisering, public create-only/no-clobber og runtime deny-reconciliation kommer fortsatt først i 3E.1B+.
 
 Første fase 3C-leveranse konfigurerte `IMAGE_ASSET_FEATURE_ENABLED=False` som standard, bevarte `default` og `staticfiles` og la til separate lokale `image_originals_private`-/`image_renditions_public`-aliaser. Roots valideres uten å opprette mapper. Når feature aktiveres utenfor debug, må begge roots være eksplisitt konfigurert; lokale temp-standarder er bare fallback i debug eller mens feature er avslått. Fase 3C.7 bruker aliasene gjennom en eksplisitt intern upload-only tjeneste: private originaler og processing-artifacts skrives med tenant-scopede deterministiske keys, eksakt-key/no-clobber og etterfølgende byte-/checksumverifikasjon. Fase 3D.1 legger til feature-gated interne API-/Editor-kall til denne tjenesten og private/no-store previews. Artifact-aliaset er fortsatt ikke en aktiv public origin, canonical `releases/...`-keys skrives ikke, og ingen filer serveres offentlig.
 
@@ -47,9 +47,9 @@ Safety-ledgeren er bevisst utenfor Django, PostgreSQL, mediaområdene og begge c
 - host-konfigurasjon: `/etc/kreative-norge-image-safety/`
 - host-kode: `/usr/local/lib/kreative-norge-image-safety/`
 - execution: root-owned systemd oneshot for synkron Borg-anchor og separat fail-closed health
-- remote: planlagt dedikert Storage Box-subaccount og dedikert Borg 1.2 append-only repository
+- remote: dedikert Storage Box-subaccount og dedikert Borg 1.2 append-only repository
 
-`docker-compose.staging.yml` har ingen safety-mount eller Borg-credential. Den generelle ADR-008-backupen brukes ikke som safety-anchor. Installer, units og kode er `PREPARED`; ekstern subaccount/repository, capabilitytest og isolert live restore er [MANUAL REQUIRED](../status/STAGING_PHASE_3E1A_PREPARATION_2026-08-17.md). Se [operativ runbook](../operations/PUBLIC_IMAGE_SAFETY_LEDGER.md).
+`docker-compose.staging.yml` har ingen safety-mount eller Borg-credential. Den generelle ADR-008-backupen brukes ikke som safety-anchor. Installer, units, dedikert subaccount/repository, capability-/transaction-recoverytest, restartpersistens og health-timer er `ACTIVE` i staging; raw filtilgang er dokumentert og akseptert restrisiko, ikke en absolutt WORM-garanti. Se [aktiveringsrapporten](../status/STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md) og [operativ runbook](../operations/PUBLIC_IMAGE_SAFETY_LEDGER.md).
 
 ## Fase 3D.2 – operativ konfigurasjon og credential
 

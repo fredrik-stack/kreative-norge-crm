@@ -54,7 +54,7 @@ Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCH
 
 ## Fase 3 – Robust thumbnail-, bilde- og kortarkitektur
 
-**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; fase 3B.1R og fase 3B.3 godkjent; fase 3B.3-A har additiv public release-domenegrunnmur; ADR-008s lokale Hetzner storage-/backup-MVP er ACTIVE; fase 3C har domene-/selection- og processinggrunnmur; fase 3D.1 er teknisk aktivert og visuelt godkjent i staging; fase 3D.2 med precision/zoom er gjennomført og merget til `main` med PR #33, fullverifisert lokalt, CI-grønn, historisk live Brave-verifisert og visuelt eiergodkjent i staging. ADR-009 har godkjent fase 3E-runtimearkitekturen, men ingen journal-, materialiserings-, serving-, projection-, API/PUBLIC- eller takedown-runtime er implementert. Brave er operativt deaktivert for ordinære Editor-sluttbrukere frem til sluttbrukeravtalegaten er dokumentert oppfylt. Ingen offentlig bildebruk er aktivert.
+**Status:** Fase 3A, fase 3B.1 og fase 3B.2 teknisk gjennomført; fase 3B.1R og fase 3B.3 godkjent; fase 3B.3-A har additiv public release-domenegrunnmur; ADR-008s lokale Hetzner storage-/backup-MVP er ACTIVE; fase 3C har domene-/selection- og processinggrunnmur; fase 3D.1 er teknisk aktivert og visuelt godkjent i staging; fase 3D.2 med precision/zoom er gjennomført og merget til `main` med PR #33, fullverifisert lokalt, CI-grønn, historisk live Brave-verifisert og visuelt eiergodkjent i staging. ADR-009 fase 3E.1A safety-ledger, off-server anchor og restore-gate er **ACTIVE** i staging; materialisering, serving, projection, API/PUBLIC og takedown-runtime er ikke implementert. Brave er operativt deaktivert for ordinære Editor-sluttbrukere frem til sluttbrukeravtalegaten er dokumentert oppfylt. Ingen offentlig bildebruk er aktivert.
 
 Fase 3A kartla dagens legacy URL-, Open Graph-, kort-, import-, storage- og driftsflyt. [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag.
 
@@ -111,11 +111,11 @@ Dette er ikke en generell redesign. Øvrige kort og komponenter videreutvikles i
 - immutable relasjoner og snapshots bevarer release-mappingen, mens modell-/managerregler blokkerer støttede ORM-veier for reassosiering, bulk update, upsert/update-conflict og delete; dette er ikke database-WORM eller den permanente eksterne reservasjonsjournalen
 - [ADR-008](../decisions/ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokale navngitte storagealiaser og stabil lokal Borg `>=1.2.8`/`<1.3.0` med remote path `borg-1.2` til separat Hetzner Storage Box og retention 14/8/12; S3/AWS/Backblaze/CDN utsettes
 - repoets backupmodul er ACTIVE etter verifisert Storage Box, kryptert repository, recovery-custody for minst to ansvarlige, første backup, full repository-check, isolert restore av samme arkiv, Storage Box-snapshot, nyere synlig Cloud Backup og aktive timere; detaljert evidens finnes i [aktiveringsrapporten](STAGING_BACKUP_ACTIVATION_2026-08-02.md)
-- ADR-009 har valgt ledger-, delivery-, serving-, projection-, API- og takedownretning; SQLite-/host-anchor-/credentialkontrakten er implementert i 3E.1A, mens live off-server capability/recovery, cacheverdier, fallbackinnhold og full katastrofe-RTO gjenstår i riktige 3E-gater
+- ADR-009 har valgt ledger-, delivery-, serving-, projection-, API- og takedownretning; SQLite-/host-anchor-/credentialkontrakten og live off-server capability/recovery er **ACTIVE** i 3E.1A, mens cacheverdier, fallbackinnhold og full katastrofe-RTO gjenstår i riktige senere 3E-gater
 - fase 3B.2 har ikke opprettet CRM-modeller, migrasjoner, API/OpenAPI, Editor, PUBLIC, Import 2.0-integrasjon, bakgrunnskø eller stagingdeploy
 - fase 3E.1B–3E.4 skal implementere gjenstående delivery-/serving-/projection-/API-/PUBLIC-/takedownkontrakt etter 3E.1As live off-serverbevis; provider-/CDN-gater gjelder bare dersom ekstern storage senere tas opp igjen
 
-Processing profile v1, fase 3B.1R-kvalitetskontrakten, fase 3B.2-prinsippene og fase 3B.3 release-kontrakten er arkitekturgrunnlag. Fase 3B.3-A er release-domenegrunnmur, fase 3C.7 er intern processing/storage og fase 3D.1 er første interne API-/Editor-kobling uten public-kobling. Legacy public URL-/faviconflyt gjelder fortsatt. ADR-008-backupen er aktivert og restore-verifisert. 3E.1A er repoimplementert, men ekstern gate og alle 3E.1B–3E.4-leveranser må være grønne før reell offentlig bildebruk kan aktiveres.
+Processing profile v1, fase 3B.1R-kvalitetskontrakten, fase 3B.2-prinsippene og fase 3B.3 release-kontrakten er arkitekturgrunnlag. Fase 3B.3-A er release-domenegrunnmur, fase 3C.7 er intern processing/storage og fase 3D.1 er første interne API-/Editor-kobling uten public-kobling. Legacy public URL-/faviconflyt gjelder fortsatt. ADR-008-backupen og 3E.1A safety-ledger/off-server restore-gate er aktivert og restore-verifisert. Alle 3E.1B–3E.4-leveranser må være grønne før reell offentlig bildebruk kan aktiveres.
 
 #### Fase 3B.3 – public release identity og key-kontrakt
 
@@ -194,11 +194,11 @@ PR #33 er merget til `main` som `48f23f183dacb8331a64b86f1d7574250cbfbe02`, og a
 
 ### Fase 3E – PUBLIC, API, deling og kort
 
-**Status:** Arkitektur godkjent i [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md); 3E.1A er implementert/prepared, live off-servergate og all public runtime gjenstår.
+**Status:** Arkitektur godkjent i [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md); 3E.1A er **ACTIVE** i staging, mens 3E.1B–3E.4 og all public runtime gjenstår.
 
 Fase 3E følger denne rekkefølgen:
 
-1. **3E.1A – journal, restore-gate og off-server anker (`IMPLEMENTERT / PREPARED`, live ekstern gate `MANUAL REQUIRED`):** lokal append-only SQLite-ledger, rebuildbar read-model/cursor, standalone restore, fail-closed health og host/systemd Borg-anchor er implementert. Dedikert Storage Box-subaccount/repository og live append/delete/recovery-/restartbevis gjenstår før operativ aktivering.
+1. **3E.1A – journal, restore-gate og off-server anker (`ACTIVE` i staging 2026-08-20):** lokal append-only SQLite-ledger, rebuildbar read-model/cursor, standalone incident restore, fail-closed health, host/systemd Borg-anchor, dedikert Storage Box-subaccount/repository, separat recovery-custody og live append/delete/compact/raw-`rm`-/transaction-recovery-/restartbevis er levert. Raw filtilgang er akseptert restrisiko; statusen aktiverer ingen public runtime. Se [aktiveringsrapporten](STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md).
 2. **3E.1B – materialisering og release-livssyklus:** eget `/srv/kreative-norge/media/public-delivery/`, permanent reservasjon før DB-/filmaterialisering, create-only/no-clobber, full byte-/formatverifikasjon og terminal retirement/deny. Dagens artifact-root eksponeres ikke, og cleanup-kollisjonen må være løst før første releasefil.
 3. **3E.1C – kontrollert serving og origins:** Django release-gate med intern Nginx `X-Accel-Redirect` eller likeverdig mekanisme, eksplisitte `PUBLIC_SITE_ORIGIN`/`PUBLIC_MEDIA_ORIGIN` og evidensbasert cache-/purgekontrakt.
 4. **3E.2 – projection og API shadow:** én read-only `PublicImageProjection`, strukturert `image`-objekt, kompatibilitetsaliaser fra samme projection og én kanonisk `/api/public/actors/`-rute/serializer før schemaaktivering.

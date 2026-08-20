@@ -2,7 +2,9 @@
 
 **Dato:** 2026-08-17
 
-**Status:** `PREPARED / MANUAL REQUIRED` – ingen live aktivering
+**Status:** Historisk pre-activation-rapport; livegaten ble fullført 2026-08-20
+
+> 3E.1A safety-ledger, off-server anchor og restore-gate er nå `ACTIVE` i staging. Faktisk liveevidens, repository-ID-er, capability-/recoveryresultat, DENIED-incidenttesten og restartkontrollen finnes i [aktiveringsrapporten 2026-08-20](STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md). Resten av dette dokumentet bevares som historisk forberedelsesgrunnlag.
 
 ## Levert og verifisert lokalt
 
