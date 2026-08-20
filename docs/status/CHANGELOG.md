@@ -4,6 +4,13 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 
 ## 2026-08-20
 
+### Fase 3E.1B: materialisering og release-livssyklus arkitektonisk presisert
+
+- presisert ADR-009 med en lokal fail-closed Unix-socket/systemd-bro som privilegieseparasjonsgrense; bare `reserve`, `activate`, `retire` og `deny` er autorisert, og API/web får fortsatt ingen ledger-mount, Borg eller credentials
+- låst MVP-idempotens til maksimalt én public release per selection-revisjon, med gjenbruk av samme permanent reserverte UUID/canonical keys ved retry og ny selection-revisjon ved republisering
+- beholdt lifecycle-authority i safety-ledgeren uten besluttet PostgreSQL lifecycle-kolonne, og avgrenset public delivery-cleanup til senere release-/ledger-aware dry-run/apply uten automatisk filsletting
+- delt senere implementasjon i 3E.1B.1 for bro/reservation/DB-binding og 3E.1B.2 for separat delivery-root/materialisering/activation; ingen runtimekode, migrasjon, storage, serving eller stagingendring er utført
+
 ### Fase 3E.1A: safety-ledger og restore-gate aktivert i staging
 
 - aktivert host-side SQLite safety-ledger, dedikert kryptert Borg off-server anchor og femminutters fail-closed health-timer uten safety-mount eller credentials i API/web

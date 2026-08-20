@@ -194,12 +194,12 @@ PR #33 er merget til `main` som `48f23f183dacb8331a64b86f1d7574250cbfbe02`, og a
 
 ### Fase 3E – PUBLIC, API, deling og kort
 
-**Status:** Arkitektur godkjent i [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md); 3E.1A er **ACTIVE** i staging, mens 3E.1B–3E.4 og all public runtime gjenstår.
+**Status:** Arkitektur godkjent i [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md); 3E.1A er **ACTIVE** i staging, og 3E.1B-kontrakten er presisert og godkjent før implementering. 3E.1B–3E.4 og all public runtime gjenstår.
 
 Fase 3E følger denne rekkefølgen:
 
 1. **3E.1A – journal, restore-gate og off-server anker (`ACTIVE` i staging 2026-08-20):** lokal append-only SQLite-ledger, rebuildbar read-model/cursor, standalone incident restore, fail-closed health, host/systemd Borg-anchor, dedikert Storage Box-subaccount/repository, separat recovery-custody og live append/delete/compact/raw-`rm`-/transaction-recovery-/restartbevis er levert. Raw filtilgang er akseptert restrisiko; statusen aktiverer ingen public runtime. Se [aktiveringsrapporten](STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md).
-2. **3E.1B – materialisering og release-livssyklus:** eget `/srv/kreative-norge/media/public-delivery/`, permanent reservasjon før DB-/filmaterialisering, create-only/no-clobber, full byte-/formatverifikasjon og terminal retirement/deny. Dagens artifact-root eksponeres ikke, og cleanup-kollisjonen må være løst før første releasefil.
+2. **3E.1B – materialisering og release-livssyklus (arkitektur godkjent, ikke implementert):** 3E.1B.1 etablerer senere en lokal fail-closed Unix-socket/systemd-bro og idempotent reservation-/DB-binding uten ledger-/Borg-tilgang i API/web; 3E.1B.2 etablerer senere eget `/srv/kreative-norge/media/public-delivery/`, create-only/no-clobber, full byte-/formatverifikasjon og activation. Maksimalt én release tillates per selection-revisjon; republisering krever ny revisjon/UUID/key. Delivery-rooten skal ikke inn i dagens generiske orphan-cleanup, automatisk releasefilsletting innføres ikke, og backup/restore må verifiseres før stagingaktivering.
 3. **3E.1C – kontrollert serving og origins:** Django release-gate med intern Nginx `X-Accel-Redirect` eller likeverdig mekanisme, eksplisitte `PUBLIC_SITE_ORIGIN`/`PUBLIC_MEDIA_ORIGIN` og evidensbasert cache-/purgekontrakt.
 4. **3E.2 – projection og API shadow:** én read-only `PublicImageProjection`, strukturert `image`-objekt, kompatibilitetsaliaser fra samme projection og én kanonisk `/api/public/actors/`-rute/serializer før schemaaktivering.
 5. **3E.3 – PUBLIC og cutover:** PUBLIC HTML, canonical, Open Graph, Twitter Card, statiske versjonerte fallbackvarianter og kontrollert tenant-/feature-cutover.
