@@ -10,4 +10,8 @@ from image_safety.cli import main  # noqa: E402
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except Exception as error:
+        print(f"image-safety: ERROR: {error}", file=sys.stderr)
+        raise SystemExit(1)

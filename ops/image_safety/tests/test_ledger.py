@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import shutil
 import sqlite3
 import subprocess
+import sys
 import tempfile
 import threading
 from types import SimpleNamespace
@@ -486,6 +488,25 @@ class CredentialAndPlacementTests(unittest.TestCase):
             state_root=self.root / "state",
             required_owner_uid=os.getuid(),
         )
+
+    def test_installed_entrypoint_reports_expected_errors_without_traceback(self):
+        repository_root = Path(__file__).resolve().parents[3]
+        install_root = self.root / "installed"
+        shutil.copytree(repository_root / "image_safety", install_root / "image_safety")
+        shutil.copy2(repository_root / "ops/image_safety/run.py", install_root / "run.py")
+
+        result = subprocess.run(
+            [sys.executable, "-I", str(install_root / "run.py"), "health"],
+            env={"IMAGE_SAFETY_LEDGER_PATH": str(self.root / "missing.sqlite3")},
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("image-safety: ERROR:", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
 
     def test_private_dedicated_credential_paths_are_accepted(self):
         self.config().validate()
