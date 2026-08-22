@@ -64,15 +64,15 @@ Journalhendelser skrives idempotent. Samme event-ID med samme canonical payload 
 
 ### 3. Restore-sikkert off-server anker
 
-Den lokale ledgeren får et restore-sikkert, append-only/WORM-orientert off-server sikkerhetsanker i et separat failure-domain. Sikkerhetskritiske reservation-, activation-, retirement- og deny-hendelser regnes ikke som varig bekreftet før den nødvendige ankeringen er synkront verifisert etter kontrakten som bevises i fase 3E.1A.
+Den lokale ledgeren har et restore-sikkert, append-only/WORM-orientert off-server sikkerhetsanker i et separat failure-domain. Sikkerhetskritiske reservation-, activation-, retirement- og deny-hendelser regnes ikke som varig bekreftet før den nødvendige ankeringen er synkront verifisert etter kontrakten som ble bevist og aktivert i fase 3E.1A.
 
 ADR-008s eksisterende Storage Box-, Borg-, systemd-, SSH-, repository-identitets- og recovery-custody-grunnmur skal gjenbrukes der den dekker behovet. Dette er ikke et løfte om absolutt WORM:
 
-- fase 3E.1A skal bevise konkret credential- og tilgangsmodell, append-/overskrivings-/sletteadferd og recovery
+- fase 3E.1A har bevist konkret credential- og tilgangsmodell, append-/overskrivings-/sletteadferd og recovery
 - en ubegrenset eller administrativ Storage Box-credential skal ikke ligge i CRM-runtime
 - admin- og recoverytilgang skal være i separat custody
-- API-imaget skal ikke få Borg-klient eller administratorcredential uten at 3E.1A beviser at dette er den enkleste og sikreste plasseringen
-- execution placement velges i 3E.1A mellom eksisterende host-/systemdgrunnmur og en mindre privilegert runtimekobling ut fra minst kompleksitet og minst privilegium
+- API-imaget har ingen Borg-klient, safety-ledger-mount, writersecret eller administratorcredential
+- host/systemd er valgt execution placement for ledger, Borg-klient og ankerruntime; Djangos senere lokale Unix-socket-bro endrer ikke dette eierskapet
 
 Det innføres ikke sidecar, Redis, ekstern database, S3/CDN eller ny infrastrukturleverandør nå.
 
@@ -232,7 +232,7 @@ Arkitekturen beskytter eksplisitt mot:
 
 Nyere autoritativ ledgerstate skal alltid vinne over eldre database-, app-, fil- og backupstate. Når journalintegritet, cursor eller reconciliation ikke kan bevises, er korrekt respons fail-closed fallback eller ingen levering.
 
-Storage Box gir et separat failure-domain innen samme leverandør, ikke en flerleverandørgaranti. ADR-et lover ikke beskyttelse mot kompromittert Hetzner control plane, kompromittert host-root eller en administrator som kontrollerer både runtime- og recoverycredentials, med mindre 3E.1A senere beviser en konkret egenskap. «WORM-orientert» betyr et mål for tilgang og append-adferd, ikke absolutt uforanderlighet.
+Storage Box gir et separat failure-domain innen samme leverandør, ikke en flerleverandørgaranti. ADR-et lover ikke beskyttelse mot kompromittert Hetzner control plane, kompromittert host-root eller en administrator som kontrollerer både runtime- og recoverycredentials, utover egenskapene som er eksplisitt bevist i fase 3E.1A. «WORM-orientert» betyr et mål for tilgang og append-adferd, ikke absolutt uforanderlighet.
 
 ## Alternativer som er vurdert
 

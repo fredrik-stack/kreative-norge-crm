@@ -1403,8 +1403,8 @@ ADR-007 regnes som implementert først når:
 Følgende gjenstår etter de godkjente fase 3B.1-, 3B.1R-, 3B.2- og 3B.3-valgene:
 
 - konkret trigger og migreringsplan dersom objektlagring/CDN senere blir nødvendig
-- eksakte permissions, SQLite-path/schema/writer og execution placement innenfor ADR-009s besluttede ledger-/deliverykontrakt
-- konkret credentialmodell og append-/recoverybevis for ADR-009s WORM-orienterte off-server anker
+- eksakte socket-permissions, peer-autorisasjon og timeout-/healthkontrakt for Djangos lokale 3E.1B-bro til den host-eide safety-runtimeen
+- konkret `public-delivery`-path/mount, API-rettighet og eksplisitt backup-/restore-allowlist før stagingaktivering
 - full katastrofe-RTO og senere eventuell ekstra regionredundans; ADR-008-backupen er aktivert og restore-smoke er målt
 - SVG-rasteriseringsverktøy
 - eventuell bakgrunnskø
@@ -1419,14 +1419,14 @@ Følgende gjenstår etter de godkjente fase 3B.1-, 3B.1R-, 3B.2- og 3B.3-valgene
 - auditretensjon og eventuell kontrollert anonymisering
 - scheduler-/workergrense for retensjon
 
-Disse valgene endrer ikke hovedarkitekturen. Fase 3B.1R, fase 3B.3, fase 3B.3-A-domenegrunnmuren og operativ aktivering av ADR-008-backupen er gjennomført som beslutnings-, implementerings- og evidensgater. ADR-009s fase 3E.1A–3E.4 skal implementeres og bevises før offentlig serving eller formell takedown aktiveres.
+Disse valgene endrer ikke hovedarkitekturen. Fase 3B.1R, fase 3B.3, fase 3B.3-A-domenegrunnmuren, operativ aktivering av ADR-008-backupen og ADR-009s fase 3E.1A er gjennomført som beslutnings-, implementerings- og evidensgater. ADR-009s fase 3E.1B–3E.4 skal implementeres og bevises før offentlig serving eller formell takedown aktiveres.
 
 ## Beslutninger som fortsatt krever eksplisitt godkjenning
 
 Gjenstående fase 3B-resultater må godkjennes før de respektive produksjonsrettede runtimeleveransene aktiveres. Godkjenningen skal minst omfatte:
 
-- konkret implementasjonsevidens for ADR-009s lokale ledger, off-server anker, delivery-root, controlled serving, origins, purge og restoreadferd
-- SQLite-schema, read-model/cursor og minst-privilegert credential-/execution placement innenfor ADR-009
+- konkret implementasjonsevidens for ADR-009s delivery-root, controlled serving, origins, purge og restoreadferd; lokal ledger, off-server anker, read-model/cursor og host/systemd-placement er bevist i 3E.1A
+- lokal socketprotokoll, peer-autorisasjon og minst-privilegert runtimekobling mellom Django og den host-eide safety-runtimeen
 - fallbackgrafikk/-alttekst og cache-TTL/headerverdier som ADR-009 bevisst lar åpne
 - sync/async-grense og cleanupmekanisme
 - same-tenant reuse- og orphan-retensjonsregel
