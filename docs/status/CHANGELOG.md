@@ -4,6 +4,13 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 
 ## 2026-08-20
 
+### Fase 3E.1B: materialisering og release-livssyklus arkitektonisk presisert
+
+- presisert ADR-009 med en lokal fail-closed Unix-socket/systemd-bro som privilegieseparasjonsgrense; bare `reserve`, `activate`, `retire` og `deny` er autorisert, og API/web får fortsatt ingen ledger-mount, Borg eller credentials
+- låst MVP-idempotens til maksimalt én public release per selection-revisjon, med gjenbruk av samme permanent reserverte UUID/canonical keys ved retry og ny selection-revisjon ved republisering
+- beholdt lifecycle-authority i safety-ledgeren uten besluttet PostgreSQL lifecycle-kolonne, og avgrenset public delivery-cleanup til senere release-/ledger-aware dry-run/apply uten automatisk filsletting
+- delt senere implementasjon i 3E.1B.1 for bro/reservation/DB-binding og 3E.1B.2 for separat delivery-root/materialisering/activation; ingen runtimekode, migrasjon, storage, serving eller stagingendring er utført
+
 ### Fase 3E.1A: safety-ledger og restore-gate aktivert i staging
 
 - aktivert host-side SQLite safety-ledger, dedikert kryptert Borg off-server anchor og femminutters fail-closed health-timer uten safety-mount eller credentials i API/web
@@ -12,7 +19,7 @@ Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små
 - bevist at stale manifest med eldre ACTIVE-head avvises i incident restore før destination/receipt, mens separat recovery av autoritativ cursor/fullhash gir rebuildbar `DENIED` og `READY`
 - bevist nyere safety-DENIED over eldre ACTIVE-state, isolert fail-closed corruption/stale cursor/repository mismatch og identisk ledger/receipts/repository-ID etter host-restart
 - registrert prosjekteiers aksept av Borg/Hetzner- og raw-`rm`-restrisikoen; status er bare `ACTIVE` for 3E.1A og aktiverer ikke public bytes, materialisering, serving, PUBLIC, takedown eller 3E.1B–3E.4
-- dokumentert full stagingevidens i [aktiveringsrapporten](STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md); PR #36 forblir draft og umerget
+- dokumentert full stagingevidens i [aktiveringsrapporten](STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md); rapportens draftstatus beskriver aktiveringsøyeblikket, mens PR #36 senere er merget til `main`
 
 ## 2026-08-11
 

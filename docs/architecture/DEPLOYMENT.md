@@ -69,7 +69,7 @@ Repoet har en generisk modul under `ops/backup/` for nattlig, kryptert Borg-back
 
 - PostgreSQL custom-format dump med `pg_restore --list`
 - eksisterende import-, rapport- og eksportfiler når de finnes
-- fremtidige host-mediaområder automatisk når de finnes
+- eksplisitt allowlistede host-mediaområder når de finnes; nye områder må legges til og restore-verifiseres før aktivering
 - eksplisitt allowlistet serverkonfigurasjon og ikke-sensitivt manifest
 - 14 daglige, 8 ukentlige og 12 månedlige arkiver
 - nattlig systemd-timer og ukentlig repository-check

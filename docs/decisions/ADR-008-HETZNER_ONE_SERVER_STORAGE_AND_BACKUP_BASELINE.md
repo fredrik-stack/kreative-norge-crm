@@ -78,7 +78,7 @@ Hver vellykkede kjøring inneholder:
 - `pg_dump --format=custom --no-owner --no-acl` fra kjørende PostgreSQL uten restart eller datastopp
 - obligatorisk `pg_restore --list` før arkivering
 - eksisterende, konfigurerte FileField-/mediaområder, inkludert `/app/imports` og `/app/exports` fra API-containeren når de finnes
-- fremtidige host-paths under `/srv/kreative-norge/media/` automatisk når de finnes
+- eksplisitt allowlistede host-paths under `/srv/kreative-norge/media/` når de finnes; nye områder må legges til og restore-verifiseres før aktivering
 - eksplisitt allowlistet serverkonfigurasjon: aktiv Compose-/environmentfil, Caddy, backupkonfigurasjon uten innebygd secret og systemd-units
 - manifest uten persondata eller secretverdier, samt checksums av dump og stagingbundles
 

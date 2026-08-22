@@ -2,11 +2,13 @@
 
 ## Status
 
-Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som lokal safety-ledger, dedikert off-server Borg-anchor, separat recovery-gate og fail-closed health. Fase 3E.1B–3E.4 og all public runtime er fortsatt ikke implementert eller aktivert.
+Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som lokal safety-ledger, dedikert off-server Borg-anchor, separat recovery-gate og fail-closed health. Arkitekturkontrakten for fase 3E.1B er presisert og godkjent, men 3E.1B–3E.4 og all public runtime er fortsatt ikke implementert eller aktivert.
 
 **Beslutningsdato:** 2026-08-17
 
 **Dokumentert i repo:** 2026-08-20
+
+**3E.1B-presisering godkjent:** 2026-08-20
 
 ADR-et formaliserer fase 3E og supplerer [ADR-007](ADR-007-IMAGE_ASSET_ARCHITECTURE.md) og [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md). Det endrer ikke de implementerte fase 3B–3D-modellene, dagens legacybildebruk eller den aktive generelle Borg-backupen.
 
@@ -50,21 +52,27 @@ Ledgerskjemaet skal være versjonert og minst støtte idempotente event-ID-er og
 - `tenant_runtime_enrolled`, bare dersom tenantvis aktivering faktisk brukes som en sikkerhetsgrense
 - senere tenant-scopet checksum-deny før formell takedown kan aktiveres
 
+#### Lokal 3E.1B-bro og privilegieseparasjon
+
+Django skal i 3E.1B bruke en lokal Unix-socket/systemd-bro til den host-eide safety-ledger-runtimeen. Socketen er en privilegieseparasjonsgrense, ikke en generell RPC-plattform: Django kan be om et lite, eksplisitt sett safety-operasjoner, mens hostprosessen alene eier ledgerpath, Borg-klient, writer-key, passfrase og ankerruntime.
+
+Den autoriserte operasjonsflaten er avgrenset til `reserve`, `activate`, `retire` og `deny`. Denne grensen krever ikke at alle fire operasjoner leveres i første kodeleveranse. Socketen skal være lokal, fail-closed og autorisert gjennom OS-/runtime-isolasjon med minst mulige bruker-, gruppe-, fil- og systemd-rettigheter. Ukjent operasjon, ugyldig payload, feil peer, timeout, manglende health eller uverifisert anker skal avvises. Det innføres ikke offentlig eller nettverkseksponert HTTP-tjeneste, Redis, meldingskø, ny applikasjonscontainer, direkte Borg-tilgang fra Django eller direkte safety-ledger-mount i API/web.
+
 En `release_id` og alle canonical keys reserveres permanent før database- eller filmaterialisering. `release_retired` og `release_denied` er terminale for den konkrete release-ID-en: den kan aldri aktiveres igjen. Senere autorisert republisering bruker ny UUIDv4 og nye keys, også når de samme interne artifact-bytes gjenbrukes.
 
 Journalhendelser skrives idempotent. Samme event-ID med samme canonical payload er retry; samme event-ID med forskjellig payload er hard konflikt. Tidligere eventer endres eller slettes aldri. Avledet state kan repareres bare ved replay eller en ny kompenserende hendelse.
 
 ### 3. Restore-sikkert off-server anker
 
-Den lokale ledgeren får et restore-sikkert, append-only/WORM-orientert off-server sikkerhetsanker i et separat failure-domain. Sikkerhetskritiske reservation-, activation-, retirement- og deny-hendelser regnes ikke som varig bekreftet før den nødvendige ankeringen er synkront verifisert etter kontrakten som bevises i fase 3E.1A.
+Den lokale ledgeren har et restore-sikkert, append-only/WORM-orientert off-server sikkerhetsanker i et separat failure-domain. Sikkerhetskritiske reservation-, activation-, retirement- og deny-hendelser regnes ikke som varig bekreftet før den nødvendige ankeringen er synkront verifisert etter kontrakten som ble bevist og aktivert i fase 3E.1A.
 
 ADR-008s eksisterende Storage Box-, Borg-, systemd-, SSH-, repository-identitets- og recovery-custody-grunnmur skal gjenbrukes der den dekker behovet. Dette er ikke et løfte om absolutt WORM:
 
-- fase 3E.1A skal bevise konkret credential- og tilgangsmodell, append-/overskrivings-/sletteadferd og recovery
+- fase 3E.1A har bevist konkret credential- og tilgangsmodell, append-/overskrivings-/sletteadferd og recovery
 - en ubegrenset eller administrativ Storage Box-credential skal ikke ligge i CRM-runtime
 - admin- og recoverytilgang skal være i separat custody
-- API-imaget skal ikke få Borg-klient eller administratorcredential uten at 3E.1A beviser at dette er den enkleste og sikreste plasseringen
-- execution placement velges i 3E.1A mellom eksisterende host-/systemdgrunnmur og en mindre privilegert runtimekobling ut fra minst kompleksitet og minst privilegium
+- API-imaget har ingen Borg-klient, safety-ledger-mount, writersecret eller administratorcredential
+- host/systemd er valgt execution placement for ledger, Borg-klient og ankerruntime; Djangos senere lokale Unix-socket-bro endrer ikke dette eierskapet
 
 Det innføres ikke sidecar, Redis, ekstern database, S3/CDN eller ny infrastrukturleverandør nå.
 
@@ -86,12 +94,14 @@ releases/<release_uuid>/<variant>.<ext>
 
 Delivery-rooten inneholder bare materialiserte release-bytes under dette namespacet. Private originaler, artifacts, restore-/karantenefiler, ledger, audit og metadata monteres aldri i den offentlige webstien. Cleanup for artifacts og cleanup/purge for releases er separate, referansebevisste mekanismer.
 
+3E.1B innfører ingen automatisk sletting av public release-filer. Delivery-rooten skal ikke legges inn i dagens generiske orphan-cleanup for private originaler og interne artifacts. Senere cleanup innenfor 3E.1B-livssyklusen skal være release-aware og safety-ledger-aware, bruke dry-run som standard, kreve eksplisitt apply og feile lukket ved uklar ownership eller lifecycle-state. `retired` og `denied` er terminale safety-tilstander, men betyr ikke automatisk filsletting i 3E.1B. Formell `deny → origin delete → cache purge` tilhører fortsatt 3E.4.
+
 ### 5. Materialisering og release-livssyklus
 
 En asset-release følger denne rekkefølgen:
 
 1. velg og valider et komplett internt immutable rendition-sett
-2. generer UUIDv4 og canonical keys
+2. slå opp den autoritative selection-revisjonens reservation; gjenbruk den dersom den finnes, ellers generer UUIDv4 og canonical keys internt
 3. registrer og verifiser permanent `release_reserved`
 4. opprett eller bind databaseaggregatet til den reserverte identiteten
 5. kopier hver artifact create-only/no-clobber til delivery-rooten
@@ -99,9 +109,13 @@ En asset-release følger denne rekkefølgen:
 7. registrer og verifiser `release_activated`
 8. gjør releasen valgbar for public projection og kontrollert delivery
 
+MVP-kontrakten tillater maksimalt én public release per godkjent selection-revisjon. Den canonical idempotency-identiteten er tupleen `(tenant_id, organization_id, selection_id, selection_revision)`, serialisert av den betrodde workflowen som `release-reservation:v1:<tenant_id>:<organization_id>:<selection_id>:<selection_revision>`. Dette er en intern workflow-/eventidentitet, ikke public release identity og ikke en del av public key. Django-/API-/Editor-callere kan ikke levere eller overstyre denne event-ID-en, release UUID-en, canonical public keys eller variant-keys. Ved retry slår broen opp denne identiteten og gjenbruker den permanent reserverte UUID-en og de samme builder-genererte keyene. Samme identitet med avvikende tenant-, Organization-, selection-, revisjons-, rendition-sett-, artifact key- eller checksum-payload er en hard konflikt; den kan aldri skape en ny reservation.
+
 Samme key med samme forventede bytes er en idempotent retry. Samme key med andre bytes er en hard konflikt. Delvis kopi, ukjent verifikasjon eller avbrutt workflow kan aldri bli aktiv. Feil etter reservasjon frigjør ikke UUID eller keys.
 
-Replacement, ordinær removal-to-fallback og restore av en selection er fortsatt redaksjonelle selection-handlinger. Public lifecycle håndteres separat: gammel aktiv release pensjoneres eller denies etter riktig kommando, og en ny autorisert public release får alltid ny UUID/key. Dagens selection-restore kan ikke alene reaktivere en public release.
+Replacement, ordinær removal-to-fallback og restore av en selection er fortsatt redaksjonelle selection-handlinger. Replacement eller restore som senere skal publiseres, må gå via en ny selection-revisjon og få ny reservation, UUID og nye immutable keys. Samme selection-revisjon kan ikke brukes til bevisst å opprette enda en public release. Public lifecycle håndteres separat: gammel aktiv release pensjoneres eller denies etter riktig kommando, og dagens selection-restore kan ikke alene reaktivere en public release.
+
+Safety-ledgeren er fortsatt autoritativ for `reserved`, `active`, `retired` og `denied`. PostgreSQL beholder det immutable `OrganizationImageRelease`-aggregatet, selection-bindingen og snapshots av artifact-/public-release-data; det innføres ikke en parallell mutable lifecycle-status der bare for å speile ledgeren. Det er derfor ikke besluttet noen ny lifecycle-kolonne eller modellmigrasjon for 3E.1B. Dagens modell og tjeneste mangler samtidig en entydig, stabil idempotency-håndheving per selection-revisjon. Den eksisterende 3B.3-A-regresjonstesten beviser uttrykkelig dagens pre-3E-adferd der to tjenestekall med samme selection gir ulike UUID-er og keys; testen og tjenestekontrakten må endres i 3E.1B.1. Eksakt kombinasjon av ledgerindeks/read-model, tjenestelookup og eventuell databaseconstraint må avgjøres og migrasjonssikkerhetsvurderes i implementasjonen uten å flytte lifecycle-authority til PostgreSQL.
 
 ### 6. Kontrollert serving
 
@@ -195,6 +209,14 @@ Formell takedown forblir deaktivert frem til fase 3E.4. Fasen skal minst bevise:
 
 Global checksum-deny innføres ikke uten et senere konkret behov og egen beslutning.
 
+### 12. Avgrensning for 3E.1B-presiseringen
+
+**Besluttet nå:** lokal Unix-socket/systemd-bro med operasjonsgrensen `reserve`/`activate`/`retire`/`deny`; én reservation/public release per selection-revisjon; retry gjenbruker samme UUID/keys; safety-ledgeren eier lifecycle-state; public release-filer slettes ikke automatisk.
+
+**Planlagt senere implementasjon:** bro/runtime-isolasjon, idempotent reservation-lookup og DB-binding, separat `public-delivery`-storagealias/root, create-only materialisering, read-back-verifikasjon, activation og release-aware dry-run/apply-cleanup. Backup-/restorekontrakten for delivery-rooten skal verifiseres før stagingaktivering. Ingen av disse runtimeendringene er utført av denne dokumentasjonsbeslutningen.
+
+**Utenfor 3E.1B:** Nginx-serving, `X-Accel-Redirect`, offentlig HTTP-serving av `releases/...`, `PUBLIC_MEDIA_ORIGIN`, public API-schema, `PublicImageProjection`, PUBLIC HTML/UI, Editor-endringer, cachepolicy, CDN, takedown/cache purge og fase 3E.1C–3E.4. Public image runtime forblir av.
+
 ## Trusselmodell
 
 Arkitekturen beskytter eksplisitt mot:
@@ -210,7 +232,7 @@ Arkitekturen beskytter eksplisitt mot:
 
 Nyere autoritativ ledgerstate skal alltid vinne over eldre database-, app-, fil- og backupstate. Når journalintegritet, cursor eller reconciliation ikke kan bevises, er korrekt respons fail-closed fallback eller ingen levering.
 
-Storage Box gir et separat failure-domain innen samme leverandør, ikke en flerleverandørgaranti. ADR-et lover ikke beskyttelse mot kompromittert Hetzner control plane, kompromittert host-root eller en administrator som kontrollerer både runtime- og recoverycredentials, med mindre 3E.1A senere beviser en konkret egenskap. «WORM-orientert» betyr et mål for tilgang og append-adferd, ikke absolutt uforanderlighet.
+Storage Box gir et separat failure-domain innen samme leverandør, ikke en flerleverandørgaranti. ADR-et lover ikke beskyttelse mot kompromittert Hetzner control plane, kompromittert host-root eller en administrator som kontrollerer både runtime- og recoverycredentials, utover egenskapene som er eksplisitt bevist i fase 3E.1A. «WORM-orientert» betyr et mål for tilgang og append-adferd, ikke absolutt uforanderlighet.
 
 ## Alternativer som er vurdert
 
@@ -313,12 +335,37 @@ Trinnvis innføring holder risikoen avgrenset: journal og restorebevis kommer f�
 
 ### Fase 3E.1B – materialisering og release-livssyklus
 
+#### 3E.1B.1 – privilegieseparert reservasjon og DB-binding
+
+**Omfang:**
+
+- lokal Unix-socket/systemd-bro uten ledger-/Borg-mount eller credentials i API/web
+- fail-closed `reserve`-kall gjennom canonical selection-revisjonsidentitet
+- oppslag/gjenbruk av permanent UUID/key-reservation før DB-binding
+- binding av det immutable PostgreSQL-aggregatet til eksakt reservation, uten parallell lifecycle-status
+
+**Akseptansekriterier:**
+
+- Django kan bare nå den godkjente lokale operasjonsflaten; socketen er ikke nettverkseksponert, og feil OS-identitet/rettighet/operasjon/payload/health/anchor avvises
+- samme selection-revisjon under retry eller concurrency gir samme reservation, release UUID og keys; avvikende payload feiler hardt
+- caller kan ikke bestemme event-ID, release UUID, canonical key eller variant-key
+- DB-aggregatet matcher eksakt reservation og er enten komplett bundet eller fraværende; crash mellom reservation og DB-commit kan retries uten ny UUID
+- safety-ledgeren forblir autoritativ for lifecycle, og leveransen innfører ingen mutable lifecycle-kopi i PostgreSQL
+- ingen public release-fil, Nginx-route, public API-, PUBLIC- eller stagingaktivering inngår
+
+**Testkrav:** socket-/peer-/permission-/timeout-/schema-/unknown-operationtester; concurrent reservation og samme/different-payload-retry; DB-feil/crash etter reservation; eldre DB mot nyere ledger; eksplisitt kontroll av fraværende ledger-/Borg-credentials og mounts i API/web.
+
+**Rollback:** reservation-/DB-bindingsworkflowen deaktiveres; socketen kan stoppes, men eventer, UUID-er og keys som allerede er permanent reservert beholdes.
+
+#### 3E.1B.2 – public-delivery og verifisert materialisering
+
 **Omfang:**
 
 - eget `public-delivery`-storagealias/root
-- reservation før database-/filmaterialisering
 - create-only/no-clobber kopiering og read-back-verifikasjon
-- release-aware cleanup/purge og lifecycleevents
+- activation først etter komplett verifisering
+- release-aware cleanupkontrakt uten automatisk sletting; terminal retirement/deny uten 3E.4-purge
+- eksplisitt backup-/restore-verifikasjon før stagingaktivering
 
 **Akseptansekriterier:**
 
@@ -326,11 +373,13 @@ Trinnvis innføring holder risikoen avgrenset: journal og restorebevis kommer f�
 - cleanup-kollisjonen er løst før første `releases/...`-fil skrives
 - komplett square/landscape/share verifiseres på checksum, dimensjon og format før activation
 - samme key/samme bytes retries; samme key/andre bytes feiler hardt; delvis release er aldri aktiv
-- retirement/deny er terminalt for release-ID; republisering får ny UUID/key
+- delivery-rooten inngår ikke i dagens generiske orphan-cleanup; eventuell senere cleanup er dry-run-first, eksplisitt apply og fail-closed
+- retirement/deny er terminalt for release-ID, sletter ikke automatisk filer i 3E.1B, og republisering går via ny selection-revisjon og ny UUID/key
+- delivery-rootens backup og isolerte restore er verifisert før stagingaktivering; rooten har ingen web-/Nginx-serving og public runtime forblir av
 
-**Testkrav:** storage-/filesystempermissionstester, partial/crash/retry, no-clobber, checksum-/formatavvik, concurrent reservation og cleanup-race.
+**Testkrav:** storage-/filesystempermissionstester, path-/root-overlapp, partial/crash/retry, no-clobber, checksum-/formatavvik, activation-gate, cleanup-race og isolert backup/restore med identiske checksums.
 
-**Rollback:** materialisering deaktiveres; inaktive filer kan ryddes kontrollert, mens reservations-/lifecyclehistorikk beholdes.
+**Rollback:** materialisering deaktiveres; ingen automatisk filfjerning kjøres. Inaktive filer kan bare ryddes senere gjennom en verifisert release-/ledger-aware prosedyre, mens reservations-/lifecyclehistorikk beholdes.
 
 ### Fase 3E.1C – kontrollert serving og origins
 
@@ -419,14 +468,25 @@ Trinnvis innføring holder risikoen avgrenset: journal og restorebevis kommer f�
 
 Følgende avgjøres med evidens i riktig leveranse uten å åpne hovedretningen på nytt:
 
-- eksakt SQLite-path, tabell-/payloadschema, writerprosess, locking, fsync og corruptiondeteksjon
-- eksakt off-server ankermekanisme, append-/snapshotformat og execution placement
-- konkret subaccount-/nøkkel-/admin-/recoveryoppsett som faktisk kan bevises på Storage Box
+- eksakt socketpath, wireformat, request-/responsegrenser, timeout, peer-verifikasjon, servicebruker/-gruppe og systemd-hardening innenfor den godkjente lokale brogrensen
+- om selection-revisjonsunikheten håndheves med ny ledgerindeks/read-model, databaseconstraint på eksisterende selection-binding eller begge; eventuell migrasjon må besluttes etter konkret modell-/datakontroll
+- hvilke av de autoriserte operasjonene `reserve`, `activate`, `retire` og `deny` som inngår i 3E.1B.1 versus 3E.1B.2
+- eksakt `public-delivery`-alias-/pathkonfigurasjon, API-mount med minst rettighet og backup-/restore-allowlist
+- retensjon og eksplisitt apply-prosedyre for inaktive/ufullstendige release-filer; ingen automatisk sletting er godkjent
 - eksakt intern URL/path for `X-Accel-Redirect`
 - cache-TTL, `Cache-Control`, eventuell `immutable`, lokal cacheplassering, purgekommando og verifikasjonsfrist
 - endelig grafisk fallbackinnhold og fallback-alttekst
 - konkret tenant-enrollmentbehov og eventpayload dersom tenantvis cutover brukes
 - observability, alarmer og operatør-runbooks
-- retensjon for inaktive, ufullstendige materialiseringer og derived read-model-backups
+- retensjon for derived read-model-backups
 
 Disse detaljene kan ikke svekke permanent no-reuse, deny-over-restore, separat delivery-root, controlled serving, én projection eller kravet om ny UUID/key ved republisering.
+
+## Uavklarte godkjenninger
+
+A, B og C i 3E.1B-presiseringen er godkjent og krever ingen ny arkitekturavgjørelse. Før kode eller stagingaktivering må følgende implementeringsvalg likevel dokumenteres og godkjennes i riktig leveranse:
+
+- socketkontrakt, OS-identitet/rettigheter, systemd-hardening og fordeling av de fire autoriserte operasjonene mellom 3E.1B.1 og 3E.1B.2
+- konkret entydig selection-revisjonslookup og håndheving i ledger/DB; dersom eksisterende modell krever constraint eller migrasjon, må dette behandles som en trygg databaseendring
+- public-delivery-path, storagealias, API-mount, backupallowlist og verifisert restore før stagingaktivering
+- eventuell retensjon og apply-prosedyre for release-aware cleanup; automatisk sletting og 3E.4-purge er ikke godkjent her

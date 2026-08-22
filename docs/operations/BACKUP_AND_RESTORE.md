@@ -266,6 +266,8 @@ Backupgrunnmuren er **ACTIVE** fordi Storage Box-, Borg-, recovery-key-/custody-
 
 ## 13. Separat 3E.1A safety-anchor
 
-Den aktive nattlige backupen er ikke autoritativ reservation-/deny-journal og skal ikke brukes til destructive capabilitytesting. Fase 3E.1A har en separat, host-eid SQLite-ledger og et planlagt dedikert Borg append-only repository med synkron read-back per sikkerhetshead. Den deler Borg 1.2-, SSH-, known-hosts-, repository-ID- og recoveryprinsippene fra ADR-008, men deler ikke repository, subaccount/writersecret, statepath eller RPO.
+Den aktive nattlige backupen er ikke autoritativ reservation-/deny-journal og skal ikke brukes til destructive capabilitytesting. Fase 3E.1A har en separat, host-eid SQLite-ledger og et dedikert Borg append-only repository med synkron read-back per sikkerhetshead. Den deler Borg 1.2-, SSH-, known-hosts-, repository-ID- og recoveryprinsippene fra ADR-008, men deler ikke repository, subaccount/writersecret, statepath eller RPO.
 
-Safety-ledgeren er implementert og syntetisk restore-verifisert; ekstern stagingkjede er fortsatt `PREPARED / MANUAL REQUIRED`. Se [egen runbook](PUBLIC_IMAGE_SAFETY_LEDGER.md) og [datert stagingstatus](../status/STAGING_PHASE_3E1A_PREPARATION_2026-08-17.md). Den generelle backupens `ACTIVE`-status er uendret.
+Safety-ledgeren, den dedikerte off-serverkjeden og restore-gaten er `ACTIVE` i staging etter live capability-, transaction-recovery-, incident-restore- og restartverifikasjon. Se [egen runbook](PUBLIC_IMAGE_SAFETY_LEDGER.md) og [aktiveringsrapporten](../status/STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md). Den generelle backupens `ACTIVE`-status er uendret.
+
+Fase 3E.1B planlegger et separat `/srv/kreative-norge/media/public-delivery/`. Området finnes ikke og er ikke del av dagens backupallowlist. Alias, hostpath og backup-/restorekontrakt skal innføres og verifiseres samlet før stagingaktivering; dette dokumenterer ikke at release-bytes eller public serving er aktivert.
