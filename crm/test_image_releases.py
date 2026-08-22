@@ -12,6 +12,8 @@ from django.db.models.deletion import ProtectedError
 from django.test import SimpleTestCase, TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
 
+from image_safety.release_keys import PUBLIC_RELEASE_EXTENSIONS
+
 from .models import (
     ImageAsset,
     ImageRendition,
@@ -31,6 +33,56 @@ from .services.images.releases import (
     build_public_release_key,
     create_organization_image_release,
 )
+from .services.images.bridge_client import BridgeActivation, BridgeReservation
+from .services.images.materialization import MaterializationResult
+
+
+class _FakeSafetyBridgeClient:
+    reservations = {}
+
+    def reserve(self, **payload):
+        identity = (
+            payload["tenant_id"],
+            payload["organization_id"],
+            payload["selection_id"],
+            payload["selection_revision"],
+        )
+        canonical_payload = repr(payload)
+        existing = self.reservations.get(identity)
+        if existing is None:
+            release_id = str(uuid.uuid4())
+            reservation = BridgeReservation(
+                event_id="release-reservation:v1:" + ":".join(map(str, identity)),
+                event_sequence=1,
+                release_id=release_id,
+                public_keys={
+                    item.variant: build_public_release_key(
+                        release_id, item.variant, item.output_format
+                    )
+                    for item in payload["renditions"]
+                },
+                disposition="new",
+                anchor_cursor=1,
+            )
+            self.reservations[identity] = (canonical_payload, reservation)
+            return reservation
+        if existing[0] != canonical_payload:
+            raise RuntimeError("reservation conflict")
+        return BridgeReservation(
+            **{
+                **existing[1].__dict__,
+                "disposition": "idempotent_retry",
+            }
+        )
+
+    def activate(self, *, release_id):
+        return BridgeActivation(
+            event_id=f"release-activation:v1:{release_id}",
+            event_sequence=2,
+            release_id=release_id,
+            disposition="new",
+            anchor_cursor=2,
+        )
 
 
 class PublicReleaseKeyBuilderTests(SimpleTestCase):
@@ -87,9 +139,27 @@ class PublicReleaseKeyBuilderTests(SimpleTestCase):
             self.assertNotIn(forbidden, key)
 
 
-@override_settings(IMAGE_ASSET_FEATURE_ENABLED=True)
+@override_settings(
+    IMAGE_ASSET_FEATURE_ENABLED=True,
+    PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED=True,
+)
 class OrganizationImageReleaseTests(TestCase):
     def setUp(self):
+        _FakeSafetyBridgeClient.reservations = {}
+        self.bridge_patcher = patch(
+            "crm.services.images.releases.ImageSafetyBridgeClient",
+            _FakeSafetyBridgeClient,
+        )
+        self.materialization_patcher = patch(
+            "crm.services.images.releases.materialize_release",
+            side_effect=lambda items: tuple(
+                MaterializationResult(item.public_storage_key, True) for item in items
+            ),
+        )
+        self.bridge_patcher.start()
+        self.materialization_patcher.start()
+        self.addCleanup(self.bridge_patcher.stop)
+        self.addCleanup(self.materialization_patcher.stop)
         self.user = get_user_model().objects.create_user(
             username="release-editor",
             password="test-password",
@@ -154,8 +224,17 @@ class OrganizationImageReleaseTests(TestCase):
             ),
             (ImageRendition.Variant.SHARE, ImageRendition.OutputFormat.JPEG, 1200, 630, "e"),
         )
-        return tuple(
-            ImageRendition.objects.create(
+        renditions = []
+        for variant, output_format, width, height, checksum_character in specifications:
+            checksum = checksum_character * 64
+            extension = PUBLIC_RELEASE_EXTENSIONS[output_format]
+            artifact_key = (
+                f"tenants/{tenant.pk}/artifacts/{rendition_set.processing_version}/"
+                f"{rendition_set.asset.checksum_sha256}/"
+                f"{rendition_set.render_config_hash_sha256}/"
+                f"{variant}-{checksum}.{extension}"
+            )
+            renditions.append(ImageRendition.objects.create(
                 tenant=tenant,
                 rendition_set=rendition_set,
                 variant=variant,
@@ -163,11 +242,10 @@ class OrganizationImageReleaseTests(TestCase):
                 width=width,
                 height=height,
                 file_size_bytes=45678,
-                checksum_sha256=checksum_character * 64,
-                artifact_storage_key=f"renditions/{prefix}-{variant}.{output_format}",
-            )
-            for variant, output_format, width, height, checksum_character in specifications
-        )
+                checksum_sha256=checksum,
+                artifact_storage_key=artifact_key,
+            ))
+        return tuple(renditions)
 
     def create_selection(
         self,
@@ -201,6 +279,7 @@ class OrganizationImageReleaseTests(TestCase):
         self.assertEqual(result.release.tenant, self.tenant)
         self.assertEqual(result.release.organization, self.organization)
         self.assertEqual(result.release.selection, self.selection)
+        self.assertEqual(result.release.selection_revision_snapshot, 1)
         self.assertEqual(result.release.rendition_set, self.rendition_set)
         self.assertEqual(result.release.key_schema_version, 1)
         self.assertEqual(len(result.renditions), 3)
@@ -502,7 +581,7 @@ class OrganizationImageReleaseTests(TestCase):
         self.assertEqual(OrganizationImageRelease.objects.count(), 0)
         self.assertEqual(OrganizationImageReleaseRendition.objects.count(), 0)
 
-    def test_r1_and_r2_reuse_same_artifacts_with_new_ids_and_keys_without_io(self):
+    def test_same_selection_revision_reuses_permanent_release_and_keys_without_io(self):
         organization_before = Organization.objects.filter(pk=self.organization.pk).values().get()
         selection_before = OrganizationImageSelection.objects.filter(pk=self.selection.pk).values().get()
 
@@ -527,15 +606,16 @@ class OrganizationImageReleaseTests(TestCase):
             self.assertFalse(private_root.exists())
             self.assertFalse(public_root.exists())
 
-        self.assertNotEqual(first.release.release_id, second.release.release_id)
+        self.assertEqual(first.release.release_id, second.release.release_id)
+        self.assertEqual(OrganizationImageRelease.objects.count(), 1)
+        self.assertEqual(OrganizationImageReleaseRendition.objects.count(), 3)
         self.assertEqual(
             {mapping.rendition_id for mapping in first.renditions},
             {mapping.rendition_id for mapping in second.renditions},
         )
-        self.assertTrue(
-            {mapping.public_storage_key for mapping in first.renditions}.isdisjoint(
-                {mapping.public_storage_key for mapping in second.renditions}
-            )
+        self.assertEqual(
+            {mapping.public_storage_key for mapping in first.renditions},
+            {mapping.public_storage_key for mapping in second.renditions},
         )
         self.assertEqual(
             Organization.objects.filter(pk=self.organization.pk).values().get(),
@@ -734,7 +814,7 @@ class OrganizationImageReleaseTests(TestCase):
         self.assertEqual(release.rendition_set_id, self.rendition_set.pk)
         self.assertEqual(
             square_mapping.artifact_storage_key_snapshot,
-            "renditions/release-square.webp",
+            original_mapping["artifact_storage_key_snapshot"],
         )
         self.assertEqual(square_mapping.artifact_checksum_sha256_snapshot, "c" * 64)
 
@@ -754,7 +834,14 @@ class OrganizationImageReleaseTests(TestCase):
 
     def test_database_enforces_release_id_and_public_key_uniqueness(self):
         first = self.create_release()
-        second = self.create_release()
+        second_selection = self.create_selection(
+            tenant=self.tenant,
+            organization=self.organization,
+            rendition_set=self.rendition_set,
+            revision=2,
+            status=OrganizationImageSelection.Status.ARCHIVED,
+        )
+        second = create_organization_image_release(selection=second_selection)
         first_mapping = first.renditions[0]
         second_mapping = second.renditions[0]
 

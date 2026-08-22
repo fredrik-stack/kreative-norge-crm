@@ -1,10 +1,10 @@
 # Public image safety ledger og restore-gate
 
-**Status:** 3E.1A safety-ledger, dedikert off-server anchor og restore-gate er `ACTIVE` i staging fra 2026-08-20
+**Status:** 3E.1A safety-ledger, dedikert off-server anchor og restore-gate er `ACTIVE` i staging fra 2026-08-20. 3E.1B-bro og release-workflow er implementert i repoet, men ikke deployet eller aktivert i staging.
 
 **Arkitektur:** [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md)
 
-Denne runbooken gjelder bare fase 3E.1A. Den aktiverer ikke public bytes, materialisering, serving, projection, API/PUBLIC-cutover eller formell takedown.
+Denne runbooken dokumenterer den aktive 3E.1A-runtimeen og repository foundation for 3E.1B-broen. Den aktiverer ikke public bytes, materialisering, serving, projection, API/PUBLIC-cutover eller formell takedown.
 
 Faktisk aktiveringsevidens, inkludert repository-separasjon, raw-`rm`-restrisiko, separat transaction recovery av probe og DENIED-head, restartpersistens og containerisolasjon, finnes i [stagingrapporten 2026-08-20](../status/STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md).
 
@@ -25,7 +25,9 @@ Faktisk aktiveringsevidens, inkludert repository-separasjon, raw-`rm`-restrisiko
 
 `tenant_runtime_enrolled` og checksum-deny er ikke innført. Tenantvis runtimeaktivering er ikke en sikkerhetsgrense i 3E.1A, og checksum-deny tilhører 3E.4.
 
-Reservation-input binder immutable heltalls-snapshots av tenant, Organization, selection, selection-revisjon og rendition-sett samt artifact key og SHA-256 for alle tre varianter. Caller leverer aldri public key; `image_safety.release_keys.build_public_release_key()` bygger eksakt `releases/<uuid>/<variant>.<ext>`. Dagens `create_organization_image_release()` er fortsatt DB-only, genererer selv UUID og gjør ingen ledger-, anchor-, storage- eller publiserings-I/O. Koblingen fra en ankret reservasjon til DB-aggregatet kommer i 3E.1B.
+Reservation-input binder immutable heltalls-snapshots av tenant, Organization, selection, selection-revisjon og rendition-sett samt artifact key og SHA-256 for alle tre varianter. Caller leverer aldri public key; `image_safety.release_keys.build_public_release_key()` bygger eksakt `releases/<uuid>/<variant>.<ext>`. 3E.1B-workflowen lar bridge-reservasjonen eie UUID/keys og binder dem deretter til PostgreSQL uten å holde DB-lås under Borg-I/O.
+
+Bridge-foundationen bruker systemd socket activation på `/run/kreative-norge-image-safety/bridge.sock`, ett lengde-prefikset JSON request/response-par per forbindelse og bare operasjonene `reserve` og `activate`. Socketen er planlagt `root:root` `0600`; API får bare read-only bindmount av runtime-directory, mens ledger, `/etc`-konfigurasjon og Borg-credentials forblir host-only. `SO_PEERCRED` krever root-peer. Denne Docker/Linux-identiteten må bevises live før stagingaktivering; repo-implementasjon alene er ikke slikt bevis.
 
 ## 2. Execution- og credentialplassering
 
@@ -147,13 +149,12 @@ sudo /usr/local/lib/kreative-norge-image-safety/image-safety.sh health
 
 ```bash
 sudo /usr/local/lib/kreative-norge-image-safety/image-safety.sh reserve \
-  --event-id '<stable-idempotency-id>' \
   --reservation-file /root/private-reservation.json
 ```
 
-Kommandoen skriver bare ikke-sensitive event-/anchoridentiteter. Hvis ankeringen feiler etter lokal commit, bruk samme event-ID og identisk input. Ikke generer en ny event-ID som workaround.
+Kommandoen deriverer canonical event-ID fra selection-identiteten og skriver bare ikke-sensitive event-/anchoridentiteter. Den valgfrie bakoverkompatible `--event-id` må være eksakt lik den deriverte ID-en. Hvis ankeringen feiler etter lokal commit, bruk identisk input; UUID/key gjenbrukes atomisk.
 
-`activate`, `retire` og `deny` finnes for domenetesting, men public lifecycle og formell takedown er ikke aktivert. De skal ikke brukes på reelle aktørbilder før sine senere faser er levert.
+`activate`, `retire` og `deny` finnes i operator-CLI-et, men 3E.1B-broen eksponerer bare `reserve` og `activate`. `retire`/`deny`, public lifecycle-serving og formell takedown er ikke caller-aktivert og skal ikke brukes på reelle aktørbilder før sine senere faser er levert.
 
 ## 7. Health, replay og reconciliation
 
@@ -278,7 +279,7 @@ Bruk denne flyten når lokal ledger er tapt/stale eller writer misuse, delete el
 
 5. Kommandoen avviser manglende recoveryevidens eller cursor/head-mismatch før destination og lokal receipt opprettes. Uten identifiserbar autoritativ head forblir systemet `NOT READY`.
 
-Etter begge flyter kjøres `rebuild` og `health`. Bytt ledgerpath kontrollert først etter checksum, owner/mode, repository-ID og isolert replay. Behold gammel fil i karantene. 3E.1B+ må senere reconcile DB og filer mot safety-ledger før serving kan åpnes.
+Etter begge flyter kjøres `rebuild` og `health`. Bytt ledgerpath kontrollert først etter checksum, owner/mode, repository-ID og isolert replay. Behold gammel fil i karantene. 3E.1B-foundationen må reconcile DB og filer mot safety-ledger i en egen live gate før serving kan åpnes.
 
 Full katastrofe-RTO er fortsatt uavklart frem til liveøvelsen er målt.
 

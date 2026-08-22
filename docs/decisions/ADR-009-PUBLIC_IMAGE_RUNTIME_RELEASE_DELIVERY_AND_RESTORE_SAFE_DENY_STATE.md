@@ -2,7 +2,7 @@
 
 ## Status
 
-Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som lokal safety-ledger, dedikert off-server Borg-anchor, separat recovery-gate og fail-closed health. Arkitekturkontrakten for fase 3E.1B er presisert og godkjent, men 3E.1B–3E.4 og all public runtime er fortsatt ikke implementert eller aktivert.
+Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som lokal safety-ledger, dedikert off-server Borg-anchor, separat recovery-gate og fail-closed health. Fase 3E.1B.1–3E.1B.2 er implementert i kode som feature-avslått deployment foundation, men er ikke deployet eller aktivert i staging. Fase 3E.1C–3E.4 og all public serving/runtime er fortsatt ikke implementert eller aktivert.
 
 **Beslutningsdato:** 2026-08-17
 
@@ -16,7 +16,7 @@ ADR-et formaliserer fase 3E og supplerer [ADR-007](ADR-007-IMAGE_ASSET_ARCHITECT
 
 Fase 3B–3D har implementert og verifisert intern bildebehandling, immutable artifacts, Organization-selection, reviewhistorikk og en organization-typed public release-aggregate med UUIDv4 og canonical keys. Denne grunnmuren er ikke en public runtime:
 
-- `create_organization_image_release` oppretter bare et komplett databaseaggregate og keys; tjenesten reserverer ikke permanent, kopierer ingen filer, aktiverer ingen release og skriver ingen separat journal
+- `create_organization_image_release` er etter 3E.1B den ene støttede, feature-gated workflowen for snapshot, ankret reservasjon, immutable DB-binding, create-only materialisering, read-back og ankret activation; den er ikke koblet til en aktiv API-/Editor- eller stagingflyt
 - `image_renditions_public` er i praksis intern artifact-storage med tenant-scopede keys og er ikke montert i web-containeren eller eksponert som public origin
 - dagens orphan-cleanup kjenner bare `ImageRendition.artifact_storage_key`; `releases/...` i samme root ville bli behandlet som urefererte filer og kunne slettes etter aldersgrensen
 - dagens public API har to ruteregistreringer for `/api/public/actors/`: `crm.urls_public` nås direkte fra `config.urls`, mens `crm.urls` registrerer en annen viewset og serializer under samme effektive path
@@ -94,7 +94,7 @@ releases/<release_uuid>/<variant>.<ext>
 
 Delivery-rooten inneholder bare materialiserte release-bytes under dette namespacet. Private originaler, artifacts, restore-/karantenefiler, ledger, audit og metadata monteres aldri i den offentlige webstien. Cleanup for artifacts og cleanup/purge for releases er separate, referansebevisste mekanismer.
 
-3E.1B innfører ingen automatisk sletting av public release-filer. Delivery-rooten skal ikke legges inn i dagens generiske orphan-cleanup for private originaler og interne artifacts. Senere cleanup innenfor 3E.1B-livssyklusen skal være release-aware og safety-ledger-aware, bruke dry-run som standard, kreve eksplisitt apply og feile lukket ved uklar ownership eller lifecycle-state. `retired` og `denied` er terminale safety-tilstander, men betyr ikke automatisk filsletting i 3E.1B. Formell `deny → origin delete → cache purge` tilhører fortsatt 3E.4.
+3E.1B innfører ingen automatisk sletting av public release-filer. Delivery-rooten er ikke lagt inn i dagens generiske orphan-cleanup for private originaler og interne artifacts. Eventuell senere release-cleanup må være release-aware og safety-ledger-aware og krever egen avgrensning. `retired` og `denied` er terminale safety-tilstander, men betyr ikke automatisk filsletting i 3E.1B. Formell `deny → origin delete → cache purge` tilhører fortsatt 3E.4.
 
 ### 5. Materialisering og release-livssyklus
 
@@ -115,7 +115,7 @@ Samme key med samme forventede bytes er en idempotent retry. Samme key med andre
 
 Replacement, ordinær removal-to-fallback og restore av en selection er fortsatt redaksjonelle selection-handlinger. Replacement eller restore som senere skal publiseres, må gå via en ny selection-revisjon og få ny reservation, UUID og nye immutable keys. Samme selection-revisjon kan ikke brukes til bevisst å opprette enda en public release. Public lifecycle håndteres separat: gammel aktiv release pensjoneres eller denies etter riktig kommando, og dagens selection-restore kan ikke alene reaktivere en public release.
 
-Safety-ledgeren er fortsatt autoritativ for `reserved`, `active`, `retired` og `denied`. PostgreSQL beholder det immutable `OrganizationImageRelease`-aggregatet, selection-bindingen og snapshots av artifact-/public-release-data; det innføres ikke en parallell mutable lifecycle-status der bare for å speile ledgeren. Det er derfor ikke besluttet noen ny lifecycle-kolonne eller modellmigrasjon for 3E.1B. Dagens modell og tjeneste mangler samtidig en entydig, stabil idempotency-håndheving per selection-revisjon. Den eksisterende 3B.3-A-regresjonstesten beviser uttrykkelig dagens pre-3E-adferd der to tjenestekall med samme selection gir ulike UUID-er og keys; testen og tjenestekontrakten må endres i 3E.1B.1. Eksakt kombinasjon av ledgerindeks/read-model, tjenestelookup og eventuell databaseconstraint må avgjøres og migrasjonssikkerhetsvurderes i implementasjonen uten å flytte lifecycle-authority til PostgreSQL.
+Safety-ledgeren er fortsatt autoritativ for `reserved`, `active`, `retired` og `denied`. PostgreSQL beholder det immutable `OrganizationImageRelease`-aggregatet, selection-bindingen og snapshots av artifact-/public-release-data; det finnes ingen parallell mutable lifecycle-status. Migrasjon `0029` krever tom release-tabell, legger til immutable `selection_revision_snapshot`, positiv check og unik constraint direkte på `selection`, og avbryter uten backfill eller historikkreparasjon dersom legacyreleases finnes. Den atomiske ledgerprimitiven `reserve_or_get` eier UUID/key-valget under SQLite writer-lock. To kall for samme canonical selection-revisjon gjenbruker derfor samme reservation, UUID, tre keys og DB-aggregate; endret payload er hard konflikt.
 
 ### 6. Kontrollert serving
 
@@ -213,7 +213,7 @@ Global checksum-deny innføres ikke uten et senere konkret behov og egen beslutn
 
 **Besluttet nå:** lokal Unix-socket/systemd-bro med operasjonsgrensen `reserve`/`activate`/`retire`/`deny`; én reservation/public release per selection-revisjon; retry gjenbruker samme UUID/keys; safety-ledgeren eier lifecycle-state; public release-filer slettes ikke automatisk.
 
-**Planlagt senere implementasjon:** bro/runtime-isolasjon, idempotent reservation-lookup og DB-binding, separat `public-delivery`-storagealias/root, create-only materialisering, read-back-verifikasjon, activation og release-aware dry-run/apply-cleanup. Backup-/restorekontrakten for delivery-rooten skal verifiseres før stagingaktivering. Ingen av disse runtimeendringene er utført av denne dokumentasjonsbeslutningen.
+**Implementert i kode, ikke stagingaktivert:** minimal AF_UNIX/systemd-bro med bare `reserve` og `activate`, atomisk reservation, idempotent DB-binding, separat `public_image_delivery`-alias/root, create-only/no-clobber, full read-back-verifikasjon og idempotent activation. Compose-, systemd- og backupallowlist er forberedt, men live socket-/peer-, backup-/restore- og materialiseringsgate gjenstår før flagget kan aktiveres i staging.
 
 **Utenfor 3E.1B:** Nginx-serving, `X-Accel-Redirect`, offentlig HTTP-serving av `releases/...`, `PUBLIC_MEDIA_ORIGIN`, public API-schema, `PublicImageProjection`, PUBLIC HTML/UI, Editor-endringer, cachepolicy, CDN, takedown/cache purge og fase 3E.1C–3E.4. Public image runtime forblir av.
 

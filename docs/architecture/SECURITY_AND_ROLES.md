@@ -33,10 +33,10 @@ I målarkitekturen:
 
 Rettighetene skal håndheves server-side per handling og objekt. Bilde-capabilities endrer ikke de separate rollespørsmålene for kontaktpublisering og full kontakteksport.
 
-## Godkjent public image runtime-sikkerhet – ikke implementert
+## Godkjent public image runtime-sikkerhet – delvis implementert, ikke aktivert
 
 [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) fastsetter at public byte-serving autoriseres per release gjennom samme ledger/read-model som `PublicImageProjection`. En anonym sluttbruker trenger ikke innlogging, men Django-gaten skal avvise denied/retired/ukjent release, scope mismatch, upublisert aktør, ukjent cursor og ufullstendige eller korrupte filer før intern Nginx-serving. Artifact- og private roots får ingen anonym alias eller public mount.
 
-Det restore-sikre off-server ankeret bruker minst privilegium. Fase 3E.1A har bevist host/systemd som execution placement uten safety-ledger-mount, Borg-klient, writersecret eller administratorcredential i API/web; admin-/recoverytilgang har separat custody. Den planlagte lokale Unix-socket-broen i 3E.1B endrer ikke dette eierskapet. ADR-et lover ikke absolutt WORM eller vern mot kompromittert Hetzner control plane/root.
+Det restore-sikre off-server ankeret bruker minst privilegium. Fase 3E.1A har bevist host/systemd som execution placement uten safety-ledger-mount, Borg-klient, writersecret eller administratorcredential i API/web; admin-/recoverytilgang har separat custody. 3E.1B-broen er implementert som root-eid lokal Unix-socketfoundation og endrer ikke dette eierskapet, men faktisk peer-identitet gjennom Docker skal live-verifiseres før stagingaktivering. ADR-et lover ikke absolutt WORM eller vern mot kompromittert Hetzner control plane/root.
 
 Formell takedown forblir deaktivert frem til fase 3E.4 har bevist gruppeadmin-/tenant-superadmin-/plattform-superadmin-scope, konkret release-deny, tenant-scopet checksum-deny uten informasjonslekkasje, legacyguard, projection/gateway-samsvar, originblokkering, cache expiry/purge/verifikasjon og restore-safe no-reactivation. Global checksum-deny er ikke del av MVP-en uten senere konkret behov og egen beslutning.

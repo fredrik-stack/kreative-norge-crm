@@ -1,0 +1,27 @@
+[Unit]
+Description=Public image safety bridge
+Requires=kreative-norge-image-safety-bridge.socket
+After=network-online.target kreative-norge-image-safety-bridge.socket
+Wants=network-online.target
+ConditionPathExists=/etc/kreative-norge-image-safety/image-safety.env
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/kreative-norge-image-safety/image-safety.env
+ExecStart=/usr/local/lib/kreative-norge-image-safety/image-safety.sh bridge
+User=root
+Group=root
+UMask=0077
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/kreative-norge-image-safety
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictSUIDSGID=true
+LockPersonality=true
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=60s
+TimeoutStopSec=30s

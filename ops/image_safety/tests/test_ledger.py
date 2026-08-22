@@ -531,14 +531,41 @@ class CredentialAndPlacementTests(unittest.TestCase):
             path.read_text(encoding="utf-8")
             for path in (repository_root / "Dockerfile", repository_root / "Dockerfile.web")
         )
+        self.assertIn(
+            "/run/kreative-norge-image-safety:/run/kreative-norge-image-safety:ro",
+            compose,
+        )
         for forbidden in (
-            "kreative-norge-image-safety",
+            "/var/lib/kreative-norge-image-safety",
+            "/etc/kreative-norge-image-safety",
             "IMAGE_SAFETY_LEDGER_PATH",
             "IMAGE_SAFETY_BORG_SSH_KEY",
             "borg-passphrase",
         ):
             self.assertNotIn(forbidden, compose)
             self.assertNotIn(forbidden, dockerfiles)
+
+    def test_bridge_socket_is_root_only_and_service_keeps_credentials_host_owned(self):
+        repository_root = Path(__file__).resolve().parents[3]
+        unit_root = repository_root / "ops/image_safety/systemd"
+        socket_unit = (unit_root / "kreative-norge-image-safety-bridge.socket").read_text(
+            encoding="utf-8"
+        )
+        service_unit = (unit_root / "kreative-norge-image-safety-bridge.service").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("ListenStream=/run/kreative-norge-image-safety/bridge.sock", socket_unit)
+        self.assertIn("SocketUser=root", socket_unit)
+        self.assertIn("SocketGroup=root", socket_unit)
+        self.assertIn("SocketMode=0600", socket_unit)
+        self.assertIn("Accept=no", socket_unit)
+        self.assertIn("ProtectSystem=strict", service_unit)
+        self.assertIn("NoNewPrivileges=true", service_unit)
+        self.assertEqual(service_unit.count("ReadWritePaths="), 1)
+        self.assertIn(
+            "ReadWritePaths=/var/lib/kreative-norge-image-safety", service_unit
+        )
 
     def test_repository_bootstrap_requires_pending_identity_and_append_only(self):
         backend = object.__new__(BorgAnchorBackend)

@@ -1,0 +1,150 @@
+import json
+from pathlib import Path
+import socket
+import struct
+import tempfile
+import threading
+import uuid
+
+from django.test import SimpleTestCase
+
+from image_safety.ledger import reservation_event_id
+from image_safety.release_keys import build_public_release_key
+
+from .services.images.bridge_client import (
+    BridgeRenditionSnapshot,
+    ImageSafetyBridgeClient,
+    ImageSafetyBridgeUnavailable,
+)
+
+
+class ImageSafetyBridgeClientTests(SimpleTestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.socket_path = Path(self.temporary.name) / "bridge.sock"
+        self.release_id = str(uuid.uuid4())
+        self.renditions = tuple(
+            BridgeRenditionSnapshot(
+                variant=variant,
+                output_format="webp",
+                artifact_storage_key=f"tenants/1/{variant}.webp",
+                artifact_checksum_sha256="a" * 64,
+            )
+            for variant in ("square", "landscape", "share")
+        )
+
+    def run_server(self, responder):
+        ready = threading.Event()
+
+        def serve():
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as listener:
+                listener.bind(str(self.socket_path))
+                listener.listen(1)
+                ready.set()
+                connection, _ = listener.accept()
+                with connection:
+                    header = connection.recv(4)
+                    length = struct.unpack("!I", header)[0]
+                    body = b""
+                    while len(body) < length:
+                        body += connection.recv(length - len(body))
+                    responder(connection, json.loads(body))
+
+        thread = threading.Thread(target=serve)
+        thread.start()
+        ready.wait(timeout=2)
+        self.addCleanup(lambda: thread.join(timeout=2))
+        return thread
+
+    @staticmethod
+    def send_response(connection, response):
+        body = json.dumps(response, separators=(",", ":")).encode()
+        connection.sendall(struct.pack("!I", len(body)) + body)
+
+    def test_reserve_validates_and_returns_confirmed_identity(self):
+        event_id = reservation_event_id(
+            tenant_id=1,
+            organization_id=2,
+            selection_id=3,
+            selection_revision=4,
+        )
+
+        def respond(connection, request):
+            self.assertEqual(request["operation"], "reserve")
+            self.assertNotIn("release_id", request["payload"])
+            self.assertNotIn("event_id", request["payload"])
+            response = {
+                "protocol_version": 1,
+                "operation": "reserve",
+                "result": "success",
+                "disposition": "new",
+                "reservation": {
+                    "event_id": event_id,
+                    "event_sequence": 8,
+                    "release_id": self.release_id,
+                    "public_keys": {
+                        item.variant: build_public_release_key(
+                            self.release_id, item.variant, item.output_format
+                        )
+                        for item in self.renditions
+                    },
+                },
+                "confirmation": {
+                    "anchored": True,
+                    "anchor_cursor": 8,
+                    "archive_reused": False,
+                },
+            }
+            self.send_response(connection, response)
+
+        thread = self.run_server(respond)
+        result = ImageSafetyBridgeClient(
+            socket_path=self.socket_path, timeout=1
+        ).reserve(
+            tenant_id=1,
+            organization_id=2,
+            selection_id=3,
+            selection_revision=4,
+            rendition_set_id=5,
+            renditions=self.renditions,
+        )
+        thread.join(timeout=2)
+
+        self.assertEqual(result.release_id, self.release_id)
+        self.assertEqual(result.anchor_cursor, 8)
+
+    def test_missing_socket_and_truncated_response_are_retryable(self):
+        client = ImageSafetyBridgeClient(socket_path=self.socket_path, timeout=0.2)
+        with self.assertRaises(ImageSafetyBridgeUnavailable) as missing:
+            client.activate(release_id=self.release_id)
+        self.assertTrue(missing.exception.retryable)
+
+        self.run_server(lambda connection, _: connection.sendall(struct.pack("!I", 50) + b"{}"))
+        with self.assertRaises(ImageSafetyBridgeUnavailable) as truncated:
+            client.activate(release_id=self.release_id)
+        self.assertTrue(truncated.exception.retryable)
+
+    def test_malformed_or_unconfirmed_response_fails_closed(self):
+        response = {
+            "protocol_version": 1,
+            "operation": "activate",
+            "result": "success",
+            "disposition": "new",
+            "event": {
+                "event_id": f"release-activation:v1:{self.release_id}",
+                "event_sequence": 2,
+                "release_id": self.release_id,
+            },
+            "confirmation": {
+                "anchored": True,
+                "anchor_cursor": 1,
+                "archive_reused": False,
+            },
+        }
+        self.run_server(lambda connection, _: self.send_response(connection, response))
+
+        with self.assertRaises(ImageSafetyBridgeUnavailable):
+            ImageSafetyBridgeClient(socket_path=self.socket_path, timeout=1).activate(
+                release_id=self.release_id
+            )

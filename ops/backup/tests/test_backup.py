@@ -993,6 +993,10 @@ class DocumentationTests(unittest.TestCase):
         self.assertEqual(values["STATUS_FILE"], f"{values['BACKUP_STATE_ROOT']}/status.json")
         self.assertEqual(values["RESTORE_GATE_FILE"], f"{values['BACKUP_STATE_ROOT']}/restore-smoke.ok")
         self.assertEqual(values["HOST_MEDIA_ROOT"], "/srv/kreative-norge/media")
+        self.assertIn(
+            "/srv/kreative-norge/media/public-delivery",
+            values["HOST_MEDIA_PATHS"].split(":"),
+        )
         self.assertTrue(
             all(
                 path.startswith(f"{values['HOST_MEDIA_ROOT']}/")

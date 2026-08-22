@@ -712,6 +712,7 @@ class OrganizationImageRelease(models.Model):
         on_delete=models.PROTECT,
         related_name="public_releases",
     )
+    selection_revision_snapshot = models.PositiveIntegerField()
     rendition_set = models.ForeignKey(
         ImageRenditionSet,
         on_delete=models.PROTECT,
@@ -731,6 +732,14 @@ class OrganizationImageRelease(models.Model):
                 condition=models.Q(key_schema_version=1),
                 name="img_release_key_schema_v1",
             ),
+            models.CheckConstraint(
+                condition=models.Q(selection_revision_snapshot__gt=0),
+                name="img_release_selection_rev_gt_0",
+            ),
+            models.UniqueConstraint(
+                fields=["selection"],
+                name="img_release_selection_uniq",
+            ),
         ]
 
     def clean(self) -> None:
@@ -745,6 +754,10 @@ class OrganizationImageRelease(models.Model):
                 errors["release_id"] = "Release ID must be UUIDv4."
 
         if self.selection_id:
+            if self.selection_revision_snapshot != self.selection.revision:
+                errors["selection_revision_snapshot"] = (
+                    "Release selection revision snapshot must match the selection revision."
+                )
             if self.tenant_id and self.selection.tenant_id != self.tenant_id:
                 errors["tenant"] = "Release tenant must match the selection tenant."
             if (
