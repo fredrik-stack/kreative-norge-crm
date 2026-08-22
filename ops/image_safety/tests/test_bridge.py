@@ -337,7 +337,14 @@ class BridgeFramingTests(BridgeFixture):
         )
         thread = threading.Thread(target=bridge.serve_connection, args=(server_socket,))
         thread.start()
-        client.sendall(encode_frame(reserve_request()))
-        self.assertEqual(client.recv(1), b"")
-        thread.join(timeout=5)
-        client.close()
+        try:
+            try:
+                client.sendall(encode_frame(reserve_request()))
+            except BrokenPipeError:
+                # Linux may observe the peer rejection before sendall returns;
+                # macOS commonly accepts the send and reports EOF below.
+                pass
+            self.assertEqual(client.recv(1), b"")
+            thread.join(timeout=5)
+        finally:
+            client.close()
