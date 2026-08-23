@@ -4,6 +4,7 @@
 
 ### Fase 3E.1C kontrollert serving aktivert og verifisert i staging
 
+- presisert den plattformavhengige sockettesten etter gjentatt Linux-`ECONNRESET`: både reset og EOF godtas som transportutfall når en uautorisert peer avvises uten domenerespons; produksjonskode og stagingruntime er uendret
 - merget de separat reviewede PR-ene #41–#44 og deployet eksakt sluttmerge `38663b5` etter grønn seks-jobbers main-CI-run `32668678789`
 - aktivert bare det ignorerte stagingflagget `PUBLIC_IMAGE_SERVING_ENABLED=True`; kode- og eksempelstandard forblir `False`
 - bevist canonical GET/HEAD og reautorisert 304 for square/landscape/share med identiske bytes, checksum-`ETag` og `private, max-age=60, must-revalidate`

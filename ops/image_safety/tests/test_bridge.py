@@ -526,7 +526,13 @@ class BridgeFramingTests(BridgeFixture):
                 # Linux may observe the peer rejection before sendall returns;
                 # macOS commonly accepts the send and reports EOF below.
                 pass
-            self.assertEqual(client.recv(1), b"")
+            try:
+                response = client.recv(1)
+            except ConnectionResetError:
+                # Linux may reset a socket that is closed without reading the
+                # queued request; EOF and reset both prove no domain response.
+                response = b""
+            self.assertEqual(response, b"")
             thread.join(timeout=5)
         finally:
             client.close()

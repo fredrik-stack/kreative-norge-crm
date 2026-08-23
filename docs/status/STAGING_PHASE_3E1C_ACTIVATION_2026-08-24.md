@@ -20,7 +20,7 @@ Kode- og eksempelstandard for `PUBLIC_IMAGE_SERVING_ENABLED` er fortsatt `False`
 | #43 | bevar Djangos checksum-`ETag` gjennom intern Nginx-filserver | `a48fb5584a9ca253d90ffc265bac0ce9bdfcee0c` | `32667670647` |
 | #44 | tomme canonical feilsvar/metodegate og eksplisitt INFO-observability | `38663b532de64eb15b5ec6579dbb7d66a0eb18fe` | `32668678789` |
 
-PR #44 ble gjennomgått på eksakt head `03e5c20bc1ee23fa066144c9efffffac68176508`. Alle seks PR-jobber ble grønne i run `32668402566`; den uendrede sockettesten fikk først ett runneravvik mellom EOF og `ECONNRESET`, passerte lokalt med 44/44 tester og ble grønn ved én omkjøring. Ingen testkode ble endret for å skjule avviket.
+PR #44 ble gjennomgått på eksakt head `03e5c20bc1ee23fa066144c9efffffac68176508`. Alle seks PR-jobber ble grønne i run `32668402566`; den uendrede sockettesten fikk først ett runneravvik mellom EOF og `ECONNRESET`, passerte lokalt med 44/44 tester og ble grønn ved én omkjøring. Da samme operativsystemvariant gjentok seg i post-merge-CI etter dokumentasjons-PR #45, ble testasserten presisert til å godta både EOF og `ECONNRESET` som bevis på at en uautorisert peer ikke mottar domenerespons. Produksjonskode og stagingruntime ble ikke endret.
 
 Staging ble fast-forwardet rent til eksakt sluttmerge `38663b5`. API ble bygget og kontrollert rekreert med serving av. Før aktivering ga canonical release-rute tom `404/no-store`, ikke-canonical rute tom `404/no-store` og unsafe method tom `405/no-store`. Den nye loggeren skrev samtidig strukturerte INFO-linjer til containerloggen.
 
