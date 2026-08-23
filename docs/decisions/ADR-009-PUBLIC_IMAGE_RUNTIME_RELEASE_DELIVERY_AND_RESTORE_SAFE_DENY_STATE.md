@@ -29,9 +29,8 @@ ADR-007 krever at en eldre database- eller apprestore aldri kan reaktivere en ny
 
 ### 1. Tydelig grense mellom implementert grunnmur og planlagt runtime
 
-Fase 3B–3D-grunnmuren forblir implementert. 3E.1A-ledger/read-model/restore/health og live off-servergate er implementert og aktivert i staging. Følgende gjenstår før de respektive senere 3E-leveransene er grønne:
+Fase 3B–3D-grunnmuren forblir implementert. 3E.1A-ledger/read-model/restore/health og live off-servergate samt 3E.1B-materialisering og release-livssyklus for reserve/activate er implementert og aktivert i staging. Følgende gjenstår i fase 3E.1C–3E.4:
 
-- public release-materialisering og lifecycle
 - kontrollert media-serving og origin-konfigurasjon
 - `PublicImageProjection`, strukturert API-kontrakt og legacyalias-cutover
 - PUBLIC-, canonical-, Open Graph- og Twitter-integrasjon
