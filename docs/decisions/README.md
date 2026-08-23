@@ -14,7 +14,7 @@ ADR-er dokumenterer viktige valg som påvirker arkitektur, data eller arbeidsfly
 | [ADR-006](ADR-006-SESSION_WORKFLOW.md) | Sesjonsflyt og varig prosjektminne | Godkjent og implementert |
 | [ADR-007](ADR-007-IMAGE_ASSET_ARCHITECTURE.md) | Tenant-eid bildeassetarkitektur | Godkjent; fase 3B–3D-grunnmur implementert, public runtime gjenstår |
 | [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) | Hetzner one-server storage og backup | Godkjent; operativ backupgrunnmur ACTIVE, public media-serving gjenstår |
-| [ADR-009](ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) | Public image runtime, release delivery og restore-safe deny state | Godkjent; 3E.1A ACTIVE, 3E.1B kodeimplementert/ikke stagingaktivert, serving/runtime gjenstår |
+| [ADR-009](ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) | Public image runtime, release delivery og restore-safe deny state | Godkjent; 3E.1A ACTIVE, 3E.1B-foundation deployet/verifisert med materialisering av, serving/runtime gjenstår |
 
 Detaljstatusen i hvert ADR er autoritativ dersom kortstatusen her ikke har alle nyanser.
 
