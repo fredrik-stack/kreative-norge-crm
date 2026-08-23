@@ -5,6 +5,7 @@ import tempfile
 import uuid
 from unittest.mock import patch
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
@@ -243,6 +244,19 @@ class PublicImageServingTests(TestCase):
                 self.assertEqual(response["Cache-Control"], "no-store")
                 self.assertEqual(response["X-Content-Type-Options"], "nosniff")
         self.assertEqual(ServingBridge.calls, [])
+
+    def test_serving_events_have_a_dedicated_info_console_logger(self):
+        logger_config = settings.LOGGING["loggers"]["crm.public_image_serving"]
+        self.assertEqual(logger_config["level"], "INFO")
+        self.assertFalse(logger_config["propagate"])
+        self.assertEqual(
+            logger_config["handlers"], ["public_image_serving_console"]
+        )
+        handler_config = settings.LOGGING["handlers"][
+            "public_image_serving_console"
+        ]
+        self.assertEqual(handler_config["class"], "logging.StreamHandler")
+        self.assertEqual(handler_config["formatter"], "public_image_serving")
 
     def test_conditional_revalidation_still_runs_gates_then_returns_304(self):
         first = self.client.get(self.url())
