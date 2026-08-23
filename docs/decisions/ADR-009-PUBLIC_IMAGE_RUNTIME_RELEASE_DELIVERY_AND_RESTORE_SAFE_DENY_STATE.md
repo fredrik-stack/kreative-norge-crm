@@ -2,7 +2,7 @@
 
 ## Status
 
-Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som lokal safety-ledger, dedikert off-server Borg-anchor, separat recovery-gate og fail-closed health. Fase 3E.1B.1–3E.1B.2-foundationen er deployet og stagingverifisert med materialiseringsflagget fortsatt av; ingen release-workflow eller public serving er aktivert. Fase 3E.1C–3E.4 og all public serving/runtime er fortsatt ikke implementert eller aktivert.
+Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som lokal safety-ledger, dedikert off-server Borg-anchor, separat recovery-gate og fail-closed health. Fase 3E.1B.1–3E.1B.2-materialisering er `ACTIVE` i staging etter syntetisk ankret reserve/activate-, crash/restart/retry- og no-clobber-gate. Én permanent syntetisk release for en upublisert stagingaktør finnes som evidens; ingen public serving er aktivert. Fase 3E.1C–3E.4 og all public serving/runtime er fortsatt ikke implementert eller aktivert.
 
 **Beslutningsdato:** 2026-08-17
 
@@ -213,7 +213,7 @@ Global checksum-deny innføres ikke uten et senere konkret behov og egen beslutn
 
 **Besluttet nå:** lokal Unix-socket/systemd-bro med operasjonsgrensen `reserve`/`activate`/`retire`/`deny`; én reservation/public release per selection-revisjon; retry gjenbruker samme UUID/keys; safety-ledgeren eier lifecycle-state; public release-filer slettes ikke automatisk.
 
-**Foundation deployet og stagingverifisert, materialisering av:** minimal AF_UNIX/systemd-bro med bare `reserve` og `activate`, atomisk reservation, idempotent DB-binding, separat `public_image_delivery`-alias/root, create-only/no-clobber, full read-back-verifikasjon og idempotent activation. Compose-, systemd-, socket-/peer-, mount-, delivery-persistence- og backup-/restorekontraktene er liveverifisert, men den faktiske reserve/materialize/retry/activate-workflowen gjenstår før flagget kan aktiveres i staging.
+**Materialisering ACTIVE i staging, serving av:** minimal AF_UNIX/systemd-bro med bare `reserve` og `activate`, atomisk reservation, idempotent DB-binding, separat `public_image_delivery`-alias/root, create-only/no-clobber, full read-back-verifikasjon og idempotent activation. Compose-, systemd-, socket-/peer-, mount-, delivery-persistence- og backup-/restorekontraktene er liveverifisert. Den faktiske workflowen er bevist med syntetisk ankret reservation, DB-binding, kontrollert krasj etter første fil, API-restart, idempotent completion/activation, full retry uten writes og ephemeral hard konflikt for samme key med andre bytes. Public serving forblir av.
 
 **Utenfor 3E.1B:** Nginx-serving, `X-Accel-Redirect`, offentlig HTTP-serving av `releases/...`, `PUBLIC_MEDIA_ORIGIN`, public API-schema, `PublicImageProjection`, PUBLIC HTML/UI, Editor-endringer, cachepolicy, CDN, takedown/cache purge og fase 3E.1C–3E.4. Public image runtime forblir av.
 
@@ -466,7 +466,7 @@ Trinnvis innføring holder risikoen avgrenset: journal og restorebevis kommer f�
 
 ## Avklarte 3E.1B-implementasjonsvalg
 
-Følgende valg er godkjent og implementert i den feature-avslåtte 3E.1B-foundationen:
+Følgende valg er godkjent, implementert og stagingaktivert i 3E.1B-materialiseringsruntimeen:
 
 - AF_UNIX/SOCK_STREAM på `/run/kreative-norge-image-safety/bridge.sock`, 4-byte big-endian framing, JSON-protokoll v1, 16 KiB request-/responsegrense, 5 sekunders framingtimeout, 45 sekunders operasjonsfrist og omtrent 50 sekunders Django-clienttimeout innenfor dagens 60-sekunders Gunicorn-timeout
 - root-eid systemd socket activation med socket `0600`, `SO_PEERCRED` der den faktiske Docker-/Unix-socket-identiteten kan verifiseres, og host-eid ledger-/Borg-runtime uten credentials eller ledger-mount i API/web
@@ -497,6 +497,8 @@ Disse detaljene kan ikke svekke permanent no-reuse, deny-over-restore, separat d
 - at API bare får socket- og delivery-mountene, mens web fortsatt mangler delivery-, socket-, ledger- og Borg-tilgang
 - delivery-persistens gjennom API-recreate og identisk checksum i en ny backup, full repository-/arkivverifikasjon og isolert restore
 
-Før materialiseringsflagget kan aktiveres gjenstår create/retry/no-clobber, delvis materialisering og restart med syntetiske komplette renditions gjennom den faktiske reserve → DB-binding → materialisering/read-back → activate-workflowen mens public serving fortsatt er av. Se [datert stagingevidens](../status/STAGING_PHASE_3E1B_FOUNDATION_2026-08-23.md).
+Materialiseringsgaten 2026-08-23 beviste create/retry/no-clobber, delvis materialisering og restart med syntetiske komplette renditions gjennom den faktiske reserve → DB-binding → materialisering/read-back → activate-workflowen. Ledgeren er `READY` på cursor `5` med én syntetisk release i `active`, PostgreSQL har ett komplett immutable aggregate og delivery-rooten har tre checksumverifiserte filer. Post-activation-backup og isolert restore av samme arkiv er grønne. Se [foundationevidensen](../status/STAGING_PHASE_3E1B_FOUNDATION_2026-08-23.md) og [aktiveringsevidensen](../status/STAGING_PHASE_3E1B_MATERIALIZATION_ACTIVATION_2026-08-23.md).
+
+Neste gate er 3E.1C controlled serving og origins. Materialiseringsstatusen gir ikke filene en public URL, autoriserer ikke projection/API/PUBLIC og endrer ikke legacybildestrømmen.
 
 Retensjon og eksplisitt apply-prosedyre for release-aware cleanup er fortsatt ikke godkjent. Serving, projection, API/PUBLIC-cutover, cache/purge og takedown krever de senere 3E.1C–3E.4-gatene.

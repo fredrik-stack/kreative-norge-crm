@@ -2,7 +2,9 @@
 
 **Dato:** 2026-08-23
 
-**Status:** `DEPLOYED / VERIFIED`, mens `PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED=False`
+**Status:** Historisk foundationgate: `DEPLOYED / VERIFIED`, mens `PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED=False`
+
+**Oppfølging:** Materialisering ble senere aktivert i en separat gate samme dag. Se [aktiveringsrapporten](STAGING_PHASE_3E1B_MATERIALIZATION_ACTIVATION_2026-08-23.md). Resten av dette dokumentet beskriver det historiske stoppunktet før aktivering.
 
 Denne statusen gjelder bare 3E.1B-foundationen: migrasjon `0029`, host-eid bridge/socket, API-only delivery-/socketmount og generell backup/restore av delivery-rooten. Ingen release-workflow ble aktivert, ingen release eller safety-event ble opprettet, ingen releasefil ble materialisert, og ingen Nginx-/Caddy-route eller offentlig serving ble lagt til.
 
@@ -43,4 +45,4 @@ Django `check`, lokal web, lokal Caddy og ekstern HTTPS svarte grønt. `/`, `/ap
 
 `PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED` er fortsatt `False` i aktiv stagingkonfigurasjon. `IMAGE_ASSET_FEATURE_ENABLED` forblir `True` som før. Ingen public runtime er aktivert.
 
-Før materialiseringsflagget kan aktiveres gjenstår den egne activation-gaten med syntetiske, komplette `square`/`landscape`/`share`-renditions gjennom den faktiske reserve → DB-binding → create-only/read-back → activate-workflowen, inkludert retry/no-clobber og kontrollert delvis materialisering/restart. Serving, projection, API/PUBLIC-cutover, cache/purge og takedown tilhører fortsatt 3E.1C–3E.4.
+Ved dette historiske stoppunktet gjenstod en egen activation-gate med syntetiske, komplette `square`/`landscape`/`share`-renditions gjennom den faktiske reserve → DB-binding → create-only/read-back → activate-workflowen, inkludert retry/no-clobber og kontrollert delvis materialisering/restart. Gaten er senere fullført og dokumentert i [aktiveringsrapporten](STAGING_PHASE_3E1B_MATERIALIZATION_ACTIVATION_2026-08-23.md). Serving, projection, API/PUBLIC-cutover, cache/purge og takedown tilhører fortsatt 3E.1C–3E.4.
