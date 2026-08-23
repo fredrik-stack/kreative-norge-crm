@@ -265,7 +265,7 @@ Ledgeren ligger i `/var/lib/kreative-norge-image-safety/ledger.sqlite3`. Konfigu
 
 Ikke kjør `init` mot den eksisterende generelle backup-repositoryen. Staging bruker et dedikert safety-subaccount/repository, separat recovery-custody og aktiv health-timer etter fullført capability-/transaction-recovery-/restartgate 2026-08-20. Se [safety-runbooken](../../docs/operations/PUBLIC_IMAGE_SAFETY_LEDGER.md) og [aktiveringsevidensen](../../docs/status/STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md). `ACTIVE` gjelder bare 3E.1A; public runtime forblir av.
 
-## 14. Fase 3E.1B – materialisering aktiv, public serving av
+## 14. Fase 3E.1B – materialisering aktiv; serving senere aktivert i 3E.1C
 
 Systemd socket/service, API-only runtime-/delivery-mounts og aktiv backupallowlist for 3E.1B er deployet og liveverifisert i staging fra 2026-08-23. Den ignorerte stagingkonfigurasjonen har etter separat aktiveringsgate `PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED=True`; kode- og eksempelstandard forblir `False`.
 
@@ -273,7 +273,7 @@ Staginggaten har verifisert tom release-tabell før migrasjon `0029`; root-eid s
 
 Den separate aktiveringsgaten har i tillegg bevist faktisk reserve → DB-binding → create-only/read-back → activate, ephemeral hard no-clobber-konflikt, recovery etter kontrollert krasj med én fil og API-restart samt full idempotent retry. Én permanent syntetisk release for en upublisert stagingaktør beholdes som evidens. Se [aktiveringsrapporten](../../docs/status/STAGING_PHASE_3E1B_MATERIALIZATION_ACTIVATION_2026-08-23.md).
 
-Ingen Nginx-route, media-alias, projection eller offentlig HTTP-serving er aktivert. Ikke kopier eksempelverdien over den aktive stagingkonfigurasjonen ved ordinær deploy; flaggendring eller rollback er en eksplisitt operatørhandling, og permanente reservations-/activationevents eller releasefiler slettes aldri som rollback.
+Ved avslutningen av 3E.1B var ingen Nginx-route, media-alias, projection eller offentlig HTTP-serving aktivert. 3E.1C har senere aktivert den kontrollerte release-ruten separat; projection og API/PUBLIC er fortsatt av. Ikke kopier eksempelverdier over aktiv stagingkonfigurasjon ved ordinær deploy; flaggendring eller rollback er en eksplisitt operatørhandling, og permanente reservations-/activationevents eller releasefiler slettes aldri som rollback.
 
 ## 15. Fase 3E.1C – separat kontrollert servinggate
 
@@ -294,3 +294,5 @@ Etter grønn preflight settes bare `PUBLIC_IMAGE_SERVING_ENABLED=True`, og API r
 - API-, web- og bridge-restart bevarer resultatet, og PUBLIC HTML/API/legacyaliaser er uendret
 
 Ved hvilket som helst gateavvik: sett `PUBLIC_IMAGE_SERVING_ENABLED=False`, rekreer API, bekreft `404` på media-ruten og behold ledger-, DB- og delivery-state urørt. Ikke aktiver 3E.2, projection, API/PUBLIC eller takedown som del av denne gaten.
+
+**Aktiv stagingstatus 2026-08-24:** Gaten er gjennomført fra eksakt merge `38663b5`, og bare den ignorerte stagingverdien er `PUBLIC_IMAGE_SERVING_ENABLED=True`. HTTP/cache, negative svar, bridge-/filfeil, origins, logger, mountisolasjon, restart og backup/restore er grønne. Se [aktiveringsrapporten](../../docs/status/STAGING_PHASE_3E1C_ACTIVATION_2026-08-24.md). Kode-/eksempelstandard er fortsatt `False`; 3E.2, projection, API/PUBLIC, legacy-cutover og takedown er ikke aktivert.
