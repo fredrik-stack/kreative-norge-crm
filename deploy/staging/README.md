@@ -265,10 +265,12 @@ Ledgeren ligger i `/var/lib/kreative-norge-image-safety/ledger.sqlite3`. Konfigu
 
 Ikke kjør `init` mot den eksisterende generelle backup-repositoryen. Staging bruker et dedikert safety-subaccount/repository, separat recovery-custody og aktiv health-timer etter fullført capability-/transaction-recovery-/restartgate 2026-08-20. Se [safety-runbooken](../../docs/operations/PUBLIC_IMAGE_SAFETY_LEDGER.md) og [aktiveringsevidensen](../../docs/status/STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md). `ACTIVE` gjelder bare 3E.1A; public runtime forblir av.
 
-## 14. Fase 3E.1B-foundation – deployet, ikke materialiseringsaktivert
+## 14. Fase 3E.1B – materialisering aktiv, public serving av
 
-Systemd socket/service, API-only runtime-/delivery-mounts og aktiv backupallowlist for 3E.1B er deployet og liveverifisert i staging fra 2026-08-23. `PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED` skal fortsatt forbli `False` ved ordinær deploy.
+Systemd socket/service, API-only runtime-/delivery-mounts og aktiv backupallowlist for 3E.1B er deployet og liveverifisert i staging fra 2026-08-23. Den ignorerte stagingkonfigurasjonen har etter separat aktiveringsgate `PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED=True`; kode- og eksempelstandard forblir `False`.
 
 Staginggaten har verifisert tom release-tabell før migrasjon `0029`; root-eid socket `0600`; faktisk `SO_PEERCRED` fra API-containeren; ingen socket/delivery/ledger/Borg i `web`; ingen ledger eller Borg-credential i API; 5/45/50/60-sekunders timeoutkjede; delivery-persistens gjennom API-recreate; og identiske delivery-bytes i ny backup og isolert restore. Se [datert evidens](../../docs/status/STAGING_PHASE_3E1B_FOUNDATION_2026-08-23.md).
 
-Før flagget kan endres til `True` gjenstår en egen activation-gate med create/retry/no-clobber for tre syntetiske renditions gjennom den faktiske release-workflowen og kontrollert restart etter delvis materialisering. Det skal fortsatt ikke legges til Nginx-route, media-alias eller offentlig HTTP-serving i denne gaten.
+Den separate aktiveringsgaten har i tillegg bevist faktisk reserve → DB-binding → create-only/read-back → activate, ephemeral hard no-clobber-konflikt, recovery etter kontrollert krasj med én fil og API-restart samt full idempotent retry. Én permanent syntetisk release for en upublisert stagingaktør beholdes som evidens. Se [aktiveringsrapporten](../../docs/status/STAGING_PHASE_3E1B_MATERIALIZATION_ACTIVATION_2026-08-23.md).
+
+Ingen Nginx-route, media-alias, projection eller offentlig HTTP-serving er aktivert. Ikke kopier eksempelverdien over den aktive stagingkonfigurasjonen ved ordinær deploy; flaggendring eller rollback er en eksplisitt operatørhandling, og permanente reservations-/activationevents eller releasefiler slettes aldri som rollback.

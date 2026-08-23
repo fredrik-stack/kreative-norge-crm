@@ -1,12 +1,12 @@
 # Public image safety ledger og restore-gate
 
-**Status:** 3E.1A safety-ledger, dedikert off-server anchor og restore-gate er `ACTIVE` i staging fra 2026-08-20. 3E.1B-bro, socket og delivery-foundation er deployet og liveverifisert fra 2026-08-23, men release-materialisering er fortsatt avslått.
+**Status:** 3E.1A safety-ledger, dedikert off-server anchor og restore-gate er `ACTIVE` i staging fra 2026-08-20. 3E.1B-bro, socket, delivery og release-materialisering er `ACTIVE` i staging fra 2026-08-23; public serving er fortsatt av.
 
 **Arkitektur:** [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md)
 
-Denne runbooken dokumenterer den aktive 3E.1A-runtimeen og repository foundation for 3E.1B-broen. Den aktiverer ikke public bytes, materialisering, serving, projection, API/PUBLIC-cutover eller formell takedown.
+Denne runbooken dokumenterer den aktive 3E.1A-runtimeen og 3E.1B-broen. Kommandoene aktiverer ikke i seg selv materialisering, serving, projection, API/PUBLIC-cutover eller formell takedown; faktisk stagingstatus følger de daterte evidensrapportene.
 
-Faktisk 3E.1A-aktiveringsevidens, inkludert repository-separasjon, raw-`rm`-restrisiko, separat transaction recovery av probe og DENIED-head, restartpersistens og containerisolasjon, finnes i [stagingrapporten 2026-08-20](../status/STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md). Bridge-, peer-, mount- og delivery-backup-/restoreevidensen finnes i [3E.1B-stagingrapporten 2026-08-23](../status/STAGING_PHASE_3E1B_FOUNDATION_2026-08-23.md).
+Faktisk 3E.1A-aktiveringsevidens, inkludert repository-separasjon, raw-`rm`-restrisiko, separat transaction recovery av probe og DENIED-head, restartpersistens og containerisolasjon, finnes i [stagingrapporten 2026-08-20](../status/STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md). Bridge-, peer-, mount- og delivery-backup-/restoreevidensen finnes i [3E.1B-foundationrapporten](../status/STAGING_PHASE_3E1B_FOUNDATION_2026-08-23.md), mens faktisk reserve/materialize/activate- og crash/retry-evidens finnes i [3E.1B-aktiveringsrapporten](../status/STAGING_PHASE_3E1B_MATERIALIZATION_ACTIVATION_2026-08-23.md).
 
 ## 1. Implementert kontrakt
 
@@ -279,12 +279,12 @@ Bruk denne flyten når lokal ledger er tapt/stale eller writer misuse, delete el
 
 5. Kommandoen avviser manglende recoveryevidens eller cursor/head-mismatch før destination og lokal receipt opprettes. Uten identifiserbar autoritativ head forblir systemet `NOT READY`.
 
-Etter begge flyter kjøres `rebuild` og `health`. Bytt ledgerpath kontrollert først etter checksum, owner/mode, repository-ID og isolert replay. Behold gammel fil i karantene. 3E.1B-foundationen må reconcile DB og filer mot safety-ledger i en egen live gate før serving kan åpnes.
+Etter begge flyter kjøres `rebuild` og `health`. Bytt ledgerpath kontrollert først etter checksum, owner/mode, repository-ID og isolert replay. Behold gammel fil i karantene. Staging beviste DB-/fil-/ledger-samsvar i 3E.1B-materialiseringsgaten; samme reconciliation må gjentas etter en reell incident restore før serving kan åpnes.
 
 Full katastrofe-RTO er fortsatt uavklart frem til liveøvelsen er målt.
 
 ## 10. Rollback og avgrensning
 
-Rollback deaktiverer bare senere runtimekobling og health-timer. Den sletter aldri ledger, receipts eller off-server archives. Etter første reelle reservation er schemaendringer fremoverrettede.
+Rollback av 3E.1A deaktiverer bare safety-runtimekoblingen og eventuelt health-timeren; den sletter aldri ledger, receipts eller off-server archives. Rollback av 3E.1B betyr at materialiseringsflagget settes til `False` slik at nye release-workflows stoppes. Eksisterende reservations-/activationevents, databaseaggregater og delivery-filer slettes aldri som rollback. Etter første reelle reservation er schemaendringer fremoverrettede.
 
-Denne leveransen oppretter ingen delivery-root, skriver ingen mediafiler, endrer ingen nginx/Caddy-route, rydder ingen route-duplikat, endrer ingen public serializer/HTML/head/fallback/cache og innfører ingen checksum-deny, Redis, ekstern database, kø, sidecar, S3 eller CDN.
+Den historiske 3E.1A-leveransen opprettet ingen delivery-root eller mediafiler. 3E.1B har senere opprettet den separate delivery-rooten og materialisert én permanent syntetisk release med tre filer i staging. Ingen av leveransene har lagt til nginx-/Caddy-serving, public serializer/HTML/head/fallback/cache, checksum-deny, Redis, ekstern database, kø, sidecar, S3 eller CDN.

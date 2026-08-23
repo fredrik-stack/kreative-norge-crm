@@ -2,6 +2,16 @@
 
 ## 2026-08-23
 
+### Fase 3E.1B-materialisering aktivert og verifisert med public serving av
+
+- fast-forwardet staging rent til `main` på merge `ee42c82`, verifisert grønn main-CI-run `32646334974`, 25 målrettede lokale tester og fersk pre-activation-backup med isolert restore
+- aktivert bare `PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED=True` og bevist hard no-clobber mot avvikende eksisterende bytes uten database-, ledger- eller permanent delivery-mutasjon
+- kjørt permanent syntetisk reserve → DB-binding → kontrollert crash etter første fil → API-restart → materialisering/read-back → activate for release `248806b9-613c-4c1f-bcf5-64c5b15cfff9`
+- bevist at første retry bevarte eksisterende fil og fullførte de to manglende, mens ny full retry opprettet ingen filer eller ledger-events; safety-ledgeren er `READY` på cursor `5`
+- beholdt én sporbar syntetisk release og tre persistente delivery-filer, og verifisert dem i post-activation-backup `kreative-norge-staging-20260823T185950Z` med full repository-/arkivkontroll og isolert restore
+- bekreftet at web mangler delivery-mount og Nginx-route, delivery-storage mangler `base_url`, og plausible URL-paths ikke serverer bildebytes; 3E.1C, projection, API/PUBLIC og offentlig bildebruk er fortsatt av
+- dokumentert full evidens i [aktiveringsrapporten](STAGING_PHASE_3E1B_MATERIALIZATION_ACTIVATION_2026-08-23.md)
+
 ### Fase 3E.1B-foundation deployet og gateverifisert med materialisering av
 
 - deployet eksakt PR #38-merge `d756b4b` etter grønn tomtabellpreflight og fersk Borg-backup; migrasjon `0029` ble anvendt uten backfill og release-count forble `0`
