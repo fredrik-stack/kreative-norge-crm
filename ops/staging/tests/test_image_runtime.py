@@ -133,7 +133,7 @@ class StagingImageRuntimeContractTests(unittest.TestCase):
         self.assertRegex(
             nginx_config,
             r"location \^~ /_protected-public-image/ \{\s+internal;\s+"
-            r"alias /var/www/public-delivery/;\s+autoindex off;\s+"
+            r"alias /var/www/public-delivery/;\s+etag off;\s+autoindex off;\s+"
             r"disable_symlinks on;",
         )
         self.assertNotIn("proxy_cache", nginx_config)
