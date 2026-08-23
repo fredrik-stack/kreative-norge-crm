@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-23
+
+### Fase 3E.1B-foundation deployet og gateverifisert med materialisering av
+
+- deployet eksakt PR #38-merge `d756b4b` etter grønn tomtabellpreflight og fersk Borg-backup; migrasjon `0029` ble anvendt uten backfill og release-count forble `0`
+- installert og aktivert root-eid systemd socket/bridge, verifisert faktisk API-peer gjennom `SO_PEERCRED`, og bekreftet 5/45/50/60-sekunders timeoutkjede med bare `reserve`/`activate` caller-aktivt
+- verifisert API-only delivery-/socketmount, fravær av ledger/Borg/credentials i API og fravær av delivery/safety/Borg i web; ingen Nginx-/Caddy-route eller offentlig media-URL ble lagt til
+- bevist delivery-persistens gjennom API-containerutskifting og identisk SHA-256 i ny off-server backup, full repository-/arkivverifikasjon og isolert restore; den syntetiske live-proben ble fjernet etterpå
+- beholdt `PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED=False`, `0` releases og uendret safety-ledger-head; faktisk syntetisk reserve/materialize/retry/activate gjenstår som egen activation-gate
+- dokumentert liveevidens og den kjente Compose 1.29.2-`ContainerConfig`-recoveryen i [stagingrapporten](STAGING_PHASE_3E1B_FOUNDATION_2026-08-23.md)
+
 ## 2026-08-22
 
 ### Fase 3E.1B.1–3E.1B.2: release-materialisering implementert, ikke stagingaktivert

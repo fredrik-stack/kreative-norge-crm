@@ -35,4 +35,4 @@ Se også `development/DOCUMENTATION_RULES.md`, `development/WORKFLOW.md` og `dev
 
 For kontinuitet mellom ChatGPT og Codex, se `development/CHATGPT_SESSION_CONTINUITY.md` og `development/CHATGPT_SESSION_SUMMARY_TEMPLATE.md`.
 
-Operativ safety-kontrakt finnes i `operations/PUBLIC_IMAGE_SAFETY_LEDGER.md`. Safety-ledger, dedikert off-server anchor og restore-gate fra 3E.1A er `ACTIVE` i staging. 3E.1B.1–3E.1B.2 er implementert i kode som feature-avslått bridge-/delivery-/materialiseringsgrunnmur, men er ikke stagingaktivert. Public serving og fase 3E.1C–3E.4 er fortsatt ikke implementert eller aktivert.
+Operativ safety-kontrakt finnes i `operations/PUBLIC_IMAGE_SAFETY_LEDGER.md`. Safety-ledger, dedikert off-server anchor og restore-gate fra 3E.1A er `ACTIVE` i staging. 3E.1B.1–3E.1B.2-foundationen er deployet og stagingverifisert med materialiseringsflagget fortsatt av; ingen release-workflow eller public serving er aktivert. Fase 3E.1C–3E.4 er fortsatt ikke implementert eller aktivert.

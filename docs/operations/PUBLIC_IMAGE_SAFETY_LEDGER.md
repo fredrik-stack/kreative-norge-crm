@@ -1,12 +1,12 @@
 # Public image safety ledger og restore-gate
 
-**Status:** 3E.1A safety-ledger, dedikert off-server anchor og restore-gate er `ACTIVE` i staging fra 2026-08-20. 3E.1B-bro og release-workflow er implementert i repoet, men ikke deployet eller aktivert i staging.
+**Status:** 3E.1A safety-ledger, dedikert off-server anchor og restore-gate er `ACTIVE` i staging fra 2026-08-20. 3E.1B-bro, socket og delivery-foundation er deployet og liveverifisert fra 2026-08-23, men release-materialisering er fortsatt avslått.
 
 **Arkitektur:** [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md)
 
 Denne runbooken dokumenterer den aktive 3E.1A-runtimeen og repository foundation for 3E.1B-broen. Den aktiverer ikke public bytes, materialisering, serving, projection, API/PUBLIC-cutover eller formell takedown.
 
-Faktisk aktiveringsevidens, inkludert repository-separasjon, raw-`rm`-restrisiko, separat transaction recovery av probe og DENIED-head, restartpersistens og containerisolasjon, finnes i [stagingrapporten 2026-08-20](../status/STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md).
+Faktisk 3E.1A-aktiveringsevidens, inkludert repository-separasjon, raw-`rm`-restrisiko, separat transaction recovery av probe og DENIED-head, restartpersistens og containerisolasjon, finnes i [stagingrapporten 2026-08-20](../status/STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md). Bridge-, peer-, mount- og delivery-backup-/restoreevidensen finnes i [3E.1B-stagingrapporten 2026-08-23](../status/STAGING_PHASE_3E1B_FOUNDATION_2026-08-23.md).
 
 ## 1. Implementert kontrakt
 
@@ -27,7 +27,7 @@ Faktisk aktiveringsevidens, inkludert repository-separasjon, raw-`rm`-restrisiko
 
 Reservation-input binder immutable heltalls-snapshots av tenant, Organization, selection, selection-revisjon og rendition-sett samt artifact key og SHA-256 for alle tre varianter. Caller leverer aldri public key; `image_safety.release_keys.build_public_release_key()` bygger eksakt `releases/<uuid>/<variant>.<ext>`. 3E.1B-workflowen lar bridge-reservasjonen eie UUID/keys og binder dem deretter til PostgreSQL uten å holde DB-lås under Borg-I/O.
 
-Bridge-foundationen bruker systemd socket activation på `/run/kreative-norge-image-safety/bridge.sock`, ett lengde-prefikset JSON request/response-par per forbindelse og bare operasjonene `reserve` og `activate`. Socketen er planlagt `root:root` `0600`; API får bare read-only bindmount av runtime-directory, mens ledger, `/etc`-konfigurasjon og Borg-credentials forblir host-only. `SO_PEERCRED` krever root-peer. Denne Docker/Linux-identiteten må bevises live før stagingaktivering; repo-implementasjon alene er ikke slikt bevis.
+Bridge-foundationen bruker systemd socket activation på `/run/kreative-norge-image-safety/bridge.sock`, ett lengde-prefikset JSON request/response-par per forbindelse og bare operasjonene `reserve` og `activate`. I staging er socketen verifisert `root:root` `0600`; API får bare read-only bindmount av runtime-directory, mens ledger, `/etc`-konfigurasjon og Borg-credentials forblir host-only. Et kontrollert kall fra API fikk domenerespons etter `SO_PEERCRED`-gaten og beviste dermed den faktiske Docker/Linux-root-peeren. Dette aktiverte ingen releaseoperasjon eller materialisering. Se [3E.1B-stagingrapporten](../status/STAGING_PHASE_3E1B_FOUNDATION_2026-08-23.md).
 
 ## 2. Execution- og credentialplassering
 

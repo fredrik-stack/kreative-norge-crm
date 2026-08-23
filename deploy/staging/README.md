@@ -265,8 +265,10 @@ Ledgeren ligger i `/var/lib/kreative-norge-image-safety/ledger.sqlite3`. Konfigu
 
 Ikke kjør `init` mot den eksisterende generelle backup-repositoryen. Staging bruker et dedikert safety-subaccount/repository, separat recovery-custody og aktiv health-timer etter fullført capability-/transaction-recovery-/restartgate 2026-08-20. Se [safety-runbooken](../../docs/operations/PUBLIC_IMAGE_SAFETY_LEDGER.md) og [aktiveringsevidensen](../../docs/status/STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md). `ACTIVE` gjelder bare 3E.1A; public runtime forblir av.
 
-## 14. Fase 3E.1B-foundation – ikke aktiver i ordinær deploy
+## 14. Fase 3E.1B-foundation – deployet, ikke materialiseringsaktivert
 
-Repoet inneholder systemd socket/service, API-only runtime-/delivery-mounts og backupallowlist for 3E.1B. De er deployment foundation, ikke dokumentert live status. `PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED` skal forbli `False` ved ordinær deploy.
+Systemd socket/service, API-only runtime-/delivery-mounts og aktiv backupallowlist for 3E.1B er deployet og liveverifisert i staging fra 2026-08-23. `PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED` skal fortsatt forbli `False` ved ordinær deploy.
 
-En separat, godkjent staginggate må før senere aktivering minst verifisere: tom release-tabell før migrasjon `0029`; root-eid socket `0600`; faktisk `SO_PEERCRED` fra API-containeren; ingen socket/delivery/ledger/Borg i `web`; ingen ledger eller Borg-credential i API; 45/50/60-sekunders timeoutkjede; create/retry/no-clobber for tre syntetiske renditions; restart etter delvis materialisering; og at delivery-bytes inngår i en ny backup og isolert restore. Det skal fortsatt ikke legges til Nginx-route, media-alias eller offentlig HTTP-serving i denne gaten.
+Staginggaten har verifisert tom release-tabell før migrasjon `0029`; root-eid socket `0600`; faktisk `SO_PEERCRED` fra API-containeren; ingen socket/delivery/ledger/Borg i `web`; ingen ledger eller Borg-credential i API; 5/45/50/60-sekunders timeoutkjede; delivery-persistens gjennom API-recreate; og identiske delivery-bytes i ny backup og isolert restore. Se [datert evidens](../../docs/status/STAGING_PHASE_3E1B_FOUNDATION_2026-08-23.md).
+
+Før flagget kan endres til `True` gjenstår en egen activation-gate med create/retry/no-clobber for tre syntetiske renditions gjennom den faktiske release-workflowen og kontrollert restart etter delvis materialisering. Det skal fortsatt ikke legges til Nginx-route, media-alias eller offentlig HTTP-serving i denne gaten.
