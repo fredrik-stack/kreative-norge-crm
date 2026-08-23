@@ -4,6 +4,7 @@
 
 ### Fase 3E.1C kontrollert serving implementert bak separat gate
 
+- rettet pre-aktiveringsfunn der Compose `group_add` alene ikke overlevde Nginx-masterens privilegiedropp; web-imaget oppretter nå den faste GID-en og melder `nginx` eksplisitt inn i delivery-gruppen, med kontrakttest og krav om live worker-verifikasjon
 - lagt canonical `GET`/`HEAD /media/releases/<uuidv4>/<variant>.<ext>` gjennom Django med publiserings-, scope-, immutable mapping- og komplett tre-filers byteverifikasjon før intern Nginx `X-Accel-Redirect`
 - utvidet den eksisterende lokale safety-broen med eksakt read-only `authorize`, parallelle lesere og writer-preferred lifecycle-gate uten Django-ledgermount, anchor-repair eller Borg-tilgang
 - lagt read-only deliverymount i `web`, dedikert kollisjonssjekket hostgruppe/supplementary GID `2000`, setgid-/`0640`-kontrakt og en `internal` Nginx-location med symlinkforbud; private originaler, artifacts, safety-state og credentials forblir utenfor web
