@@ -115,7 +115,7 @@ Dette er ikke en generell redesign. Øvrige kort og komponenter videreutvikles i
 - fase 3B.2 har ikke opprettet CRM-modeller, migrasjoner, API/OpenAPI, Editor, PUBLIC, Import 2.0-integrasjon, bakgrunnskø eller stagingdeploy
 - fase 3E.1B har aktivert og verifisert reservation/binding/delivery/materialisering/read-back/activation med syntetisk no-clobber-, crash/restart- og retrybevis; 3E.1C-serving/origins er liveverifisert med HTTP-, fail-closed-, restart-, observability- og backup/restore-evidens, mens 3E.2–3E.4 gjenstår for projection-/API-/PUBLIC-/takedownkontrakten
 
-Processing profile v1, fase 3B.1R-kvalitetskontrakten, fase 3B.2-prinsippene og fase 3B.3 release-kontrakten er arkitekturgrunnlag. Fase 3B.3-A er release-domenegrunnmur, fase 3C.7 er intern processing/storage og fase 3D.1 er første interne API-/Editor-kobling uten public-kobling. Legacy public URL-/faviconflyt gjelder fortsatt. ADR-008-backupen og 3E.1A safety-ledger/off-server restore-gate er aktivert og restore-verifisert. 3E.1B-materialisering er aktivert og verifisert med serving av; alle senere 3E-gater må være grønne før reell offentlig bildebruk kan aktiveres.
+Processing profile v1, fase 3B.1R-kvalitetskontrakten, fase 3B.2-prinsippene og fase 3B.3 release-kontrakten er arkitekturgrunnlag. Fase 3B.3-A er release-domenegrunnmur, fase 3C.7 er intern processing/storage og fase 3D.1 er første interne API-/Editor-kobling uten public-kobling. Legacy public URL-/faviconflyt gjelder fortsatt. ADR-008-backupen, 3E.1A safety-ledger/off-server restore-gate, 3E.1B-materialisering og 3E.1C-controlled serving er aktivert og restore-verifisert. 3E.2–3E.4 må fortsatt være grønne før PUBLIC-bildebruk og formell takedown kan aktiveres.
 
 #### Fase 3B.3 – public release identity og key-kontrakt
 
@@ -205,7 +205,7 @@ Fase 3E følger denne rekkefølgen:
 5. **3E.3 – PUBLIC og cutover:** PUBLIC HTML, canonical, Open Graph, Twitter Card, statiske versjonerte fallbackvarianter og kontrollert tenant-/feature-cutover.
 6. **3E.4 – formell takedown:** deny-first release-/tenant-checksumguard, legacyguard, origin-blokkering/sletting, cache expiry/purge/verifikasjon, restorebevis og republisering med ny UUID/key.
 
-Host/systemd er valgt execution placement for off-serverankeret; ledger og writersecret finnes ikke i API/web. Konkret cache-TTL/`immutable` og endelig fallbackgrafikk/-alttekst avgjøres med evidens i riktig senere leveranse. Formell takedown er deaktivert frem til 3E.4 er bevist. Global checksum-deny innføres ikke uten senere konkret behov.
+Host/systemd er valgt execution placement for off-serverankeret; ledger og writersecret finnes ikke i API/web. 3E.1C har liveverifisert foreløpig `private, max-age=60, must-revalidate` uten `immutable` eller shared cache. Endelig purge-/verifikasjonskontrakt og fallbackgrafikk/-alttekst avgjøres med evidens i 3E.3–3E.4. Formell takedown er deaktivert frem til 3E.4 er bevist. Global checksum-deny innføres ikke uten senere konkret behov.
 
 ### Fase 3F – legacyovergang og driftsverifisering
 

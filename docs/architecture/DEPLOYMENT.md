@@ -51,7 +51,7 @@ Safety-ledgeren er bevisst utenfor Django, PostgreSQL, mediaområdene og begge c
 
 `docker-compose.staging.yml` har ingen safety-mount eller Borg-credential. Den generelle ADR-008-backupen brukes ikke som safety-anchor. Installer, units, dedikert subaccount/repository, capability-/transaction-recoverytest, restartpersistens og health-timer er `ACTIVE` i staging; raw filtilgang er dokumentert og akseptert restrisiko, ikke en absolutt WORM-garanti. Se [aktiveringsrapporten](../status/STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md) og [operativ runbook](../operations/PUBLIC_IMAGE_SAFETY_LEDGER.md).
 
-## Fase 3E.1B – materialisering ACTIVE i staging, serving av
+## Fase 3E.1B – materialisering ACTIVE; serving separat aktivert i 3E.1C
 
 Staging kjører en root-eid systemd `.socket`/`.service` for `/run/kreative-norge-image-safety/bridge.sock`. Bare runtime-directory mountes read-only i `api`; `web` får verken socket eller delivery-root, og ingen container får ledger, `/etc`-konfigurasjon eller Borg-credential. API har et eget read/write bindmount av `/srv/kreative-norge/media/public-delivery`. Den aktive generelle backupallowlisten inkluderer delivery-rooten eksplisitt.
 
