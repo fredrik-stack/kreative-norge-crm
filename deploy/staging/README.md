@@ -282,7 +282,7 @@ Ingen Nginx-route, media-alias, projection eller offentlig HTTP-serving er aktiv
 - safety health er `READY`, systemd-socketen er `root:root` `0600`, og API-peer passerer `SO_PEERCRED`
 - API har bare socket-runtime read-only og delivery read/write; web har bare delivery read-only med supplementary GID `2000` og ingen socket, artifacts, private filer, ledger, `/etc`-secret eller Borg; kontroller faktisk Nginx-worker under `/proc/<pid>/status` og krev at `Groups` inneholder `2000` etter privilegiedroppet
 - ekstern canonical media-URL gir `404` med serving av, og direkte `/_protected-public-image/...` kan ikke nås eksternt
-- Nginx-konfigurasjonen har Django-proxy for `/media/releases/`, `internal` delivery-location, `autoindex off`, `disable_symlinks on` og ingen shared `proxy_cache`
+- Nginx-konfigurasjonen har Django-proxy for `/media/releases/`, `internal` delivery-location, `etag off`, eksplisitt `ETag` fra `$upstream_http_etag`, `autoindex off`, `disable_symlinks on` og ingen shared `proxy_cache`; dette gjelder bare den interne filhandleren og bevarer Djangos checksum-ETag i stedet for Nginx-filmetadata
 
 Etter grønn preflight settes bare `PUBLIC_IMAGE_SERVING_ENABLED=True`, og API rekreeres. Bruk én publisert staging-Organization med aktiv komplett selection og kjør den støttede release-workflowen ved behov. Livegaten skal bevise:
 
