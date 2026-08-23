@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from concurrent.futures import Future, ThreadPoolExecutor, TimeoutError as FutureTimeout
+from contextlib import contextmanager
 import json
 import logging
 import os
@@ -9,6 +10,8 @@ import struct
 import threading
 from typing import Any, Callable, Mapping
 import uuid
+
+from .release_keys import REQUIRED_RELEASE_VARIANTS, canonical_release_id
 
 from .anchor import AnchorBackend, AnchorBackendError, anchor_current_head
 from .ledger import (
@@ -26,7 +29,7 @@ PROTOCOL_VERSION = 1
 MAX_FRAME_BYTES = 16 * 1024
 FRAME_TIMEOUT_SECONDS = 5.0
 OPERATION_TIMEOUT_SECONDS = 45.0
-SUPPORTED_OPERATIONS = frozenset({"reserve", "activate"})
+SUPPORTED_OPERATIONS = frozenset({"reserve", "activate", "authorize"})
 LOGGER = logging.getLogger("image_safety.bridge")
 
 
@@ -100,6 +103,50 @@ def _reservation_payload(value: object) -> dict[str, Any]:
     return payload
 
 
+def _authorization_payload(value: object) -> dict[str, Any]:
+    payload = _strict_object(
+        value,
+        {
+            "release_id",
+            "tenant_id",
+            "organization_id",
+            "variant",
+            "public_storage_key",
+            "artifact_checksum_sha256",
+        },
+        "Authorization payload",
+    )
+    try:
+        payload["release_id"] = canonical_release_id(payload["release_id"])
+    except (TypeError, ValueError) as error:
+        raise BridgeProtocolError(
+            "invalid_request", "release_id must be a canonical UUIDv4 string."
+        ) from error
+    for field in ("tenant_id", "organization_id"):
+        payload[field] = _positive_int(payload[field], field)
+    if payload["variant"] not in REQUIRED_RELEASE_VARIANTS:
+        raise BridgeProtocolError("invalid_request", "variant is unsupported.")
+    if (
+        not isinstance(payload["public_storage_key"], str)
+        or not payload["public_storage_key"]
+        or payload["public_storage_key"].startswith("/")
+        or ".." in payload["public_storage_key"].split("/")
+    ):
+        raise BridgeProtocolError(
+            "invalid_request", "public_storage_key is invalid."
+        )
+    checksum = payload["artifact_checksum_sha256"]
+    if (
+        not isinstance(checksum, str)
+        or len(checksum) != 64
+        or any(character not in "0123456789abcdef" for character in checksum)
+    ):
+        raise BridgeProtocolError(
+            "invalid_request", "artifact_checksum_sha256 is invalid."
+        )
+    return payload
+
+
 def _request(value: object) -> tuple[str, dict[str, Any]]:
     request = _strict_object(
         value, {"protocol_version", "operation", "payload"}, "Request"
@@ -117,10 +164,51 @@ def _request(value: object) -> tuple[str, dict[str, Any]]:
         raise BridgeProtocolError("unknown_operation", "Operation is not enabled.")
     if operation == "reserve":
         return operation, _reservation_payload(request["payload"])
+    if operation == "authorize":
+        return operation, _authorization_payload(request["payload"])
     payload = _strict_object(request["payload"], {"release_id"}, "Activation payload")
     if not isinstance(payload["release_id"], str):
         raise BridgeProtocolError("invalid_request", "release_id must be a UUID string.")
     return operation, payload
+
+
+class _WriterPreferredReadWriteGate:
+    def __init__(self) -> None:
+        self._condition = threading.Condition()
+        self._readers = 0
+        self._writer = False
+        self._waiting_writers = 0
+
+    @contextmanager
+    def read(self):
+        with self._condition:
+            while self._writer or self._waiting_writers:
+                self._condition.wait()
+            self._readers += 1
+        try:
+            yield
+        finally:
+            with self._condition:
+                self._readers -= 1
+                if self._readers == 0:
+                    self._condition.notify_all()
+
+    @contextmanager
+    def write(self):
+        with self._condition:
+            self._waiting_writers += 1
+            try:
+                while self._writer or self._readers:
+                    self._condition.wait()
+                self._writer = True
+            finally:
+                self._waiting_writers -= 1
+        try:
+            yield
+        finally:
+            with self._condition:
+                self._writer = False
+                self._condition.notify_all()
 
 
 class SafetyBridgeOperations:
@@ -134,7 +222,7 @@ class SafetyBridgeOperations:
         self.ledger = ledger
         self.anchor_backend = anchor_backend
         self.expected_repository_id = expected_repository_id
-        self._mutation_lock = threading.Lock()
+        self._lifecycle_gate = _WriterPreferredReadWriteGate()
 
     def _health(self):
         return self.ledger.health(
@@ -156,6 +244,16 @@ class SafetyBridgeOperations:
                 "Safety ledger is not ready.",
                 retryable=health.code in {"anchor_missing", "anchor_cursor_stale"},
             )
+
+    def _require_ready_read_only(self):
+        health = self._health()
+        if not health.ready or health.read_cursor is None:
+            raise BridgeProtocolError(
+                "safety_unavailable",
+                "Safety ledger is not ready.",
+                retryable=False,
+            )
+        return health
 
     def _confirm(self, event) -> dict[str, Any]:
         anchor = anchor_current_head(
@@ -182,8 +280,10 @@ class SafetyBridgeOperations:
             "archive_reused": anchor.reused_archive,
         }
 
-    def execute(self, operation: str, payload: Mapping[str, Any]) -> dict[str, Any]:
-        with self._mutation_lock:
+    def _execute_mutation(
+        self, operation: str, payload: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        with self._lifecycle_gate.write():
             self._require_ready()
             if operation == "reserve":
                 event = self.ledger.reserve_or_get(**payload)
@@ -223,7 +323,48 @@ class SafetyBridgeOperations:
                     },
                     "confirmation": confirmation,
                 }
-            raise AssertionError("unreachable operation")
+            raise AssertionError("unreachable mutation operation")
+
+    def _execute_authorize(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        with self._lifecycle_gate.read():
+            health = self._require_ready_read_only()
+            state = self.ledger.release_state(payload["release_id"])
+            category = "unknown"
+            authorized = False
+            if state is not None:
+                category = "not_active"
+                if state["state"] == "active":
+                    reservation = state["reservation"]
+                    rendition = reservation["variants"].get(payload["variant"])
+                    expected_scope = (
+                        reservation["tenant_id"] == payload["tenant_id"]
+                        and reservation["organization_id"]
+                        == payload["organization_id"]
+                        and rendition is not None
+                        and rendition["public_storage_key"]
+                        == payload["public_storage_key"]
+                        and rendition["artifact_checksum_sha256"]
+                        == payload["artifact_checksum_sha256"]
+                    )
+                    authorized = bool(expected_scope)
+                    category = "authorized" if authorized else "scope_mismatch"
+            return {
+                "protocol_version": PROTOCOL_VERSION,
+                "operation": "authorize",
+                "result": "success",
+                "authorization": {
+                    "authorized": authorized,
+                    "category": category,
+                    "release_id": payload["release_id"],
+                    "variant": payload["variant"],
+                    "read_cursor": health.read_cursor,
+                },
+            }
+
+    def execute(self, operation: str, payload: Mapping[str, Any]) -> dict[str, Any]:
+        if operation == "authorize":
+            return self._execute_authorize(payload)
+        return self._execute_mutation(operation, payload)
 
 
 def _error_response(
@@ -366,8 +507,17 @@ class SafetyBridgeServer:
         self.expected_uid = expected_uid
         self.expected_gid = expected_gid
         self.peer_validator = peer_validator
-        self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="safety-bridge")
+        self.mutation_executor = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="safety-bridge-mutation"
+        )
+        self.authorization_executor = ThreadPoolExecutor(
+            max_workers=8, thread_name_prefix="safety-bridge-authorize"
+        )
+        self.connection_executor = ThreadPoolExecutor(
+            max_workers=16, thread_name_prefix="safety-bridge-connection"
+        )
         self.pending: Future | None = None
+        self.pending_lock = threading.Lock()
 
     def _validate_peer(self, connection: socket.socket) -> None:
         if self.peer_validator is not None:
@@ -383,30 +533,54 @@ class SafetyBridgeServer:
             self._validate_peer(connection)
             request = receive_frame(connection)
             operation = request.get("operation") if isinstance(request, dict) else None
-            if self.pending is not None and not self.pending.done():
-                response = _error_response(
-                    operation,
-                    BridgeProtocolError(
-                        "safety_unavailable",
-                        "A previous safety operation is still completing.",
-                        retryable=True,
-                    ),
-                    str(uuid.uuid4()),
+            if operation == "authorize":
+                future = self.authorization_executor.submit(
+                    handle_request, request, self.operations
                 )
-            else:
-                self.pending = self.executor.submit(handle_request, request, self.operations)
                 try:
-                    response = self.pending.result(timeout=OPERATION_TIMEOUT_SECONDS)
+                    response = future.result(timeout=OPERATION_TIMEOUT_SECONDS)
                 except FutureTimeout:
                     response = _error_response(
                         operation,
                         BridgeProtocolError(
                             "timeout",
-                            "Safety operation outcome is unknown; retry the same request.",
+                            "Safety authorization timed out.",
                             retryable=True,
                         ),
                         str(uuid.uuid4()),
                     )
+            else:
+                with self.pending_lock:
+                    if self.pending is not None and not self.pending.done():
+                        future = None
+                    else:
+                        self.pending = self.mutation_executor.submit(
+                            handle_request, request, self.operations
+                        )
+                        future = self.pending
+                if future is None:
+                    response = _error_response(
+                        operation,
+                        BridgeProtocolError(
+                            "safety_unavailable",
+                            "A previous safety mutation is still completing.",
+                            retryable=True,
+                        ),
+                        str(uuid.uuid4()),
+                    )
+                else:
+                    try:
+                        response = future.result(timeout=OPERATION_TIMEOUT_SECONDS)
+                    except FutureTimeout:
+                        response = _error_response(
+                            operation,
+                            BridgeProtocolError(
+                                "timeout",
+                                "Safety operation outcome is unknown; retry the same request.",
+                                retryable=True,
+                            ),
+                            str(uuid.uuid4()),
+                        )
             connection.sendall(encode_frame(response))
         except UnauthorizedPeerError:
             LOGGER.warning("unauthorized_peer")
@@ -424,7 +598,7 @@ class SafetyBridgeServer:
     def serve_forever(self) -> None:
         while True:
             connection, _ = self.listener.accept()
-            self.serve_connection(connection)
+            self.connection_executor.submit(self.serve_connection, connection)
 
 
 def systemd_listener() -> socket.socket:

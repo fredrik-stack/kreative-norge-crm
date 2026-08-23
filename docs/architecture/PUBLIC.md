@@ -117,7 +117,7 @@ Direkte `Person.phone` brukes fortsatt aldri som PUBLIC-fallback. Offentlig tele
 
 Dagens løsning velger mellom manuell thumbnail, automatisk thumbnail og Open Graph-bilde. Eksterne bilde-URL-er kan forsvinne, endres, blokkere hotlinking eller ha feil format.
 
-[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som målarkitektur, og fase 3B–3D har implementert intern bilde-/selection-/rendition-/release-domenegrunnmur. [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) har godkjent public runtimearkitekturen. 3E.1A-journalen/off-serverankeret og 3E.1B-materialisering er `ACTIVE` i staging, men releasefilene har ingen public URL eller serving-route. Projection, API/PUBLIC-cutover og takedown er ikke implementert, og dagens eksterne URL- og fallbackflyt gjelder fortsatt.
+[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som målarkitektur, og fase 3B–3D har implementert intern bilde-/selection-/rendition-/release-domenegrunnmur. [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) har godkjent public runtimearkitekturen. 3E.1A-journalen/off-serverankeret og 3E.1B-materialisering er `ACTIVE` i staging. 3E.1C har implementert en canonical media-route, kontrollert Django-gate, intern Nginx-serving og eksplisitte origins bak `PUBLIC_IMAGE_SERVING_ENABLED=False`, men livegaten er ikke gjennomført. Projection, API/PUBLIC-cutover og takedown er ikke implementert, og dagens eksterne URL- og fallbackflyt gjelder fortsatt.
 
 Godkjent retning:
 
@@ -147,7 +147,7 @@ Godkjente kortmål beholder 90 × 90 i PUBLIC-oversikten og bruker 160 × 160 p�
 
 PUBLIC-detaljen skal få absolutt canonical, Open Graph og Twitter Card. Canonical app-origin og public media-origin skal være miljøkonfigurerte og allowlistede, ikke avledet fra vilkårlig request-host. `og:image` bruker CRM-kontrollert share-rendition eller fallback på 1200 × 630. Korrekt metadata kan leveres, men det kan ikke loves at alle meldingsklienter viser preview.
 
-Cache-TTL og eventuell `immutable`-header fastsettes først etter serving-/purgeevidens i fase 3E.1C og 3E.4. Formell takedown forblir deaktivert til release-deny, tenant-scopet checksum-deny, legacyguard, felles projection/gateway-state, originblokkering, cache expiry/purge/verifikasjon, gammel restore og republisering med ny UUID/key er bevist. Global checksum-deny er ikke del av godkjent MVP.
+Fase 3E.1C velger foreløpig `private, max-age=60, must-revalidate`, checksum-`ETag`, `no-store` på 404/503 og ingen shared proxycache eller `immutable`. Dette begrenser klientens stale-vindu uten å påstå at formell purge/takedown er levert. Endelig purge-/verifikasjonskontrakt fastsettes i fase 3E.4. Formell takedown forblir deaktivert til release-deny, tenant-scopet checksum-deny, legacyguard, felles projection/gateway-state, originblokkering, cache expiry/purge/verifikasjon, gammel restore og republisering med ny UUID/key er bevist. Global checksum-deny er ikke del av godkjent MVP.
 
 ## Videre integrasjon
 

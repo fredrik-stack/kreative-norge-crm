@@ -83,6 +83,30 @@ def reserve_request(checksum="a" * 64):
     }
 
 
+def authorize_request(
+    release_id,
+    *,
+    tenant_id=1,
+    organization_id=2,
+    variant="square",
+    public_storage_key=None,
+    checksum="a" * 64,
+):
+    return {
+        "protocol_version": 1,
+        "operation": "authorize",
+        "payload": {
+            "release_id": release_id,
+            "tenant_id": tenant_id,
+            "organization_id": organization_id,
+            "variant": variant,
+            "public_storage_key": public_storage_key
+            or f"releases/{release_id}/{variant}.webp",
+            "artifact_checksum_sha256": checksum,
+        },
+    }
+
+
 class BridgeFixture(unittest.TestCase):
     def setUp(self):
         self.temporary_directory = tempfile.TemporaryDirectory()
@@ -150,6 +174,20 @@ class AtomicReservationTests(BridgeFixture):
 
 
 class BridgeOperationTests(BridgeFixture):
+    def _active_release(self):
+        reserved = handle_request(reserve_request(), self.operations)
+        release_id = reserved["reservation"]["release_id"]
+        activated = handle_request(
+            {
+                "protocol_version": 1,
+                "operation": "activate",
+                "payload": {"release_id": release_id},
+            },
+            self.operations,
+        )
+        self.assertEqual(activated["result"], "success")
+        return release_id
+
     def test_reserve_new_retry_and_activation_new_retry_are_confirmed(self):
         first = handle_request(reserve_request(), self.operations)
         second = handle_request(reserve_request(), self.operations)
@@ -247,6 +285,19 @@ class BridgeOperationTests(BridgeFixture):
             ({**reserve_request(), "payload": duplicate}, "invalid_request"),
             ({**reserve_request(), "payload": invalid_checksum}, "invalid_request"),
             ({**reserve_request(), "payload": traversal}, "invalid_request"),
+            (
+                authorize_request(str(uuid.uuid4()))
+                | {"payload": {"release_id": str(uuid.uuid4())}},
+                "invalid_request",
+            ),
+            (
+                authorize_request(str(uuid.uuid4()), variant="portrait"),
+                "invalid_request",
+            ),
+            (
+                authorize_request(str(uuid.uuid4()), checksum="not-a-checksum"),
+                "invalid_request",
+            ),
         )
         for request, code in cases:
             with self.subTest(code=code):
@@ -254,6 +305,137 @@ class BridgeOperationTests(BridgeFixture):
                 self.assertEqual(response["result"], "error")
                 self.assertEqual(response["code"], code)
                 self.assertIn("correlation_id", response)
+
+    def test_authorize_requires_active_exact_scope_and_is_read_only(self):
+        reserved = handle_request(reserve_request(), self.operations)
+        release_id = reserved["reservation"]["release_id"]
+        before_head = self.ledger.head()
+        before_archives = dict(self.anchor.archives)
+
+        inactive = handle_request(authorize_request(release_id), self.operations)
+        unknown = handle_request(authorize_request(str(uuid.uuid4())), self.operations)
+        handle_request(
+            {
+                "protocol_version": 1,
+                "operation": "activate",
+                "payload": {"release_id": release_id},
+            },
+            self.operations,
+        )
+        active_head = self.ledger.head()
+        active_archives = dict(self.anchor.archives)
+        exact = handle_request(authorize_request(release_id), self.operations)
+        mismatches = (
+            authorize_request(release_id, tenant_id=99),
+            authorize_request(release_id, organization_id=99),
+            authorize_request(release_id, variant="landscape", public_storage_key="releases/%s/square.webp" % release_id),
+            authorize_request(release_id, checksum="b" * 64),
+        )
+
+        self.assertFalse(inactive["authorization"]["authorized"])
+        self.assertEqual(inactive["authorization"]["category"], "not_active")
+        self.assertFalse(unknown["authorization"]["authorized"])
+        self.assertEqual(unknown["authorization"]["category"], "unknown")
+        self.assertEqual(self.ledger.head(), active_head)
+        self.assertEqual(self.anchor.archives, active_archives)
+        self.assertTrue(exact["authorization"]["authorized"])
+        self.assertEqual(exact["authorization"]["category"], "authorized")
+        for request in mismatches:
+            response = handle_request(request, self.operations)
+            self.assertFalse(response["authorization"]["authorized"])
+            self.assertEqual(response["authorization"]["category"], "scope_mismatch")
+        self.assertEqual(self.ledger.head(), active_head)
+        self.assertEqual(self.anchor.archives, active_archives)
+        self.assertLess(before_head.sequence, active_head.sequence)
+        self.assertNotEqual(before_archives, active_archives)
+
+    def test_authorize_never_repairs_anchor_or_calls_anchor_backend(self):
+        release_id = self._active_release()
+        stale_payload = reservation_payload()
+        self.ledger.reserve_or_get(
+            tenant_id=1,
+            organization_id=2,
+            selection_id=99,
+            selection_revision=1,
+            rendition_set_id=5,
+            renditions=tuple(
+                ReservationRendition(**item) for item in stale_payload["renditions"]
+            ),
+        )
+        self.assertEqual(
+            self.ledger.health(expected_repository_id=REPOSITORY_ID).code,
+            "anchor_cursor_stale",
+        )
+
+        with patch("image_safety.bridge.anchor_current_head") as anchor:
+            response = handle_request(authorize_request(release_id), self.operations)
+
+        self.assertEqual(response["result"], "error")
+        self.assertEqual(response["code"], "safety_unavailable")
+        anchor.assert_not_called()
+
+    def test_parallel_authorizations_overlap(self):
+        release_id = self._active_release()
+        original = self.ledger.release_state
+        overlap = threading.Barrier(2)
+
+        def synchronized_release_state(value):
+            overlap.wait(timeout=5)
+            return original(value)
+
+        with patch.object(
+            self.ledger, "release_state", side_effect=synchronized_release_state
+        ):
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                responses = list(
+                    executor.map(
+                        lambda _: handle_request(
+                            authorize_request(release_id), self.operations
+                        ),
+                        range(2),
+                    )
+                )
+
+        self.assertTrue(all(item["authorization"]["authorized"] for item in responses))
+
+    def test_waiting_terminal_writer_precedes_new_authorization(self):
+        release_id = self._active_release()
+        writer_waiting = threading.Event()
+        order = []
+
+        def terminal_write():
+            writer_waiting.set()
+            with self.operations._lifecycle_gate.write():
+                self.ledger.deny_release(
+                    event_id="test-writer-preference-deny",
+                    release_id=release_id,
+                    reason_code="security_deny",
+                )
+                anchor_current_head(
+                    self.ledger,
+                    self.anchor,
+                    expected_repository_id=REPOSITORY_ID,
+                )
+                order.append("writer")
+
+        def authorize():
+            response = handle_request(authorize_request(release_id), self.operations)
+            order.append("reader")
+            return response
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            with self.operations._lifecycle_gate.read():
+                writer = executor.submit(terminal_write)
+                writer_waiting.wait(timeout=2)
+                time.sleep(0.02)
+                reader = executor.submit(authorize)
+                time.sleep(0.02)
+            writer.result(timeout=5)
+            response = reader.result(timeout=5)
+
+        self.assertEqual(order, ["writer", "reader"])
+        self.assertFalse(response["authorization"]["authorized"])
+        self.assertEqual(response["authorization"]["category"], "not_active")
 
 
 class BridgeFramingTests(BridgeFixture):

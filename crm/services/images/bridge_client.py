@@ -63,6 +63,15 @@ class BridgeActivation:
     anchor_cursor: int
 
 
+@dataclass(frozen=True)
+class BridgeAuthorization:
+    authorized: bool
+    category: str
+    release_id: str
+    variant: str
+    read_cursor: int
+
+
 def _encode_frame(value: Mapping[str, object]) -> bytes:
     body = json.dumps(
         value, ensure_ascii=True, allow_nan=False, separators=(",", ":"), sort_keys=True
@@ -400,4 +409,73 @@ class ImageSafetyBridgeClient:
             release_id=canonical_id,
             disposition=response["disposition"],
             anchor_cursor=self._confirmation(response, sequence),
+        )
+
+    def authorize(
+        self,
+        *,
+        release_id: str,
+        tenant_id: int,
+        organization_id: int,
+        variant: str,
+        public_storage_key: str,
+        artifact_checksum_sha256: str,
+    ) -> BridgeAuthorization:
+        requested_release_id = _canonical_uuid(release_id, "Requested release ID")
+        response = self._request(
+            "authorize",
+            {
+                "release_id": requested_release_id,
+                "tenant_id": tenant_id,
+                "organization_id": organization_id,
+                "variant": variant,
+                "public_storage_key": public_storage_key,
+                "artifact_checksum_sha256": artifact_checksum_sha256,
+            },
+        )
+        response = _require_object(
+            response,
+            {"protocol_version", "operation", "result", "authorization"},
+            "Authorization response",
+        )
+        authorization = _require_object(
+            response["authorization"],
+            {
+                "authorized",
+                "category",
+                "release_id",
+                "variant",
+                "read_cursor",
+            },
+            "Authorization",
+        )
+        canonical_id = _canonical_uuid(
+            authorization["release_id"], "Authorization release ID"
+        )
+        cursor = authorization["read_cursor"]
+        if (
+            not isinstance(authorization["authorized"], bool)
+            or authorization["category"]
+            not in {"authorized", "unknown", "not_active", "scope_mismatch"}
+            or canonical_id != requested_release_id
+            or authorization["variant"] != variant
+            or isinstance(cursor, bool)
+            or not isinstance(cursor, int)
+            or cursor < 0
+            or (authorization["authorized"] is True
+                and authorization["category"] != "authorized")
+            or (authorization["authorized"] is False
+                and authorization["category"] == "authorized")
+        ):
+            raise ImageSafetyBridgeUnavailable(
+                "safety_unavailable",
+                "Safety authorization response is malformed.",
+                retryable=True,
+            )
+        return BridgeAuthorization(
+            authorized=authorization["authorized"],
+            category=authorization["category"],
+            release_id=canonical_id,
+            variant=variant,
+            read_cursor=cursor,
         )

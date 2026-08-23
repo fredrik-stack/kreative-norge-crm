@@ -274,3 +274,22 @@ Staginggaten har verifisert tom release-tabell før migrasjon `0029`; root-eid s
 Den separate aktiveringsgaten har i tillegg bevist faktisk reserve → DB-binding → create-only/read-back → activate, ephemeral hard no-clobber-konflikt, recovery etter kontrollert krasj med én fil og API-restart samt full idempotent retry. Én permanent syntetisk release for en upublisert stagingaktør beholdes som evidens. Se [aktiveringsrapporten](../../docs/status/STAGING_PHASE_3E1B_MATERIALIZATION_ACTIVATION_2026-08-23.md).
 
 Ingen Nginx-route, media-alias, projection eller offentlig HTTP-serving er aktivert. Ikke kopier eksempelverdien over den aktive stagingkonfigurasjonen ved ordinær deploy; flaggendring eller rollback er en eksplisitt operatørhandling, og permanente reservations-/activationevents eller releasefiler slettes aldri som rollback.
+
+## 15. Fase 3E.1C – separat kontrollert servinggate
+
+3E.1C deployes først fra eksakt grønn mergecommit med `PUBLIC_IMAGE_SERVING_ENABLED=False`. Sett samtidig faktiske, eksplisitte HTTPS-verdier for `PUBLIC_SITE_ORIGIN` og `PUBLIC_MEDIA_ORIGIN`; hosten må finnes som eksakt ikke-wildcardverdi i `DJANGO_ALLOWED_HOSTS`. Kjør `ops/staging/prepare-image-storage.sh` for å etablere den kollisjonssjekkede delivery-gruppen med GID `2000`, setgid-directories og `0640`-filer. Installer deretter oppdatert hostkode med `ops/image_safety/install.sh prepare`, restart bridge-service/socket kontrollert, og rebuild/recreate `api` og `web` slik at supplementary group, read-only deliverymount og Nginx-konfigurasjon faktisk er ny. Verifiser før aktivering:
+
+- safety health er `READY`, systemd-socketen er `root:root` `0600`, og API-peer passerer `SO_PEERCRED`
+- API har bare socket-runtime read-only og delivery read/write; web har bare delivery read-only med supplementary GID `2000` og ingen socket, artifacts, private filer, ledger, `/etc`-secret eller Borg
+- ekstern canonical media-URL gir `404` med serving av, og direkte `/_protected-public-image/...` kan ikke nås eksternt
+- Nginx-konfigurasjonen har Django-proxy for `/media/releases/`, `internal` delivery-location, `autoindex off`, `disable_symlinks on` og ingen shared `proxy_cache`
+
+Etter grønn preflight settes bare `PUBLIC_IMAGE_SERVING_ENABLED=True`, og API rekreeres. Bruk én publisert staging-Organization med aktiv komplett selection og kjør den støttede release-workflowen ved behov. Livegaten skal bevise:
+
+- canonical `GET` og `HEAD` for alle tre varianter med korrekt type, lengde, checksum-`ETag`, `private, max-age=60, must-revalidate`, validert `If-None-Match` → `304` og identiske bytes som delivery-filen
+- ukjent/malformed release, variant-/extension-/scopefeil, upublisert Organization og negativ safety-state gir `404` uten bytes og med `no-store`
+- stoppet/utilgjengelig bridge og manglende/korrupt fil gir `503` uten bytes og med `no-store`; bridge restart gjenoppretter serving
+- vilkårlig `Host`/`X-Forwarded-Host` endrer ikke canonical URL-bygging, intern location er fortsatt utilgjengelig, og logger viser bare strukturert utfall/release-ID/variant/status/cursor/tid uten filesystempath eller secrets
+- API-, web- og bridge-restart bevarer resultatet, og PUBLIC HTML/API/legacyaliaser er uendret
+
+Ved hvilket som helst gateavvik: sett `PUBLIC_IMAGE_SERVING_ENABLED=False`, rekreer API, bekreft `404` på media-ruten og behold ledger-, DB- og delivery-state urørt. Ikke aktiver 3E.2, projection, API/PUBLIC eller takedown som del av denne gaten.

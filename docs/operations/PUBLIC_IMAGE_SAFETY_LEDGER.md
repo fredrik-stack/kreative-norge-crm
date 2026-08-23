@@ -1,10 +1,10 @@
 # Public image safety ledger og restore-gate
 
-**Status:** 3E.1A safety-ledger, dedikert off-server anchor og restore-gate er `ACTIVE` i staging fra 2026-08-20. 3E.1B-bro, socket, delivery og release-materialisering er `ACTIVE` i staging fra 2026-08-23; public serving er fortsatt av.
+**Status:** 3E.1A safety-ledger, dedikert off-server anchor og restore-gate er `ACTIVE` i staging fra 2026-08-20. 3E.1B-bro, socket, delivery og release-materialisering er `ACTIVE` i staging fra 2026-08-23. 3E.1C-koden utvider broen med read-only `authorize`, men public serving er av til separat staginggate.
 
 **Arkitektur:** [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md)
 
-Denne runbooken dokumenterer den aktive 3E.1A-runtimeen og 3E.1B-broen. Kommandoene aktiverer ikke i seg selv materialisering, serving, projection, API/PUBLIC-cutover eller formell takedown; faktisk stagingstatus følger de daterte evidensrapportene.
+Denne runbooken dokumenterer den aktive 3E.1A-runtimeen, 3E.1B-broen og 3E.1Cs read-only autorisasjonskontrakt. Kommandoene aktiverer ikke i seg selv materialisering, serving, projection, API/PUBLIC-cutover eller formell takedown; faktisk stagingstatus følger de daterte evidensrapportene.
 
 Faktisk 3E.1A-aktiveringsevidens, inkludert repository-separasjon, raw-`rm`-restrisiko, separat transaction recovery av probe og DENIED-head, restartpersistens og containerisolasjon, finnes i [stagingrapporten 2026-08-20](../status/STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md). Bridge-, peer-, mount- og delivery-backup-/restoreevidensen finnes i [3E.1B-foundationrapporten](../status/STAGING_PHASE_3E1B_FOUNDATION_2026-08-23.md), mens faktisk reserve/materialize/activate- og crash/retry-evidens finnes i [3E.1B-aktiveringsrapporten](../status/STAGING_PHASE_3E1B_MATERIALIZATION_ACTIVATION_2026-08-23.md).
 
@@ -27,7 +27,9 @@ Faktisk 3E.1A-aktiveringsevidens, inkludert repository-separasjon, raw-`rm`-rest
 
 Reservation-input binder immutable heltalls-snapshots av tenant, Organization, selection, selection-revisjon og rendition-sett samt artifact key og SHA-256 for alle tre varianter. Caller leverer aldri public key; `image_safety.release_keys.build_public_release_key()` bygger eksakt `releases/<uuid>/<variant>.<ext>`. 3E.1B-workflowen lar bridge-reservasjonen eie UUID/keys og binder dem deretter til PostgreSQL uten å holde DB-lås under Borg-I/O.
 
-Bridge-foundationen bruker systemd socket activation på `/run/kreative-norge-image-safety/bridge.sock`, ett lengde-prefikset JSON request/response-par per forbindelse og bare operasjonene `reserve` og `activate`. I staging er socketen verifisert `root:root` `0600`; API får bare read-only bindmount av runtime-directory, mens ledger, `/etc`-konfigurasjon og Borg-credentials forblir host-only. Et kontrollert kall fra API fikk domenerespons etter `SO_PEERCRED`-gaten og beviste dermed den faktiske Docker/Linux-root-peeren. Dette aktiverte ingen releaseoperasjon eller materialisering. Se [3E.1B-stagingrapporten](../status/STAGING_PHASE_3E1B_FOUNDATION_2026-08-23.md).
+Bridge-foundationen bruker systemd socket activation på `/run/kreative-norge-image-safety/bridge.sock` og ett lengde-prefikset JSON request/response-par per forbindelse. Mutation-operasjonene `reserve` og `activate` er serialisert. 3E.1C legger til `authorize`, som bare leser verifisert health og eksakt release-state for callerens release-, tenant-, Organization-, variant-, key- og checksum-scope. Kallet kan ikke reparere state, skrive ledger/receipt, ankre, kjøre Borg eller hente generell ledgerhistorikk. Parallelle authorize-kall tillates, men en ventende lifecycle-writer sperrer nye lesere slik at terminal state vinner. Retire/deny er fortsatt ikke eksponert gjennom broen.
+
+I staging er socketen verifisert `root:root` `0600`; API får bare read-only bindmount av runtime-directory, mens ledger, `/etc`-konfigurasjon og Borg-credentials forblir host-only. Et kontrollert kall fra API fikk domenerespons etter `SO_PEERCRED`-gaten og beviste dermed den faktiske Docker/Linux-root-peeren. Dette aktiverte ingen releaseoperasjon eller materialisering. Se [3E.1B-stagingrapporten](../status/STAGING_PHASE_3E1B_FOUNDATION_2026-08-23.md).
 
 ## 2. Execution- og credentialplassering
 
@@ -285,6 +287,6 @@ Full katastrofe-RTO er fortsatt uavklart frem til liveøvelsen er målt.
 
 ## 10. Rollback og avgrensning
 
-Rollback av 3E.1A deaktiverer bare safety-runtimekoblingen og eventuelt health-timeren; den sletter aldri ledger, receipts eller off-server archives. Rollback av 3E.1B betyr at materialiseringsflagget settes til `False` slik at nye release-workflows stoppes. Eksisterende reservations-/activationevents, databaseaggregater og delivery-filer slettes aldri som rollback. Etter første reelle reservation er schemaendringer fremoverrettede.
+Rollback av 3E.1A deaktiverer bare safety-runtimekoblingen og eventuelt health-timeren; den sletter aldri ledger, receipts eller off-server archives. Rollback av 3E.1B betyr at materialiseringsflagget settes til `False` slik at nye release-workflows stoppes. Rollback av 3E.1C setter bare `PUBLIC_IMAGE_SERVING_ENABLED=False` og rekreerer API/web; den sletter eller omskriver ingen ledger-, DB- eller delivery-state. Eksisterende reservations-/activationevents, databaseaggregater og delivery-filer slettes aldri som rollback. Etter første reelle reservation er schemaendringer fremoverrettede.
 
 Den historiske 3E.1A-leveransen opprettet ingen delivery-root eller mediafiler. 3E.1B har senere opprettet den separate delivery-rooten og materialisert én permanent syntetisk release med tre filer i staging. Ingen av leveransene har lagt til nginx-/Caddy-serving, public serializer/HTML/head/fallback/cache, checksum-deny, Redis, ekstern database, kø, sidecar, S3 eller CDN.
