@@ -16,6 +16,8 @@ from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
 
+from .public_origins import InvalidPublicOrigin, normalize_public_origin
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -88,9 +90,17 @@ PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED = _read_fail_closed_bool(
     "PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED",
     default=False,
 )
+PUBLIC_IMAGE_SERVING_ENABLED = _read_fail_closed_bool(
+    "PUBLIC_IMAGE_SERVING_ENABLED",
+    default=False,
+)
 if PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED and not IMAGE_ASSET_FEATURE_ENABLED:
     raise ImproperlyConfigured(
         "PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED requires IMAGE_ASSET_FEATURE_ENABLED"
+    )
+if PUBLIC_IMAGE_SERVING_ENABLED and not PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED:
+    raise ImproperlyConfigured(
+        "PUBLIC_IMAGE_SERVING_ENABLED requires PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED"
     )
 BRAVE_IMAGE_SEARCH_API_KEY = os.getenv("BRAVE_IMAGE_SEARCH_API_KEY", "").strip()
 
@@ -111,11 +121,35 @@ if not DEBUG:
     # If you are behind a reverse proxy (nginx/traefik)
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-ALLOWED_HOSTS = (
-    [host.strip() for host in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",") if host.strip()]
-    if not DEBUG
-    else ["*"]
-)
+_configured_allowed_hosts = [
+    host.strip()
+    for host in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",")
+    if host.strip()
+]
+ALLOWED_HOSTS = _configured_allowed_hosts or (["*"] if DEBUG else [])
+
+
+def _public_origin(name: str) -> str | None:
+    raw_value = os.getenv(name)
+    if raw_value is None or raw_value == "":
+        if PUBLIC_IMAGE_SERVING_ENABLED:
+            raise ImproperlyConfigured(
+                f"{name} must be set when PUBLIC_IMAGE_SERVING_ENABLED is enabled"
+            )
+        return None
+    try:
+        return normalize_public_origin(
+            raw_value,
+            setting_name=name,
+            allowed_hosts=ALLOWED_HOSTS,
+            debug=DEBUG,
+        )
+    except InvalidPublicOrigin as error:
+        raise ImproperlyConfigured(str(error)) from error
+
+
+PUBLIC_SITE_ORIGIN = _public_origin("PUBLIC_SITE_ORIGIN")
+PUBLIC_MEDIA_ORIGIN = _public_origin("PUBLIC_MEDIA_ORIGIN")
 
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()

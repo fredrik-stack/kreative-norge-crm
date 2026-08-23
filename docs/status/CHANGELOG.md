@@ -2,6 +2,15 @@
 
 ## 2026-08-23
 
+### Fase 3E.1C kontrollert serving implementert bak separat gate
+
+- lagt canonical `GET`/`HEAD /media/releases/<uuidv4>/<variant>.<ext>` gjennom Django med publiserings-, scope-, immutable mapping- og komplett tre-filers byteverifikasjon før intern Nginx `X-Accel-Redirect`
+- utvidet den eksisterende lokale safety-broen med eksakt read-only `authorize`, parallelle lesere og writer-preferred lifecycle-gate uten Django-ledgermount, anchor-repair eller Borg-tilgang
+- lagt read-only deliverymount i `web`, dedikert kollisjonssjekket hostgruppe/supplementary GID `2000`, setgid-/`0640`-kontrakt og en `internal` Nginx-location med symlinkforbud; private originaler, artifacts, safety-state og credentials forblir utenfor web
+- lagt `PUBLIC_IMAGE_SERVING_ENABLED=False` som egen kode-/eksempelstandard og eksplisitte HTTPS-origins bundet til eksakte `DJANGO_ALLOWED_HOSTS`, uavhengig av requestens `Host`-/proxyheadere
+- valgt foreløpig `private, max-age=60, must-revalidate`, checksum-`ETag`, `no-store` på 404/503 og ingen shared proxycache/`immutable`; projection, API/PUBLIC, legacy-cutover, takedown og 3E.2–3E.4 er ikke aktivert
+- stagingaktivering og liveevidens gjennomføres separat etter merge; ved feil er rollback bare servingflagget av og API/web-recreate
+
 ### Fase 3E.1B-materialisering aktivert og verifisert med public serving av
 
 - fast-forwardet staging rent til `main` på merge `ee42c82`, verifisert grønn main-CI-run `32646334974`, 25 målrettede lokale tester og fersk pre-activation-backup med isolert restore

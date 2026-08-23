@@ -19,6 +19,7 @@ class StagingImageRuntimeContractTests(unittest.TestCase):
         )
         api_volumes = set(compose["services"]["api"]["volumes"])
         web_volumes = compose["services"]["web"]["volumes"]
+        self.assertEqual(compose["services"]["web"]["group_add"], ["2000"])
 
         self.assertIn(
             "/srv/kreative-norge/media/private:/srv/kreative-norge/media/private",
@@ -38,15 +39,34 @@ class StagingImageRuntimeContractTests(unittest.TestCase):
             "/run/kreative-norge-image-safety:ro",
             api_volumes,
         )
-        self.assertEqual(web_volumes, ["django_static:/var/www/django-static:ro"])
+        self.assertEqual(
+            set(web_volumes),
+            {
+                "django_static:/var/www/django-static:ro",
+                "/srv/kreative-norge/media/public-delivery:"
+                "/var/www/public-delivery:ro",
+            },
+        )
         self.assertFalse(
             any("/srv/kreative-norge/media/private" in volume for volume in web_volumes)
         )
         self.assertFalse(
-            any("/srv/kreative-norge/media/public" in volume for volume in web_volumes)
+            any(
+                volume.startswith(
+                    "/srv/kreative-norge/media/public:/srv/kreative-norge/media/public"
+                )
+                for volume in web_volumes
+            )
         )
         self.assertFalse(any("image-safety" in volume for volume in web_volumes))
-        self.assertFalse(any("public-delivery" in volume for volume in web_volumes))
+        self.assertEqual(
+            sum("public-delivery" in volume for volume in web_volumes), 1
+        )
+        self.assertTrue(
+            next(volume for volume in web_volumes if "public-delivery" in volume).endswith(
+                ":ro"
+            )
+        )
         for volumes in (api_volumes, set(web_volumes)):
             self.assertFalse(any("/var/lib/kreative-norge-image-safety" in item for item in volumes))
             self.assertFalse(any("/etc/kreative-norge-image-safety" in item for item in volumes))
@@ -69,6 +89,9 @@ class StagingImageRuntimeContractTests(unittest.TestCase):
             environment,
         )
         self.assertIn("PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED=False", environment)
+        self.assertIn("PUBLIC_IMAGE_SERVING_ENABLED=False", environment)
+        self.assertIn("PUBLIC_SITE_ORIGIN=https://staging.example.no", environment)
+        self.assertIn("PUBLIC_MEDIA_ORIGIN=https://staging.example.no", environment)
         self.assertIn(
             "PUBLIC_IMAGE_SAFETY_BRIDGE_SOCKET="
             "/run/kreative-norge-image-safety/bridge.sock",
@@ -88,6 +111,23 @@ class StagingImageRuntimeContractTests(unittest.TestCase):
             "Staging ingress must allow a 15 MiB file plus multipart overhead.",
         )
 
+    def test_nginx_routes_media_through_django_and_keeps_delivery_internal(self):
+        nginx_config = (REPOSITORY_ROOT / "deploy/staging/nginx.conf").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertRegex(
+            nginx_config,
+            r"location \^~ /media/releases/ \{\s+proxy_pass http://api:8000;",
+        )
+        self.assertRegex(
+            nginx_config,
+            r"location \^~ /_protected-public-image/ \{\s+internal;\s+"
+            r"alias /var/www/public-delivery/;\s+autoindex off;\s+"
+            r"disable_symlinks on;",
+        )
+        self.assertNotIn("proxy_cache", nginx_config)
+
     def test_backup_allowlist_explicitly_covers_all_host_roots(self):
         backup_example = (REPOSITORY_ROOT / "ops/backup/backup.env.example").read_text(
             encoding="utf-8"
@@ -105,6 +145,10 @@ class StagingImageRuntimeContractTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn("DELIVERY_ROOT=/srv/kreative-norge/media/public-delivery", script)
+        self.assertIn("DELIVERY_GROUP_NAME=kreative-norge-public-media", script)
+        self.assertIn("DELIVERY_GROUP_ID=2000", script)
+        self.assertIn('find "$DELIVERY_ROOT" -type d -exec chmod 2750', script)
+        self.assertIn('find "$DELIVERY_ROOT" -type f -exec chmod 0640', script)
         self.assertNotIn("SAFETY", script)
 
 

@@ -39,12 +39,15 @@ services:
       args:
         VITE_API_BASE: ${VITE_API_BASE:-}
     restart: unless-stopped
+    group_add:
+      - "2000"
     depends_on:
       - api
     ports:
       - "127.0.0.1:8080:80"
     volumes:
       - django_static:/var/www/django-static:ro
+      - /srv/kreative-norge/media/public-delivery:/var/www/public-delivery:ro
 
 volumes:
   postgres_data:

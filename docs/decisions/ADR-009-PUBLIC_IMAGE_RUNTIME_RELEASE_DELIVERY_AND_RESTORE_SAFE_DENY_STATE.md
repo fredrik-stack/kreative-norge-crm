@@ -2,13 +2,15 @@
 
 ## Status
 
-Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som lokal safety-ledger, dedikert off-server Borg-anchor, separat recovery-gate og fail-closed health. Fase 3E.1B.1–3E.1B.2-materialisering er `ACTIVE` i staging etter syntetisk ankret reserve/activate-, crash/restart/retry- og no-clobber-gate. Én permanent syntetisk release for en upublisert stagingaktør finnes som evidens; ingen public serving er aktivert. Fase 3E.1C–3E.4 og all public serving/runtime er fortsatt ikke implementert eller aktivert.
+Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som lokal safety-ledger, dedikert off-server Borg-anchor, separat recovery-gate og fail-closed health. Fase 3E.1B.1–3E.1B.2-materialisering er `ACTIVE` i staging etter syntetisk ankret reserve/activate-, crash/restart/retry- og no-clobber-gate. Fase 3E.1C er implementert bak en separat default-off servinggate, men er ikke stagingaktivert før en egen livegate. Én permanent syntetisk release for en upublisert stagingaktør finnes som 3E.1B-evidens. Fase 3E.2–3E.4, projection, API/PUBLIC og offentlig bildebruk er ikke implementert eller aktivert.
 
 **Beslutningsdato:** 2026-08-17
 
 **Dokumentert i repo:** 2026-08-20
 
 **3E.1B-presisering godkjent:** 2026-08-20
+
+**3E.1C read-only-presisering godkjent:** 2026-08-23
 
 ADR-et formaliserer fase 3E og supplerer [ADR-007](ADR-007-IMAGE_ASSET_ARCHITECTURE.md) og [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md). Det endrer ikke de implementerte fase 3B–3D-modellene, dagens legacybildebruk eller den aktive generelle Borg-backupen.
 
@@ -29,9 +31,8 @@ ADR-007 krever at en eldre database- eller apprestore aldri kan reaktivere en ny
 
 ### 1. Tydelig grense mellom implementert grunnmur og planlagt runtime
 
-Fase 3B–3D-grunnmuren forblir implementert. 3E.1A-ledger/read-model/restore/health og live off-servergate samt 3E.1B-materialisering og release-livssyklus for reserve/activate er implementert og aktivert i staging. Følgende gjenstår i fase 3E.1C–3E.4:
+Fase 3B–3D-grunnmuren forblir implementert. 3E.1A-ledger/read-model/restore/health og live off-servergate samt 3E.1B-materialisering og release-livssyklus for reserve/activate er implementert og aktivert i staging. 3E.1C har implementert kontrollert serving og origin-konfigurasjon bak et eget flagg, men er ikke `ACTIVE` før separat stagingevidens. Følgende gjenstår i fase 3E.2–3E.4:
 
-- kontrollert media-serving og origin-konfigurasjon
 - `PublicImageProjection`, strukturert API-kontrakt og legacyalias-cutover
 - PUBLIC-, canonical-, Open Graph- og Twitter-integrasjon
 - formell takedown og tenant-scopet checksum-deny
@@ -55,7 +56,9 @@ Ledgerskjemaet skal være versjonert og minst støtte idempotente event-ID-er og
 
 Django skal i 3E.1B bruke en lokal Unix-socket/systemd-bro til den host-eide safety-ledger-runtimeen. Socketen er en privilegieseparasjonsgrense, ikke en generell RPC-plattform: Django kan be om et lite, eksplisitt sett safety-operasjoner, mens hostprosessen alene eier ledgerpath, Borg-klient, writer-key, passfrase og ankerruntime.
 
-Den autoriserte operasjonsflaten er avgrenset til `reserve`, `activate`, `retire` og `deny`. Denne grensen krever ikke at alle fire operasjoner leveres i første kodeleveranse. Socketen skal være lokal, fail-closed og autorisert gjennom OS-/runtime-isolasjon med minst mulige bruker-, gruppe-, fil- og systemd-rettigheter. Ukjent operasjon, ugyldig payload, feil peer, timeout, manglende health eller uverifisert anker skal avvises. Det innføres ikke offentlig eller nettverkseksponert HTTP-tjeneste, Redis, meldingskø, ny applikasjonscontainer, direkte Borg-tilgang fra Django eller direkte safety-ledger-mount i API/web.
+Den autoriserte mutation-/lifecycle-flaten er avgrenset til `reserve`, `activate`, `retire` og `deny`. Denne grensen krever ikke at alle fire operasjoner leveres i første kodeleveranse. Fase 3E.1C legger i tillegg til nøyaktig én smal read-only `authorize`-operasjon for serving. Den kan bare svare på om én eksakt release-/variantforespørsel matcher autoritativ reservation og gjeldende lifecycle-state. Den kan ikke skrive ledger eller receipt, ankre, kjøre Borg, velge release-ID/key, reparere stale state eller hente vilkårlig event-/ledgerhistorikk. Den er dermed ikke en utvidelse av mutation-/lifecycle-flaten eller en generell query-API.
+
+Socketen skal være lokal, fail-closed og autorisert gjennom OS-/runtime-isolasjon med minst mulige bruker-, gruppe-, fil- og systemd-rettigheter. Ukjent operasjon, ugyldig payload, feil peer, timeout, manglende health eller uverifisert anker skal avvises. Det innføres ikke offentlig eller nettverkseksponert HTTP-tjeneste, Redis, meldingskø, ny applikasjonscontainer, direkte Borg-tilgang fra Django eller direkte safety-ledger-mount i API/web.
 
 En `release_id` og alle canonical keys reserveres permanent før database- eller filmaterialisering. `release_retired` og `release_denied` er terminale for den konkrete release-ID-en: den kan aldri aktiveres igjen. Senere autorisert republisering bruker ny UUIDv4 og nye keys, også når de samme interne artifact-bytes gjenbrukes.
 
@@ -385,6 +388,8 @@ Trinnvis innføring holder risikoen avgrenset: journal og restorebevis kommer f�
 **Omfang:**
 
 - Django release-gate og intern Nginx `X-Accel-Redirect` eller dokumentert likeverdig mekanisme
+- smal read-only `authorize` gjennom den eksisterende lokale broen, uten ledger-/anchor-/Borg-mutasjon
+- serialiserte lifecycle-mutations og kontrollert parallell read-authorization uten at lesere kan gå forbi ventende terminal lifecycle-mutation
 - eksplisitte `PUBLIC_SITE_ORIGIN`/`PUBLIC_MEDIA_ORIGIN`
 - cache-, expiry-, purge- og observabilitykontrakt for vanlig serving
 
@@ -392,11 +397,12 @@ Trinnvis innføring holder risikoen avgrenset: journal og restorebevis kommer f�
 
 - ingen direkte anonym alias/mount kan nå delivery-root, artifact-root eller private filer
 - gateway avviser ukjent/denied/retired/scope-feil/upublisert/manglende/korrupt release og ukjent cursor
+- `authorize` verifiserer callerens forventede release-, tenant-, Organization-, variant-, key- og checksum-scope mot ledgerens autoritative reservation, eksponerer ingen generell ledgerdata og utfører ingen write/repair/anchor/Borg-operasjon
 - vilkårlig `Host`/`X-Forwarded-Host` kan ikke endre public URL
 - valgt cachepolicy er målt og dokumentert; fallback kan ikke bli stående som feilaktig aktiv release
 - delivery kan holdes av bak featuregate uten å endre legacy PUBLIC
 
-**Testkrav:** route-/path traversal-/scope-/publicationtester, host-header-invarians, stale cursor, corrupt/missing file, cache expiry/purge og intern-location-verifikasjon.
+**Testkrav:** route-/path traversal-/scope-/publicationtester, host-header-invarians, stale cursor, corrupt/missing file, read-only/no-anchor-autorisasjon, parallelle authorize-kall, mutation-/authorize-concurrency med terminal state som vinner, cache expiry/purge og intern-location-verifikasjon.
 
 **Rollback:** servingflagget av; statisk fallback forblir tilgjengelig, og denied releases forblir blokkert.
 
@@ -473,16 +479,26 @@ Følgende valg er godkjent, implementert og stagingaktivert i 3E.1B-materialiser
 - bare `reserve` og `activate` er caller-aktive bridge-operasjoner i denne slicen; `retire` og `deny` forblir utilgjengelige for Django
 - separat `public_image_delivery` på `/srv/kreative-norge/media/public-delivery`, API-only mount, ingen web-/Nginx-eksponering og eksplisitt backupallowlist
 
+## Avklarte 3E.1C-implementasjonsvalg
+
+Følgende valg er godkjent og implementert bak en separat default-off servinggate; stagingstatus krever fortsatt egen liveevidens:
+
+- canonical `GET`/`HEAD /media/releases/<uuidv4>/<variant>.<ext>` via Django og intern Nginx-location `/_protected-public-image/`; ingen anonym alias kan nå delivery-rooten direkte
+- read-only `authorize` på eksisterende socket med eksakt release-/tenant-/Organization-/variant-/key-/checksum-scope, parallelle lesere og writer-preferred lifecycle-gate uten write, repair, anchor eller Borg
+- read-only deliverymount i `web`, `internal`, `autoindex off`, `disable_symlinks on` og en dedikert numerisk supplementary group `2000`; host-preparering feiler ved GID-kollisjon og bruker setgid-directories/`0640`-filer
+- `PUBLIC_IMAGE_SERVING_ENABLED=False` som egen standard; `PUBLIC_SITE_ORIGIN` og `PUBLIC_MEDIA_ORIGIN` må være eksplisitte, HTTPS utenfor debug og bundet til eksakt ikke-wildcard `DJANGO_ALLOWED_HOSTS`
+- `private, max-age=60, must-revalidate`, checksum-`ETag`, reautorisert `If-None-Match` → `304`, `no-store` på 404/503, ingen shared proxycache og ingen `immutable`
+- strukturerte requestutfall med release-ID, variant, status, safety-kategori/cursor og varighet, uten filesystempath, credential eller ledgerhistorikk
+
 ## Gjenstående implementasjonsdetaljer
 
 Følgende avgjøres med evidens i riktig senere leveranse uten å åpne hovedretningen på nytt:
 
 - retensjon og eksplisitt apply-prosedyre for inaktive/ufullstendige release-filer; ingen automatisk sletting er godkjent
-- eksakt intern URL/path for `X-Accel-Redirect`
-- cache-TTL, `Cache-Control`, eventuell `immutable`, lokal cacheplassering, purgekommando og verifikasjonsfrist
+- purgekommando, purgefrist og endelig verifikasjonskontrakt for 3E.4; 3E.1C har ingen shared proxycache
 - endelig grafisk fallbackinnhold og fallback-alttekst
 - konkret tenant-enrollmentbehov og eventpayload dersom tenantvis cutover brukes
-- observability, alarmer og operatør-runbooks
+- alertterskler og eventuelle eksterne målinger utover 3E.1Cs requestutfall og operatør-runbook
 - retensjon for derived read-model-backups
 
 Disse detaljene kan ikke svekke permanent no-reuse, deny-over-restore, separat delivery-root, controlled serving, én projection eller kravet om ny UUID/key ved republisering.
@@ -498,6 +514,6 @@ Disse detaljene kan ikke svekke permanent no-reuse, deny-over-restore, separat d
 
 Materialiseringsgaten 2026-08-23 beviste create/retry/no-clobber, delvis materialisering og restart med syntetiske komplette renditions gjennom den faktiske reserve → DB-binding → materialisering/read-back → activate-workflowen. Ledgeren er `READY` på cursor `5` med én syntetisk release i `active`, PostgreSQL har ett komplett immutable aggregate og delivery-rooten har tre checksumverifiserte filer. Post-activation-backup og isolert restore av samme arkiv er grønne. Se [foundationevidensen](../status/STAGING_PHASE_3E1B_FOUNDATION_2026-08-23.md) og [aktiveringsevidensen](../status/STAGING_PHASE_3E1B_MATERIALIZATION_ACTIVATION_2026-08-23.md).
 
-Neste gate er 3E.1C controlled serving og origins. Materialiseringsstatusen gir ikke filene en public URL, autoriserer ikke projection/API/PUBLIC og endrer ikke legacybildestrømmen.
+Neste gate er separat stagingdeploy og aktivering av den implementerte 3E.1C-gaten. Materialiseringsstatusen gir ikke alene filene en public URL, autoriserer ikke projection/API/PUBLIC og endrer ikke legacybildestrømmen.
 
-Retensjon og eksplisitt apply-prosedyre for release-aware cleanup er fortsatt ikke godkjent. Serving, projection, API/PUBLIC-cutover, cache/purge og takedown krever de senere 3E.1C–3E.4-gatene.
+Retensjon og eksplisitt apply-prosedyre for release-aware cleanup er fortsatt ikke godkjent. Projection, API/PUBLIC-cutover, endelig purge og takedown krever 3E.2–3E.4-gatene.

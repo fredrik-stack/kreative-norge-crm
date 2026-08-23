@@ -36,6 +36,7 @@ class ImageSafetyBridgeClientTests(SimpleTestCase):
 
     def run_server(self, responder):
         ready = threading.Event()
+        self.socket_path.unlink(missing_ok=True)
 
         def serve():
             with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as listener:
@@ -148,3 +149,116 @@ class ImageSafetyBridgeClientTests(SimpleTestCase):
             ImageSafetyBridgeClient(socket_path=self.socket_path, timeout=1).activate(
                 release_id=self.release_id
             )
+
+    def test_authorize_sends_exact_identity_and_accepts_strict_response(self):
+        expected_key = build_public_release_key(self.release_id, "square", "webp")
+
+        def respond(connection, request):
+            self.assertEqual(request["operation"], "authorize")
+            self.assertEqual(
+                request["payload"],
+                {
+                    "release_id": self.release_id,
+                    "tenant_id": 1,
+                    "organization_id": 2,
+                    "variant": "square",
+                    "public_storage_key": expected_key,
+                    "artifact_checksum_sha256": "a" * 64,
+                },
+            )
+            self.send_response(
+                connection,
+                {
+                    "protocol_version": 1,
+                    "operation": "authorize",
+                    "result": "success",
+                    "authorization": {
+                        "authorized": True,
+                        "category": "authorized",
+                        "release_id": self.release_id,
+                        "variant": "square",
+                        "read_cursor": 9,
+                    },
+                },
+            )
+
+        thread = self.run_server(respond)
+        authorization = ImageSafetyBridgeClient(
+            socket_path=self.socket_path, timeout=1
+        ).authorize(
+            release_id=self.release_id,
+            tenant_id=1,
+            organization_id=2,
+            variant="square",
+            public_storage_key=expected_key,
+            artifact_checksum_sha256="a" * 64,
+        )
+        thread.join(timeout=2)
+
+        self.assertTrue(authorization.authorized)
+        self.assertEqual(authorization.category, "authorized")
+        self.assertEqual(authorization.read_cursor, 9)
+
+    def test_authorize_rejects_mismatched_or_inconsistent_response(self):
+        expected_key = build_public_release_key(self.release_id, "square", "webp")
+        responses = (
+            {
+                "authorized": True,
+                "category": "unknown",
+                "release_id": self.release_id,
+                "variant": "square",
+                "read_cursor": 9,
+            },
+            {
+                "authorized": False,
+                "category": "authorized",
+                "release_id": self.release_id,
+                "variant": "square",
+                "read_cursor": 9,
+            },
+            {
+                "authorized": True,
+                "category": "authorized",
+                "release_id": str(uuid.uuid4()),
+                "variant": "square",
+                "read_cursor": 9,
+            },
+            {
+                "authorized": True,
+                "category": "authorized",
+                "release_id": self.release_id,
+                "variant": "share",
+                "read_cursor": 9,
+            },
+            {
+                "authorized": True,
+                "category": "authorized",
+                "release_id": self.release_id,
+                "variant": "square",
+                "read_cursor": True,
+            },
+        )
+        for index, authorization in enumerate(responses):
+            with self.subTest(index=index):
+                self.run_server(
+                    lambda connection, _: self.send_response(
+                        connection,
+                        {
+                            "protocol_version": 1,
+                            "operation": "authorize",
+                            "result": "success",
+                            "authorization": authorization,
+                        },
+                    )
+                )
+                with self.assertRaises(ImageSafetyBridgeUnavailable):
+                    ImageSafetyBridgeClient(
+                        socket_path=self.socket_path, timeout=1
+                    ).authorize(
+                        release_id=self.release_id,
+                        tenant_id=1,
+                        organization_id=2,
+                        variant="square",
+                        public_storage_key=expected_key,
+                        artifact_checksum_sha256="a" * 64,
+                    )

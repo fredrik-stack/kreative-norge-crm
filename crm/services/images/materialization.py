@@ -83,7 +83,7 @@ def _verify_bytes(data: bytes, item: MaterializationInput) -> None:
         )
 
 
-def _open_delivery_root() -> int:
+def _open_delivery_root(*, create: bool) -> int:
     root = Path(settings.PUBLIC_IMAGE_DELIVERY_ROOT)
     if (
         not root.is_absolute()
@@ -98,9 +98,9 @@ def _open_delivery_root() -> int:
             try:
                 child = os.open(component, _DIRECTORY_FLAGS, dir_fd=descriptor)
             except FileNotFoundError:
-                if index != len(components) - 1:
+                if not create or index != len(components) - 1:
                     raise ImageMaterializationError(
-                        "Delivery root parent is not provisioned."
+                        "Delivery root is not provisioned."
                     )
                 os.mkdir(component, mode=0o750, dir_fd=descriptor)
                 child = os.open(component, _DIRECTORY_FLAGS, dir_fd=descriptor)
@@ -171,7 +171,7 @@ def _materialize_one(item: MaterializationInput, data: bytes) -> Materialization
     if item.public_storage_key != expected_key:
         raise ImageMaterializationError("Delivery key is not canonical.")
 
-    root_fd = _open_delivery_root()
+    root_fd = _open_delivery_root(create=True)
     releases_fd = release_fd = None
     temporary_name = f".materializing-{uuid.uuid4().hex}"
     try:
@@ -230,8 +230,8 @@ def _materialize_one(item: MaterializationInput, data: bytes) -> Materialization
         os.close(root_fd)
 
 
-def _verify_materialized(item: MaterializationInput) -> None:
-    root_fd = _open_delivery_root()
+def verify_materialized_rendition(item: MaterializationInput) -> None:
+    root_fd = _open_delivery_root(create=False)
     releases_fd = release_fd = None
     try:
         releases_fd = os.open("releases", _DIRECTORY_FLAGS, dir_fd=root_fd)
@@ -271,5 +271,5 @@ def materialize_release(
     # Re-open the complete set only after all writes/reuses have succeeded so
     # activation can never rely on a partial or earlier-only verification.
     for item in items:
-        _verify_materialized(item)
+        verify_materialized_rendition(item)
     return tuple(results)
