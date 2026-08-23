@@ -979,7 +979,7 @@ Nødvendige databaseconstraints er minst:
 
 `PROTECT` blokkerer sletting, men hindrer ikke alene ForeignKey-reassosiering eller endring av andre felt. En kort, atomisk domenetjeneste skal i tillegg kontrollere at selection er en asset-selection, at selection og rendition-sett tilhører samme organization-/tenant-scope, at alle tre renditions kommer fra selectionens eksakte sett, at snapshotfeltene matcher renditionen, og at hver key er eksakt builder-resultat for release-ID, variant og outputformat. Tjenesten skal opprette et komplett, konsistent release aggregate eller ingenting; en delvis release avvises. Vanlige ForeignKeys og check constraints kan ikke alene bevise disse cross-table-invariantene.
 
-[ADR-009s senere 3E.1B-presisering](ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md#5-materialisering-og-release-livssyklus) tillater maksimalt én public release per selection-revisjon. Retry skal gjenbruke samme permanent reserverte UUID og keys; senere autorisert republisering går via en ny selection-revisjon og får ny UUID/key uten å omskrive tidligere selections eller releases. Fase 3B.3-A-modellen beholdt en vanlig ForeignKey og håndhever ennå ikke denne idempotency-grensen entydig; eksakt ledger-/databasehåndheving er et 3E.1B-implementeringsspørsmål. Hvilken release som er `reserved`, `active`, `retired` eller `denied` avgjøres av safety-ledgeren, ikke av en ny selection-status eller en parallell PostgreSQL lifecycle-status.
+[ADR-009s senere 3E.1B-presisering](ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md#5-materialisering-og-release-livssyklus) tillater maksimalt én public release per selection-revisjon. Retry skal gjenbruke samme permanent reserverte UUID og keys; senere autorisert republisering går via en ny selection-revisjon og får ny UUID/key uten å omskrive tidligere selections eller releases. Migrasjon `0029` har senere lagt en unik databaseconstraint direkte på selectionen og et immutable positivt selection-revisjonssnapshot, mens 3E.1B-workflowen binder den permanente ledger-reservasjonen atomisk til dette aggregatet og verifiserer samme binding ved retry. Hvilken release som er `reserved`, `active`, `retired` eller `denied` avgjøres fortsatt av safety-ledgeren, ikke av en ny selection-status eller en parallell PostgreSQL lifecycle-status.
 
 Release aggregate og release-renditions er immutable gjennom støttede skriveruter. Ordinær cleanup kan ikke slette eller frigjøre en release-ID. Retention, eventuell kontrollert anonymisering og sterkere database-WORM/trigger er separate senere gater.
 
@@ -989,7 +989,7 @@ UUIDv4 gir svært sterk praktisk unikhet, men no-reuse-kontrakten bygger ikke ba
 
 - En release-ID og dens keys reserveres varig før de kan brukes offentlig.
 - Reservasjonen slettes ikke ved feil, replacement, restore, takedown eller ordinær cleanup; en avbrutt reservasjon er permanent brukt.
-- Den senere autoritative release-/deny-journalen eller et likeverdig separat failure-domain skal kjenne alle reserverte release-ID-er og keys, ikke bare denied keys.
+- Den autoritative safety-ledgeren i separat failure-domain kjenner alle reserverte release-ID-er og keys, ikke bare denied keys.
 - Manglende, korrupt eller stale reservation-/deny-state feiler lukket og kan ikke produsere eller aktivere public release.
 - Samme release key med samme forventede bytes kan behandles som idempotent retry.
 - Samme selection-revisjon gjenbruker samme reservation, release-ID og keys ved retry og kan ikke opprette en ny release med ny UUID.
@@ -1050,9 +1050,9 @@ Rollback: feature forblir av; additive tabeller kan migreres tilbake så lenge i
 
 Rollback: public projection forblir eller går fail-closed til fallback; reservations- og deny-historikk slettes aldri.
 
-**Senere materialisering, serving og projection:**
+**Senere serving og projection:**
 
-Public filskriving, lokal serving, nginx/Caddy, cache/purge-runtime, takedown-/publish-saga, unpublish-semantikk, systemfallback-key, API-schema, public projection, sync/async-grense, observability og full disaster-RTO forblir egne beslutnings- og implementeringsgater.
+Lokal serving, nginx/Caddy, cache/purge-runtime, takedown-/publish-saga, unpublish-semantikk, systemfallback-key, API-schema, public projection, sync/async-grense for den senere runtimeen, observability og full disaster-RTO forblir egne beslutnings- og implementeringsgater. Public filskriving/materialisering er implementert og stagingaktivert i 3E.1B.
 
 ## Begrunnelse
 
@@ -1403,8 +1403,6 @@ ADR-007 regnes som implementert først når:
 Følgende gjenstår etter de godkjente fase 3B.1-, 3B.1R-, 3B.2- og 3B.3-valgene:
 
 - konkret trigger og migreringsplan dersom objektlagring/CDN senere blir nødvendig
-- eksakte socket-permissions, peer-autorisasjon og timeout-/healthkontrakt for Djangos lokale 3E.1B-bro til den host-eide safety-runtimeen
-- konkret `public-delivery`-path/mount, API-rettighet og eksplisitt backup-/restore-allowlist før stagingaktivering
 - full katastrofe-RTO og senere eventuell ekstra regionredundans; ADR-008-backupen er aktivert og restore-smoke er målt
 - SVG-rasteriseringsverktøy
 - eventuell bakgrunnskø

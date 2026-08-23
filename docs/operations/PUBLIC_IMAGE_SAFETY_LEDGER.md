@@ -285,6 +285,6 @@ Full katastrofe-RTO er fortsatt uavklart frem til liveøvelsen er målt.
 
 ## 10. Rollback og avgrensning
 
-Rollback deaktiverer bare senere runtimekobling og health-timer. Den sletter aldri ledger, receipts eller off-server archives. Etter første reelle reservation er schemaendringer fremoverrettede.
+Rollback av 3E.1A deaktiverer bare safety-runtimekoblingen og eventuelt health-timeren; den sletter aldri ledger, receipts eller off-server archives. Rollback av 3E.1B betyr at materialiseringsflagget settes til `False` slik at nye release-workflows stoppes. Eksisterende reservations-/activationevents, databaseaggregater og delivery-filer slettes aldri som rollback. Etter første reelle reservation er schemaendringer fremoverrettede.
 
-Denne leveransen oppretter ingen delivery-root, skriver ingen mediafiler, endrer ingen nginx/Caddy-route, rydder ingen route-duplikat, endrer ingen public serializer/HTML/head/fallback/cache og innfører ingen checksum-deny, Redis, ekstern database, kø, sidecar, S3 eller CDN.
+Den historiske 3E.1A-leveransen opprettet ingen delivery-root eller mediafiler. 3E.1B har senere opprettet den separate delivery-rooten og materialisert én permanent syntetisk release med tre filer i staging. Ingen av leveransene har lagt til nginx-/Caddy-serving, public serializer/HTML/head/fallback/cache, checksum-deny, Redis, ekstern database, kø, sidecar, S3 eller CDN.
