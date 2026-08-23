@@ -288,6 +288,7 @@ Etter grønn preflight settes bare `PUBLIC_IMAGE_SERVING_ENABLED=True`, og API r
 
 - canonical `GET` og `HEAD` for alle tre varianter med korrekt type, lengde, checksum-`ETag`, `private, max-age=60, must-revalidate`, validert `If-None-Match` → `304` og identiske bytes som delivery-filen
 - ukjent/malformed release, variant-/extension-/scopefeil, upublisert Organization og negativ safety-state gir `404` uten bytes og med `no-store`
+- alle ikke-canonical former under `/media/releases/` går til en tom `404/no-store`-catch-all uten DB-, bridge- eller storagekall; canonical-viewen er CSRF-unntatt bare for at dens write-frie GET/HEAD-metodegate skal gi `405/no-store` før domenekall
 - stoppet/utilgjengelig bridge og manglende/korrupt fil gir `503` uten bytes og med `no-store`; bridge restart gjenoppretter serving
 - vilkårlig `Host`/`X-Forwarded-Host` endrer ikke canonical URL-bygging, intern location er fortsatt utilgjengelig, og logger viser bare strukturert utfall/release-ID/variant/status/cursor/tid uten filesystempath eller secrets
 - API-, web- og bridge-restart bevarer resultatet, og PUBLIC HTML/API/legacyaliaser er uendret

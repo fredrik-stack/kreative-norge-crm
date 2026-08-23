@@ -397,6 +397,31 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "0.1.0",
 }
 
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "public_image_serving": {
+            "format": (
+                "%(asctime)s level=%(levelname)s logger=%(name)s %(message)s"
+            ),
+        },
+    },
+    "handlers": {
+        "public_image_serving_console": {
+            "class": "logging.StreamHandler",
+            "formatter": "public_image_serving",
+        },
+    },
+    "loggers": {
+        "crm.public_image_serving": {
+            "handlers": ["public_image_serving_console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
+
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
 OPENAI_IMPORT_ENABLED = os.getenv("OPENAI_IMPORT_ENABLED", "True").lower() == "true"

@@ -484,11 +484,12 @@ Følgende valg er godkjent, implementert og stagingaktivert i 3E.1B-materialiser
 Følgende valg er godkjent og implementert bak en separat default-off servinggate; stagingstatus krever fortsatt egen liveevidens:
 
 - canonical `GET`/`HEAD /media/releases/<uuidv4>/<variant>.<ext>` via Django og intern Nginx-location `/_protected-public-image/`; ingen anonym alias kan nå delivery-rooten direkte
+- tom `404/no-store`-catch-all for ikke-canonical former under samme prefix uten domenekall, og CSRF-unntak bare på den write-frie media-viewen slik at andre metoder stoppes som `405/no-store` før domenekall
 - read-only `authorize` på eksisterende socket med eksakt release-/tenant-/Organization-/variant-/key-/checksum-scope, parallelle lesere og writer-preferred lifecycle-gate uten write, repair, anchor eller Borg
 - read-only deliverymount i `web`, `internal`, `autoindex off`, `disable_symlinks on` og en dedikert numerisk supplementary group `2000`; host-preparering feiler ved GID-kollisjon og bruker setgid-directories/`0640`-filer, mens web-imaget oppretter samme GID og gjør `nginx` til medlem slik at privilegiedroppet ikke fjerner lesetilgangen
 - `PUBLIC_IMAGE_SERVING_ENABLED=False` som egen standard; `PUBLIC_SITE_ORIGIN` og `PUBLIC_MEDIA_ORIGIN` må være eksplisitte, HTTPS utenfor debug og bundet til eksakt ikke-wildcard `DJANGO_ALLOWED_HOSTS`
 - `private, max-age=60, must-revalidate`, checksum-`ETag`, reautorisert `If-None-Match` → `304`, `no-store` på 404/503, ingen shared proxycache og ingen `immutable`; Nginx auto-ETag er av bare i den interne delivery-locationen, som setter `ETag` fra `$upstream_http_etag` slik at Djangos verifiserte checksum beholdes i stedet for filmetadata
-- strukturerte requestutfall med release-ID, variant, status, safety-kategori/cursor og varighet, uten filesystempath, credential eller ledgerhistorikk
+- strukturerte requestutfall på en eksplisitt INFO-consolelogger med release-ID, variant, status, safety-kategori/cursor og varighet, uten filesystempath, credential eller ledgerhistorikk
 
 ## Gjenstående implementasjonsdetaljer
 
