@@ -464,14 +464,20 @@ Trinnvis innføring holder risikoen avgrenset: journal og restorebevis kommer f�
 
 **Rollback:** takedownfunksjonen kan deaktiveres, men eksisterende deny og legacyguard kan aldri rulles tilbake eller omgås.
 
-## Åpne implementasjonsdetaljer
+## Avklarte 3E.1B-implementasjonsvalg
 
-Følgende avgjøres med evidens i riktig leveranse uten å åpne hovedretningen på nytt:
+Følgende valg er godkjent og implementert i den feature-avslåtte 3E.1B-foundationen:
 
-- eksakt socketpath, wireformat, request-/responsegrenser, timeout, peer-verifikasjon, servicebruker/-gruppe og systemd-hardening innenfor den godkjente lokale brogrensen
-- om selection-revisjonsunikheten håndheves med ny ledgerindeks/read-model, databaseconstraint på eksisterende selection-binding eller begge; eventuell migrasjon må besluttes etter konkret modell-/datakontroll
-- hvilke av de autoriserte operasjonene `reserve`, `activate`, `retire` og `deny` som inngår i 3E.1B.1 versus 3E.1B.2
-- eksakt `public-delivery`-alias-/pathkonfigurasjon, API-mount med minst rettighet og backup-/restore-allowlist
+- AF_UNIX/SOCK_STREAM på `/run/kreative-norge-image-safety/bridge.sock`, 4-byte big-endian framing, JSON-protokoll v1, 16 KiB request-/responsegrense, 5 sekunders framingtimeout, 45 sekunders operasjonsfrist og omtrent 50 sekunders Django-clienttimeout innenfor dagens 60-sekunders Gunicorn-timeout
+- root-eid systemd socket activation med socket `0600`, `SO_PEERCRED` der den faktiske Docker-/Unix-socket-identiteten kan verifiseres, og host-eid ledger-/Borg-runtime uten credentials eller ledger-mount i API/web
+- deterministisk reservation identity i ledgeren, atomisk `reserve_or_get`, unik databaseconstraint direkte på `selection` og immutable `selection_revision_snapshot`; safety-ledgeren er fortsatt eneste lifecycle-authority
+- bare `reserve` og `activate` er caller-aktive bridge-operasjoner i denne slicen; `retire` og `deny` forblir utilgjengelige for Django
+- separat `public_image_delivery` på `/srv/kreative-norge/media/public-delivery`, API-only mount, ingen web-/Nginx-eksponering og eksplisitt backupallowlist
+
+## Gjenstående implementasjonsdetaljer
+
+Følgende avgjøres med evidens i riktig senere leveranse uten å åpne hovedretningen på nytt:
+
 - retensjon og eksplisitt apply-prosedyre for inaktive/ufullstendige release-filer; ingen automatisk sletting er godkjent
 - eksakt intern URL/path for `X-Accel-Redirect`
 - cache-TTL, `Cache-Control`, eventuell `immutable`, lokal cacheplassering, purgekommando og verifikasjonsfrist
@@ -482,11 +488,14 @@ Følgende avgjøres med evidens i riktig leveranse uten å åpne hovedretningen 
 
 Disse detaljene kan ikke svekke permanent no-reuse, deny-over-restore, separat delivery-root, controlled serving, én projection eller kravet om ny UUID/key ved republisering.
 
-## Uavklarte godkjenninger
+## Gjenstående verifikasjons- og godkjenningsgater
 
-A, B og C i 3E.1B-presiseringen er godkjent og krever ingen ny arkitekturavgjørelse. Før kode eller stagingaktivering må følgende implementeringsvalg likevel dokumenteres og godkjennes i riktig leveranse:
+3E.1B-kodevalgene over er godkjent og krever ingen ny arkitekturavgjørelse før merge. Før stagingaktivering må en separat operativ gate fortsatt verifisere:
 
-- socketkontrakt, OS-identitet/rettigheter, systemd-hardening og fordeling av de fire autoriserte operasjonene mellom 3E.1B.1 og 3E.1B.2
-- konkret entydig selection-revisjonslookup og håndheving i ledger/DB; dersom eksisterende modell krever constraint eller migrasjon, må dette behandles som en trygg databaseendring
-- public-delivery-path, storagealias, API-mount, backupallowlist og verifisert restore før stagingaktivering
-- eventuell retensjon og apply-prosedyre for release-aware cleanup; automatisk sletting og 3E.4-purge er ikke godkjent her
+- tom `OrganizationImageRelease`-tabell før migrasjon `0029`; eksisterende rader stopper deployen og krever separat reconciliation
+- faktisk root-eid socket `0600`, `SO_PEERCRED` fra API-containeren, systemd-hardening og 45/50/60-sekunders timeoutkjede i staging
+- at API bare får socket- og delivery-mountene, mens web fortsatt mangler delivery-, socket-, ledger- og Borg-tilgang
+- create/retry/no-clobber, delvis materialisering og restart med syntetiske renditions mens public serving fortsatt er av
+- at delivery-rooten inngår i en ny backup og isolert restore med identiske checksums før materialiseringsflagget aktiveres
+
+Retensjon og eksplisitt apply-prosedyre for release-aware cleanup er fortsatt ikke godkjent. Serving, projection, API/PUBLIC-cutover, cache/purge og takedown krever de senere 3E.1C–3E.4-gatene.
