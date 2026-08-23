@@ -84,6 +84,14 @@ IMAGE_ASSET_FEATURE_ENABLED = _read_fail_closed_bool(
     "IMAGE_ASSET_FEATURE_ENABLED",
     default=False,
 )
+PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED = _read_fail_closed_bool(
+    "PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED",
+    default=False,
+)
+if PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED and not IMAGE_ASSET_FEATURE_ENABLED:
+    raise ImproperlyConfigured(
+        "PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED requires IMAGE_ASSET_FEATURE_ENABLED"
+    )
 BRAVE_IMAGE_SEARCH_API_KEY = os.getenv("BRAVE_IMAGE_SEARCH_API_KEY", "").strip()
 
 # --- Production security settings ---
@@ -227,6 +235,43 @@ IMAGE_RENDITIONS_ROOT = _read_image_storage_root(
     default=_LOCAL_IMAGE_STORAGE_ROOT / "renditions-public",
     required=not DEBUG and IMAGE_ASSET_FEATURE_ENABLED,
 )
+_raw_delivery_root = os.getenv("PUBLIC_IMAGE_DELIVERY_ROOT")
+if _raw_delivery_root:
+    _delivery_candidate = Path(_raw_delivery_root).expanduser()
+    _delivery_cursor = Path(_delivery_candidate.anchor)
+    for _delivery_component in _delivery_candidate.parts[1:]:
+        _delivery_cursor /= _delivery_component
+        if _delivery_cursor.is_symlink():
+            raise ImproperlyConfigured(
+                "PUBLIC_IMAGE_DELIVERY_ROOT cannot contain symlink components"
+            )
+PUBLIC_IMAGE_DELIVERY_ROOT = _read_image_storage_root(
+    "PUBLIC_IMAGE_DELIVERY_ROOT",
+    default=_LOCAL_IMAGE_STORAGE_ROOT / "public-delivery",
+    required=not DEBUG and PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED,
+)
+
+_bridge_socket_value = os.getenv(
+    "PUBLIC_IMAGE_SAFETY_BRIDGE_SOCKET",
+    "/run/kreative-norge-image-safety/bridge.sock",
+).strip()
+if not _bridge_socket_value:
+    raise ImproperlyConfigured("PUBLIC_IMAGE_SAFETY_BRIDGE_SOCKET cannot be empty")
+PUBLIC_IMAGE_SAFETY_BRIDGE_SOCKET = Path(_bridge_socket_value)
+if not PUBLIC_IMAGE_SAFETY_BRIDGE_SOCKET.is_absolute():
+    raise ImproperlyConfigured("PUBLIC_IMAGE_SAFETY_BRIDGE_SOCKET must be absolute")
+try:
+    PUBLIC_IMAGE_SAFETY_BRIDGE_TIMEOUT = float(
+        os.getenv("PUBLIC_IMAGE_SAFETY_BRIDGE_TIMEOUT", "50")
+    )
+except ValueError as error:
+    raise ImproperlyConfigured(
+        "PUBLIC_IMAGE_SAFETY_BRIDGE_TIMEOUT must be numeric"
+    ) from error
+if not 0 < PUBLIC_IMAGE_SAFETY_BRIDGE_TIMEOUT < 60:
+    raise ImproperlyConfigured(
+        "PUBLIC_IMAGE_SAFETY_BRIDGE_TIMEOUT must be greater than 0 and lower than 60 seconds"
+    )
 
 _NORMALIZED_BASE_DIR = BASE_DIR.resolve(strict=False)
 _NORMALIZED_STATIC_ROOT = STATIC_ROOT.resolve(strict=False)
@@ -234,6 +279,7 @@ _NORMALIZED_STATIC_ROOT = STATIC_ROOT.resolve(strict=False)
 for _setting_name, _storage_root in (
     ("IMAGE_ORIGINALS_ROOT", IMAGE_ORIGINALS_ROOT),
     ("IMAGE_RENDITIONS_ROOT", IMAGE_RENDITIONS_ROOT),
+    ("PUBLIC_IMAGE_DELIVERY_ROOT", PUBLIC_IMAGE_DELIVERY_ROOT),
 ):
     if _paths_overlap(_storage_root, _NORMALIZED_STATIC_ROOT):
         raise ImproperlyConfigured(
@@ -248,6 +294,18 @@ if _paths_overlap(IMAGE_ORIGINALS_ROOT, IMAGE_RENDITIONS_ROOT):
     raise ImproperlyConfigured(
         "IMAGE_ORIGINALS_ROOT and IMAGE_RENDITIONS_ROOT cannot overlap"
     )
+
+for _protected_delivery_root in (
+    IMAGE_ORIGINALS_ROOT,
+    IMAGE_RENDITIONS_ROOT,
+    Path("/var/lib/kreative-norge-image-safety"),
+    Path("/etc/kreative-norge-image-safety"),
+    Path("/run/kreative-norge-image-safety"),
+):
+    if _paths_overlap(PUBLIC_IMAGE_DELIVERY_ROOT, _protected_delivery_root):
+        raise ImproperlyConfigured(
+            "PUBLIC_IMAGE_DELIVERY_ROOT overlaps a protected image or safety path"
+        )
 
 STORAGES = {
     "default": {
@@ -267,6 +325,13 @@ STORAGES = {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
         "OPTIONS": {
             "location": IMAGE_RENDITIONS_ROOT,
+            "base_url": None,
+        },
+    },
+    "public_image_delivery": {
+        "BACKEND": "crm.services.images.storage_backends.NoPublicUrlFileSystemStorage",
+        "OPTIONS": {
+            "location": PUBLIC_IMAGE_DELIVERY_ROOT,
             "base_url": None,
         },
     },

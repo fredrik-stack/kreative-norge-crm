@@ -1,0 +1,14 @@
+[Unit]
+Description=Local socket for the public image safety bridge
+
+[Socket]
+ListenStream=/run/kreative-norge-image-safety/bridge.sock
+SocketUser=root
+SocketGroup=root
+SocketMode=0600
+DirectoryMode=0700
+Accept=no
+RemoveOnStop=true
+
+[Install]
+WantedBy=sockets.target

@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-22
+
+### Fase 3E.1B.1–3E.1B.2: release-materialisering implementert, ikke stagingaktivert
+
+- lagt fail-closed migrasjon `0029` med immutable positivt selection-revision-snapshot og unik release per selection; legacyrader stopper migrasjonen uten backfill eller automatisk reconciliation
+- lagt atomisk safety-ledger-reservasjon, minimal root-eid AF_UNIX/systemd-bro for `reserve`/`activate` og streng framed JSON-client uten direkte ledger-/Borg-fallback i Django
+- refaktorert release-tjenesten til idempotent snapshot → ankret reserve → revalidert DB-binding → create-only materialisering/read-back → ankret activation
+- lagt separat `public_image_delivery` og `/srv/kreative-norge/media/public-delivery`, eksplisitt API-only compose/socket-mount og backupallowlist; ingen webmount, Nginx-route eller offentlig URL
+- lagt migration-, protocol-, AF_UNIX-client-, no-clobber-, crash/retry-, materialiserings- og ekte PostgreSQL-concurrencytester
+- beholdt `PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED=False`; repository foundation er ikke deployet, restore-verifisert eller aktivert i staging
+
 Dette dokumentet samler større brukermerkbare og arkitekturelle endringer. Små kosmetiske justeringer trenger ikke registreres.
 
 ## 2026-08-20

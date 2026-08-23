@@ -29,6 +29,8 @@ services:
       - django_static:/app/staticfiles
       - /srv/kreative-norge/media/private:/srv/kreative-norge/media/private
       - /srv/kreative-norge/media/public:/srv/kreative-norge/media/public
+      - /srv/kreative-norge/media/public-delivery:/srv/kreative-norge/media/public-delivery
+      - /run/kreative-norge-image-safety:/run/kreative-norge-image-safety:ro
 
   web:
     build:

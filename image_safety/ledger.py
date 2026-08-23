@@ -128,6 +128,24 @@ def _require_event_id(value: str) -> str:
     return value
 
 
+def reservation_event_id(
+    *, tenant_id: int, organization_id: int, selection_id: int, selection_revision: int
+) -> str:
+    values = (
+        _require_positive_int("Tenant ID", tenant_id),
+        _require_positive_int("Organization ID", organization_id),
+        _require_positive_int("Selection ID", selection_id),
+        _require_positive_int("Selection revision", selection_revision),
+    )
+    return _require_event_id(
+        "release-reservation:v1:" + ":".join(str(value) for value in values)
+    )
+
+
+def activation_event_id(release_id: uuid.UUID | str) -> str:
+    return _require_event_id(f"release-activation:v1:{canonical_release_id(release_id)}")
+
+
 def _require_sha256(label: str, value: str) -> str:
     if not isinstance(value, str) or not SHA256_RE.fullmatch(value):
         raise InvalidLedgerError(f"{label} must be a lowercase SHA-256 digest.")
@@ -229,6 +247,95 @@ class PublicImageSafetyLedger:
         renditions: Iterable[ReservationRendition],
     ) -> AppendedEvent:
         canonical_id = canonical_release_id(release_id)
+        payload = self._reservation_payload(
+            release_id=canonical_id,
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            selection_id=selection_id,
+            selection_revision=selection_revision,
+            rendition_set_id=rendition_set_id,
+            renditions=renditions,
+        )
+        return self.append_event(
+            event_id=event_id,
+            event_type="release_reserved",
+            release_id=canonical_id,
+            payload=payload,
+        )
+
+    def reserve_or_get(
+        self,
+        *,
+        tenant_id: int,
+        organization_id: int,
+        selection_id: int,
+        selection_revision: int,
+        rendition_set_id: int,
+        renditions: Iterable[ReservationRendition],
+    ) -> AppendedEvent:
+        event_id = reservation_event_id(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            selection_id=selection_id,
+            selection_revision=selection_revision,
+        )
+        canonical_renditions = tuple(renditions)
+        # Validate the complete caller snapshot before entering the writer path.
+        # The fixed UUID is validation-only; the permanent UUID is generated
+        # below while the SQLite writer lock is held.
+        self._reservation_payload(
+            release_id="00000000-0000-4000-8000-000000000000",
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            selection_id=selection_id,
+            selection_revision=selection_revision,
+            rendition_set_id=rendition_set_id,
+            renditions=canonical_renditions,
+        )
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                existing = connection.execute(
+                    "SELECT release_id FROM ledger_events WHERE event_id = ?",
+                    (event_id,),
+                ).fetchone()
+                release_id = (
+                    existing["release_id"] if existing is not None else str(uuid.uuid4())
+                )
+                payload = self._reservation_payload(
+                    release_id=release_id,
+                    tenant_id=tenant_id,
+                    organization_id=organization_id,
+                    selection_id=selection_id,
+                    selection_revision=selection_revision,
+                    rendition_set_id=rendition_set_id,
+                    renditions=canonical_renditions,
+                )
+                event = self._append_event_in_transaction(
+                    connection,
+                    event_id=event_id,
+                    event_type="release_reserved",
+                    release_id=release_id,
+                    payload=payload,
+                )
+                connection.commit()
+                return event
+            except Exception:
+                connection.rollback()
+                raise
+
+    @staticmethod
+    def _reservation_payload(
+        *,
+        release_id: uuid.UUID | str,
+        tenant_id: int,
+        organization_id: int,
+        selection_id: int,
+        selection_revision: int,
+        rendition_set_id: int,
+        renditions: Iterable[ReservationRendition],
+    ) -> dict[str, Any]:
+        canonical_id = canonical_release_id(release_id)
         variants: dict[str, dict[str, str]] = {}
         for rendition in renditions:
             if rendition.variant in variants:
@@ -265,15 +372,38 @@ class PublicImageSafetyLedger:
             "tenant_id": _require_positive_int("Tenant ID", tenant_id),
             "variants": variants,
         }
-        return self.append_event(
-            event_id=event_id,
-            event_type="release_reserved",
-            release_id=canonical_id,
-            payload=payload,
-        )
+        return payload
 
     def activate_release(self, *, event_id: str, release_id: uuid.UUID | str) -> AppendedEvent:
         return self._append_transition(event_id, "release_activated", release_id)
+
+    def activate_or_get(self, *, release_id: uuid.UUID | str) -> AppendedEvent:
+        canonical_id = canonical_release_id(release_id)
+        event_id = activation_event_id(canonical_id)
+        payload = {"release_id": canonical_id, "schema_version": SCHEMA_VERSION}
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                state = connection.execute(
+                    "SELECT state FROM release_state WHERE release_id = ?",
+                    (canonical_id,),
+                ).fetchone()
+                if state is None:
+                    raise InvalidTransitionError("Release ID is unknown.")
+                if state["state"] in TERMINAL_STATES:
+                    raise InvalidTransitionError("Terminal releases cannot be activated.")
+                event = self._append_event_in_transaction(
+                    connection,
+                    event_id=event_id,
+                    event_type="release_activated",
+                    release_id=canonical_id,
+                    payload=payload,
+                )
+                connection.commit()
+                return event
+            except Exception:
+                connection.rollback()
+                raise
 
     def retire_release(
         self, *, event_id: str, release_id: uuid.UUID | str, reason_code: str
@@ -316,6 +446,31 @@ class PublicImageSafetyLedger:
         release_id: uuid.UUID | str,
         payload: Mapping[str, Any],
     ) -> AppendedEvent:
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                event = self._append_event_in_transaction(
+                    connection,
+                    event_id=event_id,
+                    event_type=event_type,
+                    release_id=release_id,
+                    payload=payload,
+                )
+                connection.commit()
+                return event
+            except Exception:
+                connection.rollback()
+                raise
+
+    def _append_event_in_transaction(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        event_id: str,
+        event_type: str,
+        release_id: uuid.UUID | str,
+        payload: Mapping[str, Any],
+    ) -> AppendedEvent:
         _require_event_id(event_id)
         if event_type not in EVENT_TYPES:
             raise InvalidLedgerError("Unknown event type.")
@@ -324,85 +479,80 @@ class PublicImageSafetyLedger:
         decoded_payload = json.loads(canonical_payload)
         self._validate_payload(event_type, canonical_id, decoded_payload)
         payload_hash = _sha256(canonical_payload)
-
-        with self._connect() as connection:
-            connection.execute("BEGIN IMMEDIATE")
-            existing = connection.execute(
-                "SELECT sequence, event_type, release_id, payload_json, event_hash "
-                "FROM ledger_events WHERE event_id = ?",
-                (event_id,),
-            ).fetchone()
-            if existing is not None:
-                if (
-                    existing["event_type"] != event_type
-                    or existing["release_id"] != canonical_id
-                    or existing["payload_json"] != canonical_payload
-                ):
-                    raise EventConflictError(
-                        "Event ID already exists with a different canonical payload."
-                    )
-                connection.rollback()
-                return AppendedEvent(
-                    sequence=existing["sequence"],
-                    event_id=event_id,
-                    event_type=event_type,
-                    release_id=canonical_id,
-                    payload=decoded_payload,
-                    event_hash=existing["event_hash"],
-                    idempotent_retry=True,
+        existing = connection.execute(
+            "SELECT sequence, event_type, release_id, payload_json, event_hash "
+            "FROM ledger_events WHERE event_id = ?",
+            (event_id,),
+        ).fetchone()
+        if existing is not None:
+            if (
+                existing["event_type"] != event_type
+                or existing["release_id"] != canonical_id
+                or existing["payload_json"] != canonical_payload
+            ):
+                raise EventConflictError(
+                    "Event ID already exists with a different canonical payload."
                 )
-
-            cursor = connection.execute(
-                "SELECT event_sequence, event_hash FROM read_cursor WHERE singleton = 1"
-            ).fetchone()
-            if cursor is None:
-                raise InvalidLedgerError("Read cursor is missing.")
-            database_head = connection.execute(
-                "SELECT COALESCE(MAX(sequence), 0) FROM ledger_events"
-            ).fetchone()[0]
-            if cursor["event_sequence"] != database_head:
-                raise InvalidLedgerError("Read cursor is stale; rebuild is required.")
-            sequence = database_head + 1
-            created_at_utc = _utc_now()
-            event_hash = _event_hash(
-                sequence=sequence,
+            return AppendedEvent(
+                sequence=existing["sequence"],
                 event_id=event_id,
                 event_type=event_type,
                 release_id=canonical_id,
-                payload_sha256=payload_hash,
-                previous_event_hash=cursor["event_hash"],
-                created_at_utc=created_at_utc,
-            )
-            self._apply_to_database(
-                connection,
-                sequence=sequence,
-                event_type=event_type,
-                release_id=canonical_id,
                 payload=decoded_payload,
+                event_hash=existing["event_hash"],
+                idempotent_retry=True,
             )
-            connection.execute(
-                "INSERT INTO ledger_events("
-                "sequence, event_id, event_type, release_id, payload_json, "
-                "payload_sha256, previous_event_hash, event_hash, created_at_utc"
-                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    sequence,
-                    event_id,
-                    event_type,
-                    canonical_id,
-                    canonical_payload,
-                    payload_hash,
-                    cursor["event_hash"],
-                    event_hash,
-                    created_at_utc,
-                ),
-            )
-            connection.execute(
-                "UPDATE read_cursor SET event_sequence = ?, event_hash = ? "
-                "WHERE singleton = 1",
-                (sequence, event_hash),
-            )
-            connection.commit()
+
+        cursor = connection.execute(
+            "SELECT event_sequence, event_hash FROM read_cursor WHERE singleton = 1"
+        ).fetchone()
+        if cursor is None:
+            raise InvalidLedgerError("Read cursor is missing.")
+        database_head = connection.execute(
+            "SELECT COALESCE(MAX(sequence), 0) FROM ledger_events"
+        ).fetchone()[0]
+        if cursor["event_sequence"] != database_head:
+            raise InvalidLedgerError("Read cursor is stale; rebuild is required.")
+        sequence = database_head + 1
+        created_at_utc = _utc_now()
+        event_hash = _event_hash(
+            sequence=sequence,
+            event_id=event_id,
+            event_type=event_type,
+            release_id=canonical_id,
+            payload_sha256=payload_hash,
+            previous_event_hash=cursor["event_hash"],
+            created_at_utc=created_at_utc,
+        )
+        self._apply_to_database(
+            connection,
+            sequence=sequence,
+            event_type=event_type,
+            release_id=canonical_id,
+            payload=decoded_payload,
+        )
+        connection.execute(
+            "INSERT INTO ledger_events("
+            "sequence, event_id, event_type, release_id, payload_json, "
+            "payload_sha256, previous_event_hash, event_hash, created_at_utc"
+            ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                sequence,
+                event_id,
+                event_type,
+                canonical_id,
+                canonical_payload,
+                payload_hash,
+                cursor["event_hash"],
+                event_hash,
+                created_at_utc,
+            ),
+        )
+        connection.execute(
+            "UPDATE read_cursor SET event_sequence = ?, event_hash = ? "
+            "WHERE singleton = 1",
+            (sequence, event_hash),
+        )
         return AppendedEvent(
             sequence=sequence,
             event_id=event_id,

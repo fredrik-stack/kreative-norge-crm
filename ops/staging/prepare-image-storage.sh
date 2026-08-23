@@ -6,6 +6,7 @@ umask 027
 MEDIA_ROOT=/srv/kreative-norge/media
 PRIVATE_ROOT=/srv/kreative-norge/media/private
 RENDITION_ROOT=/srv/kreative-norge/media/public
+DELIVERY_ROOT=/srv/kreative-norge/media/public-delivery
 
 die() {
   printf 'prepare-image-storage: %s\n' "$*" >&2
@@ -27,11 +28,12 @@ require_no_symlink_components() {
 
 require_no_symlink_components "$PRIVATE_ROOT"
 require_no_symlink_components "$RENDITION_ROOT"
+require_no_symlink_components "$DELIVERY_ROOT"
 
 install -d -o root -g root -m 0750 "$MEDIA_ROOT"
-install -d -o root -g root -m 0750 "$PRIVATE_ROOT" "$RENDITION_ROOT"
+install -d -o root -g root -m 0750 "$PRIVATE_ROOT" "$RENDITION_ROOT" "$DELIVERY_ROOT"
 
-for path in "$MEDIA_ROOT" "$PRIVATE_ROOT" "$RENDITION_ROOT"; do
+for path in "$MEDIA_ROOT" "$PRIVATE_ROOT" "$RENDITION_ROOT" "$DELIVERY_ROOT"; do
   [ -d "$path" ] || die "required directory is unavailable: $path"
   require_no_symlink_components "$path"
   owner_group="$(stat -c '%U:%G' "$path")"

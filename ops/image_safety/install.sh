@@ -61,7 +61,8 @@ prepare() {
   fi
   if [ "$TEST_MODE" != "1" ]; then
     install -m 0644 -o root -g root "$SOURCE_DIR/systemd/"*.service \
-      "$SOURCE_DIR/systemd/"*.timer /etc/systemd/system/
+      "$SOURCE_DIR/systemd/"*.socket "$SOURCE_DIR/systemd/"*.timer \
+      /etc/systemd/system/
     systemctl daemon-reload
   fi
   printf '%s\n' "PREPARED only: no repository, credential, ledger, timer, or public runtime was activated."

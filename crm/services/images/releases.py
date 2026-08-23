@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import uuid
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
+from crm.validators import validate_sha256, validate_storage_key
 from crm.models import (
     ImageRendition,
     OrganizationImageRelease,
@@ -18,6 +18,18 @@ from image_safety.release_keys import (
     PUBLIC_RELEASE_EXTENSIONS,
     REQUIRED_RELEASE_VARIANTS,
     build_public_release_key,
+)
+
+from .bridge_client import (
+    BridgeActivation,
+    BridgeRenditionSnapshot,
+    BridgeReservation,
+    ImageSafetyBridgeClient,
+)
+from .materialization import (
+    MaterializationInput,
+    MaterializationResult,
+    materialize_release,
 )
 
 
@@ -38,15 +50,44 @@ class IncompleteImageReleaseError(InvalidImageReleaseError):
 
 
 @dataclass(frozen=True)
+class _RenditionSnapshot:
+    rendition_id: int
+    tenant_id: int
+    rendition_set_id: int
+    variant: str
+    output_format: str
+    width: int
+    height: int
+    file_size_bytes: int
+    artifact_storage_key: str
+    checksum_sha256: str
+
+
+@dataclass(frozen=True)
+class _SelectionSnapshot:
+    tenant_id: int
+    organization_id: int
+    selection_id: int
+    selection_revision: int
+    rendition_set_id: int
+    renditions: tuple[_RenditionSnapshot, ...]
+
+
+@dataclass(frozen=True)
 class OrganizationImageReleaseResult:
     release: OrganizationImageRelease
     renditions: tuple[OrganizationImageReleaseRendition, ...]
+    reservation: BridgeReservation
+    materializations: tuple[MaterializationResult, ...]
+    activation: BridgeActivation
 
 
 def _validate_release_scope(
     selection: OrganizationImageSelection,
     renditions: list[ImageRendition],
 ) -> None:
+    if selection.revision <= 0:
+        raise InvalidImageReleaseError("Selection revision must be positive.")
     if selection.selection_kind != OrganizationImageSelection.SelectionKind.ASSET:
         raise InvalidImageReleaseError("System fallback selections cannot have asset releases.")
     if not selection.rendition_set_id:
@@ -78,44 +119,225 @@ def _validate_release_scope(
             raise InvalidImageReleaseError(
                 "Every rendition must belong to the selection rendition set."
             )
-
-
-def create_organization_image_release(
-    *,
-    selection: OrganizationImageSelection,
-) -> OrganizationImageReleaseResult:
-    if not settings.IMAGE_ASSET_FEATURE_ENABLED:
-        raise ImageReleaseFeatureDisabledError(
-            "Image asset feature is disabled; public release creation is unavailable."
+        if (
+            rendition.output_format not in PUBLIC_RELEASE_EXTENSIONS
+            or rendition.width <= 0
+            or rendition.height <= 0
+            or rendition.file_size_bytes <= 0
+        ):
+            raise InvalidImageReleaseError("Rendition metadata is invalid.")
+        try:
+            validate_storage_key(rendition.artifact_storage_key)
+            validate_sha256(rendition.checksum_sha256)
+        except ValidationError as error:
+            raise InvalidImageReleaseError(
+                "Rendition artifact identity is invalid."
+            ) from error
+        extension = PUBLIC_RELEASE_EXTENSIONS[rendition.output_format]
+        expected_artifact_key = (
+            f"tenants/{selection.tenant_id}/artifacts/"
+            f"{selection.rendition_set.processing_version}/"
+            f"{selection.rendition_set.asset.checksum_sha256}/"
+            f"{selection.rendition_set.render_config_hash_sha256}/"
+            f"{rendition.variant}-{rendition.checksum_sha256}.{extension}"
         )
-    if not selection.pk:
-        raise InvalidImageReleaseError("Selection must be persisted before release creation.")
+        if rendition.artifact_storage_key != expected_artifact_key:
+            raise InvalidImageReleaseError(
+                "Rendition artifact key is outside its canonical tenant scope."
+            )
 
+
+def _validate_existing_before_reservation(
+    selection: OrganizationImageSelection,
+    renditions: list[ImageRendition],
+) -> None:
+    existing = (
+        OrganizationImageRelease.objects.filter(selection_id=selection.pk)
+        .select_related("selection")
+        .first()
+    )
+    if existing is None:
+        return
+    if (
+        existing.tenant_id != selection.tenant_id
+        or existing.organization_id != selection.organization_id
+        or existing.selection_revision_snapshot != selection.revision
+        or existing.rendition_set_id != selection.rendition_set_id
+        or existing.key_schema_version != OrganizationImageRelease.KEY_SCHEMA_VERSION
+    ):
+        raise InvalidImageReleaseError("Existing release aggregate conflicts with selection.")
+    expected = {
+        item.variant: (
+            item.pk,
+            item.output_format,
+            item.artifact_storage_key,
+            item.checksum_sha256,
+            build_public_release_key(
+                existing.release_id, item.variant, item.output_format
+            ),
+        )
+        for item in renditions
+    }
+    actual = {
+        item.variant: (
+            item.rendition_id,
+            item.output_format,
+            item.artifact_storage_key_snapshot,
+            item.artifact_checksum_sha256_snapshot,
+            item.public_storage_key,
+        )
+        for item in existing.renditions.order_by("variant", "pk")
+    }
+    if actual != expected:
+        raise InvalidImageReleaseError(
+            "Existing release mappings conflict with current immutable artifacts."
+        )
+
+
+def _snapshot_locked_selection(selection_id: int) -> _SelectionSnapshot:
+    try:
+        selection = (
+            OrganizationImageSelection.objects.select_for_update(of=("self",))
+            .select_related("organization", "rendition_set", "rendition_set__asset")
+            .get(pk=selection_id)
+        )
+    except OrganizationImageSelection.DoesNotExist as error:
+        raise InvalidImageReleaseError("Selection does not exist.") from error
+    renditions = list(
+        ImageRendition.objects.select_for_update()
+        .filter(rendition_set_id=selection.rendition_set_id)
+        .order_by("variant", "pk")
+    )
+    _validate_release_scope(selection, renditions)
+    _validate_existing_before_reservation(selection, renditions)
+    return _SelectionSnapshot(
+        tenant_id=selection.tenant_id,
+        organization_id=selection.organization_id,
+        selection_id=selection.pk,
+        selection_revision=selection.revision,
+        rendition_set_id=selection.rendition_set_id,
+        renditions=tuple(
+            _RenditionSnapshot(
+                rendition_id=item.pk,
+                tenant_id=item.tenant_id,
+                rendition_set_id=item.rendition_set_id,
+                variant=item.variant,
+                output_format=item.output_format,
+                width=item.width,
+                height=item.height,
+                file_size_bytes=item.file_size_bytes,
+                artifact_storage_key=item.artifact_storage_key,
+                checksum_sha256=item.checksum_sha256,
+            )
+            for item in renditions
+        ),
+    )
+
+
+def _take_snapshot(selection_id: int) -> _SelectionSnapshot:
+    with transaction.atomic():
+        return _snapshot_locked_selection(selection_id)
+
+
+def _bridge_renditions(
+    snapshot: _SelectionSnapshot,
+) -> tuple[BridgeRenditionSnapshot, ...]:
+    return tuple(
+        BridgeRenditionSnapshot(
+            variant=item.variant,
+            output_format=item.output_format,
+            artifact_storage_key=item.artifact_storage_key,
+            artifact_checksum_sha256=item.checksum_sha256,
+        )
+        for item in snapshot.renditions
+    )
+
+
+def _verify_bound_aggregate(
+    release: OrganizationImageRelease,
+    mappings: tuple[OrganizationImageReleaseRendition, ...],
+    snapshot: _SelectionSnapshot,
+    reservation: BridgeReservation,
+) -> None:
+    if (
+        str(release.release_id) != reservation.release_id
+        or release.tenant_id != snapshot.tenant_id
+        or release.organization_id != snapshot.organization_id
+        or release.selection_id != snapshot.selection_id
+        or release.selection_revision_snapshot != snapshot.selection_revision
+        or release.rendition_set_id != snapshot.rendition_set_id
+        or release.key_schema_version != OrganizationImageRelease.KEY_SCHEMA_VERSION
+    ):
+        raise InvalidImageReleaseError(
+            "Existing database release conflicts with the safety reservation."
+        )
+    expected = {
+        item.variant: (
+            item.rendition_id,
+            item.output_format,
+            item.artifact_storage_key,
+            item.checksum_sha256,
+            reservation.public_keys[item.variant],
+        )
+        for item in snapshot.renditions
+    }
+    actual = {
+        item.variant: (
+            item.rendition_id,
+            item.output_format,
+            item.artifact_storage_key_snapshot,
+            item.artifact_checksum_sha256_snapshot,
+            item.public_storage_key,
+        )
+        for item in mappings
+    }
+    if actual != expected:
+        raise InvalidImageReleaseError(
+            "Existing database release mappings conflict with the safety reservation."
+        )
+
+
+def _load_bound_aggregate(
+    snapshot: _SelectionSnapshot,
+    reservation: BridgeReservation,
+) -> tuple[OrganizationImageRelease, tuple[OrganizationImageReleaseRendition, ...]]:
+    try:
+        release = OrganizationImageRelease.objects.get(selection_id=snapshot.selection_id)
+    except OrganizationImageRelease.DoesNotExist as error:
+        raise InvalidImageReleaseError("Release binding was not committed.") from error
+    mappings = tuple(release.renditions.order_by("variant", "pk"))
+    _verify_bound_aggregate(release, mappings, snapshot, reservation)
+    return release, mappings
+
+
+def _bind_release(
+    snapshot: _SelectionSnapshot,
+    reservation: BridgeReservation,
+) -> tuple[OrganizationImageRelease, tuple[OrganizationImageReleaseRendition, ...]]:
     try:
         with transaction.atomic():
-            locked_selection = (
-                OrganizationImageSelection.objects.select_for_update(of=("self",))
-                .select_related(
-                    "tenant",
-                    "organization",
-                    "rendition_set",
-                    "rendition_set__asset",
+            current = _snapshot_locked_selection(snapshot.selection_id)
+            if current != snapshot:
+                raise InvalidImageReleaseError(
+                    "Selection or rendition metadata changed during reservation."
                 )
-                .get(pk=selection.pk)
+            existing = (
+                OrganizationImageRelease.objects.select_for_update()
+                .filter(selection_id=snapshot.selection_id)
+                .first()
             )
-            renditions = list(
-                ImageRendition.objects.select_for_update()
-                .filter(rendition_set_id=locked_selection.rendition_set_id)
-                .order_by("variant", "pk")
-            )
-            _validate_release_scope(locked_selection, renditions)
+            if existing is not None:
+                mappings = tuple(existing.renditions.order_by("variant", "pk"))
+                _verify_bound_aggregate(existing, mappings, snapshot, reservation)
+                return existing, mappings
 
             release = OrganizationImageRelease(
-                release_id=uuid.uuid4(),
-                tenant=locked_selection.tenant,
-                organization=locked_selection.organization,
-                selection=locked_selection,
-                rendition_set=locked_selection.rendition_set,
+                release_id=reservation.release_id,
+                tenant_id=snapshot.tenant_id,
+                organization_id=snapshot.organization_id,
+                selection_id=snapshot.selection_id,
+                selection_revision_snapshot=snapshot.selection_revision,
+                rendition_set_id=snapshot.rendition_set_id,
                 key_schema_version=OrganizationImageRelease.KEY_SCHEMA_VERSION,
             )
             release = OrganizationImageRelease.objects._insert_from_release_service(
@@ -124,30 +346,78 @@ def create_organization_image_release(
             mappings = [
                 OrganizationImageReleaseRendition(
                     release=release,
-                    rendition=rendition,
-                    variant=rendition.variant,
-                    output_format=rendition.output_format,
-                    artifact_storage_key_snapshot=rendition.artifact_storage_key,
-                    artifact_checksum_sha256_snapshot=rendition.checksum_sha256,
-                    public_storage_key=build_public_release_key(
-                        release.release_id,
-                        rendition.variant,
-                        rendition.output_format,
-                    ),
+                    rendition_id=item.rendition_id,
+                    variant=item.variant,
+                    output_format=item.output_format,
+                    artifact_storage_key_snapshot=item.artifact_storage_key,
+                    artifact_checksum_sha256_snapshot=item.checksum_sha256,
+                    public_storage_key=reservation.public_keys[item.variant],
                 )
-                for rendition in renditions
+                for item in snapshot.renditions
             ]
-            created_mappings = (
+            created = tuple(
                 OrganizationImageReleaseRendition.objects._insert_from_release_service(
                     mappings
                 )
             )
-    except OrganizationImageSelection.DoesNotExist as error:
-        raise InvalidImageReleaseError("Selection does not exist.") from error
-    except (IntegrityError, ValidationError) as error:
+            return release, created
+    except IntegrityError:
+        # A concurrent identical request may win the unique selection gate.
+        return _load_bound_aggregate(snapshot, reservation)
+    except ValidationError as error:
         raise InvalidImageReleaseError("Release aggregate is invalid.") from error
 
+
+def _materialization_inputs(
+    snapshot: _SelectionSnapshot,
+    reservation: BridgeReservation,
+) -> tuple[MaterializationInput, ...]:
+    return tuple(
+        MaterializationInput(
+            release_id=reservation.release_id,
+            variant=item.variant,
+            output_format=item.output_format,
+            width=item.width,
+            height=item.height,
+            file_size_bytes=item.file_size_bytes,
+            artifact_storage_key=item.artifact_storage_key,
+            checksum_sha256=item.checksum_sha256,
+            public_storage_key=reservation.public_keys[item.variant],
+        )
+        for item in snapshot.renditions
+    )
+
+
+def create_organization_image_release(
+    *, selection: OrganizationImageSelection
+) -> OrganizationImageReleaseResult:
+    if not (
+        settings.IMAGE_ASSET_FEATURE_ENABLED
+        and settings.PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED
+    ):
+        raise ImageReleaseFeatureDisabledError(
+            "Public image release materialization is disabled."
+        )
+    if not selection.pk:
+        raise InvalidImageReleaseError("Selection must be persisted before release creation.")
+
+    snapshot = _take_snapshot(selection.pk)
+    bridge = ImageSafetyBridgeClient()
+    reservation = bridge.reserve(
+        tenant_id=snapshot.tenant_id,
+        organization_id=snapshot.organization_id,
+        selection_id=snapshot.selection_id,
+        selection_revision=snapshot.selection_revision,
+        rendition_set_id=snapshot.rendition_set_id,
+        renditions=_bridge_renditions(snapshot),
+    )
+    release, mappings = _bind_release(snapshot, reservation)
+    materializations = materialize_release(_materialization_inputs(snapshot, reservation))
+    activation = bridge.activate(release_id=reservation.release_id)
     return OrganizationImageReleaseResult(
         release=release,
-        renditions=tuple(created_mappings),
+        renditions=mappings,
+        reservation=reservation,
+        materializations=materializations,
+        activation=activation,
     )

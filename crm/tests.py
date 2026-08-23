@@ -83,6 +83,10 @@ class ImageStorageSettingsTests(SimpleTestCase):
         "IMAGE_ASSET_FEATURE_ENABLED",
         "IMAGE_ORIGINALS_ROOT",
         "IMAGE_RENDITIONS_ROOT",
+        "PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED",
+        "PUBLIC_IMAGE_DELIVERY_ROOT",
+        "PUBLIC_IMAGE_SAFETY_BRIDGE_SOCKET",
+        "PUBLIC_IMAGE_SAFETY_BRIDGE_TIMEOUT",
     )
 
     def run_settings_process(self, source, **environment_overrides):
@@ -119,6 +123,13 @@ from django.core.files.storage import storages
 
 private_storage = storages["image_originals_private"]
 public_storage = storages["image_renditions_public"]
+delivery_storage = storages["public_image_delivery"]
+try:
+    delivery_storage.url("releases/example/square.webp")
+except NotImplementedError:
+    delivery_url_disabled = True
+else:
+    delivery_url_disabled = False
 print(json.dumps({
     "feature_enabled": settings.IMAGE_ASSET_FEATURE_ENABLED,
     "aliases": sorted(settings.STORAGES),
@@ -127,9 +138,14 @@ print(json.dumps({
     "staticfiles_backend": settings.STORAGES["staticfiles"]["BACKEND"],
     "private_class": private_storage.__class__.__name__,
     "public_class": public_storage.__class__.__name__,
+    "delivery_class": delivery_storage.__class__.__name__,
     "private_location": private_storage.location,
     "public_location": public_storage.location,
+    "delivery_location": delivery_storage.location,
+    "delivery_base_url": delivery_storage.base_url,
+    "delivery_url_disabled": delivery_url_disabled,
     "same_instance": private_storage is public_storage,
+    "delivery_is_separate": delivery_storage not in (private_storage, public_storage),
 }))
 """,
             **environment_overrides,
@@ -172,6 +188,7 @@ print(json.dumps({
                 "default",
                 "image_originals_private",
                 "image_renditions_public",
+                "public_image_delivery",
                 "staticfiles",
             ],
         )
@@ -186,10 +203,20 @@ print(json.dumps({
         )
         self.assertEqual(snapshot["private_class"], "FileSystemStorage")
         self.assertEqual(snapshot["public_class"], "FileSystemStorage")
+        self.assertEqual(
+            snapshot["delivery_class"], "NoPublicUrlFileSystemStorage"
+        )
+        self.assertIsNone(snapshot["delivery_base_url"])
+        self.assertTrue(snapshot["delivery_url_disabled"])
         self.assertFalse(snapshot["same_instance"])
+        self.assertTrue(snapshot["delivery_is_separate"])
         self.assertNotEqual(
             snapshot["private_location"],
             snapshot["public_location"],
+        )
+        self.assertNotIn(
+            snapshot["delivery_location"],
+            (snapshot["private_location"], snapshot["public_location"]),
         )
 
     def test_relative_image_storage_root_is_rejected(self):
@@ -514,6 +541,11 @@ class ImportExportAuthenticatedAPITestCase(TestCase):
     role_name = "redigerer"
 
     def setUp(self):
+        self._media_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self._media_directory.cleanup)
+        self._media_settings = override_settings(MEDIA_ROOT=self._media_directory.name)
+        self._media_settings.enable()
+        self.addCleanup(self._media_settings.disable)
         self.client = APIClient()
         self.tenant = Tenant.objects.create(name="Tenant A", slug="tenant-a")
         self.other_tenant = Tenant.objects.create(name="Tenant B", slug="tenant-b")

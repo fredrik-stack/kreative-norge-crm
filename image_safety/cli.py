@@ -6,7 +6,6 @@ import json
 import os
 from pathlib import Path
 import sys
-import uuid
 
 from .anchor import (
     BorgAnchorBackend,
@@ -15,7 +14,13 @@ from .anchor import (
     anchor_current_head,
     restore_latest_anchor,
 )
-from .ledger import PublicImageSafetyLedger, ReservationRendition
+from .bridge import SafetyBridgeOperations, SafetyBridgeServer, systemd_listener
+from .ledger import (
+    PublicImageSafetyLedger,
+    ReservationRendition,
+    activation_event_id,
+    reservation_event_id,
+)
 
 
 def _ledger_path() -> Path:
@@ -69,7 +74,7 @@ def build_parser() -> argparse.ArgumentParser:
     recovery = subparsers.add_parser("repository-key-export")
     recovery.add_argument("--destination", required=True)
     reserve = subparsers.add_parser("reserve")
-    reserve.add_argument("--event-id", required=True)
+    reserve.add_argument("--event-id")
     reserve.add_argument("--reservation-file", required=True)
     for name in ("activate", "retire", "deny"):
         transition = subparsers.add_parser(name)
@@ -100,6 +105,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--expected-authoritative-event-hash",
         help="Required recovered full event head hash for incident-recovered mode.",
     )
+    subparsers.add_parser("bridge")
     return parser
 
 
@@ -122,11 +128,15 @@ def main(argv: list[str] | None = None) -> int:
         result = _anchor(ledger)
     elif arguments.command == "reserve":
         data = _load_reservation(arguments.reservation_file)
-        existing = ledger.event_by_id(arguments.event_id)
-        release_id = existing.release_id if existing is not None else str(uuid.uuid4())
-        event = ledger.reserve_release(
-            event_id=arguments.event_id,
-            release_id=release_id,
+        expected_event_id = reservation_event_id(
+            tenant_id=data["tenant_id"],
+            organization_id=data["organization_id"],
+            selection_id=data["selection_id"],
+            selection_revision=data["selection_revision"],
+        )
+        if arguments.event_id is not None and arguments.event_id != expected_event_id:
+            raise ValueError("Reservation event ID must match the canonical selection identity.")
+        event = ledger.reserve_or_get(
             tenant_id=data["tenant_id"],
             organization_id=data["organization_id"],
             selection_id=data["selection_id"],
@@ -134,14 +144,13 @@ def main(argv: list[str] | None = None) -> int:
             rendition_set_id=data["rendition_set_id"],
             renditions=(ReservationRendition(**item) for item in data["renditions"]),
         )
-        print(json.dumps({"local_event": asdict(event)}, sort_keys=True), flush=True)
-        result = _anchor(ledger)
+        result = {"event": asdict(event), "anchor": _anchor(ledger)}
     elif arguments.command == "activate":
-        event = ledger.activate_release(
-            event_id=arguments.event_id, release_id=arguments.release_id
-        )
-        print(json.dumps({"local_event": asdict(event)}, sort_keys=True), flush=True)
-        result = _anchor(ledger)
+        expected_event_id = activation_event_id(arguments.release_id)
+        if arguments.event_id != expected_event_id:
+            raise ValueError("Activation event ID must match the canonical release identity.")
+        event = ledger.activate_or_get(release_id=arguments.release_id)
+        result = {"event": asdict(event), "anchor": _anchor(ledger)}
     elif arguments.command == "retire":
         event = ledger.retire_release(
             event_id=arguments.event_id,
@@ -180,6 +189,19 @@ def main(argv: list[str] | None = None) -> int:
             ),
         )
         result = {"recovery_mode": arguments.recovery_mode, **asdict(restored.head())}
+    elif arguments.command == "bridge":
+        config, backend = _backend()
+        operations = SafetyBridgeOperations(
+            ledger=ledger,
+            anchor_backend=backend,
+            expected_repository_id=config.expected_repository_id,
+        )
+        server = SafetyBridgeServer(
+            listener=systemd_listener(),
+            operations=operations,
+        )
+        server.serve_forever()
+        return 0
     else:  # pragma: no cover
         raise AssertionError("unreachable command")
     print(json.dumps(result, sort_keys=True))

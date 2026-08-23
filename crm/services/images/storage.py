@@ -7,6 +7,7 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import storages
 
 from crm.validators import validate_storage_key
+from image_safety.release_keys import PUBLIC_RELEASE_EXTENSIONS, build_public_release_key
 
 from .processing import checksum_bytes
 
@@ -31,6 +32,27 @@ class ImmutableStorageResult:
     created: bool
 
 
+def _validate_public_delivery_key(key: str) -> None:
+    parts = key.split("/")
+    if len(parts) != 3 or parts[0] != "releases" or "." not in parts[2]:
+        raise ImmutableImageStorageError("Public delivery key is not canonical.")
+    variant, extension = parts[2].rsplit(".", 1)
+    formats = {
+        public_extension: output_format
+        for output_format, public_extension in PUBLIC_RELEASE_EXTENSIONS.items()
+    }
+    try:
+        expected = build_public_release_key(
+            parts[1], variant, formats[extension]
+        )
+    except (KeyError, ValueError) as error:
+        raise ImmutableImageStorageError(
+            "Public delivery key is not canonical."
+        ) from error
+    if key != expected:
+        raise ImmutableImageStorageError("Public delivery key is not canonical.")
+
+
 def _read_verified(storage, key: str, expected_bytes: bytes, expected_checksum: str) -> None:
     try:
         with storage.open(key, "rb") as stored:
@@ -53,8 +75,21 @@ def _save_immutable(
             "Image asset feature is disabled; image storage writes are unavailable."
         )
     validate_storage_key(requested_key)
-    if alias not in {"image_originals_private", "image_renditions_public"}:
+    if alias not in {
+        "image_originals_private",
+        "image_renditions_public",
+        "public_image_delivery",
+    }:
         raise ImmutableImageStorageError("Unsupported image storage alias.")
+    if (
+        alias == "public_image_delivery"
+        and not settings.PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED
+    ):
+        raise ImageStorageFeatureDisabledError(
+            "Public image materialization is disabled."
+        )
+    if alias == "public_image_delivery":
+        _validate_public_delivery_key(requested_key)
     if not isinstance(data, bytes) or not data:
         raise ImmutableImageStorageError("Immutable image storage requires non-empty bytes.")
 

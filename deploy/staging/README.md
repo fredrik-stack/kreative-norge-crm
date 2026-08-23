@@ -53,6 +53,10 @@ DB_PASSWORD=...
 IMAGE_ASSET_FEATURE_ENABLED=False
 IMAGE_ORIGINALS_ROOT=/srv/kreative-norge/media/private
 IMAGE_RENDITIONS_ROOT=/srv/kreative-norge/media/public
+PUBLIC_IMAGE_DELIVERY_ROOT=/srv/kreative-norge/media/public-delivery
+PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED=False
+PUBLIC_IMAGE_SAFETY_BRIDGE_SOCKET=/run/kreative-norge-image-safety/bridge.sock
+PUBLIC_IMAGE_SAFETY_BRIDGE_TIMEOUT=50
 BRAVE_IMAGE_SEARCH_API_KEY=
 VITE_API_BASE=
 ```
@@ -75,10 +79,11 @@ It creates only these host-persistent directories and enforces `root:root` mode 
 
 - `/srv/kreative-norge/media/private`
 - `/srv/kreative-norge/media/public`
+- `/srv/kreative-norge/media/public-delivery`
 
 The current API image runs as root and can write both directories. The root-run Borg service can read them. If the API later becomes non-root, ownership must be changed through a separate controlled delivery; do not broaden these modes ad hoc.
 
-`public` is the historical storage-alias name for internal processing renditions. It is not mounted into `web`, has no `base_url`, and is not served by nginx or Caddy.
+`public` is the historical storage-alias name for internal processing renditions. `public-delivery` er den separate, fortsatt ueksponerte release-roten. Ingen av dem er montert i `web` eller servert av nginx/Caddy.
 
 ## 5. Start staging
 
@@ -258,4 +263,10 @@ sudo /srv/kreative-norge-crm/ops/image_safety/install.sh prepare
 
 Ledgeren ligger i `/var/lib/kreative-norge-image-safety/ledger.sqlite3`. Konfigurasjon og restricted writercredential ligger under `/etc/kreative-norge-image-safety/`. Ingen av pathene er montert i `api` eller `web`; Borg installeres ikke i images. `prepare` aktiverer fortsatt ingen unit eller timer alene.
 
-Ikke kjør `init` mot den eksisterende generelle backup-repositoryen. Staging bruker et dedikert safety-subaccount/repository, separat recovery-custody og aktiv health-timer etter fullført capability-/transaction-recovery-/restartgate 2026-08-20. Se [safety-runbooken](../../docs/operations/PUBLIC_IMAGE_SAFETY_LEDGER.md) og [aktiveringsevidensen](../../docs/status/STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md). `ACTIVE` gjelder bare 3E.1A; public runtime forblir av, og 3E.1B skal ikke startes som del av denne deployen.
+Ikke kjør `init` mot den eksisterende generelle backup-repositoryen. Staging bruker et dedikert safety-subaccount/repository, separat recovery-custody og aktiv health-timer etter fullført capability-/transaction-recovery-/restartgate 2026-08-20. Se [safety-runbooken](../../docs/operations/PUBLIC_IMAGE_SAFETY_LEDGER.md) og [aktiveringsevidensen](../../docs/status/STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md). `ACTIVE` gjelder bare 3E.1A; public runtime forblir av.
+
+## 14. Fase 3E.1B-foundation – ikke aktiver i ordinær deploy
+
+Repoet inneholder systemd socket/service, API-only runtime-/delivery-mounts og backupallowlist for 3E.1B. De er deployment foundation, ikke dokumentert live status. `PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED` skal forbli `False` ved ordinær deploy.
+
+En separat, godkjent staginggate må før senere aktivering minst verifisere: tom release-tabell før migrasjon `0029`; root-eid socket `0600`; faktisk `SO_PEERCRED` fra API-containeren; ingen socket/delivery/ledger/Borg i `web`; ingen ledger eller Borg-credential i API; 45/50/60-sekunders timeoutkjede; create/retry/no-clobber for tre syntetiske renditions; restart etter delvis materialisering; og at delivery-bytes inngår i en ny backup og isolert restore. Det skal fortsatt ikke legges til Nginx-route, media-alias eller offentlig HTTP-serving i denne gaten.
