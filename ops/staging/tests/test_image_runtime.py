@@ -11,6 +11,16 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 class StagingImageRuntimeContractTests(unittest.TestCase):
+    def test_web_image_keeps_delivery_gid_after_nginx_drops_privileges(self):
+        dockerfile = (REPOSITORY_ROOT / "Dockerfile.web").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn(
+            "addgroup -S -g 2000 kreative-norge-public-media", dockerfile
+        )
+        self.assertIn("addgroup nginx kreative-norge-public-media", dockerfile)
+
     def test_compose_mounts_images_only_into_api(self):
         compose = yaml.safe_load(
             (REPOSITORY_ROOT / "docker-compose.staging.yml").read_text(
