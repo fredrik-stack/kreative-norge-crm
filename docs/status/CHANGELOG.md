@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-24
+
+### Fase 3E.1C kontrollert serving aktivert og verifisert i staging
+
+- merget de separat reviewede PR-ene #41–#44 og deployet eksakt sluttmerge `38663b5` etter grønn seks-jobbers main-CI-run `32668678789`
+- aktivert bare det ignorerte stagingflagget `PUBLIC_IMAGE_SERVING_ENABLED=True`; kode- og eksempelstandard forblir `False`
+- bevist canonical GET/HEAD og reautorisert 304 for square/landscape/share med identiske bytes, checksum-`ETag` og `private, max-age=60, must-revalidate`
+- bevist tom `404/no-store` for ukjente/ikke-canonical/upubliserte releases, tom `405/no-store` for unsafe methods og tom `503/no-store` ved bridge- og filfeil
+- bevist read-only `scope_mismatch`, socket activation, API/web/bridge-restart, Nginx-worker-GID `2000`, mountisolasjon, eksplisitte origins og sanitert structured logging
+- verifisert at PUBLIC HTML/API, publisert aktørantall og permanent legacyredirect er uendret og ikke inneholder den aktive release-UUID-en
+- tatt post-activation-backup `kreative-norge-staging-20260823T220249Z` med grønn full verify og isolert restore; 3E.1C er `CLOSED / ACTIVE`, mens 3E.2–3E.4, projection, PUBLIC-kobling og takedown fortsatt er uimplementert
+
 ## 2026-08-23
 
 ### Fase 3E.1C kontrollert serving implementert bak separat gate
@@ -13,7 +25,7 @@
 - lagt read-only deliverymount i `web`, dedikert kollisjonssjekket hostgruppe/supplementary GID `2000`, setgid-/`0640`-kontrakt og en `internal` Nginx-location med symlinkforbud; private originaler, artifacts, safety-state og credentials forblir utenfor web
 - lagt `PUBLIC_IMAGE_SERVING_ENABLED=False` som egen kode-/eksempelstandard og eksplisitte HTTPS-origins bundet til eksakte `DJANGO_ALLOWED_HOSTS`, uavhengig av requestens `Host`-/proxyheadere
 - valgt foreløpig `private, max-age=60, must-revalidate`, checksum-`ETag`, `no-store` på 404/503 og ingen shared proxycache/`immutable`; projection, API/PUBLIC, legacy-cutover, takedown og 3E.2–3E.4 er ikke aktivert
-- stagingaktivering og liveevidens gjennomføres separat etter merge; ved feil er rollback bare servingflagget av og API/web-recreate
+- stagingaktiveringen er senere gjennomført og dokumentert separat; rollback er fortsatt bare servingflagget av og API/web-recreate
 
 ### Fase 3E.1B-materialisering aktivert og verifisert med public serving av
 

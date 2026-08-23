@@ -1409,7 +1409,7 @@ Følgende gjenstår etter de godkjente fase 3B.1-, 3B.1R-, 3B.2- og 3B.3-valgene
 - eventuell skadevarekontroll
 - om mer enn ett fokuspunkt eller en placementmodell senere trengs
 - endelig fallbackgrafikk og fallback-alttekst; ADR-009 har fastsatt `image`, enum og aliasmapping
-- konkret lokal cache-TTL, headers, purge- og verifikasjonskontrakt; provider/CDN bare ved senere dokumentert behov
+- endelig cache expiry, purge- og verifikasjonskontrakt for 3E.4; 3E.1C har valgt og liveverifisert foreløpig `private, max-age=60, must-revalidate`, checksum-`ETag`, `no-store` på feil og ingen shared cache/`immutable`; provider/CDN bare ved senere dokumentert behov
 - om første MVP tillater logisk same-tenant assetgjenbruk
 - retensjonsfrist for godkjente, aldri tilknyttede assets
 - om fallback-selection låser innholdssnapshot eller rendereroppskrift
@@ -1417,13 +1417,13 @@ Følgende gjenstår etter de godkjente fase 3B.1-, 3B.1R-, 3B.2- og 3B.3-valgene
 - auditretensjon og eventuell kontrollert anonymisering
 - scheduler-/workergrense for retensjon
 
-Disse valgene endrer ikke hovedarkitekturen. Fase 3B.1R, fase 3B.3, fase 3B.3-A-domenegrunnmuren, operativ aktivering av ADR-008-backupen og ADR-009s fase 3E.1A–3E.1B er gjennomført som beslutnings-, implementerings- og evidensgater. ADR-009s fase 3E.1C–3E.4 skal implementeres og bevises før offentlig serving eller formell takedown aktiveres.
+Disse valgene endrer ikke hovedarkitekturen. Fase 3B.1R, fase 3B.3, fase 3B.3-A-domenegrunnmuren, operativ aktivering av ADR-008-backupen og ADR-009s fase 3E.1A–3E.1C er gjennomført som beslutnings-, implementerings- og evidensgater. ADR-009s fase 3E.2–3E.4 skal implementeres og bevises før PUBLIC-kobling eller formell takedown aktiveres.
 
 ## Beslutninger som fortsatt krever eksplisitt godkjenning
 
 Gjenstående fase 3B-resultater må godkjennes før de respektive produksjonsrettede runtimeleveransene aktiveres. Godkjenningen skal minst omfatte:
 
-- konkret implementasjonsevidens for ADR-009s controlled serving, origins, purge og restoreadferd; lokal ledger, off-server anker, read-model/cursor, host/systemd-placement og delivery/materialisering er bevist i 3E.1A–3E.1B
+- konkret implementasjonsevidens for ADR-009s projection, API/PUBLIC, purge og takedown; lokal ledger, off-server anker, read-model/cursor, host/systemd-placement, delivery/materialisering, controlled serving, origins og restoreadferd er bevist i 3E.1A–3E.1C
 - fallbackgrafikk/-alttekst og cache-TTL/headerverdier som ADR-009 bevisst lar åpne
 - sync/async-grense og cleanupmekanisme
 - same-tenant reuse- og orphan-retensjonsregel

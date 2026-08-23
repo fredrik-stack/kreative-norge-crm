@@ -2,7 +2,7 @@
 
 ## Status
 
-Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som lokal safety-ledger, dedikert off-server Borg-anchor, separat recovery-gate og fail-closed health. Fase 3E.1B.1–3E.1B.2-materialisering er `ACTIVE` i staging etter syntetisk ankret reserve/activate-, crash/restart/retry- og no-clobber-gate. Fase 3E.1C er implementert bak en separat default-off servinggate, men er ikke stagingaktivert før en egen livegate. Én permanent syntetisk release for en upublisert stagingaktør finnes som 3E.1B-evidens. Fase 3E.2–3E.4, projection, API/PUBLIC og offentlig bildebruk er ikke implementert eller aktivert.
+Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som lokal safety-ledger, dedikert off-server Borg-anchor, separat recovery-gate og fail-closed health. Fase 3E.1B.1–3E.1B.2-materialisering er `ACTIVE` etter syntetisk ankret reserve/activate-, crash/restart/retry- og no-clobber-gate. Fase 3E.1C-controlled serving er `CLOSED / ACTIVE` i staging etter separat HTTP-, fail-closed-, restart-, observability- og backup/restore-gate. Staging har én upublisert 3E.1B-evidensrelease og én publisert standalone servingrelease. Fase 3E.2–3E.4, projection, API/PUBLIC-kobling og ordinær offentlig bildebruk er ikke implementert eller aktivert.
 
 **Beslutningsdato:** 2026-08-17
 
@@ -11,6 +11,8 @@ Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som
 **3E.1B-presisering godkjent:** 2026-08-20
 
 **3E.1C read-only-presisering godkjent:** 2026-08-23
+
+**3E.1C stagingaktivert:** 2026-08-24
 
 ADR-et formaliserer fase 3E og supplerer [ADR-007](ADR-007-IMAGE_ASSET_ARCHITECTURE.md) og [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md). Det endrer ikke de implementerte fase 3B–3D-modellene, dagens legacybildebruk eller den aktive generelle Borg-backupen.
 
@@ -23,7 +25,7 @@ Fase 3B–3D har implementert og verifisert intern bildebehandling, immutable ar
 - dagens orphan-cleanup kjenner bare `ImageRendition.artifact_storage_key`; `releases/...` i samme root ville bli behandlet som urefererte filer og kunne slettes etter aldersgrensen
 - dagens public API har to ruteregistreringer for `/api/public/actors/`: `crm.urls_public` nås direkte fra `config.urls`, mens `crm.urls` registrerer en annen viewset og serializer under samme effektive path
 - legacyaliasene kan allerede divergere fordi `preview_image_url` og `thumbnail_image_url` bruker ulike resolvere
-- permanent reservation-/lifecycle-ledger og dedikert off-serverkjede er implementert og live-verifisert i staging i 3E.1A, men kontrollert serving, public projection, API-cutover, cache-/purgekontrakt og formell takedown finnes ikke
+- permanent reservation-/lifecycle-ledger og dedikert off-serverkjede er implementert og live-verifisert i 3E.1A; kontrollert serving og en foreløpig privat revalidationpolicy er aktivert i 3E.1C, mens public projection, API-cutover, formell purge og takedown ikke finnes
 
 ADR-007 krever at en eldre database- eller apprestore aldri kan reaktivere en nyere denied release eller gjenbruke en tidligere release-ID/key. ADR-008s nattlige Borg-kjede har et foreløpig RPO på omtrent 24 timer pluss timerforsinkelse og bruker ikke et append-only/admin-key-regime. Den generelle backupen kan derfor ikke alene være den autoritative sikkerhetstilstanden for public image runtime.
 
@@ -31,13 +33,13 @@ ADR-007 krever at en eldre database- eller apprestore aldri kan reaktivere en ny
 
 ### 1. Tydelig grense mellom implementert grunnmur og planlagt runtime
 
-Fase 3B–3D-grunnmuren forblir implementert. 3E.1A-ledger/read-model/restore/health og live off-servergate samt 3E.1B-materialisering og release-livssyklus for reserve/activate er implementert og aktivert i staging. 3E.1C har implementert kontrollert serving og origin-konfigurasjon bak et eget flagg, men er ikke `ACTIVE` før separat stagingevidens. Følgende gjenstår i fase 3E.2–3E.4:
+Fase 3B–3D-grunnmuren forblir implementert. 3E.1A-ledger/read-model/restore/health og live off-servergate, 3E.1B-materialisering/release-livssyklus for reserve/activate og 3E.1C kontrollert serving/origins er implementert og aktivert i staging. Følgende gjenstår i fase 3E.2–3E.4:
 
 - `PublicImageProjection`, strukturert API-kontrakt og legacyalias-cutover
 - PUBLIC-, canonical-, Open Graph- og Twitter-integrasjon
 - formell takedown og tenant-scopet checksum-deny
 
-Dokumentasjon, UI og operativ status skal bruke dette skillet og skal ikke omtale ADR-009 som kjørende runtime.
+Dokumentasjon, UI og operativ status skal bruke dette skillet: standalone release-serving er kjørende i staging, men PUBLIC og den samlede public image runtime-reisen er ikke koblet eller ferdig.
 
 ### 2. Autoritativ append-only sikkerhetsledger
 
@@ -192,7 +194,7 @@ Fallback er ikke en aktiv asset-release og skal ikke representeres som en slik i
 
 ### 11. Cache- og takedownprinsipper
 
-Aktive releases kan caches kontrollert, men konkret TTL, `Cache-Control` og eventuell bruk av `immutable` avgjøres og bevises i fase 3E.1C og 3E.4. Dette ADR-et fastsetter ikke `public,max-age=3600,immutable` eller en annen fast verdi.
+Fase 3E.1C har målt og valgt den foreløpige policyen `private, max-age=60, must-revalidate`, checksum-`ETag`, reautorisert `304`, `no-store` på feil, ingen shared proxycache og ingen `immutable`. Fase 3E.4 avgjør og beviser endelig cache expiry, purge og takedown-verifikasjon før ordinær PUBLIC-cutover.
 
 Sikkerhetsfallback skal ikke kunne bli liggende som en feilaktig aktiv release når sikkerhetstilstanden igjen er kjent. Formell takedown er ikke fullført før relevant origin-tilgang er blokkert eller slettet og nødvendig cache expiry/purge/retry/verifikasjon er registrert.
 
@@ -215,9 +217,9 @@ Global checksum-deny innføres ikke uten et senere konkret behov og egen beslutn
 
 **Besluttet nå:** lokal Unix-socket/systemd-bro med operasjonsgrensen `reserve`/`activate`/`retire`/`deny`; én reservation/public release per selection-revisjon; retry gjenbruker samme UUID/keys; safety-ledgeren eier lifecycle-state; public release-filer slettes ikke automatisk.
 
-**Materialisering ACTIVE i staging, serving av:** minimal AF_UNIX/systemd-bro med bare `reserve` og `activate`, atomisk reservation, idempotent DB-binding, separat `public_image_delivery`-alias/root, create-only/no-clobber, full read-back-verifikasjon og idempotent activation. Compose-, systemd-, socket-/peer-, mount-, delivery-persistence- og backup-/restorekontraktene er liveverifisert. Den faktiske workflowen er bevist med syntetisk ankret reservation, DB-binding, kontrollert krasj etter første fil, API-restart, idempotent completion/activation, full retry uten writes og ephemeral hard konflikt for samme key med andre bytes. Public serving forblir av.
+**Materialisering ACTIVE i staging:** minimal AF_UNIX/systemd-bro med bare `reserve` og `activate`, atomisk reservation, idempotent DB-binding, separat `public_image_delivery`-alias/root, create-only/no-clobber, full read-back-verifikasjon og idempotent activation. Compose-, systemd-, socket-/peer-, mount-, delivery-persistence- og backup-/restorekontraktene er liveverifisert. Den faktiske workflowen er bevist med syntetisk ankret reservation, DB-binding, kontrollert krasj etter første fil, API-restart, idempotent completion/activation, full retry uten writes og ephemeral hard konflikt for samme key med andre bytes. Serving ble aktivert senere som separat 3E.1C-gate.
 
-**Utenfor 3E.1B:** Nginx-serving, `X-Accel-Redirect`, offentlig HTTP-serving av `releases/...`, `PUBLIC_MEDIA_ORIGIN`, public API-schema, `PublicImageProjection`, PUBLIC HTML/UI, Editor-endringer, cachepolicy, CDN, takedown/cache purge og fase 3E.1C–3E.4. Public image runtime forblir av.
+**Utenfor 3E.1B:** Nginx-serving, `X-Accel-Redirect`, offentlig HTTP-serving av `releases/...`, `PUBLIC_MEDIA_ORIGIN` og cachepolicy ble levert separat i 3E.1C. Public API-schema, `PublicImageProjection`, PUBLIC HTML/UI, Editor-endringer, CDN, takedown/cache purge og fase 3E.2–3E.4 er fortsatt utenfor 3E.1B.
 
 ## Trusselmodell
 
@@ -481,7 +483,7 @@ Følgende valg er godkjent, implementert og stagingaktivert i 3E.1B-materialiser
 
 ## Avklarte 3E.1C-implementasjonsvalg
 
-Følgende valg er godkjent og implementert bak en separat default-off servinggate; stagingstatus krever fortsatt egen liveevidens:
+Følgende valg er godkjent, implementert og liveverifisert i staging bak en separat kode-/eksempel-default-off servinggate:
 
 - canonical `GET`/`HEAD /media/releases/<uuidv4>/<variant>.<ext>` via Django og intern Nginx-location `/_protected-public-image/`; ingen anonym alias kan nå delivery-rooten direkte
 - tom `404/no-store`-catch-all for ikke-canonical former under samme prefix uten domenekall, og CSRF-unntak bare på den write-frie media-viewen slik at andre metoder stoppes som `405/no-store` før domenekall
@@ -510,11 +512,11 @@ Disse detaljene kan ikke svekke permanent no-reuse, deny-over-restore, separat d
 
 - tom `OrganizationImageRelease`-tabell før migrasjon `0029`, anvendt migrasjon og fortsatt `0` releases
 - faktisk root-eid socket `0600`, `SO_PEERCRED` fra API-containeren, aktiv systemd socket/service og 5/45/50/60-sekunders timeoutkjede i staging
-- at API bare får socket- og delivery-mountene, mens web fortsatt mangler delivery-, socket-, ledger- og Borg-tilgang
+- at API bare fikk socket- og delivery-mountene, mens web ved 3E.1B-stoppunktet fortsatt manglet delivery-, socket-, ledger- og Borg-tilgang; 3E.1C har senere gitt web bare delivery read-only
 - delivery-persistens gjennom API-recreate og identisk checksum i en ny backup, full repository-/arkivverifikasjon og isolert restore
 
-Materialiseringsgaten 2026-08-23 beviste create/retry/no-clobber, delvis materialisering og restart med syntetiske komplette renditions gjennom den faktiske reserve → DB-binding → materialisering/read-back → activate-workflowen. Ledgeren er `READY` på cursor `5` med én syntetisk release i `active`, PostgreSQL har ett komplett immutable aggregate og delivery-rooten har tre checksumverifiserte filer. Post-activation-backup og isolert restore av samme arkiv er grønne. Se [foundationevidensen](../status/STAGING_PHASE_3E1B_FOUNDATION_2026-08-23.md) og [aktiveringsevidensen](../status/STAGING_PHASE_3E1B_MATERIALIZATION_ACTIVATION_2026-08-23.md).
+Materialiseringsgaten 2026-08-23 beviste create/retry/no-clobber, delvis materialisering og restart med syntetiske komplette renditions gjennom den faktiske reserve → DB-binding → materialisering/read-back → activate-workflowen. Ved avslutningen var ledgeren `READY` på cursor `5` med én syntetisk release i `active`, PostgreSQL hadde ett komplett immutable aggregate og delivery-rooten tre checksumverifiserte filer. Se [foundationevidensen](../status/STAGING_PHASE_3E1B_FOUNDATION_2026-08-23.md) og [aktiveringsevidensen](../status/STAGING_PHASE_3E1B_MATERIALIZATION_ACTIVATION_2026-08-23.md).
 
-Neste gate er separat stagingdeploy og aktivering av den implementerte 3E.1C-gaten. Materialiseringsstatusen gir ikke alene filene en public URL, autoriserer ikke projection/API/PUBLIC og endrer ikke legacybildestrømmen.
+Servinggaten 2026-08-24 aktiverte deretter 3E.1C på eksakt merge `38663b5` og beviste HTTP-/cachekontrakten, negative svar, read-only safety-scope, bridge-/filfeil, restart, origins, observability, isolasjon og backup/restore. Sluttstate er ledger `READY` på cursor `7`, to release-aggregater og seks delivery-filer. Se [3E.1C-evidensen](../status/STAGING_PHASE_3E1C_ACTIVATION_2026-08-24.md). Neste gate er 3E.2 projection/API shadow; legacybildestrømmen er fortsatt uendret.
 
 Retensjon og eksplisitt apply-prosedyre for release-aware cleanup er fortsatt ikke godkjent. Projection, API/PUBLIC-cutover, endelig purge og takedown krever 3E.2–3E.4-gatene.
