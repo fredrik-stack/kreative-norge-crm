@@ -3,7 +3,7 @@ from django.urls import path, include, re_path
 
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
-from crm.public_image_views import public_image_release
+from crm.public_image_views import invalid_public_image_release, public_image_release
 
 urlpatterns = [
     re_path(
@@ -11,6 +11,11 @@ urlpatterns = [
         r"(?P<variant>square|landscape|share)\.(?P<extension>webp|png|jpg)$",
         public_image_release,
         name="public-image-release",
+    ),
+    re_path(
+        r"^media/releases/.*$",
+        invalid_public_image_release,
+        name="invalid-public-image-release",
     ),
     path("admin/", admin.site.urls),
 

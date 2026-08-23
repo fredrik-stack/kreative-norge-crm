@@ -6,7 +6,7 @@ import uuid
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from PIL import Image
 
@@ -234,11 +234,14 @@ class PublicImageServingTests(TestCase):
         )
 
     def test_only_get_and_head_are_allowed(self):
+        csrf_client = Client(enforce_csrf_checks=True)
         for method in ("post", "put", "patch", "delete"):
             with self.subTest(method=method):
-                response = getattr(self.client, method)(self.url())
+                response = getattr(csrf_client, method)(self.url())
                 self.assertEqual(response.status_code, 405)
+                self.assertEqual(response.content, b"")
                 self.assertEqual(response["Cache-Control"], "no-store")
+                self.assertEqual(response["X-Content-Type-Options"], "nosniff")
         self.assertEqual(ServingBridge.calls, [])
 
     def test_conditional_revalidation_still_runs_gates_then_returns_304(self):
@@ -270,7 +273,11 @@ class PublicImageServingTests(TestCase):
         )
         for path in malformed_paths:
             with self.subTest(path=path):
-                self.assertEqual(self.client.get(path).status_code, 404)
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 404)
+                self.assertEqual(response.content, b"")
+                self.assertEqual(response["Cache-Control"], "no-store")
+                self.assertEqual(response["X-Content-Type-Options"], "nosniff")
 
         Organization.objects.filter(pk=self.organization.pk).update(is_published=False)
         self.assertEqual(self.client.get(self.url()).status_code, 404)

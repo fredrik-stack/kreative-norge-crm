@@ -5,6 +5,7 @@ from time import monotonic
 
 from django.http import HttpResponse, HttpResponseNotAllowed
 from django.utils.http import parse_etags, quote_etag
+from django.views.decorators.csrf import csrf_exempt
 
 from .services.images.serving import (
     PublicImageNotFound,
@@ -31,6 +32,7 @@ def _not_modified(request, etag: str) -> bool:
     }
 
 
+@csrf_exempt
 def public_image_release(request, release_id, variant: str, extension: str):
     started = monotonic()
     status = 500
@@ -86,6 +88,18 @@ def public_image_release(request, release_id, variant: str, extension: str):
         status,
         safety_category,
         safety_cursor,
+        (monotonic() - started) * 1000,
+    )
+    return response
+
+
+@csrf_exempt
+def invalid_public_image_release(request):
+    started = monotonic()
+    response = _error_response(404)
+    LOGGER.info(
+        "outcome=invalid_route release_id=invalid variant=invalid http_status=404 "
+        "safety_category=not_checked safety_cursor=None duration_ms=%.3f",
         (monotonic() - started) * 1000,
     )
     return response
