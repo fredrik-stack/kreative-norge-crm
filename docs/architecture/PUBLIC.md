@@ -143,7 +143,7 @@ Manglende eller korrupt journal, stale/ukjent cursor, denied/retired release, sc
 
 PUBLIC skal etter cutover bare bruke CRM-kontrollerte renditions eller systemfallback. Rå kilde-URL, intern proveniens, audit og privat original skal ikke eksponeres.
 
-Godkjente kortmål beholder 90 × 90 i PUBLIC-oversikten og bruker 160 × 160 på desktop-detaljen. Mobil detalj forblir rektangulær; eksakt felles høyde avgjøres i fase 3B. Logo bruker `contain`, foto bruker `cover` og fokuspunkt, PUBLIC-tags er grønne, og lange navn, kommuner, tags og knapper skal ikke gi overflow.
+Godkjente kortmål beholder 90 × 90 i PUBLIC-oversikten og bruker 160 × 160 på desktop-detaljen. Detail bruker 88 × 88 ved bredder opptil 860 px og full bredde × 210 px ved bredder opptil 620 px. Logo bruker `contain`, foto bruker `cover` og fokuspunkt, PUBLIC-tags er grønne, og lange navn, kommuner, tags og knapper skal ikke gi overflow.
 
 PUBLIC-detaljen skal få absolutt canonical, Open Graph og Twitter Card. Canonical app-origin og public media-origin skal være miljøkonfigurerte og allowlistede, ikke avledet fra vilkårlig request-host. `og:image` bruker CRM-kontrollert share-rendition eller fallback på 1200 × 630. Korrekt metadata kan leveres, men det kan ikke loves at alle meldingsklienter viser preview.
 

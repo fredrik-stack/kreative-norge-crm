@@ -188,7 +188,7 @@ Det strukturerte public-feltet heter `image` og har denne kontrakten:
 
 `thumbnail_image_url` og `preview_image_url` beholdes som deprecated kompatibilitetsaliaser. Etter cutover kommer begge fra samme `PublicImageProjection` og peker til `image.square.url`; de kan ikke divergere.
 
-Den doble registreringen av `/api/public/actors/` og ulike serializers var et verifisert avvik da ADR-en ble vedtatt. Fase 3E.2 har valgt og kontrakttestet én kanonisk public route/viewset/serializer og fjernet den shadowed registreringen. `image`-schemaet er implementert, men forblir separat avslått i staging frem til 3E.3-cutovergaten.
+Den doble registreringen av `/api/public/actors/` og ulike serializers var et verifisert avvik da ADR-en ble vedtatt. Fase 3E.2 har valgt og kontrakttestet én kanonisk public route/viewset/serializer og fjernet den shadowed registreringen. `image`-schemaet er implementert og aktivert i staging etter 3E.3-cutovergaten; kode-/eksempelstandarden er fortsatt avslått.
 
 ### 10. Statisk og versjonert systemfallback
 
