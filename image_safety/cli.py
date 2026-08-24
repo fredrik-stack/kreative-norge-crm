@@ -16,6 +16,7 @@ from .anchor import (
 )
 from .bridge import SafetyBridgeOperations, SafetyBridgeServer, systemd_listener
 from .ledger import (
+    LATEST_LEDGER_SCHEMA_VERSION,
     PublicImageSafetyLedger,
     ReservationRendition,
     activation_event_id,
@@ -150,6 +151,12 @@ def main(argv: list[str] | None = None) -> int:
         expected_event_id = activation_event_id(arguments.release_id)
         if arguments.event_id != expected_event_id:
             raise ValueError("Activation event ID must match the canonical release identity.")
+        if ledger.schema_version() >= LATEST_LEDGER_SCHEMA_VERSION:
+            raise ValueError(
+                "Legacy CLI activate is disabled for ledger schema v2; use the "
+                "guarded Django release workflow so tenant checksum deny is checked "
+                "atomically with activation."
+            )
         event = ledger.activate_or_get(release_id=arguments.release_id)
         result = {"event": asdict(event), "anchor": _anchor(ledger)}
     elif arguments.command == "retire":

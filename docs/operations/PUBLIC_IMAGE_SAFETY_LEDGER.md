@@ -164,7 +164,7 @@ sudo /usr/local/lib/kreative-norge-image-safety/image-safety.sh reserve \
 
 Kommandoen deriverer canonical event-ID fra selection-identiteten og skriver bare ikke-sensitive event-/anchoridentiteter. Den valgfrie bakoverkompatible `--event-id` må være eksakt lik den deriverte ID-en. Hvis ankeringen feiler etter lokal commit, bruk identisk input; UUID/key gjenbrukes atomisk.
 
-Operator-CLI-ets eldre enkle `deny` er teknisk deaktivert fordi den ikke samtidig kan skrive checksum-deny, fallbackaudit og kontrollert origin-delete. Formell takedown skal bare startes gjennom den rolleavgrensede Django-actionen, som kaller bridgeoperasjonen `deny` med serverutledet release/scope/checksum. CLI-subkommandoen beholdes bare for en tydelig kontrollert feilmelding og kan ikke mutere verken v1- eller v2-ledger.
+Operator-CLI-ets eldre enkle `deny` er teknisk deaktivert fordi den ikke samtidig kan skrive checksum-deny, fallbackaudit og kontrollert origin-delete. Formell takedown skal bare startes gjennom den rolleavgrensede Django-actionen, som kaller bridgeoperasjonen `deny` med serverutledet release/scope/checksum. CLI-subkommandoen beholdes bare for en tydelig kontrollert feilmelding og kan ikke mutere verken v1- eller v2-ledger. Den eldre CLI-`activate` er tilsvarende deaktivert etter schema-v2-upgrade fordi CLI-en ikke eier autoritativ tenant/source-checksum; v2-aktivering skal gå gjennom den guardede Django-/bridgeflyten. Schema-v1-CLI-aktivering beholdes bare som bakoverkompatibel operatørflate før upgrade.
 
 ## 7. Health, replay og reconciliation
 

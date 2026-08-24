@@ -28,6 +28,7 @@ from image_safety.ledger import (
     InvalidTransitionError,
     PublicImageSafetyLedger,
     ReservationRendition,
+    activation_event_id,
 )
 
 
@@ -384,6 +385,44 @@ class LedgerV2ContractTests(LedgerFixture):
 
         self.assertEqual(self.ledger.head(), before)
         self.assertEqual(self.ledger.release_state(self.release_id)["state"], "active")
+
+    def test_legacy_cli_activate_is_disabled_on_v2_without_mutation(self):
+        self.ledger.upgrade_schema_v2()
+        reserved_release_id = "33333333-3333-4333-8333-333333333333"
+        self.ledger.reserve_release(
+            event_id="reservation.after.upgrade",
+            release_id=reserved_release_id,
+            tenant_id=1,
+            organization_id=2,
+            selection_id=30,
+            selection_revision=5,
+            rendition_set_id=31,
+            renditions=self.renditions("after-upgrade"),
+        )
+        before = self.ledger.head()
+
+        with patch.dict(
+            os.environ,
+            {"IMAGE_SAFETY_LEDGER_PATH": str(self.path)},
+            clear=False,
+        ):
+            with self.assertRaisesRegex(
+                ValueError, "Legacy CLI activate is disabled for ledger schema v2"
+            ):
+                cli_main(
+                    [
+                        "activate",
+                        "--event-id",
+                        activation_event_id(reserved_release_id),
+                        "--release-id",
+                        reserved_release_id,
+                    ]
+                )
+
+        self.assertEqual(self.ledger.head(), before)
+        self.assertEqual(
+            self.ledger.release_state(reserved_release_id)["state"], "reserved"
+        )
 
 
 class HealthAndReplayTests(LedgerFixture):
