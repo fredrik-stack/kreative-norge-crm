@@ -1420,10 +1420,9 @@ Disse valgene endrer ikke hovedarkitekturen. Fase 3B.1R, fase 3B.3, fase 3B.3-A-
 
 ## Beslutninger som fortsatt krever eksplisitt godkjenning
 
-Gjenstående fase 3B-resultater må godkjennes før de respektive produksjonsrettede runtimeleveransene aktiveres. Godkjenningen skal minst omfatte:
+ADR-009s lokale takedownkontrakt krever ingen ny godkjenning: ledger, off-server anker, read-model/cursor, host/systemd-placement, delivery/materialisering, controlled serving, origins, projection, API/PUBLIC/head, permanent deny, cache/origin-verifikasjon og restore/republish er bevist gjennom 3E.1A–3E.4. Følgende senere utvidelser krever fortsatt eksplisitt beslutning dersom et konkret behov oppstår:
 
-- konkret implementasjonsevidens for ADR-009s purge og takedown; lokal ledger, off-server anker, read-model/cursor, host/systemd-placement, delivery/materialisering, controlled serving, origins, projection, API/PUBLIC/head og restoreadferd er bevist i 3E.1A–3E.3
-- ekstern purgeintegrasjon bare dersom shared cache senere påvises; 3E.4-MVP-en beholder privat revalidation og krever 404/no-store, ingen gammel 304/HIT og slettet origin; production fallback v1 og blank fallback-alttekst er avklart i 3E.3
+- ekstern purgeintegrasjon bare dersom shared cache senere påvises; 3E.4-MVP-en beholder privat revalidation og har livebevist 404/no-store, ingen gammel 304/HIT og slettet origin; production fallback v1 og blank fallback-alttekst er avklart i 3E.3
 - sync/async-grense og cleanupmekanisme
 - same-tenant reuse- og orphan-retensjonsregel
 
