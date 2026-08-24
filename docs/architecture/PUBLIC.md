@@ -1,6 +1,6 @@
 # Public Architecture
 
-**Status:** Implementert grunnløsning; kontaktregel og fase 2-stabilisering implementert; standalone public image serving er `ACTIVE` i staging; 3E.2 projection/API-shadow er implementert bak default-off gater og avventer stagingverifikasjon; PUBLIC-kobling er ikke implementert
+**Status:** Implementert grunnløsning; kontaktregel og fase 2-stabilisering implementert; standalone public image serving er `ACTIVE` i staging; 3E.2 projection/API-shadow er `CLOSED / SHADOW VERIFIED`; PUBLIC-kobling er ikke implementert og bruker fortsatt legacybilder
 
 **Sist verifisert:** 2026-08-24
 
@@ -117,7 +117,7 @@ Direkte `Person.phone` brukes fortsatt aldri som PUBLIC-fallback. Offentlig tele
 
 Dagens løsning velger mellom manuell thumbnail, automatisk thumbnail og Open Graph-bilde. Eksterne bilde-URL-er kan forsvinne, endres, blokkere hotlinking eller ha feil format.
 
-[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som målarkitektur, og fase 3B–3D har implementert intern bilde-/selection-/rendition-/release-domenegrunnmur. [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) har godkjent public runtimearkitekturen. 3E.1A-journalen/off-serverankeret, 3E.1B-materialisering og 3E.1C standalone controlled serving er `ACTIVE` i staging. 3E.1C-livegaten beviste canonical media-route, kontrollert Django-gate, intern Nginx-serving, eksplisitte origins, cache, fail-closed og restart/restore. Projection, API/PUBLIC-cutover og takedown er ikke implementert, og dagens eksterne URL- og fallbackflyt gjelder fortsatt i PUBLIC.
+[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som målarkitektur, og fase 3B–3D har implementert intern bilde-/selection-/rendition-/release-domenegrunnmur. [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) har godkjent public runtimearkitekturen. 3E.1A-journalen/off-serverankeret, 3E.1B-materialisering og 3E.1C standalone controlled serving er `ACTIVE` i staging. 3E.1C-livegaten beviste canonical media-route, kontrollert Django-gate, intern Nginx-serving, eksplisitte origins, cache, fail-closed og restart/restore. 3E.2 projection-shadow er `CLOSED / SHADOW VERIFIED`; API-schema, PUBLIC-cutover og takedown er ikke implementert, og dagens eksterne URL- og fallbackflyt gjelder fortsatt i PUBLIC.
 
 Godkjent retning:
 

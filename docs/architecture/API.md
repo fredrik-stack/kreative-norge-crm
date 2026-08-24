@@ -1,6 +1,6 @@
 # API
 
-**Status:** implementert grunn-API; 3E.2 public image projection/API shadow implementert bak default-off gater, stagingverifikasjon gjenstår
+**Status:** implementert grunn-API; 3E.2 public image projection/API shadow er `CLOSED / SHADOW VERIFIED`; target-response-schemaet er fortsatt av
 
 API-et omfatter autentisering, tenants, taksonomi, aktører, personer, koblinger, kontaktkanaler, interne bildekandidathandlinger, public actors, importjobber og eksportjobber.
 
@@ -74,7 +74,7 @@ Canonical app-URL-er og public rendition-URL-er skal bygges fra miljøkonfigurer
 
 `PublicImageProjection` er read-only og blir eneste resolver for public API, PUBLIC HTML og head. Den gjør ingen HTTP-/DNS-oppslag, decode, render eller storage-write og leser samme journal/read-model som serving-gaten. De interne refsene og previewene er ikke public projection eller public serving.
 
-`PUBLIC_IMAGE_PROJECTION_ENABLED=False` styrer projection/shadow og krever gyldige site-/media-origins slik at både teknisk static fallback og release-URL-er er absolutte. Den reproducerbare, skrivebeskyttede fullkataloggaten er `python manage.py audit_public_image_projection`; request-shadow kjøres bare for detail, ikke for hele listen. `PUBLIC_IMAGE_API_SCHEMA_ENABLED=False` styrer target-response og OpenAPI. Schemaflagget krever projection og controlled serving. Med schemaflagget av er responsefeltene og legacyverdiene uendret. Med flagget på kommer `image` og begge deprecated aliasene fra samme projection. Dette flagget skal forbli av gjennom 3E.2-staginggaten og PUBLIC-cutoveren hører til 3E.3.
+`PUBLIC_IMAGE_PROJECTION_ENABLED=False` er kode-/eksempelstandard og styrer projection/shadow; den ignorerte stagingverdien er `True` etter den separate [shadowgaten](../status/STAGING_PHASE_3E2_SHADOW_2026-08-24.md). Projection krever gyldige site-/media-origins slik at både teknisk static fallback og release-URL-er er absolutte. Den reproducerbare, skrivebeskyttede fullkataloggaten er `python manage.py audit_public_image_projection`; request-shadow kjøres bare for detail, ikke for hele listen. `PUBLIC_IMAGE_API_SCHEMA_ENABLED=False` styrer target-response og OpenAPI og er fortsatt `False` i staging. Schemaflagget krever projection og controlled serving. Med schemaflagget av er responsefeltene og legacyverdiene uendret. Med flagget på kommer `image` og begge deprecated aliasene fra samme projection. PUBLIC-cutoveren hører til 3E.3.
 
 Projection og byte-serving deler samme fail-closed validering av publication, tenant/Organization/selection/revision/rendition-sett, eksakt tre mappinger, canonical keys og immutable snapshots. Projection autoriserer alle tre varianter gjennom 3E.1Cs read-only bridge, men leser ikke bildefiler. Serving beholder den separate byte-/filverifikasjonen. Ved ukjent eller utilgjengelig safety-state returnerer projection den versjonerte tekniske 3B.1-fallbacken, aldri legacybilde. Endelig fallbackgrafikk og fallback-alttekst avgjøres først i 3E.3.
 

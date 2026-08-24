@@ -273,7 +273,7 @@ Staginggaten har verifisert tom release-tabell før migrasjon `0029`; root-eid s
 
 Den separate aktiveringsgaten har i tillegg bevist faktisk reserve → DB-binding → create-only/read-back → activate, ephemeral hard no-clobber-konflikt, recovery etter kontrollert krasj med én fil og API-restart samt full idempotent retry. Én permanent syntetisk release for en upublisert stagingaktør beholdes som evidens. Se [aktiveringsrapporten](../../docs/status/STAGING_PHASE_3E1B_MATERIALIZATION_ACTIVATION_2026-08-23.md).
 
-Ved avslutningen av 3E.1B var ingen Nginx-route, media-alias, projection eller offentlig HTTP-serving aktivert. 3E.1C har senere aktivert den kontrollerte release-ruten separat; projection og API/PUBLIC er fortsatt av. Ikke kopier eksempelverdier over aktiv stagingkonfigurasjon ved ordinær deploy; flaggendring eller rollback er en eksplisitt operatørhandling, og permanente reservations-/activationevents eller releasefiler slettes aldri som rollback.
+Ved avslutningen av 3E.1B var ingen Nginx-route, media-alias, projection eller offentlig HTTP-serving aktivert. 3E.1C aktiverte senere den kontrollerte release-ruten separat. Fase 3E.2 har nå shadow-aktivert projection i staging mens API-schema og PUBLIC-forbruk fortsatt er av. Ikke kopier eksempelverdier over aktiv stagingkonfigurasjon ved ordinær deploy; flaggendring eller rollback er en eksplisitt operatørhandling, og permanente reservations-/activationevents eller releasefiler slettes aldri som rollback.
 
 ## 15. Fase 3E.1C – separat kontrollert servinggate
 
@@ -295,7 +295,7 @@ Etter grønn preflight settes bare `PUBLIC_IMAGE_SERVING_ENABLED=True`, og API r
 
 Ved hvilket som helst gateavvik: sett `PUBLIC_IMAGE_SERVING_ENABLED=False`, rekreer API, bekreft `404` på media-ruten og behold ledger-, DB- og delivery-state urørt. Ikke aktiver 3E.2, projection, API/PUBLIC eller takedown som del av denne gaten.
 
-**Aktiv stagingstatus 2026-08-24:** Gaten er gjennomført fra eksakt merge `38663b5`, og bare den ignorerte stagingverdien er `PUBLIC_IMAGE_SERVING_ENABLED=True`. HTTP/cache, negative svar, bridge-/filfeil, origins, logger, mountisolasjon, restart og backup/restore er grønne. Se [aktiveringsrapporten](../../docs/status/STAGING_PHASE_3E1C_ACTIVATION_2026-08-24.md). Kode-/eksempelstandard er fortsatt `False`; 3E.2, projection, API/PUBLIC, legacy-cutover og takedown er ikke aktivert.
+**Aktiv stagingstatus 2026-08-24:** 3E.1C-gaten er gjennomført fra eksakt merge `38663b5`, og den ignorerte stagingverdien er `PUBLIC_IMAGE_SERVING_ENABLED=True`. HTTP/cache, negative svar, bridge-/filfeil, origins, logger, mountisolasjon, restart og backup/restore er grønne. Se [aktiveringsrapporten](../../docs/status/STAGING_PHASE_3E1C_ACTIVATION_2026-08-24.md). 3E.2 projection-shadow er senere aktivert separat på merge `90ff5e9`; API-schema, PUBLIC, legacy-cutover og takedown er fortsatt av.
 
 ## 16. Fase 3E.2 – separat projection/API-shadowgate
 
@@ -325,3 +325,5 @@ docker-compose -f docker-compose.staging.yml --env-file .env.staging \
 Evidensen skal registrere aggregert JSON med publisert antall, asset/fallback, reasons, safety unavailable/scope mismatch, legacydiff, authorize count, query count og runtime. Verifiser i tillegg at den aktive publiserte evidensreleasen gir `asset`, at alle tre projected release-URL-er matcher canonical controlled media, at teknisk fallback finnes på alle tre versjonerte static-URL-er, og at et kontrollert bridgeavvik gir projection-fallback uten å endre anonymous legacyresponse. Kontroller API/PUBLIC-responsen mot baseline på nytt og verifiser at safety cursor/events, PostgreSQL-radantall, deliveryfiler og checksums er uendret av GET/audit.
 
 `PUBLIC_IMAGE_API_SCHEMA_ENABLED` skal forbli `False`; target-schemarespons, PUBLIC-cutover og 3E.3 inngår ikke i gaten. Ved enhver response-/PUBLIC-/safetyregresjon: sett projectionflagget tilbake til `False`, recreate bare `api`, verifiser baseline og behold serving, ledger, release-DB og delivery urørt. Dersom rollback ikke gjenoppretter baseline, stopp deployen og bruk forrige eksakte mergecommit uten å slette database, media, ledger eller volume.
+
+**Gjennomført 2026-08-24:** Eksakt merge `90ff5e9` ble deployet etter grønn backup og isolert restore. Off/off-baseline, canonical route, fullkatalog `122 = 1 asset + 121 fallback`, alle seks asset-/fallback-HEAD-kall, unpublished-adferd, sanitert logg, performance og uendret API/PUBLIC/safety/DB/delivery var grønne. Projection står `True` i ignorert stagingkonfigurasjon; schema står `False`. En kontrollert operatørverktøyfeil utløste og beviste API-only rollback før korrigert rerun. Se [datert evidens](../../docs/status/STAGING_PHASE_3E2_SHADOW_2026-08-24.md).

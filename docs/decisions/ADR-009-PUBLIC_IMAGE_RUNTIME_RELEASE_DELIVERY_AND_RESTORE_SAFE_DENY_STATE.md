@@ -2,7 +2,7 @@
 
 ## Status
 
-Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som lokal safety-ledger, dedikert off-server Borg-anchor, separat recovery-gate og fail-closed health. Fase 3E.1B.1–3E.1B.2-materialisering er `ACTIVE` etter syntetisk ankret reserve/activate-, crash/restart/retry- og no-clobber-gate. Fase 3E.1C-controlled serving er `CLOSED / ACTIVE` i staging etter separat HTTP-, fail-closed-, restart-, observability- og backup/restore-gate. Staging har én upublisert 3E.1B-evidensrelease og én publisert standalone servingrelease. Fase 3E.2-projection/API shadow er implementert bak separate default-off gater, men er ikke stagingverifisert eller aktivert. Fase 3E.3–3E.4, PUBLIC-kobling og ordinær offentlig bildebruk er ikke implementert eller aktivert.
+Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som lokal safety-ledger, dedikert off-server Borg-anchor, separat recovery-gate og fail-closed health. Fase 3E.1B.1–3E.1B.2-materialisering er `ACTIVE` etter syntetisk ankret reserve/activate-, crash/restart/retry- og no-clobber-gate. Fase 3E.1C-controlled serving er `CLOSED / ACTIVE` i staging etter separat HTTP-, fail-closed-, restart-, observability- og backup/restore-gate. Staging har én upublisert 3E.1B-evidensrelease og én publisert standalone servingrelease. Fase 3E.2 er `CLOSED / SHADOW VERIFIED`: projection er aktiv bare i staging, mens target-schemaet er av. Fase 3E.3–3E.4, PUBLIC-kobling og ordinær offentlig bildebruk er ikke implementert eller aktivert.
 
 **Beslutningsdato:** 2026-08-17
 
@@ -14,6 +14,8 @@ Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som
 
 **3E.1C stagingaktivert:** 2026-08-24
 
+**3E.2 shadowverifisert:** 2026-08-24
+
 ADR-et formaliserer fase 3E og supplerer [ADR-007](ADR-007-IMAGE_ASSET_ARCHITECTURE.md) og [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md). Det endrer ikke de implementerte fase 3B–3D-modellene, dagens legacybildebruk eller den aktive generelle Borg-backupen.
 
 ## Kontekst
@@ -23,9 +25,9 @@ Fase 3B–3D har implementert og verifisert intern bildebehandling, immutable ar
 - `create_organization_image_release` er etter 3E.1B den ene støttede, feature-gated workflowen for snapshot, ankret reservasjon, immutable DB-binding, create-only materialisering, read-back og ankret activation; den er ikke koblet til en aktiv API-/Editor- eller stagingflyt
 - `image_renditions_public` er i praksis intern artifact-storage med tenant-scopede keys og er ikke montert i web-containeren eller eksponert som public origin
 - dagens orphan-cleanup kjenner bare `ImageRendition.artifact_storage_key`; `releases/...` i samme root ville bli behandlet som urefererte filer og kunne slettes etter aldersgrensen
-- dagens public API har to ruteregistreringer for `/api/public/actors/`: `crm.urls_public` nås direkte fra `config.urls`, mens `crm.urls` registrerer en annen viewset og serializer under samme effektive path
+- dagens public API hadde før 3E.2 to ruteregistreringer for `/api/public/actors/`; 3E.2 har beholdt `crm.urls_public` som én canonical route og fjernet den shadowed viewset-/serializerkjeden
 - legacyaliasene kan allerede divergere fordi `preview_image_url` og `thumbnail_image_url` bruker ulike resolvere
-- permanent reservation-/lifecycle-ledger og dedikert off-serverkjede er implementert og live-verifisert i 3E.1A; kontrollert serving og en foreløpig privat revalidationpolicy er aktivert i 3E.1C, mens public projection, API-cutover, formell purge og takedown ikke finnes
+- permanent reservation-/lifecycle-ledger og dedikert off-serverkjede er implementert og live-verifisert i 3E.1A; kontrollert serving og en foreløpig privat revalidationpolicy er aktivert i 3E.1C; projection-shadow er liveverifisert i 3E.2, mens API/PUBLIC-cutover, formell purge og takedown ikke finnes
 
 ADR-007 krever at en eldre database- eller apprestore aldri kan reaktivere en nyere denied release eller gjenbruke en tidligere release-ID/key. ADR-008s nattlige Borg-kjede har et foreløpig RPO på omtrent 24 timer pluss timerforsinkelse og bruker ikke et append-only/admin-key-regime. Den generelle backupen kan derfor ikke alene være den autoritative sikkerhetstilstanden for public image runtime.
 
@@ -33,7 +35,7 @@ ADR-007 krever at en eldre database- eller apprestore aldri kan reaktivere en ny
 
 ### 1. Tydelig grense mellom implementert grunnmur og planlagt runtime
 
-Fase 3B–3D-grunnmuren forblir implementert. 3E.1A-ledger/read-model/restore/health og live off-servergate, 3E.1B-materialisering/release-livssyklus for reserve/activate og 3E.1C kontrollert serving/origins er implementert og aktivert i staging. 3E.2 projection/API shadow er implementert default-off, men den separate staginggaten gjenstår. Følgende gjenstår før ordinær PUBLIC-bruk i fase 3E.3–3E.4:
+Fase 3B–3D-grunnmuren forblir implementert. 3E.1A-ledger/read-model/restore/health og live off-servergate, 3E.1B-materialisering/release-livssyklus for reserve/activate, 3E.1C kontrollert serving/origins og 3E.2 projection-shadow er implementert og aktivert/verifisert i staging. Target-schemaet forblir av. Følgende gjenstår før ordinær PUBLIC-bruk i fase 3E.3–3E.4:
 
 - target `image`-schema og legacyalias-cutover; projectionkoden og shadow-audit er levert, men response-schemaet forblir av
 - PUBLIC-, canonical-, Open Graph- og Twitter-integrasjon
@@ -184,7 +186,7 @@ Det strukturerte public-feltet heter `image` og har denne kontrakten:
 
 `thumbnail_image_url` og `preview_image_url` beholdes som deprecated kompatibilitetsaliaser. Etter cutover kommer begge fra samme `PublicImageProjection` og peker til `image.square.url`; de kan ikke divergere.
 
-Dagens doble registrering av `/api/public/actors/` og ulike serializers er et verifisert avvik. Ingen ruterefactor inngår i denne dokumentleveransen. Før `image`-schemaet aktiveres i fase 3E.2 skal én kanonisk public route/viewset/serializer være valgt og kontrakttestet; den andre registreringen skal fjernes eller gjøres entydig ikke-aktiv.
+Den doble registreringen av `/api/public/actors/` og ulike serializers var et verifisert avvik da ADR-en ble vedtatt. Fase 3E.2 har nå valgt og kontrakttestet én kanonisk public route/viewset/serializer og fjernet den shadowed registreringen. `image`-schemaet forblir separat avslått frem til cutovergaten.
 
 ### 10. Statisk og versjonert systemfallback
 
@@ -519,6 +521,8 @@ Disse detaljene kan ikke svekke permanent no-reuse, deny-over-restore, separat d
 
 Materialiseringsgaten 2026-08-23 beviste create/retry/no-clobber, delvis materialisering og restart med syntetiske komplette renditions gjennom den faktiske reserve → DB-binding → materialisering/read-back → activate-workflowen. Ved avslutningen var ledgeren `READY` på cursor `5` med én syntetisk release i `active`, PostgreSQL hadde ett komplett immutable aggregate og delivery-rooten tre checksumverifiserte filer. Se [foundationevidensen](../status/STAGING_PHASE_3E1B_FOUNDATION_2026-08-23.md) og [aktiveringsevidensen](../status/STAGING_PHASE_3E1B_MATERIALIZATION_ACTIVATION_2026-08-23.md).
 
-Servinggaten 2026-08-24 aktiverte deretter 3E.1C på eksakt merge `38663b5` og beviste HTTP-/cachekontrakten, negative svar, read-only safety-scope, bridge-/filfeil, restart, origins, observability, isolasjon og backup/restore. Sluttstate er ledger `READY` på cursor `7`, to release-aggregater og seks delivery-filer. Se [3E.1C-evidensen](../status/STAGING_PHASE_3E1C_ACTIVATION_2026-08-24.md). Neste gate er 3E.2 projection/API shadow; legacybildestrømmen er fortsatt uendret.
+Servinggaten 2026-08-24 aktiverte deretter 3E.1C på eksakt merge `38663b5` og beviste HTTP-/cachekontrakten, negative svar, read-only safety-scope, bridge-/filfeil, restart, origins, observability, isolasjon og backup/restore. Sluttstate er ledger `READY` på cursor `7`, to release-aggregater og seks delivery-filer. Se [3E.1C-evidensen](../status/STAGING_PHASE_3E1C_ACTIVATION_2026-08-24.md).
 
-Retensjon og eksplisitt apply-prosedyre for release-aware cleanup er fortsatt ikke godkjent. Projection må bestå 3E.2-livegaten; API/PUBLIC-cutover, endelig purge og takedown krever deretter 3E.3–3E.4-gatene.
+3E.2-shadowgaten 2026-08-24 deployet eksakt merge `90ff5e9`, beholdt schema/PUBLIC av og beviste én canonical route, `122 = 1 asset + 121 systemfallback`, fem faste queries, tre authorize-kall, `0` safety-/scopefeil, asset/fallback/unpublished, uendret API/PUBLIC/OpenAPI og uendret cursor/radantall/deliverymanifest. Projection-shadow står på med lav målt request-overhead. Se [3E.2-evidensen](../status/STAGING_PHASE_3E2_SHADOW_2026-08-24.md).
+
+Retensjon og eksplisitt apply-prosedyre for release-aware cleanup er fortsatt ikke godkjent. API/PUBLIC-cutover, endelig purge og takedown krever 3E.3–3E.4-gatene.
