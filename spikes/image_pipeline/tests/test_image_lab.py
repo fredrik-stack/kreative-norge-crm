@@ -291,7 +291,8 @@ class ImageLabTests(unittest.TestCase):
                     occurrences.append(str(path.relative_to(repo_root)))
         self.assertEqual(occurrences, [])
         requirements = (repo_root / "requirements.txt").read_text(encoding="utf-8").lower()
-        self.assertNotIn("pillow", requirements)
+        # Production has its own Pillow-based 3C processing runtime. The spike
+        # boundary is that no spike module or its pyvips dependency leaks in.
         self.assertNotIn("pyvips", requirements)
 
 

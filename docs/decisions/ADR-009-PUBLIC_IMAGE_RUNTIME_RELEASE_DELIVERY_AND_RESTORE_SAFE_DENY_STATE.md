@@ -2,7 +2,7 @@
 
 ## Status
 
-Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som lokal safety-ledger, dedikert off-server Borg-anchor, separat recovery-gate og fail-closed health. Fase 3E.1B.1–3E.1B.2-materialisering er `ACTIVE` etter syntetisk ankret reserve/activate-, crash/restart/retry- og no-clobber-gate. Fase 3E.1C-controlled serving er `CLOSED / ACTIVE` i staging etter separat HTTP-, fail-closed-, restart-, observability- og backup/restore-gate. Staging har én upublisert 3E.1B-evidensrelease og én publisert standalone servingrelease. Fase 3E.2–3E.4, projection, API/PUBLIC-kobling og ordinær offentlig bildebruk er ikke implementert eller aktivert.
+Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som lokal safety-ledger, dedikert off-server Borg-anchor, separat recovery-gate og fail-closed health. Fase 3E.1B.1–3E.1B.2-materialisering er `ACTIVE` etter syntetisk ankret reserve/activate-, crash/restart/retry- og no-clobber-gate. Fase 3E.1C-controlled serving er `CLOSED / ACTIVE` i staging etter separat HTTP-, fail-closed-, restart-, observability- og backup/restore-gate. Staging har én upublisert 3E.1B-evidensrelease og én publisert standalone servingrelease. Fase 3E.2-projection/API shadow er implementert bak separate default-off gater, men er ikke stagingverifisert eller aktivert. Fase 3E.3–3E.4, PUBLIC-kobling og ordinær offentlig bildebruk er ikke implementert eller aktivert.
 
 **Beslutningsdato:** 2026-08-17
 
@@ -33,9 +33,9 @@ ADR-007 krever at en eldre database- eller apprestore aldri kan reaktivere en ny
 
 ### 1. Tydelig grense mellom implementert grunnmur og planlagt runtime
 
-Fase 3B–3D-grunnmuren forblir implementert. 3E.1A-ledger/read-model/restore/health og live off-servergate, 3E.1B-materialisering/release-livssyklus for reserve/activate og 3E.1C kontrollert serving/origins er implementert og aktivert i staging. Følgende gjenstår i fase 3E.2–3E.4:
+Fase 3B–3D-grunnmuren forblir implementert. 3E.1A-ledger/read-model/restore/health og live off-servergate, 3E.1B-materialisering/release-livssyklus for reserve/activate og 3E.1C kontrollert serving/origins er implementert og aktivert i staging. 3E.2 projection/API shadow er implementert default-off, men den separate staginggaten gjenstår. Følgende gjenstår før ordinær PUBLIC-bruk i fase 3E.3–3E.4:
 
-- `PublicImageProjection`, strukturert API-kontrakt og legacyalias-cutover
+- target `image`-schema og legacyalias-cutover; projectionkoden og shadow-audit er levert, men response-schemaet forblir av
 - PUBLIC-, canonical-, Open Graph- og Twitter-integrasjon
 - formell takedown og tenant-scopet checksum-deny
 
@@ -428,6 +428,8 @@ Trinnvis innføring holder risikoen avgrenset: journal og restorebevis kommer f�
 
 **Rollback:** nytt schema/cutover av; gateway-deny og permanent ledger beholdes.
 
+**Implementeringspresisering 2026-08-24:** `PUBLIC_IMAGE_PROJECTION_ENABLED` og `PUBLIC_IMAGE_API_SCHEMA_ENABLED` er separate fail-closed gater med kode- og eksempelstandard `False`. Schema krever projection, serving og gyldig media-origin. Den kanoniske `crm.urls_public`-/`PublicActorPublicViewSet`-/`PublicActorSerializer`-kjeden er alene om `/api/public/actors/`; detail bruker `org_number`. Projection og serving deler samme release-/mappinginvarianter, mens bare serving leser og verifiserer delivery-bytes. Projection autoriserer alle tre varianter gjennom eksisterende variant-scopet read-only `authorize` og faller samlet tilbake ved ett negativt eller utilgjengelig svar. Fullkatalog-shadow kjøres med den skrivebeskyttede `audit_public_image_projection`; list-requesten påføres ikke tre socketkall per asset. De eksisterende 3B.1-fallbackfilene gjenbrukes byte-for-byte på versjonert static-sti som teknisk shadowrepresentasjon. Dette godkjenner ikke endelig grafikk eller fallback-alttekst og aktiverer ikke schema, PUBLIC eller 3E.3.
+
 ### Fase 3E.3 – PUBLIC, canonical, delingsmetadata og cutover
 
 **Omfang:**
@@ -519,4 +521,4 @@ Materialiseringsgaten 2026-08-23 beviste create/retry/no-clobber, delvis materia
 
 Servinggaten 2026-08-24 aktiverte deretter 3E.1C på eksakt merge `38663b5` og beviste HTTP-/cachekontrakten, negative svar, read-only safety-scope, bridge-/filfeil, restart, origins, observability, isolasjon og backup/restore. Sluttstate er ledger `READY` på cursor `7`, to release-aggregater og seks delivery-filer. Se [3E.1C-evidensen](../status/STAGING_PHASE_3E1C_ACTIVATION_2026-08-24.md). Neste gate er 3E.2 projection/API shadow; legacybildestrømmen er fortsatt uendret.
 
-Retensjon og eksplisitt apply-prosedyre for release-aware cleanup er fortsatt ikke godkjent. Projection, API/PUBLIC-cutover, endelig purge og takedown krever 3E.2–3E.4-gatene.
+Retensjon og eksplisitt apply-prosedyre for release-aware cleanup er fortsatt ikke godkjent. Projection må bestå 3E.2-livegaten; API/PUBLIC-cutover, endelig purge og takedown krever deretter 3E.3–3E.4-gatene.

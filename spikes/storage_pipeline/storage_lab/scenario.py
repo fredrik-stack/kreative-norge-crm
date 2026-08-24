@@ -49,7 +49,15 @@ def static_fallback_path(variant: str = "landscape") -> Path:
     if explicit:
         path = Path(explicit) / filename
     else:
-        path = Path(__file__).resolve().parents[2] / "image_pipeline" / "static" / filename
+        path = (
+            Path(__file__).resolve().parents[3]
+            / "crm"
+            / "static"
+            / "crm"
+            / "public-image-fallback"
+            / "v1"
+            / filename
+        )
     if not path.is_file():
         raise RuntimeError(f"static phase 3B.1 fallback is missing: {path}")
     return path

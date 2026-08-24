@@ -13,6 +13,11 @@ _PUBLIC_KEY_RE = re.compile(
     r"(?P<variant>square|landscape|share)\.(?P<extension>webp|png|jpg)\Z"
 )
 _FORMAT_BY_EXTENSION = {"webp": "webp", "png": "png", "jpg": "jpeg"}
+_FALLBACK_PATHS = {
+    "square": "crm/public-image-fallback/v1/emergency-fallback-square.png",
+    "landscape": "crm/public-image-fallback/v1/emergency-fallback-landscape.png",
+    "share": "crm/public-image-fallback/v1/emergency-fallback-share.png",
+}
 
 
 class InvalidPublicMediaKey(ValueError):
@@ -44,3 +49,14 @@ def build_public_media_url(public_storage_key: str) -> str:
     if not origin:
         raise ImproperlyConfigured("PUBLIC_MEDIA_ORIGIN is not configured.")
     return f"{origin}/media/{canonical_key}"
+
+
+def build_public_fallback_url(variant: str) -> str:
+    try:
+        path = _FALLBACK_PATHS[variant]
+    except (KeyError, TypeError) as error:
+        raise InvalidPublicMediaKey("Public fallback variant is invalid.") from error
+    origin = settings.PUBLIC_SITE_ORIGIN
+    if not origin:
+        raise ImproperlyConfigured("PUBLIC_SITE_ORIGIN is not configured.")
+    return f"{origin}/static/{path}"

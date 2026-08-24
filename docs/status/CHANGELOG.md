@@ -2,6 +2,16 @@
 
 ## 2026-08-24
 
+### Fase 3E.2 projection og public API shadow implementert bak default-off gater
+
+- konsolidert `/api/public/actors/` til `crm.urls_public`, `PublicActorPublicViewSet` og `PublicActorSerializer`, med `org_number` som detail-lookup og den shadowed duplikatruten/serializeren fjernet
+- lagt read-only `PublicImageProjection` som gir eksakt `asset` eller `system_fallback`, autoriserer alle tre varianter gjennom eksisterende safety-`authorize` og bruker samme release-/scope-/mappinginvarianter som controlled serving
+- gjenbrukt 3B.1s tre tekniske fallback-PNG-er byte-for-byte på versjonert Django-static-sti; endelig grafikk og fallback-alttekst gjenstår i 3E.3
+- lagt target `image`-schema og aliaslikhet bak `PUBLIC_IMAGE_API_SCHEMA_ENABLED=False`, mens `PUBLIC_IMAGE_PROJECTION_ENABLED=False` styrer projection/shadow og begge standardverdier er fail-closed
+- lagt detail-shadowlogging uten URLs/intern metadata og `audit_public_image_projection` for skrivebeskyttet fullkatalogmåling av projection, safetyutfall, legacydiff, query count og runtime
+- lagt route-, legacy contract-, asset/fallback-, safety-, tenant/scope-, no-I/O-, query-, audit-, alias- og OpenAPI-tester uten ny modell eller migrasjon
+- staging shadow-gaten gjenstår; schema, PUBLIC, 3E.3 og formell takedown er fortsatt av
+
 ### Fase 3E.1C kontrollert serving aktivert og verifisert i staging
 
 - presisert den plattformavhengige sockettesten etter gjentatt Linux-`ECONNRESET`: både reset og EOF godtas som transportutfall når en uautorisert peer avvises uten domenerespons; produksjonskode og stagingruntime er uendret

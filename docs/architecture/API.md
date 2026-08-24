@@ -1,14 +1,12 @@
 # API
 
-**Status:** implementert grunn-API; public image runtime-kontrakt godkjent, ikke implementert
+**Status:** implementert grunn-API; 3E.2 public image projection/API shadow implementert bak default-off gater, stagingverifikasjon gjenstår
 
 API-et omfatter autentisering, tenants, taksonomi, aktører, personer, koblinger, kontaktkanaler, interne bildekandidathandlinger, public actors, importjobber og eksportjobber.
 
 Tenant-scope Editor-API returnerer både interne og offentlige `PersonContact` for autoriserte brukere.
 
-Den faktisk først-resolverte public API-ruten under `/api/public/` bruker `crm.urls_public`, `crm.views_public.PublicActorPublicViewSet` og `crm.serializers_public.PublicActorSerializer`. Den returnerer bare kontaktpersoner fra aktive `OrganizationPerson`-koblinger med `publish_person=True`, og bare kontaktverdier fra `PersonContact` der `is_public=True`. Public API bruker ikke fallback fra `Person.email` eller `Person.phone`.
-
-Samme effektive `/api/public/actors/` er også registrert senere gjennom `config.urls` → `crm.urls` → `PublicActorViewSet`, med en annen serializer og lookupkontrakt. Denne ruten er shadowed av den første registreringen, men er et verifisert vedlikeholdsavvik. Ingen refaktor inngår i ADR-009-dokumentleveransen. Fase 3E.2 skal velge og kontraktteste én kanonisk public route/viewset/serializer og fjerne eller gjøre den andre entydig ikke-aktiv før nytt bildeschema aktiveres.
+Den ene kanoniske public API-ruten under `/api/public/` bruker `crm.urls_public`, `crm.views_public.PublicActorPublicViewSet` og `crm.serializers_public.PublicActorSerializer`. Detail-ruten slår opp på `org_number`. Den tidligere overlappende registreringen gjennom `crm.urls`, `PublicActorViewSet` og `PublicOrganizationSerializer` er fjernet i 3E.2. API-et returnerer bare kontaktpersoner fra aktive `OrganizationPerson`-koblinger med `publish_person=True`, og bare kontaktverdier fra `PersonContact` der `is_public=True`. Public API bruker ikke fallback fra `Person.email` eller `Person.phone`.
 
 Personobjektet i public-kontrakten inneholder additivt `title` når `Person.title` har en verdi. Feltet utelates når tittelen er null eller tom. Tittelen er foreløpig global på `Person`; relasjonsspesifikk tittel er planlagt senere.
 
@@ -61,7 +59,7 @@ Schema-migrasjon `0028` legger additivt til `ImageRenditionSet.zoom` med default
 
 Uploadtjenestens filgrense er 15 MiB. Staging-nginx har 16 MiB request-body-grense for å gi plass til multipart-overhead. 3D.2-konfigurasjonen og faktisk multipartflyt er deployet og stagingverifisert.
 
-Den godkjente overgangen i [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) er additiv, men ikke implementert:
+Den godkjente overgangen i [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) er implementert som et default-off 3E.2-target og er ennå ikke aktivt response-schema:
 
 - et strukturert `image`-objekt får `kind` med enum `asset|system_fallback`, `alt_text`, nullable `credit` og `square`-, `landscape`- og `share`-renditions med `url`, `width` og `height`
 - bare CRM-kontrollerte renditions eller systemfallback blir aktive bildekilder etter cutover
@@ -75,5 +73,9 @@ Den godkjente overgangen i [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_R
 Canonical app-URL-er og public rendition-URL-er skal bygges fra miljøkonfigurerte, allowlistede site- og media-origins, ikke fra vilkårlig request-host.
 
 `PublicImageProjection` er read-only og blir eneste resolver for public API, PUBLIC HTML og head. Den gjør ingen HTTP-/DNS-oppslag, decode, render eller storage-write og leser samme journal/read-model som serving-gaten. De interne refsene og previewene er ikke public projection eller public serving.
+
+`PUBLIC_IMAGE_PROJECTION_ENABLED=False` styrer projection/shadow og krever gyldige site-/media-origins slik at både teknisk static fallback og release-URL-er er absolutte. Den reproducerbare, skrivebeskyttede fullkataloggaten er `python manage.py audit_public_image_projection`; request-shadow kjøres bare for detail, ikke for hele listen. `PUBLIC_IMAGE_API_SCHEMA_ENABLED=False` styrer target-response og OpenAPI. Schemaflagget krever projection og controlled serving. Med schemaflagget av er responsefeltene og legacyverdiene uendret. Med flagget på kommer `image` og begge deprecated aliasene fra samme projection. Dette flagget skal forbli av gjennom 3E.2-staginggaten og PUBLIC-cutoveren hører til 3E.3.
+
+Projection og byte-serving deler samme fail-closed validering av publication, tenant/Organization/selection/revision/rendition-sett, eksakt tre mappinger, canonical keys og immutable snapshots. Projection autoriserer alle tre varianter gjennom 3E.1Cs read-only bridge, men leser ikke bildefiler. Serving beholder den separate byte-/filverifikasjonen. Ved ukjent eller utilgjengelig safety-state returnerer projection den versjonerte tekniske 3B.1-fallbacken, aldri legacybilde. Endelig fallbackgrafikk og fallback-alttekst avgjøres først i 3E.3.
 
 Endelig endepunktliste skal genereres fra aktive ruter og kontrolleres mot Swagger/OpenAPI.

@@ -386,7 +386,8 @@ class RepresentativeLabTests(unittest.TestCase):
                 content = path.read_text(encoding="utf-8")
                 self.assertFalse(any(token in content for token in forbidden_runtime), path)
         root_requirements = (repo_root / "requirements.txt").read_text(encoding="utf-8").lower()
-        self.assertNotIn("pillow", root_requirements)
+        # Production has its own Pillow-based 3C processing runtime. The lab
+        # remains isolated as long as its modules and pyvips do not leak in.
         self.assertNotIn("pyvips", root_requirements)
 
 

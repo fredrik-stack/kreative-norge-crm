@@ -94,6 +94,14 @@ PUBLIC_IMAGE_SERVING_ENABLED = _read_fail_closed_bool(
     "PUBLIC_IMAGE_SERVING_ENABLED",
     default=False,
 )
+PUBLIC_IMAGE_PROJECTION_ENABLED = _read_fail_closed_bool(
+    "PUBLIC_IMAGE_PROJECTION_ENABLED",
+    default=False,
+)
+PUBLIC_IMAGE_API_SCHEMA_ENABLED = _read_fail_closed_bool(
+    "PUBLIC_IMAGE_API_SCHEMA_ENABLED",
+    default=False,
+)
 if PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED and not IMAGE_ASSET_FEATURE_ENABLED:
     raise ImproperlyConfigured(
         "PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED requires IMAGE_ASSET_FEATURE_ENABLED"
@@ -101,6 +109,14 @@ if PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED and not IMAGE_ASSET_FEATURE_ENAB
 if PUBLIC_IMAGE_SERVING_ENABLED and not PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED:
     raise ImproperlyConfigured(
         "PUBLIC_IMAGE_SERVING_ENABLED requires PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED"
+    )
+if PUBLIC_IMAGE_API_SCHEMA_ENABLED and not PUBLIC_IMAGE_PROJECTION_ENABLED:
+    raise ImproperlyConfigured(
+        "PUBLIC_IMAGE_API_SCHEMA_ENABLED requires PUBLIC_IMAGE_PROJECTION_ENABLED"
+    )
+if PUBLIC_IMAGE_API_SCHEMA_ENABLED and not PUBLIC_IMAGE_SERVING_ENABLED:
+    raise ImproperlyConfigured(
+        "PUBLIC_IMAGE_API_SCHEMA_ENABLED requires PUBLIC_IMAGE_SERVING_ENABLED"
     )
 BRAVE_IMAGE_SEARCH_API_KEY = os.getenv("BRAVE_IMAGE_SEARCH_API_KEY", "").strip()
 
@@ -150,6 +166,14 @@ def _public_origin(name: str) -> str | None:
 
 PUBLIC_SITE_ORIGIN = _public_origin("PUBLIC_SITE_ORIGIN")
 PUBLIC_MEDIA_ORIGIN = _public_origin("PUBLIC_MEDIA_ORIGIN")
+if PUBLIC_IMAGE_PROJECTION_ENABLED and not PUBLIC_MEDIA_ORIGIN:
+    raise ImproperlyConfigured(
+        "PUBLIC_MEDIA_ORIGIN must be set when PUBLIC_IMAGE_PROJECTION_ENABLED is enabled"
+    )
+if PUBLIC_IMAGE_PROJECTION_ENABLED and not PUBLIC_SITE_ORIGIN:
+    raise ImproperlyConfigured(
+        "PUBLIC_SITE_ORIGIN must be set when PUBLIC_IMAGE_PROJECTION_ENABLED is enabled"
+    )
 
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
@@ -415,6 +439,11 @@ LOGGING = {
     },
     "loggers": {
         "crm.public_image_serving": {
+            "handlers": ["public_image_serving_console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "crm.public_image_projection": {
             "handlers": ["public_image_serving_console"],
             "level": "INFO",
             "propagate": False,
