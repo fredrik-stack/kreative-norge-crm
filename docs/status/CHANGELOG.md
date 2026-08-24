@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-25
+
+### Fase 3F og fase 3 CLOSED / VERIFIED
+
+- merget implementasjons-PR #54 som `438a480` etter endelig frozen-head-review med `0 BLOCKER/HIGH/MEDIUM/LOW` og seks grønne PR-/main-CI-jobber
+- tatt fullverifisert og isolert restore-verifisert predeploy-backup `kreative-norge-staging-20260824T230354Z`, deployet eksakt merge og anvendt additiv migrasjon `0031` uten backfill
+- kjørt byteidentisk aggregert legacyinventar to ganger, bevist gate av → på → av og verifisert no-network/no-write, KEEP/SET/FALLBACK, scope/stale/deny/idempotens og eksisterende import på isolerte syntetiske data
+- bevart normal public katalog `122 = 1 asset + 121 systemfallback`, safety `READY` cursor 13, fire releases, permanent denyhistorikk og ni deliveryfiler med uendret manifest
+- bevist older DB/media mot nyere safety-ledger, kjørt orphan dry-run med 0 eligible/0 slettet og tatt fullverifisert/isolert restore-verifisert postdeploy-backup `kreative-norge-staging-20260824T231112Z`
+- avsluttet shared staging med `IMPORT_IMAGE_DECISIONS_ENABLED=False`; Import 2.0-UX, telefon-ADR/fase 4, fysisk legacyfeltdropp, generell retensjon og providerpurge er ikke startet; se [3F-rapporten](STAGING_PHASE_3F_LEGACY_IMPORT_2026-08-25.md)
+
 ## 2026-08-24
 
 ### Fase 3F legacyovergang og typed Import-bildekontrakt implementert default-off

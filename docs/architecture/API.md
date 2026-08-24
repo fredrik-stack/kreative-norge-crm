@@ -1,6 +1,6 @@
 # API
 
-**Status:** implementert grunn-API; 3E.2 public image projection/API shadow er `CLOSED / SHADOW VERIFIED`; 3E.3-targetschemaet er `CLOSED / ACTIVE` i staging; 3E.4-takedownaction er `CLOSED / ACTIVE` i staging med kode-/eksempelstandard fortsatt av; 3F legacy-/Import-kontrakten er implementert default-off og venter på staginggate
+**Status:** implementert grunn-API; 3E.2 public image projection/API shadow er `CLOSED / SHADOW VERIFIED`; 3E.3-targetschemaet er `CLOSED / ACTIVE` i staging; 3E.4-takedownaction er `CLOSED / ACTIVE` i staging med kode-/eksempelstandard fortsatt av; 3F legacy-/Import-kontrakten er `CLOSED / VERIFIED` med Import-gaten av i shared staging
 
 API-et omfatter autentisering, tenants, taksonomi, aktører, personer, koblinger, kontaktkanaler, interne bildekandidathandlinger, public actors, importjobber og eksportjobber.
 
