@@ -1,10 +1,10 @@
 # Public image safety ledger og restore-gate
 
-**Status:** 3E.1A safety-ledger, dedikert off-server anchor og restore-gate er `ACTIVE` i staging fra 2026-08-20. 3E.1B-bro, socket, delivery og release-materialisering er `ACTIVE` fra 2026-08-23. 3E.1C read-only `authorize` og controlled serving er `ACTIVE` fra 2026-08-24. 3E.2 er `CLOSED / SHADOW VERIFIED`; 3E.3 schema/PUBLIC/head er `CLOSED / ACTIVE`. Formell takedown er fortsatt av.
+**Status:** 3E.1A safety-ledger, dedikert off-server anchor og restore-gate er `ACTIVE` i staging fra 2026-08-20. 3E.1B-bro, socket, delivery og release-materialisering er `ACTIVE` fra 2026-08-23. 3E.1C read-only `authorize` og controlled serving er `ACTIVE` fra 2026-08-24. 3E.2 er `CLOSED / SHADOW VERIFIED`; 3E.3 schema/PUBLIC/head er `CLOSED / ACTIVE`. 3E.4-koden er default-off; stagingledgeren er fortsatt v1 og formell takedown er fortsatt av.
 
 **Arkitektur:** [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md)
 
-Denne runbooken dokumenterer den aktive 3E.1A-runtimeen, 3E.1B-broen og 3E.1Cs read-only autorisasjonskontrakt. Kommandoene aktiverer ikke i seg selv materialisering, serving, projection, API/PUBLIC-cutover eller formell takedown; faktisk stagingstatus følger de daterte evidensrapportene, inkludert [3E.1C-aktiveringen](../status/STAGING_PHASE_3E1C_ACTIVATION_2026-08-24.md), [3E.2-shadowgaten](../status/STAGING_PHASE_3E2_SHADOW_2026-08-24.md) og [3E.3-cutovergaten](../status/STAGING_PHASE_3E3_CUTOVER_2026-08-24.md).
+Denne runbooken dokumenterer den aktive runtimeen og den implementerte 3E.4-upgrade-/deny-kontrakten. Kommandoene aktiverer ikke i seg selv materialisering, serving, projection, API/PUBLIC-cutover eller nye takedowns; faktisk stagingstatus følger daterte evidensrapporter.
 
 3E.2/3E.3 har separate miljøgater. `PUBLIC_IMAGE_PROJECTION_ENABLED=True` aktiverer read-only projection/shadow og krever gyldige `PUBLIC_SITE_ORIGIN` og `PUBLIC_MEDIA_ORIGIN`. `PUBLIC_IMAGE_API_SCHEMA_ENABLED=True` krever i tillegg controlled serving. `PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=True` krever begge og kobler projection til PUBLIC/head. Alle tre er aktive bare i ignorert stagingkonfigurasjon; kode-/eksempelstandardene er `False`. Fullkatalogaudit kjøres i API-containeren med:
 
@@ -20,22 +20,22 @@ Faktisk 3E.1A-aktiveringsevidens, inkludert repository-separasjon, raw-`rm`-rest
 
 `image_safety/` er en ren Python 3-/SQLite-komponent uten Django- eller PostgreSQL-avhengighet. Den implementerer:
 
-- schema v1 med SQLite `application_id`, `user_version` og immutable metadata
+- schema v1 med SQLite `application_id`, `user_version` og immutable metadata, samt additiv schema-v2-upgrade uten omskriving av v1-events
 - autoritative `release_reserved`, `release_activated`, `release_retired` og `release_denied`
 - monotone sekvenser, unik event-ID, canonical JSON, SHA-256 payload og hashkjede
 - samme event-ID + samme payload som retry; samme ID + annen payload som hard konflikt
 - terminal `retired`/`denied`, permanent UUID-/key-reservasjon og avvisning av ugyldige overganger
-- avledet `release_state`, permanent `reserved_release_keys` og en rebuildbar read-cursor
+- avledet `release_state`, permanent `reserved_release_keys`, v2 `tenant_checksum_denials`/`legacy_blocked_organizations` og en rebuildbar read-cursor
 - immutable, lokalt verifiserte anchor receipts
 - canonical ankervariant som inneholder hele eventhistorikken, ledger-ID, cursor og head-hash
 - fail-closed `health` mot SQLite-integritet, schema/identity, full replay, read-model, cursor, repository-ID, siste ankercursor og eksakte bundle-bytes
 - eksplisitt restore-assurance: `clean` eller `incident-recovered`; incident restore krever separat identifisert autoritativ cursor og full head-hash
 
-`tenant_runtime_enrolled` og checksum-deny er ikke innført. Tenantvis runtimeaktivering er ikke en sikkerhetsgrense i 3E.1A, og checksum-deny tilhører 3E.4.
+`tenant_runtime_enrolled` er ikke innført. Schema v2 legger til append-only `tenant_checksum_denied` med deterministisk identitet og tenant-scopet read-model; global checksum-deny finnes ikke.
 
 Reservation-input binder immutable heltalls-snapshots av tenant, Organization, selection, selection-revisjon og rendition-sett samt artifact key og SHA-256 for alle tre varianter. Caller leverer aldri public key; `image_safety.release_keys.build_public_release_key()` bygger eksakt `releases/<uuid>/<variant>.<ext>`. 3E.1B-workflowen lar bridge-reservasjonen eie UUID/keys og binder dem deretter til PostgreSQL uten å holde DB-lås under Borg-I/O.
 
-Bridge-foundationen bruker systemd socket activation på `/run/kreative-norge-image-safety/bridge.sock` og ett lengde-prefikset JSON request/response-par per forbindelse. Mutation-operasjonene `reserve` og `activate` er serialisert. 3E.1C legger til `authorize`, som bare leser verifisert health og eksakt release-state for callerens release-, tenant-, Organization-, variant-, key- og checksum-scope. Kallet kan ikke reparere state, skrive ledger/receipt, ankre, kjøre Borg eller hente generell ledgerhistorikk. Parallelle authorize-kall tillates, men en ventende lifecycle-writer sperrer nye lesere slik at terminal state vinner. Retire/deny er fortsatt ikke eksponert gjennom broen.
+Bridge-foundationen bruker systemd socket activation på `/run/kreative-norge-image-safety/bridge.sock` og ett lengde-prefikset JSON request/response-par per forbindelse. Mutation-operasjonene serialiseres. 3E.4 eksponerer smalt `deny`, som atomisk skriver konkret `release_denied` og tenant/checksum-deny og deretter synkront ankrer samme head. Read-only `authorize`, `check_checksum` og `legacy_guard` krever `READY`, kan ikke reparere/skrive/ankre eller hente historikk, og bruker writer-preferred locking slik at terminal state vinner. `authorize` krever også den autoritative originalbyte-checksummen og avviser enhver aktiv release med denied checksum i samme tenant. `activate` krever tenant og source-checksum og sjekker deny-state atomisk i samme writertransaksjon som activation-eventet; dersom deny vant gapet etter siste materialiseringsguard, avvises activation og Django fjerner de tre uaktiverte originfilene.
 
 I staging er socketen verifisert `root:root` `0600`; API får bare read-only bindmount av runtime-directory, mens ledger, `/etc`-konfigurasjon og Borg-credentials forblir host-only. Et kontrollert kall fra API fikk domenerespons etter `SO_PEERCRED`-gaten og beviste dermed den faktiske Docker/Linux-root-peeren. Dette aktiverte ingen releaseoperasjon eller materialisering. Se [3E.1B-stagingrapporten](../status/STAGING_PHASE_3E1B_FOUNDATION_2026-08-23.md).
 
@@ -164,7 +164,7 @@ sudo /usr/local/lib/kreative-norge-image-safety/image-safety.sh reserve \
 
 Kommandoen deriverer canonical event-ID fra selection-identiteten og skriver bare ikke-sensitive event-/anchoridentiteter. Den valgfrie bakoverkompatible `--event-id` må være eksakt lik den deriverte ID-en. Hvis ankeringen feiler etter lokal commit, bruk identisk input; UUID/key gjenbrukes atomisk.
 
-`activate`, `retire` og `deny` finnes i operator-CLI-et, men 3E.1B-broen eksponerer bare `reserve` og `activate`. `retire`/`deny`, public lifecycle-serving og formell takedown er ikke caller-aktivert og skal ikke brukes på reelle aktørbilder før sine senere faser er levert.
+Operator-CLI-ets eldre enkle `deny` er teknisk deaktivert fordi den ikke samtidig kan skrive checksum-deny, fallbackaudit og kontrollert origin-delete. Formell takedown skal bare startes gjennom den rolleavgrensede Django-actionen, som kaller bridgeoperasjonen `deny` med serverutledet release/scope/checksum. CLI-subkommandoen beholdes bare for en tydelig kontrollert feilmelding og kan ikke mutere verken v1- eller v2-ledger. Den eldre CLI-`activate` er tilsvarende deaktivert etter schema-v2-upgrade fordi CLI-en ikke eier autoritativ tenant/source-checksum; v2-aktivering skal gå gjennom den guardede Django-/bridgeflyten. Schema-v1-CLI-aktivering beholdes bare som bakoverkompatibel operatørflate før upgrade.
 
 ## 7. Health, replay og reconciliation
 
@@ -295,6 +295,22 @@ Full katastrofe-RTO er fortsatt uavklart frem til liveøvelsen er målt.
 
 ## 10. Rollback og avgrensning
 
-Rollback av 3E.1A deaktiverer bare safety-runtimekoblingen og eventuelt health-timeren; den sletter aldri ledger, receipts eller off-server archives. Rollback av 3E.1B betyr at materialiseringsflagget settes til `False` slik at nye release-workflows stoppes. Rollback av 3E.1C setter bare `PUBLIC_IMAGE_SERVING_ENABLED=False` og rekreerer API/web. Rollback av 3E.3 setter først `PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=False` og ved API-kontraktavvik også `PUBLIC_IMAGE_API_SCHEMA_ENABLED=False`, før API rekreeres og legacybaselinen verifiseres. Ingen av rollbackene sletter eller omskriver ledger-, DB- eller delivery-state. Eksisterende reservations-/activationevents, databaseaggregater og delivery-filer slettes aldri som rollback. Etter første reelle reservation er schemaendringer fremoverrettede.
+Rollback av 3E.1A deaktiverer bare safety-runtimekoblingen og eventuelt health-timeren; den sletter aldri ledger, receipts eller off-server archives. Rollback av 3E.1B betyr at materialiseringsflagget settes til `False`. Rollback av 3E.1C setter `PUBLIC_IMAGE_SERVING_ENABLED=False`. Rollback av 3E.3 setter først PUBLIC-cutover og ved kontraktavvik også API-schema av. Før første v2-sikkerhetsevent kan applikasjonskoden rulles tilbake kontrollert, men ledgerfilen skal aldri downgrades eller omskrives. Etter første ekte 3E.4-deny kan bare `PUBLIC_IMAGE_TAKEDOWN_ENABLED=False` stoppe nye handlinger; release-deny, checksum-deny, legacyguard, serving/projection-enforcement, audit og død UUID/key er permanent forward-only historikk.
 
-Den historiske 3E.1A-leveransen opprettet ingen delivery-root eller mediafiler. 3E.1B opprettet senere den separate delivery-rooten og materialiserte én permanent syntetisk release med tre filer. 3E.1C la kontrollert Django/Nginx-serving, read-only `authorize` og en ny publisert standalone release til staging. Fase 3E.2 la til en read-only public image projection; fase 3E.3 eksponerer den nå i public API, PUBLIC og head. Ingen av leveransene har lagt til checksum-deny, Redis, ekstern database, kø, sidecar, S3 eller CDN.
+Den historiske 3E.1A-leveransen opprettet ingen delivery-root eller mediafiler. 3E.1B opprettet senere delivery-rooten, 3E.1C la controlled serving til, og 3E.2/3E.3 eksponerer projection i API/PUBLIC/head. 3E.4 legger til checksum-deny uten Redis, ekstern database, kø, sidecar, S3 eller CDN.
+
+## 11. Kontrollert v1 → v2-upgrade og første takedown
+
+Ta og verifiser først vanlig backup, full repository/archive-check, isolert restore, safety `READY`, latest anchor og en separat sikker ledgerkopi etter eksisterende custodyregel. Stopp alle safetywriters. Test på en kopi av den ekte stagingledgeren:
+
+```bash
+sudo /usr/local/lib/kreative-norge-image-safety/image-safety.sh upgrade-v2
+sudo /usr/local/lib/kreative-norge-image-safety/image-safety.sh rebuild
+sudo /usr/local/lib/kreative-norge-image-safety/image-safety.sh health
+```
+
+Krev schema `2`, identisk ledger-ID/cursor/head, uendrede release states, tom checksumtabell og byteidentisk v1-bundle før første v2-event. Kjør deretter samme upgrade én gang på liveledgeren, restart bridge og krev `READY`. Upgrade er idempotent og transaksjonell; den omskriver aldri `ledger_events` eller hashes. Ikke forsøk downgrade.
+
+Deploy applikasjonskoden først med `PUBLIC_IMAGE_TAKEDOWN_ENABLED=False` og verifiser uendret 3E.1–3E.3-runtime. Aktiver write-gaten først etter grønn upgrade. Bruk bare en dedikert syntetisk Organization/release. Før deny registreres release/checksum/tre keys, filechecksums, cursor, API/PUBLIC/head, gammel URL/ETag/cacheheader og fysisk origin. Kjør takedown via intern API som tenant-/plattformadmin. Krev to nye events under én ankret head, fallbackaudit, tre fjernede filer, 404/no-store, ingen gammel ETag-304 og ingen cache-HIT. Retry samme request og krev samme event-/selectionidentiteter og tre missing-filer.
+
+Bevis deretter same-byte approval/release-blokkering, full 3E.3-rollback uten legacybilde, kontrollert restore av én gammel releasefil som fortsatt gir 404, og republisering med annen originalchecksum, ny selection-revisjon, UUID og keys. Den gamle deny/checksummen/URL-en skal fortsatt være terminal. Restart API/web/bridge og kjør post-deny backup, full verify og isolert restore. Hvis shared cache viser `HIT`, stopp aktiveringen til providerpurge og credentials er besluttet; ikke improviser.

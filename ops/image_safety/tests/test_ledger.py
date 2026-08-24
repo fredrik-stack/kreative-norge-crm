@@ -21,12 +21,14 @@ from image_safety.anchor import (
     anchor_current_head,
     restore_latest_anchor,
 )
+from image_safety.cli import main as cli_main
 from image_safety.ledger import (
     EventConflictError,
     InvalidLedgerError,
     InvalidTransitionError,
     PublicImageSafetyLedger,
     ReservationRendition,
+    activation_event_id,
 )
 
 
@@ -212,6 +214,215 @@ class LedgerContractTests(LedgerFixture):
                 self.reserve()
         self.assertEqual(self.ledger.head().sequence, 0)
         self.assertIsNone(self.ledger.release_state(self.release_id))
+
+
+class LedgerV2ContractTests(LedgerFixture):
+    def setUp(self):
+        super().setUp()
+        self.reserve()
+        self.ledger.activate_release(
+            event_id="activate.before.upgrade", release_id=self.release_id
+        )
+
+    def test_empty_upgrade_preserves_v1_head_bundle_receipt_and_events(self):
+        backend = self.anchor()
+        before_head = self.ledger.head()
+        before_bundle = self.ledger.bundle_bytes()
+
+        after_head = self.ledger.upgrade_schema_v2()
+
+        self.assertEqual(self.ledger.schema_version(), 2)
+        self.assertEqual(after_head, before_head)
+        self.assertEqual(self.ledger.bundle_bytes(), before_bundle)
+        self.assertTrue(
+            self.ledger.health(expected_repository_id=REPOSITORY_ID).ready
+        )
+        connection = sqlite3.connect(self.path)
+        try:
+            self.assertEqual(
+                connection.execute("SELECT COUNT(*) FROM ledger_events").fetchone()[0],
+                2,
+            )
+            self.assertEqual(
+                connection.execute("SELECT COUNT(*) FROM ledger_events_v2").fetchone()[0],
+                0,
+            )
+        finally:
+            connection.close()
+        self.assertTrue(backend.archives)
+
+    def test_upgrade_derives_legacy_guard_from_existing_v1_release_deny(self):
+        self.ledger.deny_release(
+            event_id="deny.before.upgrade",
+            release_id=self.release_id,
+            reason_code="security_deny",
+        )
+        self.anchor()
+        before_events = self.ledger.bundle_bytes()
+
+        self.ledger.upgrade_schema_v2()
+
+        self.assertEqual(self.ledger.bundle_bytes(), before_events)
+        self.assertTrue(
+            self.ledger.organization_legacy_blocked(
+                tenant_id=1,
+                organization_id=2,
+            )
+        )
+        self.assertTrue(
+            self.ledger.health(expected_repository_id=REPOSITORY_ID).ready
+        )
+
+    def test_atomic_release_and_tenant_checksum_deny_replay_and_restore(self):
+        self.ledger.upgrade_schema_v2()
+        release_event, checksum_event = self.ledger.deny_release_and_checksum(
+            release_id=self.release_id,
+            tenant_id=1,
+            organization_id=2,
+            source_checksum_sha256="d" * 64,
+            reason_code="rights_request",
+        )
+        retry_release, retry_checksum = self.ledger.deny_release_and_checksum(
+            release_id=self.release_id,
+            tenant_id=1,
+            organization_id=2,
+            source_checksum_sha256="d" * 64,
+            reason_code="rights_request",
+        )
+
+        self.assertEqual((release_event.sequence, checksum_event.sequence), (3, 4))
+        self.assertTrue(retry_release.idempotent_retry)
+        self.assertTrue(retry_checksum.idempotent_retry)
+        self.assertEqual(self.ledger.release_state(self.release_id)["state"], "denied")
+        self.assertTrue(
+            self.ledger.checksum_denied(
+                tenant_id=1, source_checksum_sha256="d" * 64
+            )
+        )
+        self.assertFalse(
+            self.ledger.checksum_denied(
+                tenant_id=2, source_checksum_sha256="d" * 64
+            )
+        )
+        self.assertTrue(
+            self.ledger.organization_legacy_blocked(
+                tenant_id=1, organization_id=2
+            )
+        )
+        rebuilt = self.ledger.rebuild()
+        self.assertEqual(rebuilt.sequence, 4)
+
+        bundle = self.ledger.bundle_bytes()
+        decoded = json.loads(bundle)
+        self.assertEqual(decoded["ledger_schema_version"], 2)
+        self.assertEqual(decoded["v1_event_cursor"], 2)
+        restored = PublicImageSafetyLedger.restore_bundle(
+            bundle=bundle,
+            destination=self.root / "restored-v2.sqlite3",
+            archive_name="image-safety-v2-test",
+            repository_id=REPOSITORY_ID,
+        )
+        self.assertEqual(restored.head(), self.ledger.head())
+        self.assertTrue(
+            restored.checksum_denied(
+                tenant_id=1, source_checksum_sha256="d" * 64
+            )
+        )
+        self.assertTrue(
+            restored.organization_legacy_blocked(tenant_id=1, organization_id=2)
+        )
+
+    def test_checksum_append_failure_rolls_back_release_deny(self):
+        self.ledger.upgrade_schema_v2()
+        original = self.ledger._append_event_in_transaction
+
+        def fail_checksum(*args, **kwargs):
+            if kwargs["event_type"] == "tenant_checksum_denied":
+                raise RuntimeError("synthetic checksum append failure")
+            return original(*args, **kwargs)
+
+        with patch.object(
+            self.ledger, "_append_event_in_transaction", side_effect=fail_checksum
+        ):
+            with self.assertRaises(RuntimeError):
+                self.ledger.deny_release_and_checksum(
+                    release_id=self.release_id,
+                    tenant_id=1,
+                    organization_id=2,
+                    source_checksum_sha256="d" * 64,
+                    reason_code="rights_request",
+                )
+
+        self.assertEqual(self.ledger.head().sequence, 2)
+        self.assertEqual(self.ledger.release_state(self.release_id)["state"], "active")
+        self.assertFalse(
+            self.ledger.checksum_denied(
+                tenant_id=1, source_checksum_sha256="d" * 64
+            )
+        )
+
+    def test_legacy_cli_deny_is_technically_disabled_without_mutation(self):
+        self.ledger.upgrade_schema_v2()
+        before = self.ledger.head()
+
+        with patch.dict(
+            os.environ,
+            {"IMAGE_SAFETY_LEDGER_PATH": str(self.path)},
+            clear=False,
+        ):
+            with self.assertRaisesRegex(ValueError, "Legacy CLI deny is disabled"):
+                cli_main(
+                    [
+                        "deny",
+                        "--event-id",
+                        "arbitrary-deny",
+                        "--release-id",
+                        self.release_id,
+                        "--reason-code",
+                        "rights_request",
+                    ]
+                )
+
+        self.assertEqual(self.ledger.head(), before)
+        self.assertEqual(self.ledger.release_state(self.release_id)["state"], "active")
+
+    def test_legacy_cli_activate_is_disabled_on_v2_without_mutation(self):
+        self.ledger.upgrade_schema_v2()
+        reserved_release_id = "33333333-3333-4333-8333-333333333333"
+        self.ledger.reserve_release(
+            event_id="reservation.after.upgrade",
+            release_id=reserved_release_id,
+            tenant_id=1,
+            organization_id=2,
+            selection_id=30,
+            selection_revision=5,
+            rendition_set_id=31,
+            renditions=self.renditions("after-upgrade"),
+        )
+        before = self.ledger.head()
+
+        with patch.dict(
+            os.environ,
+            {"IMAGE_SAFETY_LEDGER_PATH": str(self.path)},
+            clear=False,
+        ):
+            with self.assertRaisesRegex(
+                ValueError, "Legacy CLI activate is disabled for ledger schema v2"
+            ):
+                cli_main(
+                    [
+                        "activate",
+                        "--event-id",
+                        activation_event_id(reserved_release_id),
+                        "--release-id",
+                        reserved_release_id,
+                    ]
+                )
+
+        self.assertEqual(self.ledger.head(), before)
+        self.assertEqual(
+            self.ledger.release_state(reserved_release_id)["state"], "reserved"
+        )
 
 
 class HealthAndReplayTests(LedgerFixture):

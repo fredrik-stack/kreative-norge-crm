@@ -16,6 +16,7 @@ from .anchor import (
 )
 from .bridge import SafetyBridgeOperations, SafetyBridgeServer, systemd_listener
 from .ledger import (
+    LATEST_LEDGER_SCHEMA_VERSION,
     PublicImageSafetyLedger,
     ReservationRendition,
     activation_event_id,
@@ -85,6 +86,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("anchor")
     subparsers.add_parser("health")
     subparsers.add_parser("rebuild")
+    subparsers.add_parser("upgrade-v2")
     restore = subparsers.add_parser("restore-latest")
     restore.add_argument("--destination", required=True)
     restore.add_argument(
@@ -149,6 +151,12 @@ def main(argv: list[str] | None = None) -> int:
         expected_event_id = activation_event_id(arguments.release_id)
         if arguments.event_id != expected_event_id:
             raise ValueError("Activation event ID must match the canonical release identity.")
+        if ledger.schema_version() >= LATEST_LEDGER_SCHEMA_VERSION:
+            raise ValueError(
+                "Legacy CLI activate is disabled for ledger schema v2; use the "
+                "guarded Django release workflow so tenant checksum deny is checked "
+                "atomically with activation."
+            )
         event = ledger.activate_or_get(release_id=arguments.release_id)
         result = {"event": asdict(event), "anchor": _anchor(ledger)}
     elif arguments.command == "retire":
@@ -160,13 +168,10 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"local_event": asdict(event)}, sort_keys=True), flush=True)
         result = _anchor(ledger)
     elif arguments.command == "deny":
-        event = ledger.deny_release(
-            event_id=arguments.event_id,
-            release_id=arguments.release_id,
-            reason_code=arguments.reason_code,
+        raise ValueError(
+            "Legacy CLI deny is disabled; use the scoped Django formal takedown "
+            "action so release and tenant checksum deny are atomic."
         )
-        print(json.dumps({"local_event": asdict(event)}, sort_keys=True), flush=True)
-        result = _anchor(ledger)
     elif arguments.command == "anchor":
         result = _anchor(ledger)
     elif arguments.command == "health":
@@ -176,6 +181,14 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if health.ready else 1
     elif arguments.command == "rebuild":
         result = asdict(ledger.rebuild())
+    elif arguments.command == "upgrade-v2":
+        before = ledger.head()
+        after = ledger.upgrade_schema_v2()
+        result = {
+            "before": asdict(before),
+            "after": asdict(after),
+            "schema_version": ledger.schema_version(),
+        }
     elif arguments.command == "restore-latest":
         config, backend = _backend()
         restored = restore_latest_anchor(

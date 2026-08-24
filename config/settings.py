@@ -106,9 +106,18 @@ PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED = _read_fail_closed_bool(
     "PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED",
     default=False,
 )
+PUBLIC_IMAGE_TAKEDOWN_ENABLED = _read_fail_closed_bool(
+    "PUBLIC_IMAGE_TAKEDOWN_ENABLED",
+    default=False,
+)
 if PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED and not IMAGE_ASSET_FEATURE_ENABLED:
     raise ImproperlyConfigured(
         "PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED requires IMAGE_ASSET_FEATURE_ENABLED"
+    )
+if PUBLIC_IMAGE_TAKEDOWN_ENABLED and not PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED:
+    raise ImproperlyConfigured(
+        "PUBLIC_IMAGE_TAKEDOWN_ENABLED requires "
+        "PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED"
     )
 if PUBLIC_IMAGE_SERVING_ENABLED and not PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED:
     raise ImproperlyConfigured(
@@ -460,6 +469,11 @@ LOGGING = {
             "propagate": False,
         },
         "crm.public_image_projection": {
+            "handlers": ["public_image_serving_console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "crm.images.takedown": {
             "handlers": ["public_image_serving_console"],
             "level": "INFO",
             "propagate": False,

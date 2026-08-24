@@ -83,6 +83,18 @@ def reserve_request(checksum="a" * 64):
     }
 
 
+def activate_request(release_id, *, tenant_id=1, source_checksum="c" * 64):
+    return {
+        "protocol_version": 1,
+        "operation": "activate",
+        "payload": {
+            "release_id": release_id,
+            "tenant_id": tenant_id,
+            "source_checksum_sha256": source_checksum,
+        },
+    }
+
+
 def authorize_request(
     release_id,
     *,
@@ -91,6 +103,7 @@ def authorize_request(
     variant="square",
     public_storage_key=None,
     checksum="a" * 64,
+    source_checksum="c" * 64,
 ):
     return {
         "protocol_version": 1,
@@ -103,6 +116,7 @@ def authorize_request(
             "public_storage_key": public_storage_key
             or f"releases/{release_id}/{variant}.webp",
             "artifact_checksum_sha256": checksum,
+            "source_checksum_sha256": source_checksum,
         },
     }
 
@@ -177,14 +191,7 @@ class BridgeOperationTests(BridgeFixture):
     def _active_release(self):
         reserved = handle_request(reserve_request(), self.operations)
         release_id = reserved["reservation"]["release_id"]
-        activated = handle_request(
-            {
-                "protocol_version": 1,
-                "operation": "activate",
-                "payload": {"release_id": release_id},
-            },
-            self.operations,
-        )
+        activated = handle_request(activate_request(release_id), self.operations)
         self.assertEqual(activated["result"], "success")
         return release_id
 
@@ -192,11 +199,7 @@ class BridgeOperationTests(BridgeFixture):
         first = handle_request(reserve_request(), self.operations)
         second = handle_request(reserve_request(), self.operations)
         release_id = first["reservation"]["release_id"]
-        activation = {
-            "protocol_version": 1,
-            "operation": "activate",
-            "payload": {"release_id": release_id},
-        }
+        activation = activate_request(release_id)
         active = handle_request(activation, self.operations)
         active_retry = handle_request(activation, self.operations)
 
@@ -237,11 +240,7 @@ class BridgeOperationTests(BridgeFixture):
 
     def test_unknown_and_terminal_activation_are_rejected(self):
         unknown = handle_request(
-            {
-                "protocol_version": 1,
-                "operation": "activate",
-                "payload": {"release_id": str(uuid.uuid4())},
-            },
+            activate_request(str(uuid.uuid4())),
             self.operations,
         )
         reserved = handle_request(reserve_request(), self.operations)
@@ -255,11 +254,7 @@ class BridgeOperationTests(BridgeFixture):
             self.ledger, self.anchor, expected_repository_id=REPOSITORY_ID
         )
         terminal = handle_request(
-            {
-                "protocol_version": 1,
-                "operation": "activate",
-                "payload": {"release_id": release_id},
-            },
+            activate_request(release_id),
             self.operations,
         )
 
@@ -277,7 +272,21 @@ class BridgeOperationTests(BridgeFixture):
             ({"protocol_version": 2, "operation": "reserve", "payload": {}}, "unsupported_version"),
             ({"protocol_version": True, "operation": "reserve", "payload": {}}, "unsupported_version"),
             ({"protocol_version": 1, "operation": "retire", "payload": {}}, "unknown_operation"),
-            ({"protocol_version": 1, "operation": "deny", "payload": {}}, "unknown_operation"),
+            ({"protocol_version": 1, "operation": "deny", "payload": {}}, "invalid_request"),
+            (
+                {
+                    "protocol_version": 1,
+                    "operation": "deny",
+                    "payload": {
+                        "release_id": str(uuid.uuid4()),
+                        "tenant_id": 1,
+                        "organization_id": 2,
+                        "source_checksum_sha256": "a" * 64,
+                        "reason_code": "arbitrary_internal_reason",
+                    },
+                },
+                "invalid_request",
+            ),
             ({**reserve_request(), "extra": True}, "invalid_request"),
             ({**reserve_request(), "payload": {**reservation_payload(), "tenant_id": True}}, "invalid_request"),
             ({**reserve_request(), "payload": {key: value for key, value in reservation_payload().items() if key != "selection_id"}}, "invalid_request"),
@@ -315,11 +324,7 @@ class BridgeOperationTests(BridgeFixture):
         inactive = handle_request(authorize_request(release_id), self.operations)
         unknown = handle_request(authorize_request(str(uuid.uuid4())), self.operations)
         handle_request(
-            {
-                "protocol_version": 1,
-                "operation": "activate",
-                "payload": {"release_id": release_id},
-            },
+            activate_request(release_id),
             self.operations,
         )
         active_head = self.ledger.head()
@@ -436,6 +441,212 @@ class BridgeOperationTests(BridgeFixture):
         self.assertEqual(order, ["writer", "reader"])
         self.assertFalse(response["authorization"]["authorized"])
         self.assertEqual(response["authorization"]["category"], "not_active")
+
+
+class BridgeV2TakedownTests(BridgeOperationTests):
+    def setUp(self):
+        super().setUp()
+        self.ledger.upgrade_schema_v2()
+
+    def _deny_request(self, release_id, *, tenant_id=1, checksum="d" * 64):
+        return {
+            "protocol_version": 1,
+            "operation": "deny",
+            "payload": {
+                "release_id": release_id,
+                "tenant_id": tenant_id,
+                "organization_id": 2,
+                "source_checksum_sha256": checksum,
+                "reason_code": "rights_request",
+            },
+        }
+
+    def test_deny_checksum_legacy_and_authorize_share_one_anchored_state(self):
+        release_id = self._active_release()
+
+        denied = handle_request(self._deny_request(release_id), self.operations)
+        retried = handle_request(self._deny_request(release_id), self.operations)
+        checksum = handle_request(
+            {
+                "protocol_version": 1,
+                "operation": "check_checksum",
+                "payload": {
+                    "tenant_id": 1,
+                    "source_checksum_sha256": "d" * 64,
+                },
+            },
+            self.operations,
+        )
+        other_tenant = handle_request(
+            {
+                "protocol_version": 1,
+                "operation": "check_checksum",
+                "payload": {
+                    "tenant_id": 9,
+                    "source_checksum_sha256": "d" * 64,
+                },
+            },
+            self.operations,
+        )
+        legacy = handle_request(
+            {
+                "protocol_version": 1,
+                "operation": "legacy_guard",
+                "payload": {"tenant_id": 1, "organization_id": 2},
+            },
+            self.operations,
+        )
+        authorization = handle_request(
+            authorize_request(release_id, source_checksum="d" * 64),
+            self.operations,
+        )
+
+        self.assertEqual(denied["result"], "success")
+        self.assertEqual(denied["release_disposition"], "new")
+        self.assertEqual(denied["checksum_disposition"], "new")
+        self.assertGreaterEqual(
+            denied["confirmation"]["anchor_cursor"],
+            denied["events"]["tenant_checksum_denied"]["event_sequence"],
+        )
+        self.assertEqual(retried["release_disposition"], "idempotent_retry")
+        self.assertEqual(retried["checksum_disposition"], "idempotent_retry")
+        self.assertTrue(checksum["checksum"]["denied"])
+        self.assertFalse(other_tenant["checksum"]["denied"])
+        self.assertTrue(legacy["legacy_guard"]["blocked"])
+        self.assertFalse(authorization["authorization"]["authorized"])
+        self.assertEqual(
+            authorization["authorization"]["category"], "checksum_denied"
+        )
+        self.assertTrue(self.ledger.health(expected_repository_id=REPOSITORY_ID).ready)
+
+    def test_same_source_bytes_can_activate_in_a_different_tenant(self):
+        tenant_a_release = self._active_release()
+        handle_request(self._deny_request(tenant_a_release), self.operations)
+
+        tenant_b_payload = reservation_payload()
+        tenant_b_payload.update(
+            {
+                "tenant_id": 9,
+                "organization_id": 20,
+                "selection_id": 30,
+                "selection_revision": 1,
+                "rendition_set_id": 40,
+            }
+        )
+        for rendition in tenant_b_payload["renditions"]:
+            rendition["artifact_storage_key"] = rendition[
+                "artifact_storage_key"
+            ].replace("tenants/1/", "tenants/9/")
+        reserved = handle_request(
+            {"protocol_version": 1, "operation": "reserve", "payload": tenant_b_payload},
+            self.operations,
+        )
+        tenant_b_release = reserved["reservation"]["release_id"]
+        activated = handle_request(
+            activate_request(
+                tenant_b_release, tenant_id=9, source_checksum="d" * 64
+            ),
+            self.operations,
+        )
+        authorized = handle_request(
+            authorize_request(
+                tenant_b_release,
+                tenant_id=9,
+                organization_id=20,
+                source_checksum="d" * 64,
+            ),
+            self.operations,
+        )
+
+        self.assertEqual(activated["result"], "success")
+        self.assertTrue(authorized["authorization"]["authorized"])
+        self.assertEqual(authorized["authorization"]["category"], "authorized")
+
+    def test_deny_anchor_failure_is_fail_closed_and_retry_confirms_same_events(self):
+        release_id = self._active_release()
+        self.anchor.fail_create = True
+
+        failed = handle_request(self._deny_request(release_id), self.operations)
+
+        self.assertEqual(failed["result"], "error")
+        self.assertEqual(failed["code"], "safety_unavailable")
+        self.assertEqual(self.ledger.release_state(release_id)["state"], "denied")
+        self.assertEqual(
+            self.ledger.health(expected_repository_id=REPOSITORY_ID).code,
+            "anchor_cursor_stale",
+        )
+
+        self.anchor.fail_create = False
+        retried = handle_request(self._deny_request(release_id), self.operations)
+        self.assertEqual(retried["result"], "success")
+        self.assertEqual(retried["release_disposition"], "idempotent_retry")
+        self.assertEqual(retried["checksum_disposition"], "idempotent_retry")
+        self.assertTrue(self.ledger.health(expected_repository_id=REPOSITORY_ID).ready)
+
+    def test_safe_republish_requires_new_source_checksum_and_new_release_identity(self):
+        old_release_id = self._active_release()
+        handle_request(self._deny_request(old_release_id), self.operations)
+        payload = reservation_payload()
+        payload["selection_id"] = 30
+        payload["selection_revision"] = 6
+        reservation = handle_request(
+            {"protocol_version": 1, "operation": "reserve", "payload": payload},
+            self.operations,
+        )
+        new_release_id = reservation["reservation"]["release_id"]
+        handle_request(
+            activate_request(new_release_id, source_checksum="e" * 64),
+            self.operations,
+        )
+
+        allowed = handle_request(
+            authorize_request(new_release_id, source_checksum="e" * 64),
+            self.operations,
+        )
+        denied_old_bytes = handle_request(
+            authorize_request(new_release_id, source_checksum="d" * 64),
+            self.operations,
+        )
+
+        self.assertNotEqual(new_release_id, old_release_id)
+        self.assertTrue(allowed["authorization"]["authorized"])
+        self.assertFalse(denied_old_bytes["authorization"]["authorized"])
+        self.assertEqual(
+            denied_old_bytes["authorization"]["category"], "checksum_denied"
+        )
+
+    def test_checksum_deny_between_guard_and_activation_wins_atomically(self):
+        old_release_id = self._active_release()
+        payload = reservation_payload("b" * 64)
+        payload["selection_id"] = 31
+        payload["selection_revision"] = 7
+        reservation = handle_request(
+            {"protocol_version": 1, "operation": "reserve", "payload": payload},
+            self.operations,
+        )
+        new_release_id = reservation["reservation"]["release_id"]
+
+        before_deny = handle_request(
+            {
+                "protocol_version": 1,
+                "operation": "check_checksum",
+                "payload": {
+                    "tenant_id": 1,
+                    "source_checksum_sha256": "d" * 64,
+                },
+            },
+            self.operations,
+        )
+        handle_request(self._deny_request(old_release_id), self.operations)
+        activation = handle_request(
+            activate_request(new_release_id, source_checksum="d" * 64),
+            self.operations,
+        )
+
+        self.assertFalse(before_deny["checksum"]["denied"])
+        self.assertEqual(activation["result"], "error")
+        self.assertEqual(activation["code"], "invalid_transition")
+        self.assertEqual(self.ledger.release_state(new_release_id)["state"], "reserved")
 
 
 class BridgeFramingTests(BridgeFixture):

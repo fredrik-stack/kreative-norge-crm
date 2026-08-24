@@ -176,21 +176,37 @@ def serve(socket_path: Path) -> None:
                 try:
                     size = struct.unpack("!I", _receive_exact(connection, 4))[0]
                     request = json.loads(_receive_exact(connection, size))
-                    if request.get("operation") != "authorize":
-                        raise ValueError("only authorize is supported")
+                    operation = request.get("operation")
                     payload = request["payload"]
-                    response = {
-                        "protocol_version": 1,
-                        "operation": "authorize",
-                        "result": "success",
-                        "authorization": {
-                            "authorized": True,
-                            "category": "authorized",
-                            "release_id": payload["release_id"],
-                            "variant": payload["variant"],
-                            "read_cursor": 1,
-                        },
-                    }
+                    if operation == "authorize":
+                        response = {
+                            "protocol_version": 1,
+                            "operation": operation,
+                            "result": "success",
+                            "authorization": {
+                                "authorized": True,
+                                "category": "authorized",
+                                "release_id": payload["release_id"],
+                                "variant": payload["variant"],
+                                "read_cursor": 1,
+                            },
+                        }
+                    elif operation == "check_checksum":
+                        response = {
+                            "protocol_version": 1,
+                            "operation": operation,
+                            "result": "success",
+                            "checksum": {"denied": False, "read_cursor": 1},
+                        }
+                    elif operation == "legacy_guard":
+                        response = {
+                            "protocol_version": 1,
+                            "operation": operation,
+                            "result": "success",
+                            "legacy_guard": {"blocked": False, "read_cursor": 1},
+                        }
+                    else:
+                        raise ValueError("unsupported fixture operation")
                     body = json.dumps(response, separators=(",", ":")).encode()
                     connection.sendall(struct.pack("!I", len(body)) + body)
                 except (ConnectionError, KeyError, ValueError, json.JSONDecodeError):

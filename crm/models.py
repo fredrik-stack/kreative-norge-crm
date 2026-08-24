@@ -557,9 +557,38 @@ class Organization(models.Model):
     def get_preview_image_url(self) -> str | None:
         from .services.open_graph import fallback_preview_image
 
-        return self.get_public_image_url() or fallback_preview_image(self.get_primary_link())
+        if self._legacy_image_blocked():
+            return None
+        return self._legacy_public_image_url() or fallback_preview_image(
+            self.get_primary_link()
+        )
 
     def get_public_image_url(self) -> str | None:
+        if self._legacy_image_blocked():
+            return None
+        return self._legacy_public_image_url()
+
+    def _legacy_image_blocked(self) -> bool:
+        from .services.images.safety_guards import legacy_image_is_blocked
+
+        cached = getattr(self, "_legacy_image_blocked_result", None)
+        if cached is not None:
+            return cached
+        if not settings.PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED:
+            return False
+        if self.pk is None or self.tenant_id is None:
+            return True
+        blocked = legacy_image_is_blocked(
+            tenant_id=self.tenant_id,
+            organization_id=self.pk,
+        )
+        # Django model instances are request-/query-local in these serializers.
+        # Reuse one fail-closed decision for thumbnail and preview fields so a
+        # slow local bridge cannot multiply the timeout per object.
+        self._legacy_image_blocked_result = blocked
+        return blocked
+
+    def _legacy_public_image_url(self) -> str | None:
         from .services.open_graph import is_fallback_preview_image
 
         for candidate in [self.thumbnail_image_url, self.auto_thumbnail_url, self.og_image_url]:
@@ -944,6 +973,13 @@ class ImageReviewEvent(models.Model):
             "Selection removed to fallback",
         )
         SELECTION_RESTORED = "selection_restored", "Selection restored"
+        FORMAL_TAKEDOWN = "formal_takedown", "Formal takedown"
+
+    class TakedownReason(models.TextChoices):
+        RIGHTS_REQUEST = "rights_request", "Rights request"
+        PRIVACY_SAFETY = "privacy_safety", "Privacy or safety"
+        LEGAL_COMPLIANCE = "legal_compliance", "Legal compliance"
+        EDITORIAL_POLICY = "editorial_policy", "Editorial policy"
 
     class SourceType(models.TextChoices):
         OFFICIAL_WEBSITE = "official_website", "Official website"
@@ -1057,6 +1093,13 @@ class ImageReviewEvent(models.Model):
     )
     approval_text_version_snapshot = models.CharField(max_length=64, blank=True, default="")
     approval_text_snapshot = models.TextField(blank=True, default="")
+    takedown_reason_code = models.CharField(
+        max_length=32,
+        choices=TakedownReason.choices,
+        blank=True,
+        default="",
+    )
+    release_id_snapshot = models.UUIDField(null=True, blank=True)
     created_at = models.DateTimeField()
 
     _base_objects = ImageReviewEventBaseManager()
@@ -1105,6 +1148,13 @@ class ImageReviewEvent(models.Model):
                     )
                     | models.Q(
                         event_type="selection_restored",
+                        previous_selection_id_snapshot__isnull=False,
+                        previous_selection_id_snapshot__gt=0,
+                        previous_selection_revision_snapshot__isnull=False,
+                        previous_selection_revision_snapshot__gt=0,
+                    )
+                    | models.Q(
+                        event_type="formal_takedown",
                         previous_selection_id_snapshot__isnull=False,
                         previous_selection_id_snapshot__gt=0,
                         previous_selection_revision_snapshot__isnull=False,
@@ -1166,8 +1216,46 @@ class ImageReviewEvent(models.Model):
                         approval_text_version_snapshot="",
                         approval_text_snapshot="",
                     )
+                    | (
+                        models.Q(
+                            event_type="formal_takedown",
+                            selection_kind_snapshot="system_fallback",
+                            rendition_set_id_snapshot__isnull=False,
+                            rendition_set_id_snapshot__gt=0,
+                            asset_id_snapshot__isnull=False,
+                            asset_id_snapshot__gt=0,
+                            source_type_snapshot="",
+                            source_url_snapshot="",
+                            source_page_url_snapshot="",
+                            provider_snapshot="",
+                            technical_warnings_snapshot=[],
+                            approval_text_version_snapshot="",
+                            approval_text_snapshot="",
+                        )
+                        & ~models.Q(asset_checksum_sha256_snapshot="")
+                        & ~models.Q(asset_validation_version_snapshot="")
+                    )
                 ),
                 name="img_evt_selection_kind_contract",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (
+                        models.Q(
+                            event_type="formal_takedown",
+                            release_id_snapshot__isnull=False,
+                        )
+                        & ~models.Q(takedown_reason_code="")
+                    )
+                    | (
+                        ~models.Q(event_type="formal_takedown")
+                        & models.Q(
+                            release_id_snapshot__isnull=True,
+                            takedown_reason_code="",
+                        )
+                    )
+                ),
+                name="img_evt_takedown_contract",
             ),
             models.CheckConstraint(
                 condition=(

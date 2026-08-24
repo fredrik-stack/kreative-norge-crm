@@ -2,6 +2,16 @@
 
 ## 2026-08-24
 
+### Fase 3E.4 formell takedown implementert bak default-off skrivegate
+
+- lagt additiv, transaksjonell safety-ledger schema-v2-upgrade som bevarer v1-events/hashes/ledger-ID/cursor/receipts og tilfører append-only tenant-checksum-deny og rebuildbar legacyguard uten PostgreSQL som parallell authority
+- lagt smal bridge-`deny` som skriver release- og checksum-deny i én SQLite-transaksjon før synkron anchor, samt read-only `check_checksum`/`legacy_guard` og checksum-aware `authorize`
+- lagt `PUBLIC_IMAGE_TAKEDOWN_ENABLED=False`, tenant-/rolleavgrenset intern API-action med lukket reason code, eksakt targetutledning, append-only `formal_takedown`-audit og ny systemfallback-selectionrevisjon
+- lagt deny-first, canonical tre-filers no-follow origin-delete med idempotent missing/partial retry; release-DB, mappings, privat original, artifacts og historikk beholdes
+- håndhevet tenant/checksum guard fail-closed ved approval/replacement, restore og releaseoppretting, og legacyguard uavhengig av 3E.3- og write-gatene
+- testet v1→v2/replay/restore, atomisk deny, anchor-/DB-/partial-delete-crash, roller/cross-tenant, same-byte block, safe republish, older DB/media-state, projection/serving/API/PUBLIC, 404/no-store og gammel ETag uten 304
+- beholdt stagingledger v1 og takedownskriving av; separat backup, upgrade, permanent syntetisk deny, cache-/restore-/republish-evidens og evidence-PR gjenstår før `CLOSED / ACTIVE`
+
 ### Fase 3E.3 CLOSED / ACTIVE i staging
 
 - merget implementerings-PR #49 og aktiveringsblocker-fix PR #50 etter separate fullreviews uten funn og seks grønne CI-jobber per endelig head; endelig deployet merge er `e04220b`

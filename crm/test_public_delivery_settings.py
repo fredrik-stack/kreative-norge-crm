@@ -18,6 +18,7 @@ class PublicDeliverySettingsTests(SimpleTestCase):
             "PUBLIC_IMAGE_PROJECTION_ENABLED",
             "PUBLIC_IMAGE_API_SCHEMA_ENABLED",
             "PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED",
+            "PUBLIC_IMAGE_TAKEDOWN_ENABLED",
             "PUBLIC_SITE_ORIGIN",
             "PUBLIC_MEDIA_ORIGIN",
         ):
@@ -41,7 +42,8 @@ class PublicDeliverySettingsTests(SimpleTestCase):
                 "print(settings.PUBLIC_SITE_ORIGIN, settings.PUBLIC_MEDIA_ORIGIN, "
                 "settings.PUBLIC_IMAGE_PROJECTION_ENABLED, "
                 "settings.PUBLIC_IMAGE_API_SCHEMA_ENABLED, "
-                "settings.PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED)",
+                "settings.PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED, "
+                "settings.PUBLIC_IMAGE_TAKEDOWN_ENABLED)",
             ],
             cwd=settings.BASE_DIR,
             env=env,
@@ -57,6 +59,7 @@ class PublicDeliverySettingsTests(SimpleTestCase):
         self.assertFalse(settings.PUBLIC_IMAGE_PROJECTION_ENABLED)
         self.assertFalse(settings.PUBLIC_IMAGE_API_SCHEMA_ENABLED)
         self.assertFalse(settings.PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED)
+        self.assertFalse(settings.PUBLIC_IMAGE_TAKEDOWN_ENABLED)
         self.assertIsNone(
             settings.STORAGES["public_image_delivery"]["OPTIONS"]["base_url"]
         )
@@ -72,6 +75,15 @@ class PublicDeliverySettingsTests(SimpleTestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("requires IMAGE_ASSET_FEATURE_ENABLED", result.stderr)
+
+    def test_takedown_write_gate_requires_materialization(self):
+        result = self.run_settings(PUBLIC_IMAGE_TAKEDOWN_ENABLED="True")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(
+            "requires PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED",
+            result.stderr,
+        )
 
     def test_delivery_overlap_with_artifacts_repo_or_safety_fails_closed(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -140,7 +152,7 @@ class PublicDeliverySettingsTests(SimpleTestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout.strip(),
-            "https://staging.example.no https://staging.example.no False False False",
+            "https://staging.example.no https://staging.example.no False False False False",
         )
 
     def test_projection_and_schema_dependencies_fail_closed(self):
@@ -206,7 +218,7 @@ class PublicDeliverySettingsTests(SimpleTestCase):
         self.assertEqual(valid.returncode, 0, valid.stderr)
         self.assertEqual(
             valid.stdout.strip(),
-            "https://public.example.no https://media.example.no True True True",
+            "https://public.example.no https://media.example.no True True True False",
         )
 
     def test_invalid_origins_fail_closed(self):

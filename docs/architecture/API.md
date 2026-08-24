@@ -1,6 +1,6 @@
 # API
 
-**Status:** implementert grunn-API; 3E.2 public image projection/API shadow er `CLOSED / SHADOW VERIFIED`; 3E.3-targetschemaet er `CLOSED / ACTIVE` i staging
+**Status:** implementert grunn-API; 3E.2 public image projection/API shadow er `CLOSED / SHADOW VERIFIED`; 3E.3-targetschemaet er `CLOSED / ACTIVE` i staging; 3E.4-takedownaction er implementert default-off
 
 API-et omfatter autentisering, tenants, taksonomi, aktører, personer, koblinger, kontaktkanaler, interne bildekandidathandlinger, public actors, importjobber og eksportjobber.
 
@@ -30,8 +30,11 @@ På én tenant-scopet Organization finnes følgende interne handlinger under `im
 - `POST rendition-preview/` tar en signert previewref og én av `square`, `landscape` eller `share`; privat original og storage key eksponeres aldri
 - `POST approve/` tar signert `approval_ref`, `expected_revision`, valgfri asset-alttekst og eventuell offentlig kreditering og bruker eksisterende locking/replacement
 - `GET state/` returnerer aktiv selection, expected revision og signert intern previewinformasjon
+- `POST takedown/` mottar eksakt `{"reason_code": "rights_request|privacy_safety|legal_compliance|editorial_policy"}` og utfører en formell deny-first takedown når `PUBLIC_IMAGE_TAKEDOWN_ENABLED=True`; serveren utleder eksakt aktiv release og avviser ekstra callerfelt
 
 Kildeprioriteten i Editor er offisiell nettside/Open Graph → Brave → direkte URL → upload. Dette er en presentert brukerreise, ikke automatisk godkjenning: søk, discovery, preview, URL-oppretting, upload og processing kan ikke opprette selection eller event alene.
+
+Takedownhandlingen er en intern sikkerhetsaction, ikke en offentlig lifecycle-API. Plattform-superadmin kan bruke den på tvers av tenants; aktiv tenant-`SUPERADMIN` og `GRUPPEADMIN` kan bruke den i egen tenant; redigerer/leser og cross-tenant object-ID-angrep avvises. Successresponsen inneholder bare ny selection/revisjon, review-event-ID, idempotens/dispositions, anchorcursor og aggregerte delete-tall. Source-checksum, reasonaudit, ledgerhistorikk, private paths og release-ID eksponeres ikke i public API, PUBLIC eller image response.
 
 ### Brave-kontrakt
 
@@ -59,7 +62,7 @@ Schema-migrasjon `0028` legger additivt til `ImageRenditionSet.zoom` med default
 
 Uploadtjenestens filgrense er 15 MiB. Staging-nginx har 16 MiB request-body-grense for å gi plass til multipart-overhead. 3D.2-konfigurasjonen og faktisk multipartflyt er deployet og stagingverifisert.
 
-Den godkjente overgangen i [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) er implementert som et default-off target og er ennå ikke aktivt i staging:
+Den godkjente overgangen i [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) er implementert med default-off kode-/eksempelgater og er aktiv i staging gjennom ignorert miljøkonfigurasjon:
 
 - et strukturert `image`-objekt får `kind` med enum `asset|system_fallback`, `alt_text`, nullable `credit` og `square`-, `landscape`- og `share`-renditions med `url`, `width` og `height`
 - bare CRM-kontrollerte renditions eller systemfallback blir aktive bildekilder etter cutover

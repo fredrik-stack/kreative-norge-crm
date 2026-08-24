@@ -61,7 +61,7 @@ def _load_release(release_id: str) -> OrganizationImageRelease:
     try:
         return (
             OrganizationImageRelease.objects.select_related(
-                "tenant", "organization", "selection", "rendition_set"
+                "tenant", "organization", "selection", "rendition_set__asset"
             )
             .prefetch_related("renditions__rendition")
             .get(release_id=release_id)
@@ -122,6 +122,7 @@ def prepare_public_image(
             variant=variant,
             public_storage_key=mapping.public_storage_key,
             artifact_checksum_sha256=mapping.artifact_checksum_sha256_snapshot,
+            source_checksum_sha256=release.rendition_set.asset.checksum_sha256,
         )
     except ImageSafetyBridgeError as error:
         raise PublicImageUnavailable("Safety authorization is unavailable.") from error

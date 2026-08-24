@@ -14,7 +14,12 @@ from image_safety.release_keys import (
     build_public_release_key,
     canonical_release_id,
 )
-from image_safety.ledger import activation_event_id, reservation_event_id
+from image_safety.ledger import (
+    activation_event_id,
+    release_denial_event_id,
+    reservation_event_id,
+    tenant_checksum_denial_event_id,
+)
 
 
 PROTOCOL_VERSION = 1
@@ -69,6 +74,29 @@ class BridgeAuthorization:
     category: str
     release_id: str
     variant: str
+    read_cursor: int
+
+
+@dataclass(frozen=True)
+class BridgeDeny:
+    release_event_id: str
+    release_event_sequence: int
+    checksum_event_id: str
+    checksum_event_sequence: int
+    release_disposition: str
+    checksum_disposition: str
+    anchor_cursor: int
+
+
+@dataclass(frozen=True)
+class BridgeChecksumCheck:
+    denied: bool
+    read_cursor: int
+
+
+@dataclass(frozen=True)
+class BridgeLegacyGuard:
+    blocked: bool
     read_cursor: int
 
 
@@ -366,8 +394,21 @@ class ImageSafetyBridgeClient:
             anchor_cursor=self._confirmation(response, sequence),
         )
 
-    def activate(self, *, release_id: str) -> BridgeActivation:
-        response = self._request("activate", {"release_id": release_id})
+    def activate(
+        self,
+        *,
+        release_id: str,
+        tenant_id: int,
+        source_checksum_sha256: str,
+    ) -> BridgeActivation:
+        response = self._request(
+            "activate",
+            {
+                "release_id": release_id,
+                "tenant_id": tenant_id,
+                "source_checksum_sha256": source_checksum_sha256,
+            },
+        )
         response = _require_object(
             response,
             {
@@ -420,6 +461,7 @@ class ImageSafetyBridgeClient:
         variant: str,
         public_storage_key: str,
         artifact_checksum_sha256: str,
+        source_checksum_sha256: str,
     ) -> BridgeAuthorization:
         requested_release_id = _canonical_uuid(release_id, "Requested release ID")
         response = self._request(
@@ -431,6 +473,7 @@ class ImageSafetyBridgeClient:
                 "variant": variant,
                 "public_storage_key": public_storage_key,
                 "artifact_checksum_sha256": artifact_checksum_sha256,
+                "source_checksum_sha256": source_checksum_sha256,
             },
         )
         response = _require_object(
@@ -456,7 +499,10 @@ class ImageSafetyBridgeClient:
         if (
             not isinstance(authorization["authorized"], bool)
             or authorization["category"]
-            not in {"authorized", "unknown", "not_active", "scope_mismatch"}
+            not in {
+                "authorized", "unknown", "not_active", "scope_mismatch",
+                "checksum_denied",
+            }
             or canonical_id != requested_release_id
             or authorization["variant"] != variant
             or isinstance(cursor, bool)
@@ -479,3 +525,142 @@ class ImageSafetyBridgeClient:
             variant=variant,
             read_cursor=cursor,
         )
+
+    def deny(
+        self,
+        *,
+        release_id: str,
+        tenant_id: int,
+        organization_id: int,
+        source_checksum_sha256: str,
+        reason_code: str,
+    ) -> BridgeDeny:
+        canonical_id = _canonical_uuid(release_id, "Requested release ID")
+        response = self._request(
+            "deny",
+            {
+                "release_id": canonical_id,
+                "tenant_id": tenant_id,
+                "organization_id": organization_id,
+                "source_checksum_sha256": source_checksum_sha256,
+                "reason_code": reason_code,
+            },
+        )
+        response = _require_object(
+            response,
+            {
+                "protocol_version", "operation", "result",
+                "release_disposition", "checksum_disposition", "events",
+                "confirmation",
+            },
+            "Deny response",
+        )
+        dispositions = {
+            response["release_disposition"], response["checksum_disposition"]
+        }
+        if not dispositions <= {"new", "idempotent_retry"}:
+            raise ImageSafetyBridgeUnavailable(
+                "safety_unavailable", "Deny disposition is invalid.", retryable=True
+            )
+        events = _require_object(
+            response["events"],
+            {"release_denied", "tenant_checksum_denied"},
+            "Deny events",
+        )
+        release_event = _require_object(
+            events["release_denied"],
+            {"event_id", "event_sequence", "release_id"},
+            "Release denial event",
+        )
+        checksum_event = _require_object(
+            events["tenant_checksum_denied"],
+            {"event_id", "event_sequence"},
+            "Checksum denial event",
+        )
+        release_sequence = release_event["event_sequence"]
+        checksum_sequence = checksum_event["event_sequence"]
+        if (
+            _canonical_uuid(release_event["release_id"], "Denied release ID")
+            != canonical_id
+            or release_event["event_id"] != release_denial_event_id(canonical_id)
+            or checksum_event["event_id"]
+            != tenant_checksum_denial_event_id(
+                tenant_id=tenant_id,
+                source_checksum_sha256=source_checksum_sha256,
+            )
+            or any(
+                isinstance(sequence, bool)
+                or not isinstance(sequence, int)
+                or sequence <= 0
+                for sequence in (release_sequence, checksum_sequence)
+            )
+        ):
+            raise ImageSafetyBridgeUnavailable(
+                "safety_unavailable", "Deny events are malformed.", retryable=True
+            )
+        return BridgeDeny(
+            release_event_id=release_event["event_id"],
+            release_event_sequence=release_sequence,
+            checksum_event_id=checksum_event["event_id"],
+            checksum_event_sequence=checksum_sequence,
+            release_disposition=response["release_disposition"],
+            checksum_disposition=response["checksum_disposition"],
+            anchor_cursor=self._confirmation(
+                response, max(release_sequence, checksum_sequence)
+            ),
+        )
+
+    def check_checksum(
+        self, *, tenant_id: int, source_checksum_sha256: str
+    ) -> BridgeChecksumCheck:
+        response = self._request(
+            "check_checksum",
+            {
+                "tenant_id": tenant_id,
+                "source_checksum_sha256": source_checksum_sha256,
+            },
+        )
+        response = _require_object(
+            response,
+            {"protocol_version", "operation", "result", "checksum"},
+            "Checksum response",
+        )
+        result = _require_object(
+            response["checksum"], {"denied", "read_cursor"}, "Checksum result"
+        )
+        if (
+            not isinstance(result["denied"], bool)
+            or isinstance(result["read_cursor"], bool)
+            or not isinstance(result["read_cursor"], int)
+            or result["read_cursor"] < 0
+        ):
+            raise ImageSafetyBridgeUnavailable(
+                "safety_unavailable", "Checksum response is malformed.", retryable=True
+            )
+        return BridgeChecksumCheck(**result)
+
+    def legacy_guard(
+        self, *, tenant_id: int, organization_id: int
+    ) -> BridgeLegacyGuard:
+        response = self._request(
+            "legacy_guard",
+            {"tenant_id": tenant_id, "organization_id": organization_id},
+        )
+        response = _require_object(
+            response,
+            {"protocol_version", "operation", "result", "legacy_guard"},
+            "Legacy guard response",
+        )
+        result = _require_object(
+            response["legacy_guard"], {"blocked", "read_cursor"}, "Legacy guard"
+        )
+        if (
+            not isinstance(result["blocked"], bool)
+            or isinstance(result["read_cursor"], bool)
+            or not isinstance(result["read_cursor"], int)
+            or result["read_cursor"] < 0
+        ):
+            raise ImageSafetyBridgeUnavailable(
+                "safety_unavailable", "Legacy guard response is malformed.", retryable=True
+            )
+        return BridgeLegacyGuard(**result)

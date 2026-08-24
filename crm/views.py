@@ -9,12 +9,14 @@ from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import mixins, status, viewsets
+from rest_framework import serializers as drf_serializers
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema, inline_serializer
 
 from .models import (
     Tenant,
@@ -28,6 +30,7 @@ from .models import (
     PersonContact,
     ImportJob,
     ExportJob,
+    ImageReviewEvent,
 )
 from .permissions import (
     ImportExportAccessPermission,
@@ -79,6 +82,11 @@ from .services.images.selections import (
     ExpectedRevisionConflictError,
     ImageSelectionError,
     ImageSelectionPermissionDenied,
+)
+from .services.images.takedown import (
+    ImageTakedownError,
+    ImageTakedownPermissionDenied,
+    formal_takedown_organization_image,
 )
 
 import_normalizers_module = importlib.import_module("crm.services.import.normalizers")
@@ -258,15 +266,26 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
     def _image_error_response(self, error):
         code = getattr(error, "code", "image_flow_error")
-        if isinstance(error, (ImageCandidatePermissionDenied, ImageSelectionPermissionDenied)):
+        if isinstance(
+            error,
+            (
+                ImageCandidatePermissionDenied,
+                ImageSelectionPermissionDenied,
+                ImageTakedownPermissionDenied,
+            ),
+        ):
             response_status = status.HTTP_403_FORBIDDEN
         elif code == "not_found":
             response_status = status.HTTP_404_NOT_FOUND
         elif isinstance(error, ExpectedRevisionConflictError):
             response_status = status.HTTP_409_CONFLICT
             code = "revision_conflict"
+        elif code == "takedown_conflict":
+            response_status = status.HTTP_409_CONFLICT
         elif isinstance(error, ImageCandidateFeatureDisabledError):
             response_status = status.HTTP_404_NOT_FOUND
+        elif code == "safety_unavailable":
+            response_status = status.HTTP_503_SERVICE_UNAVAILABLE
         elif isinstance(error, BraveImageSearchError) and code in {
             "brave_not_configured",
             "provider_timeout",
@@ -481,6 +500,65 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             )
         except ImageCandidateFlowError as error:
             return self._image_error_response(error)
+
+    @extend_schema(
+        request=inline_serializer(
+            name="FormalImageTakedownRequest",
+            fields={
+                "reason_code": drf_serializers.ChoiceField(
+                    choices=ImageReviewEvent.TakedownReason.choices
+                )
+            },
+        ),
+        responses={
+            200: inline_serializer(
+                name="FormalImageTakedownResponse",
+                fields={
+                    "selection_id": drf_serializers.IntegerField(),
+                    "revision": drf_serializers.IntegerField(),
+                    "review_event_id": drf_serializers.IntegerField(),
+                    "idempotent_retry": drf_serializers.BooleanField(),
+                    "release_disposition": drf_serializers.CharField(),
+                    "checksum_disposition": drf_serializers.CharField(),
+                    "anchor_cursor": drf_serializers.IntegerField(),
+                    "origin_files_deleted": drf_serializers.IntegerField(),
+                    "origin_files_already_missing": drf_serializers.IntegerField(),
+                },
+            )
+        },
+    )
+    @action(detail=True, methods=["post"], url_path="images/takedown")
+    def formal_image_takedown(self, request, tenant_id=None, pk=None):
+        if not isinstance(request.data, dict) or set(request.data) != {"reason_code"}:
+            return Response(
+                {
+                    "code": "invalid_takedown",
+                    "detail": "The takedown request accepts reason_code only.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            result = formal_takedown_organization_image(
+                actor=request.user,
+                tenant_id=int(tenant_id),
+                organization_id=int(pk),
+                reason_code=request.data.get("reason_code"),
+            )
+        except ImageTakedownError as error:
+            return self._image_error_response(error)
+        return Response(
+            {
+                "selection_id": result.selection_id,
+                "revision": result.selection_revision,
+                "review_event_id": result.review_event_id,
+                "idempotent_retry": result.idempotent_retry,
+                "release_disposition": result.release_disposition,
+                "checksum_disposition": result.checksum_disposition,
+                "anchor_cursor": result.anchor_cursor,
+                "origin_files_deleted": result.origin_files_deleted,
+                "origin_files_already_missing": result.origin_files_already_missing,
+            }
+        )
 
 
 class PersonViewSet(viewsets.ModelViewSet):

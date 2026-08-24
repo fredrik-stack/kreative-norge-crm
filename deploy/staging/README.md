@@ -376,3 +376,21 @@ Recreate `api`, bekreft hele flaggkjeden og verifiser:
 Ved avvik: sett først `PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=False`, recreate `api` og krev full visuell/semantisk legacyrollback. Ved API-kontraktavvik settes også `PUBLIC_IMAGE_API_SCHEMA_ENABLED=False` og API recreates. Behold projection, serving, ledger, release-DB, deliveryfiler og gamle emergency-fallbackfiler; slett eller omskriv ingen state. Dersom rollback ikke gjenoppretter baselinen, stopp og deploy forrige eksakte mergecommit. Dokumenter eksakt implementation merge, målinger og før/etter/rollback i en separat evidens-PR. Stopp før 3E.4, deny/retire/purge eller legacyopprydding.
 
 **Aktiv stagingstatus 2026-08-24:** 3E.3-gaten er gjennomført på eksakt merge `e04220b`. `PUBLIC_IMAGE_API_SCHEMA_ENABLED=True` og `PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=True` gjelder bare ignorert stagingkonfigurasjon; kode-/eksempelstandardene er fortsatt `False`. Schema `OFF → ON → OFF → ON`, full PUBLIC-rollback/reaktivering, asset/fallback, canonical/head, desktop/mobil, safety/restart, fast queryprofil og uendret ledger/DB/delivery er bevist. Se [cutoverrapporten](../../docs/status/STAGING_PHASE_3E3_CUTOVER_2026-08-24.md). Stopp før 3E.4, deny/retire/purge eller legacyopprydding.
+
+## 18. Fase 3E.4 – separat ledger-v2- og formell takedowngate
+
+Deploy bare eksakt reviewet merge etter grønn main-CI. Behold først alle aktive 3E.1–3E.3-flagg og den nye skrivegaten av:
+
+```text
+PUBLIC_IMAGE_TAKEDOWN_ENABLED=False
+```
+
+Ta fersk vanlig backup, full verify og isolert restore. Verifiser safety `READY`, latest anchor og separat sikker ledgerkopi. Stopp safetywriters og test `image-safety.sh upgrade-v2`, `rebuild` og `health` på kopien av den ekte stagingledgeren. Krev schema 2, uendret ledger-ID/cursor/head/receipts/release-state og tom checksum-deny. Oppgrader deretter liveledgeren transaksjonelt, restart bridge og krev fortsatt `READY` og uendret API/PUBLIC/head/serving.
+
+Aktiver så bare `PUBLIC_IMAGE_TAKEDOWN_ENABLED=True`, recreate API og bruk en dedikert syntetisk staging-Organization med ufarlig local/static legacyprobe og en egen ACTIVE release. Registrer førstate for tenant/Organization/selection/source-checksum/release/tre keys/filechecksums/cursor, API/PUBLIC/head, kjent media-URL, ETag, cacheheaders og origin. Kjør den interne `POST /api/tenants/<tenant_id>/organizations/<id>/images/takedown/` med kun en allowlistet `reason_code` som tenant-/plattformadmin.
+
+Gaten er grønn bare når release- og checksum-deny er ankret under samme nye head før DB-fallback/origin-delete; API/PUBLIC/head viser systemfallback; gammel URL gir `404/no-store`; gammel ETag gir aldri `304`; proxy/Cloudflare gir ikke `HIT`; alle tre originfiler er borte; DB release/mappings, privat original, artifacts og audit består. Retry skal gjenbruke safety- og reviewidentiteter og akseptere missing. Same bytes i samme tenant skal blokkeres ved approval/restore/release. Slå kontrollert av API-schema/PUBLIC-cutover og krev at legacyproben fortsatt blokkeres, deretter reaktiver 3E.3.
+
+Restore kontrollert én gammel denied releasefil fra testkopi og krev fortsatt 404/fallback; fjern den igjen gjennom den kontrollerte delete-pathen. Republiser et nytt syntetisk bilde med annen originalchecksum og krev ny selection-revisjon, UUID og tre keys mens gammel release/checksum/URL forblir denied. Restart API/web/bridge, ta post-deny backup, full verify og isolert restore. Dersom shared cache faktisk viser `HIT`, stopp før `CLOSED / ACTIVE` til providerpurge og credentials er besluttet. Testaktøren kan unpubliseres, men deny-/audit-/releasehistorikken slettes aldri.
+
+Etter første ekte deny er rollback bare `PUBLIC_IMAGE_TAKEDOWN_ENABLED=False` for nye writes. Ledger v2, eksisterende release-/checksum-deny, legacyguard og serving/projection-enforcement er forward-only og må aldri downgrades eller omskrives. Stopp før 3F.
