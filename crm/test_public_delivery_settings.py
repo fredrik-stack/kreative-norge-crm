@@ -15,6 +15,8 @@ class PublicDeliverySettingsTests(SimpleTestCase):
         storage_root = Path(tempfile.gettempdir()).resolve() / "kreative-norge-origin-tests"
         for name in (
             "PUBLIC_IMAGE_SERVING_ENABLED",
+            "PUBLIC_IMAGE_PROJECTION_ENABLED",
+            "PUBLIC_IMAGE_API_SCHEMA_ENABLED",
             "PUBLIC_SITE_ORIGIN",
             "PUBLIC_MEDIA_ORIGIN",
         ):
@@ -35,7 +37,9 @@ class PublicDeliverySettingsTests(SimpleTestCase):
                 sys.executable,
                 "-c",
                 "import config.settings as settings; "
-                "print(settings.PUBLIC_SITE_ORIGIN, settings.PUBLIC_MEDIA_ORIGIN)",
+                "print(settings.PUBLIC_SITE_ORIGIN, settings.PUBLIC_MEDIA_ORIGIN, "
+                "settings.PUBLIC_IMAGE_PROJECTION_ENABLED, "
+                "settings.PUBLIC_IMAGE_API_SCHEMA_ENABLED)",
             ],
             cwd=settings.BASE_DIR,
             env=env,
@@ -48,6 +52,8 @@ class PublicDeliverySettingsTests(SimpleTestCase):
     def test_delivery_alias_has_no_base_url_and_feature_defaults_off(self):
         self.assertFalse(settings.PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED)
         self.assertFalse(settings.PUBLIC_IMAGE_SERVING_ENABLED)
+        self.assertFalse(settings.PUBLIC_IMAGE_PROJECTION_ENABLED)
+        self.assertFalse(settings.PUBLIC_IMAGE_API_SCHEMA_ENABLED)
         self.assertIsNone(
             settings.STORAGES["public_image_delivery"]["OPTIONS"]["base_url"]
         )
@@ -131,8 +137,35 @@ class PublicDeliverySettingsTests(SimpleTestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout.strip(),
-            "https://staging.example.no https://staging.example.no",
+            "https://staging.example.no https://staging.example.no False False",
         )
+
+    def test_projection_and_schema_dependencies_fail_closed(self):
+        missing_projection_origin = self.run_settings(
+            PUBLIC_IMAGE_PROJECTION_ENABLED="True",
+            DJANGO_ALLOWED_HOSTS="public.example.no",
+            PUBLIC_SITE_ORIGIN="https://public.example.no",
+        )
+        self.assertNotEqual(missing_projection_origin.returncode, 0)
+        self.assertIn("PUBLIC_MEDIA_ORIGIN must be set", missing_projection_origin.stderr)
+
+        schema_without_projection = self.run_settings(
+            PUBLIC_IMAGE_API_SCHEMA_ENABLED="True"
+        )
+        self.assertNotEqual(schema_without_projection.returncode, 0)
+        self.assertIn(
+            "requires PUBLIC_IMAGE_PROJECTION_ENABLED",
+            schema_without_projection.stderr,
+        )
+
+        schema_without_serving = self.run_settings(
+            PUBLIC_IMAGE_PROJECTION_ENABLED="True",
+            PUBLIC_IMAGE_API_SCHEMA_ENABLED="True",
+            PUBLIC_SITE_ORIGIN="https://public.example.no",
+            PUBLIC_MEDIA_ORIGIN="https://media.example.no",
+        )
+        self.assertNotEqual(schema_without_serving.returncode, 0)
+        self.assertIn("requires PUBLIC_IMAGE_SERVING_ENABLED", schema_without_serving.stderr)
 
     def test_invalid_origins_fail_closed(self):
         cases = (

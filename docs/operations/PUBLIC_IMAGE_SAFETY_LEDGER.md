@@ -1,10 +1,18 @@
 # Public image safety ledger og restore-gate
 
-**Status:** 3E.1A safety-ledger, dedikert off-server anchor og restore-gate er `ACTIVE` i staging fra 2026-08-20. 3E.1B-bro, socket, delivery og release-materialisering er `ACTIVE` fra 2026-08-23. 3E.1C read-only `authorize` og controlled serving er `ACTIVE` i staging fra 2026-08-24; projection, API/PUBLIC og formell takedown er fortsatt av.
+**Status:** 3E.1A safety-ledger, dedikert off-server anchor og restore-gate er `ACTIVE` i staging fra 2026-08-20. 3E.1B-bro, socket, delivery og release-materialisering er `ACTIVE` fra 2026-08-23. 3E.1C read-only `authorize` og controlled serving er `ACTIVE` i staging fra 2026-08-24. 3E.2 projection/API shadow er implementert default-off og avventer separat staginggate; schema, PUBLIC og formell takedown er fortsatt av.
 
 **Arkitektur:** [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md)
 
 Denne runbooken dokumenterer den aktive 3E.1A-runtimeen, 3E.1B-broen og 3E.1Cs read-only autorisasjonskontrakt. Kommandoene aktiverer ikke i seg selv materialisering, serving, projection, API/PUBLIC-cutover eller formell takedown; faktisk stagingstatus følger de daterte evidensrapportene, inkludert [3E.1C-aktiveringen](../status/STAGING_PHASE_3E1C_ACTIVATION_2026-08-24.md).
+
+3E.2 har to separate miljøgater. `PUBLIC_IMAGE_PROJECTION_ENABLED=True` aktiverer read-only projection/shadow og krever gyldige `PUBLIC_SITE_ORIGIN` og `PUBLIC_MEDIA_ORIGIN`. `PUBLIC_IMAGE_API_SCHEMA_ENABLED=True` krever i tillegg controlled serving og skal ikke brukes i 3E.2-staginggaten. Fullkatalog-shadow kjøres i API-containeren med:
+
+```bash
+python manage.py audit_public_image_projection
+```
+
+Kommandoen skriver bare aggregert JSON til stdout: publisert antall, asset/fallback, kontrollerte failure reasons, legacylikhet/-forskjell, authorize count, query count og runtime. Den skriver ingen database-, storage-, ledger- eller anchorstate og eksponerer ingen aktør-, release-, URL- eller keyidentiteter. Ved rollback settes projectionflagget tilbake til `False` og bare API-tjenesten gjenskapes; serving, permanent ledger og delivery forblir uendret.
 
 Faktisk 3E.1A-aktiveringsevidens, inkludert repository-separasjon, raw-`rm`-restrisiko, separat transaction recovery av probe og DENIED-head, restartpersistens og containerisolasjon, finnes i [stagingrapporten 2026-08-20](../status/STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md). Bridge-, peer-, mount- og delivery-backup-/restoreevidensen finnes i [3E.1B-foundationrapporten](../status/STAGING_PHASE_3E1B_FOUNDATION_2026-08-23.md), mens faktisk reserve/materialize/activate- og crash/retry-evidens finnes i [3E.1B-aktiveringsrapporten](../status/STAGING_PHASE_3E1B_MATERIALIZATION_ACTIVATION_2026-08-23.md).
 

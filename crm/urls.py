@@ -13,7 +13,6 @@ from .views import (
     PersonViewSet,
     OrganizationPersonViewSet,
     PersonContactViewSet,
-    PublicActorViewSet,
     ImportJobViewSet,
     ExportJobViewSet,
 )
@@ -32,9 +31,6 @@ tenant_router.register(r"person-contacts", PersonContactViewSet, basename="tenan
 tenant_router.register(r"import-jobs", ImportJobViewSet, basename="tenant-import-jobs")
 tenant_router.register(r"export-jobs", ExportJobViewSet, basename="tenant-export-jobs")
 
-public_router = DefaultRouter()
-public_router.register(r"actors", PublicActorViewSet, basename="public-actors")
-
 urlpatterns = [
     path("auth/csrf/", CsrfTokenView.as_view(), name="auth-csrf"),
     path("auth/session/", SessionView.as_view(), name="auth-session"),
@@ -42,5 +38,4 @@ urlpatterns = [
     path("auth/logout/", LogoutView.as_view(), name="auth-logout"),
     path("", include(router.urls)),
     path("tenants/<int:tenant_id>/", include(tenant_router.urls)),
-    path("public/", include(public_router.urls)),
 ]

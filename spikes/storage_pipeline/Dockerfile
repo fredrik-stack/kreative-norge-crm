@@ -15,6 +15,6 @@ RUN pip install --no-cache-dir -r /lab/storage_pipeline/requirements.txt
 
 COPY spikes/storage_pipeline /lab/storage_pipeline
 COPY spikes/image_pipeline/image_lab /lab/image_pipeline/image_lab
-COPY spikes/image_pipeline/static /lab/image_pipeline/static
+COPY crm/static/crm/public-image-fallback/v1 /lab/image_pipeline/static
 
 CMD ["python", "-m", "unittest", "discover", "-s", "/lab/storage_pipeline/tests", "-v"]

@@ -1,7 +1,14 @@
+import logging
+
+from django.conf import settings
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
 
 from .models import Organization, OrganizationPerson, PersonContact, Tag, Category, Subcategory
+from .services.images.projection import project_public_image
+
+
+projection_logger = logging.getLogger("crm.public_image_projection")
 
 
 class PublicTagSerializer(serializers.ModelSerializer):
@@ -43,6 +50,21 @@ class PublicPersonSerializer(serializers.Serializer):
         return data
 
 
+class PublicImageVariantSerializer(serializers.Serializer):
+    url = serializers.URLField()
+    width = serializers.IntegerField(min_value=1)
+    height = serializers.IntegerField(min_value=1)
+
+
+class PublicImageSerializer(serializers.Serializer):
+    kind = serializers.ChoiceField(choices=("asset", "system_fallback"))
+    alt_text = serializers.CharField(allow_blank=True)
+    credit = serializers.CharField(allow_null=True)
+    square = PublicImageVariantSerializer()
+    landscape = PublicImageVariantSerializer()
+    share = PublicImageVariantSerializer()
+
+
 class PublicActorSerializer(serializers.ModelSerializer):
     # people blir bygget fra OrganizationPerson + Person + PersonContact
     people = serializers.SerializerMethodField()
@@ -58,6 +80,7 @@ class PublicActorSerializer(serializers.ModelSerializer):
     primary_link_field = serializers.SerializerMethodField()
     preview_image_url = serializers.SerializerMethodField()
     thumbnail_image_url = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
     tags = PublicTagSerializer(many=True, read_only=True)
     categories = PublicCategorySerializer(many=True, read_only=True)
     subcategories = PublicSubcategorySerializer(many=True, read_only=True)
@@ -81,11 +104,30 @@ class PublicActorSerializer(serializers.ModelSerializer):
             "primary_link_field",
             "thumbnail_image_url",
             "preview_image_url",
+            "image",
             "tags",
             "categories",
             "subcategories",
             "people",
         )
+
+    def get_fields(self):
+        fields = super().get_fields()
+        if not settings.PUBLIC_IMAGE_API_SCHEMA_ENABLED:
+            fields.pop("image", None)
+        return fields
+
+    def _projection_result(self, obj):
+        cache = getattr(self, "_public_image_projection_cache", None)
+        if cache is None:
+            cache = self._public_image_projection_cache = {}
+        if obj.pk not in cache:
+            cache[obj.pk] = project_public_image(obj)
+        return cache[obj.pk]
+
+    @extend_schema_field(PublicImageSerializer)
+    def get_image(self, obj):
+        return self._projection_result(obj).projection.as_dict()
 
     def get_email(self, obj):
         # antar at Organization har et email-felt, evt. returner None
@@ -109,11 +151,53 @@ class PublicActorSerializer(serializers.ModelSerializer):
     def get_primary_link_field(self, obj):
         return obj.get_primary_link_field()
 
+    @extend_schema_field(
+        {
+            "type": "string",
+            "format": "uri",
+            "nullable": True,
+            "deprecated": True,
+        }
+    )
     def get_preview_image_url(self, obj):
+        if settings.PUBLIC_IMAGE_API_SCHEMA_ENABLED:
+            return self._projection_result(obj).projection.square.url
         return obj.get_preview_image_url()
 
+    @extend_schema_field(
+        {
+            "type": "string",
+            "format": "uri",
+            "nullable": True,
+            "deprecated": True,
+        }
+    )
     def get_thumbnail_image_url(self, obj):
+        if settings.PUBLIC_IMAGE_API_SCHEMA_ENABLED:
+            return self._projection_result(obj).projection.square.url
         return obj.get_public_image_url()
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        view = self.context.get("view")
+        if (
+            settings.PUBLIC_IMAGE_PROJECTION_ENABLED
+            and not settings.PUBLIC_IMAGE_API_SCHEMA_ENABLED
+            and getattr(view, "action", None) == "retrieve"
+        ):
+            result = self._projection_result(instance)
+            projected_square = result.projection.square.url
+            projection_logger.info(
+                "event=public_image_projection_shadow organization_id=%s kind=%s "
+                "reason=%s thumbnail_equal=%s preview_equal=%s authorize_count=%s",
+                instance.pk,
+                result.projection.kind,
+                result.reason,
+                data.get("thumbnail_image_url") == projected_square,
+                data.get("preview_image_url") == projected_square,
+                result.authorize_count,
+            )
+        return data
 
     @extend_schema_field(PublicPersonSerializer(many=True))
     def get_people(self, obj):

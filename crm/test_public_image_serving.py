@@ -304,7 +304,7 @@ class PublicImageServingTests(TestCase):
     def test_extension_mismatch_and_mapping_inconsistency_fail_closed(self):
         self.assertEqual(self.client.get(self.url(extension="png")).status_code, 404)
         with patch(
-            "crm.services.images.serving.build_public_release_key",
+            "crm.services.images.release_validation.build_public_release_key",
             return_value="releases/wrong/square.webp",
         ):
             response = self.client.get(self.url())

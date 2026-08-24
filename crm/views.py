@@ -45,7 +45,6 @@ from .serializers import (
     PersonSerializer,
     OrganizationPersonSerializer,
     PersonContactSerializer,
-    PublicOrganizationSerializer,
     ImportJobSerializer,
     ImportJobCreateSerializer,
     ImportJobUploadSerializer,
@@ -543,18 +542,6 @@ class PersonContactViewSet(viewsets.ModelViewSet):
             serializer.save(tenant_id=tenant_id)
         else:
             serializer.save()
-
-
-class PublicActorViewSet(viewsets.ReadOnlyModelViewSet):
-    permission_classes = [AllowAny]
-    serializer_class = PublicOrganizationSerializer
-
-    def get_queryset(self):
-        return (
-            Organization.objects.filter(is_published=True)
-            .order_by("name")
-            .prefetch_related("org_people__person__contacts", "tags", "subcategories__category")
-        )
 
 
 class ImportRowPagination(PageNumberPagination):

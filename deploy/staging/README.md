@@ -296,3 +296,32 @@ Etter grønn preflight settes bare `PUBLIC_IMAGE_SERVING_ENABLED=True`, og API r
 Ved hvilket som helst gateavvik: sett `PUBLIC_IMAGE_SERVING_ENABLED=False`, rekreer API, bekreft `404` på media-ruten og behold ledger-, DB- og delivery-state urørt. Ikke aktiver 3E.2, projection, API/PUBLIC eller takedown som del av denne gaten.
 
 **Aktiv stagingstatus 2026-08-24:** Gaten er gjennomført fra eksakt merge `38663b5`, og bare den ignorerte stagingverdien er `PUBLIC_IMAGE_SERVING_ENABLED=True`. HTTP/cache, negative svar, bridge-/filfeil, origins, logger, mountisolasjon, restart og backup/restore er grønne. Se [aktiveringsrapporten](../../docs/status/STAGING_PHASE_3E1C_ACTIVATION_2026-08-24.md). Kode-/eksempelstandard er fortsatt `False`; 3E.2, projection, API/PUBLIC, legacy-cutover og takedown er ikke aktivert.
+
+## 16. Fase 3E.2 – separat projection/API-shadowgate
+
+Deploy bare eksakt reviewet og grønn mergecommit. Behold først:
+
+```text
+PUBLIC_IMAGE_PROJECTION_ENABLED=False
+PUBLIC_IMAGE_API_SCHEMA_ENABLED=False
+```
+
+Rebuild/recreate bare nødvendige `api`/`web`-tjenester; web må få de versjonerte tekniske fallbackfilene gjennom `collectstatic`-volumet. Før projection aktiveres skal API list/detail, PUBLIC HTML, Editor, OpenAPI, safety `READY` og controlled media være grønne. Sammenlign `/api/public/actors/` byte-/JSON-kontrakt og representative detailresponser med pre-deploy-baselinen. PUBLIC skal være visuelt og datamessig uendret.
+
+Aktiver deretter bare:
+
+```text
+PUBLIC_IMAGE_PROJECTION_ENABLED=True
+PUBLIC_IMAGE_API_SCHEMA_ENABLED=False
+```
+
+Recreate `api`, bekreft de faktiske flaggverdiene og kjør fullkatalog-auditen:
+
+```bash
+docker-compose -f docker-compose.staging.yml --env-file .env.staging \
+  exec -T api python manage.py audit_public_image_projection
+```
+
+Evidensen skal registrere aggregert JSON med publisert antall, asset/fallback, reasons, safety unavailable/scope mismatch, legacydiff, authorize count, query count og runtime. Verifiser i tillegg at den aktive publiserte evidensreleasen gir `asset`, at alle tre projected release-URL-er matcher canonical controlled media, at teknisk fallback finnes på alle tre versjonerte static-URL-er, og at et kontrollert bridgeavvik gir projection-fallback uten å endre anonymous legacyresponse. Kontroller API/PUBLIC-responsen mot baseline på nytt og verifiser at safety cursor/events, PostgreSQL-radantall, deliveryfiler og checksums er uendret av GET/audit.
+
+`PUBLIC_IMAGE_API_SCHEMA_ENABLED` skal forbli `False`; target-schemarespons, PUBLIC-cutover og 3E.3 inngår ikke i gaten. Ved enhver response-/PUBLIC-/safetyregresjon: sett projectionflagget tilbake til `False`, recreate bare `api`, verifiser baseline og behold serving, ledger, release-DB og delivery urørt. Dersom rollback ikke gjenoppretter baseline, stopp deployen og bruk forrige eksakte mergecommit uten å slette database, media, ledger eller volume.
