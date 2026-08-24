@@ -2,7 +2,7 @@
 
 ## Status
 
-Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som lokal safety-ledger, dedikert off-server Borg-anchor, separat recovery-gate og fail-closed health. Fase 3E.1B.1–3E.1B.2-materialisering er `ACTIVE` etter syntetisk ankret reserve/activate-, crash/restart/retry- og no-clobber-gate. Fase 3E.1C-controlled serving er `CLOSED / ACTIVE` i staging etter separat HTTP-, fail-closed-, restart-, observability- og backup/restore-gate. Staging har én upublisert 3E.1B-evidensrelease og én publisert release. Fase 3E.2 er `CLOSED / SHADOW VERIFIED`, og fase 3E.3 target-API/PUBLIC/head er `CLOSED / ACTIVE` etter separat aktiverings-, rollback-, browser- og ytelsesgate. Fase 3E.4 er implementert bak en default-off skrivegate; ledger-v2-upgrade, permanent stagingdeny og aktivering er ikke gjennomført ennå.
+Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som lokal safety-ledger, dedikert off-server Borg-anchor, separat recovery-gate og fail-closed health. Fase 3E.1B.1–3E.1B.2-materialisering er `ACTIVE` etter syntetisk ankret reserve/activate-, crash/restart/retry- og no-clobber-gate. Fase 3E.1C-controlled serving er `CLOSED / ACTIVE` i staging etter separat HTTP-, fail-closed-, restart-, observability- og backup/restore-gate. Fase 3E.2 er `CLOSED / SHADOW VERIFIED`, og fase 3E.3 target-API/PUBLIC/head er `CLOSED / ACTIVE` etter separat aktiverings-, rollback-, browser- og ytelsesgate. Fase 3E.4 ledger-v2/formell takedown er `CLOSED / ACTIVE` etter permanent syntetisk deny, rollback, mediarestore, sikker republisering, restart og backup/restore. Kode-/eksempelstandardene er fortsatt av; de sju runtime-/write-gatene er `True` bare i ignorert stagingkonfigurasjon.
 
 **Beslutningsdato:** 2026-08-17
 
@@ -22,6 +22,8 @@ Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som
 
 **3E.4 implementert bak default-off skrivegate:** 2026-08-24
 
+**3E.4 stagingaktivert:** 2026-08-24
+
 ADR-et formaliserer fase 3E og supplerer [ADR-007](ADR-007-IMAGE_ASSET_ARCHITECTURE.md) og [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md). Det endrer ikke de implementerte fase 3B–3D-modellene, dagens legacybildebruk eller den aktive generelle Borg-backupen.
 
 ## Kontekst
@@ -33,7 +35,7 @@ Fase 3B–3D har implementert og verifisert intern bildebehandling, immutable ar
 - dagens orphan-cleanup kjenner bare `ImageRendition.artifact_storage_key`; `releases/...` i samme root ville bli behandlet som urefererte filer og kunne slettes etter aldersgrensen
 - dagens public API hadde før 3E.2 to ruteregistreringer for `/api/public/actors/`; 3E.2 har beholdt `crm.urls_public` som én canonical route og fjernet den shadowed viewset-/serializerkjeden
 - legacyaliasene kan allerede divergere fordi `preview_image_url` og `thumbnail_image_url` bruker ulike resolvere
-- permanent reservation-/lifecycle-ledger og dedikert off-serverkjede er implementert og live-verifisert i 3E.1A; kontrollert serving og en privat revalidationpolicy er aktivert i 3E.1C; projection-shadow er liveverifisert i 3E.2; API/PUBLIC/head-cutover er stagingaktivert i 3E.3; formell deny-first takedown er implementert default-off i 3E.4, men stagingledgeren er fortsatt v1 og write-gaten er fortsatt av frem til separat aktivering
+- permanent reservation-/lifecycle-ledger og dedikert off-serverkjede er implementert og live-verifisert i 3E.1A; kontrollert serving og en privat revalidationpolicy er aktivert i 3E.1C; projection-shadow er liveverifisert i 3E.2; API/PUBLIC/head-cutover er stagingaktivert i 3E.3; formell deny-first takedown, ledger v2 og forward-only restorevern er liveverifisert og aktivert i staging i 3E.4
 
 ADR-007 krever at en eldre database- eller apprestore aldri kan reaktivere en nyere denied release eller gjenbruke en tidligere release-ID/key. ADR-008s nattlige Borg-kjede har et foreløpig RPO på omtrent 24 timer pluss timerforsinkelse og bruker ikke et append-only/admin-key-regime. Den generelle backupen kan derfor ikke alene være den autoritative sikkerhetstilstanden for public image runtime.
 
@@ -41,11 +43,7 @@ ADR-007 krever at en eldre database- eller apprestore aldri kan reaktivere en ny
 
 ### 1. Tydelig grense mellom implementert grunnmur og planlagt runtime
 
-Fase 3B–3D-grunnmuren forblir implementert. 3E.1A-ledger/read-model/restore/health og live off-servergate, 3E.1B-materialisering/release-livssyklus for reserve/activate, 3E.1C kontrollert serving/origins, 3E.2 projection-shadow og 3E.3 target-API/PUBLIC/head er implementert og aktivert/verifisert i staging. Følgende gjenstår:
-
-- separat stagingupgrade til ledger schema v2, aktivering av 3E.4-skrivegaten og permanent syntetisk deny-/restore-/republish-evidens
-
-Dokumentasjon, UI og operativ status skal bruke dette skillet: den samlede public image runtime-reisen er aktiv i staging, mens formell takedown er implementert men fortsatt deaktivert i staging frem til den separate irreversible gaten.
+Fase 3B–3D-grunnmuren forblir implementert. 3E.1A-ledger/read-model/restore/health og live off-servergate, 3E.1B-materialisering/release-livssyklus for reserve/activate, 3E.1C kontrollert serving/origins, 3E.2 projection-shadow, 3E.3 target-API/PUBLIC/head og 3E.4 ledger-v2/formell takedown er implementert og aktivert/verifisert i staging. Kode- og eksempelstandardene forblir default-off; operativ aktivering er eksplisitt og miljølokal.
 
 ### 2. Autoritativ append-only sikkerhetsledger
 
@@ -58,7 +56,7 @@ Ledgerskjemaet skal være versjonert og minst støtte idempotente event-ID-er og
 - `release_retired`
 - `release_denied`
 - `tenant_runtime_enrolled`, bare dersom tenantvis aktivering faktisk brukes som en sikkerhetsgrense
-- senere tenant-scopet checksum-deny før formell takedown kan aktiveres
+- `tenant_checksum_denied` for tenant-scopet source-checksum-deny
 
 #### Lokal 3E.1B-bro og privilegieseparasjon
 
@@ -200,13 +198,13 @@ Fallback er ikke en aktiv asset-release og skal ikke representeres som en slik i
 
 ### 11. Cache- og takedownprinsipper
 
-Fase 3E.1C har målt og valgt den foreløpige policyen `private, max-age=60, must-revalidate`, checksum-`ETag`, reautorisert `304`, `no-store` på feil, ingen shared proxycache og ingen `immutable`. Den private revalidationpolicyen er tilstrekkelig for kontrollert 3E.3-PUBLIC-cutover. Fase 3E.4 avgjør og beviser endelig cache expiry, purge og takedown-verifikasjon før formell takedown aktiveres.
+Fase 3E.1C valgte policyen `private, max-age=60, must-revalidate`, checksum-`ETag`, reautorisert `304`, `no-store` på feil, ingen shared proxycache og ingen `immutable`. Den private revalidationpolicyen er tilstrekkelig for kontrollert 3E.3-PUBLIC-cutover. Fase 3E.4 har livebevist at denied URL gir `404/no-store`, gammel ETag aldri gir `304`, Cloudflare forblir `BYPASS` og originbytes fjernes. Ekstern purgeintegrasjon er derfor ikke nødvendig i dagens lokale MVP.
 
 Sikkerhetsfallback skal ikke kunne bli liggende som en feilaktig aktiv release når sikkerhetstilstanden igjen er kjent. Formell takedown er ikke fullført før relevant origin-tilgang er blokkert eller slettet og nødvendig cache expiry/purge/retry/verifikasjon er registrert.
 
 Deny-first betyr at `release_denied` er skrevet lokalt og synkront verifisert i off-serverankeret før den normale projection/gateway-overgangen og før origin-delete eller blokkering. Dersom ankeringen feiler, går runtime fail-closed til sikker fallback eller ingen levering, men takedown markeres ikke komplett.
 
-Formell takedown er implementert bak `PUBLIC_IMAGE_TAKEDOWN_ENABLED=False`; staginggaten skal minst bevise:
+Formell takedown har kode-/eksempelstandard `PUBLIC_IMAGE_TAKEDOWN_ENABLED=False`; staginggaten har bevist:
 
 - deny av konkret release
 - tenant-scopet checksum-deny før samme bytes kan godkjennes på nytt i samme tenant
@@ -481,7 +479,7 @@ Trinnvis innføring holder risikoen avgrenset: journal og restorebevis kommer f�
 
 **Rollback:** takedownfunksjonen kan deaktiveres, men eksisterende deny og legacyguard kan aldri rulles tilbake eller omgås.
 
-**Implementeringspresisering 2026-08-24 – implementert, ikke stagingaktivert:** 3E.4 innfører `PUBLIC_IMAGE_TAKEDOWN_ENABLED=False` som en ren skrivegate for nye formelle takedowns. Allerede ankret release-deny, tenant-scopet checksum-deny og legacyguard håndheves alltid, også når denne gaten eller 3E.3-cutoveren er av. Den autoritative source-identiteten er `ImageAsset.checksum_sha256`, altså SHA-256 av de immutable originale kildebytene; rendition-checksummer forblir integritetsbevis for de tre releasefilene. Global checksum-deny og same-checksum-override er utenfor MVP.
+**Implementeringspresisering 2026-08-24 – `CLOSED / ACTIVE` i staging:** 3E.4 innfører `PUBLIC_IMAGE_TAKEDOWN_ENABLED=False` som kode-/eksempelstandard og ren skrivegate for nye formelle takedowns. Ignorert stagingkonfigurasjon er `True`. Allerede ankret release-deny, tenant-scopet checksum-deny og legacyguard håndheves alltid, også når denne gaten eller 3E.3-cutoveren er av. Den autoritative source-identiteten er `ImageAsset.checksum_sha256`, altså SHA-256 av de immutable originale kildebytene; rendition-checksummer forblir integritetsbevis for de tre releasefilene. Global checksum-deny og same-checksum-override er utenfor MVP.
 
 Ledgeren evolveres additivt fra schema v1 til v2 uten omskriving av eksisterende events, payloads, sekvenser eller hashkjede. V2 legger til `tenant_checksum_denied` og rebuildbar state for `(tenant_id, source_checksum_sha256)`, med deterministisk eventidentitet `tenant-checksum-denial:v1:<tenant_id>:<sha256>`. Upgrade skal bevare ledger-ID, cursor, head hash, receipts og eksisterende v1-restore; første nye v2-sikkerhetshendelse må gi en ny cursor før et v2-bundle ankres. PostgreSQL er audit og workflow-state, aldri parallell deny-authority.
 
@@ -547,4 +545,6 @@ Servinggaten 2026-08-24 aktiverte deretter 3E.1C på eksakt merge `38663b5` og b
 
 3E.3-cutovergaten 2026-08-24 aktiverte target-API, PUBLIC/head, canonical origins og production fallback v1 på eksakt merge `e04220b`. Schema og PUBLIC ble rollbacket og reaktivert; desktop/mobil, host/proxy-/privacy-/safetyadferd, fullkatalogen `122 = 1 asset + 121 systemfallback`, fast queryprofil, backupstatus og uendret deliverymanifest ble bevist. Se [3E.3-evidensen](../status/STAGING_PHASE_3E3_CUTOVER_2026-08-24.md).
 
-Retensjon og eksplisitt apply-prosedyre for generell release-aware cleanup er fortsatt ikke godkjent. 3E.4-koden er default-off; separat ledger-upgrade, permanent syntetisk takedown, cache-/restorebevis og evidence-PR gjenstår før `CLOSED / ACTIVE`.
+3E.4-staginggaten 2026-08-24 oppgraderte ledgeren additivt til schema v2 på eksakt merge `087026e`, aktiverte writegaten bare i ignorert stagingkonfigurasjon og beviste permanent syntetisk release-/tenant-checksum-deny, idempotent retry, samme-byte-blokkering, full 3E.3-rollback, fysisk mediarestore, sikker republisering med ny checksum/selection/UUID/key, API/web/bridge-restart og full backup/restore. Safety avsluttet `READY` på cursor `13`; den syntetiske aktøren er unpublisert uten sletting av historikk. Se [3E.4-evidensen](../status/STAGING_PHASE_3E4_TAKEDOWN_2026-08-24.md).
+
+Retensjon og eksplisitt apply-prosedyre for generell release-aware cleanup er fortsatt ikke godkjent. Dette er et senere, separat driftsvalg og endrer ikke 3E.4-statusen `CLOSED / ACTIVE`.

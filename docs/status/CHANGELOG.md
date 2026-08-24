@@ -2,6 +2,16 @@
 
 ## 2026-08-24
 
+### Fase 3E.4 CLOSED / ACTIVE i staging
+
+- merget PR #52 som `087026e` etter separat frozen-head-review uten BLOCKER/HIGH/MEDIUM og seks grønne PR-/main-CI-jobber
+- tatt fullverifisert predeploy-backup, oppgradert den ekte safety-ledgeren additivt fra schema v1/cursor 7 til schema v2 med uendret ledger-ID og bevart v1-historikk, og aktivert writegaten bare i ignorert stagingkonfigurasjon
+- utført én permanent syntetisk release-/tenant-checksum-deny via intern API; ankret cursor 11 før fallback/origin-delete og bevist `404/no-store`, ingen gammel ETag-`304`, Cloudflare `BYPASS` og tre fjernede originfiler
+- bevist idempotent retry, samme-byte approval/restore/release-blokkering, full 3E.3-rollback med aktiv legacyguard og fysisk mediarestore som fortsatt var 404/fallback og ble fjernet kontrollert
+- republisert ny syntetisk source-checksum som ny selection revision 3, release-UUID og tre keys; gammel release/checksum/URL forble denied
+- restartet API/web/bridge, tatt og fullverifisert post-deny-backup `kreative-norge-staging-20260824T191855Z`, og unpublisert bare testaktøren uten å slette deny-/audit-/releasehistorikk
+- avsluttet med safety `READY` cursor 13, normal katalog `122 = 1 asset + 121 systemfallback`, fire release-aggregater, ni deliveryfiler og kode-/eksempelstandard fortsatt av; se [stagingrapporten](STAGING_PHASE_3E4_TAKEDOWN_2026-08-24.md)
+
 ### Fase 3E.4 formell takedown implementert bak default-off skrivegate
 
 - lagt additiv, transaksjonell safety-ledger schema-v2-upgrade som bevarer v1-events/hashes/ledger-ID/cursor/receipts og tilfører append-only tenant-checksum-deny og rebuildbar legacyguard uten PostgreSQL som parallell authority

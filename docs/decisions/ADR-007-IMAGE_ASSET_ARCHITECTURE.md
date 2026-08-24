@@ -2,7 +2,7 @@
 
 ## Status
 
-Godkjent som arkitekturgrunnlag. Fase 3A, de isolerte fase 3B.1- og 3B.2-prototypene og fase 3B.1R med representativ kvalitetsvalidering er gjennomført. Fase 3B.3 har fastsatt separat UUIDv4-basert public release identity, canonical public release keys og varig release-reservasjon. Fase 3B.3-A har implementert den additive organization-typed release-aggregaten, canonical key-builderen, immutable historisk mapping og atomisk feature-gated opprettelse i databasedomenet. Fase 3C.7 har implementert intern processing/storage, og fase 3D.1 har implementert første offisielle website/Open Graph-kandidatflyt til eksplisitt Organization-selection bak det fortsatt avslåtte kode-default-flagget. Fase 3D.2 er implementert og verifisert som tidligere dokumentert; Brave-integrasjonen er likevel **operativt ikke aktiv** for ordinære Editor-sluttbrukere. [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokal one-server media og kryptert Hetzner Storage Box-backup som operasjonell MVP. [ADR-009](ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) formaliserer fase 3E-runtimearkitekturen; 3E.1A–3E.1C er `ACTIVE`, 3E.2 er `CLOSED / SHADOW VERIFIED`, og 3E.3 API/PUBLIC/head-cutover er `CLOSED / ACTIVE` i staging. Fase 3E.4 formell takedown og tenant/checksum-deny er implementert bak en default-off skrivegate; separat ledger-v2-upgrade og live stagingbevis gjenstår før `CLOSED / ACTIVE`.
+Godkjent som arkitekturgrunnlag. Fase 3A, de isolerte fase 3B.1- og 3B.2-prototypene og fase 3B.1R med representativ kvalitetsvalidering er gjennomført. Fase 3B.3 har fastsatt separat UUIDv4-basert public release identity, canonical public release keys og varig release-reservasjon. Fase 3B.3-A har implementert den additive organization-typed release-aggregaten, canonical key-builderen, immutable historisk mapping og atomisk feature-gated opprettelse i databasedomenet. Fase 3C.7 har implementert intern processing/storage, og fase 3D.1 har implementert første offisielle website/Open Graph-kandidatflyt til eksplisitt Organization-selection bak det fortsatt avslåtte kode-default-flagget. Fase 3D.2 er implementert og verifisert som tidligere dokumentert; Brave-integrasjonen er likevel **operativt ikke aktiv** for ordinære Editor-sluttbrukere. [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokal one-server media og kryptert Hetzner Storage Box-backup som operasjonell MVP. [ADR-009](ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) formaliserer fase 3E-runtimearkitekturen; 3E.1A–3E.1C er `ACTIVE`, 3E.2 er `CLOSED / SHADOW VERIFIED`, og 3E.3 API/PUBLIC/head-cutover samt 3E.4 formell takedown/tenant-checksum-deny er `CLOSED / ACTIVE` i staging. Kode-/eksempelstandarden for nye takedownwrites er fortsatt av.
 
 **Beslutningsdato:** 2026-07-30
 
@@ -846,7 +846,7 @@ Fase 3B.2 lot permanent journalteknologi stå åpen. ADR-009 har senere valgt en
 
 Den append-only journalen er autoritativ. Produksjonsruntime kan bruke en materialisert deny-indeks/read-model med kjent journalcursor eller tilsvarende. Etter restore replayes journalen og read-modelen avstemmes før public serving åpnes. Ukjent eller stale sikkerhetstilstand gir fallback.
 
-ADR-009 har senere fastsatt den eksakte runtimeen: append-only ledger, rebuildbare release-/tenant-checksum-/legacyguard-read-models, kjent read-cursor og fail-closed bridgeoppslag. Ledger v2 og 3E.4-koden er implementert uten å omskrive v1-historikken; stagingupgrade og livebevis gjenstår.
+ADR-009 har senere fastsatt den eksakte runtimeen: append-only ledger, rebuildbare release-/tenant-checksum-/legacyguard-read-models, kjent read-cursor og fail-closed bridgeoppslag. Ledger v2 og 3E.4 er implementert og liveverifisert i staging uten å omskrive v1-historikken.
 
 #### Deny-scopes
 
@@ -874,7 +874,7 @@ Det observerte gapet der unsigned GET med eksplisitt `versionId` nådde en eldre
 
 ADR-008 velger Hetzner one-server storage, stabil lokal Borg `>=1.2.8` og `<1.3.0` med remote path `borg-1.2` mot separat Storage Box, retention 14/8/12 og en obligatorisk restore-gate. Repo-grunnmuren er forberedt, men den eksterne kjeden må være ACTIVE før fase 3C kan skrive nye varige bildefiler.
 
-Fase 3B.3-A har implementert release-aggregate- og canonical key-domenegrunnmuren uten storage- eller public runtime. ADR-009 har senere besluttet lokal append-only SQLite-ledger, restore-sikkert off-server anker, separat public delivery-root, create-only/no-clobber materialisering, kontrollert serving, origins, projection/API-kontrakt og fasegater frem til takedown. 3E.1A-ledgeren/off-serverankeret, 3E.1B-materialisering og 3E.1C-serving er `ACTIVE` i staging. 3E.2 projection/API shadow er `CLOSED / SHADOW VERIFIED`; 3E.3 API/PUBLIC/head-cutover er `CLOSED / ACTIVE`; 3E.4 formell takedown og tenant/checksum-deny er implementert bak en default-off skrivegate, men ledger-v2-upgrade og live stagingbevis gjenstår. Backupkjeden er aktivert og restore-smoke er målt, men full katastrofe-RTO er fortsatt åpen. S3-/CDN-provider, region, ekstern IAM, bucket-policy, KMS, Object Lock og provider-spesifikk purge/`versionId`-verifikasjon er utsatt og blir bare en betinget senere gate ved dokumentert behov.
+Fase 3B.3-A har implementert release-aggregate- og canonical key-domenegrunnmuren uten storage- eller public runtime. ADR-009 har senere besluttet lokal append-only SQLite-ledger, restore-sikkert off-server anker, separat public delivery-root, create-only/no-clobber materialisering, kontrollert serving, origins, projection/API-kontrakt og fasegater frem til takedown. 3E.1A-ledgeren/off-serverankeret, 3E.1B-materialisering og 3E.1C-serving er `ACTIVE` i staging. 3E.2 projection/API shadow er `CLOSED / SHADOW VERIFIED`; 3E.3 API/PUBLIC/head-cutover og 3E.4 formell takedown/tenant-checksum-deny er `CLOSED / ACTIVE`. Backupkjeden er aktivert og restore-smoke er målt, men full katastrofe-RTO er fortsatt åpen. S3-/CDN-provider, region, ekstern IAM, bucket-policy, KMS, Object Lock og provider-spesifikk purge/`versionId`-verifikasjon er utsatt og blir bare en betinget senere gate ved dokumentert behov.
 
 ### 25. Fase 3B.3: godkjent public release identity og key-kontrakt
 
@@ -1151,7 +1151,7 @@ Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkj
 
 ### Fase 3B: teknisk prototype og kontrakt
 
-**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, fase 3B.1R er gjennomført og godkjent med representativ kvalitets- og sRGB-evidens, og fase 3B.3 har godkjent eksakt UUIDv4-basert public release identity, canonical key-format og varig reservasjonsinvariant. Fase 3B.3-A har implementert den additive release-domenegrunnmuren uten public runtime. ADR-008s lokale Hetzner storage-/backup-MVP er **ACTIVE**. ADR-009 har flyttet runtimegatene til fase 3E.1A–3E.4; 3E.1A–3E.1C er `ACTIVE`, 3E.2 er `CLOSED / SHADOW VERIFIED`, og 3E.3 er `CLOSED / ACTIVE` i staging. 3E.4-takedown er implementert default-off og venter på separat staginggate.
+**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, fase 3B.1R er gjennomført og godkjent med representativ kvalitets- og sRGB-evidens, og fase 3B.3 har godkjent eksakt UUIDv4-basert public release identity, canonical key-format og varig reservasjonsinvariant. Fase 3B.3-A har implementert den additive release-domenegrunnmuren uten public runtime. ADR-008s lokale Hetzner storage-/backup-MVP er **ACTIVE**. ADR-009 har flyttet runtimegatene til fase 3E.1A–3E.4; 3E.1A–3E.1C er `ACTIVE`, 3E.2 er `CLOSED / SHADOW VERIFIED`, og 3E.3–3E.4 er `CLOSED / ACTIVE` i staging.
 
 **Omfang:**
 
@@ -1408,7 +1408,7 @@ Følgende gjenstår etter de godkjente fase 3B.1-, 3B.1R-, 3B.2- og 3B.3-valgene
 - eventuell bakgrunnskø
 - eventuell skadevarekontroll
 - om mer enn ett fokuspunkt eller en placementmodell senere trengs
-- en eventuell provider-/CDN-spesifikk purgekontrakt dersom et senere dokumentert behov innfører shared cache; lokal 3E.4 har besluttet `private, max-age=60, must-revalidate`, checksum-`ETag`, `404/no-store`, ingen `304` etter deny, ingen shared-cache-`HIT` og fysisk originfravær, men live stagingbevis gjenstår
+- en eventuell provider-/CDN-spesifikk purgekontrakt dersom et senere dokumentert behov innfører shared cache; lokal 3E.4 har livebevist `private, max-age=60, must-revalidate`, checksum-`ETag`, `404/no-store`, ingen `304` etter deny, ingen shared-cache-`HIT` og fysisk originfravær
 - om første MVP tillater logisk same-tenant assetgjenbruk
 - retensjonsfrist for godkjente, aldri tilknyttede assets
 - om fallback-selection låser innholdssnapshot eller rendereroppskrift
@@ -1416,7 +1416,7 @@ Følgende gjenstår etter de godkjente fase 3B.1-, 3B.1R-, 3B.2- og 3B.3-valgene
 - auditretensjon og eventuell kontrollert anonymisering
 - scheduler-/workergrense for retensjon
 
-Disse valgene endrer ikke hovedarkitekturen. Fase 3B.1R, fase 3B.3, fase 3B.3-A-domenegrunnmuren, operativ aktivering av ADR-008-backupen og ADR-009s fase 3E.1A–3E.3 er gjennomført som beslutnings-, implementerings- og evidensgater. 3E.4 er implementert default-off og skal bevises i separat staginggate før formell takedown aktiveres.
+Disse valgene endrer ikke hovedarkitekturen. Fase 3B.1R, fase 3B.3, fase 3B.3-A-domenegrunnmuren, operativ aktivering av ADR-008-backupen og ADR-009s fase 3E.1A–3E.4 er gjennomført som beslutnings-, implementerings- og evidensgater. Nye takedownwrites er fortsatt default-off i kode/eksempel og aktivert bare i ignorert stagingkonfigurasjon.
 
 ## Beslutninger som fortsatt krever eksplisitt godkjenning
 
