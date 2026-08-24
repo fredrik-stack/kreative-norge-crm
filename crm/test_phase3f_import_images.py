@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, connection, transaction
+from django.db import IntegrityError, connection, models, transaction
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
@@ -302,6 +302,10 @@ class Phase3FImportImageDecisionTests(TestCase):
 
     def test_decision_is_orm_immutable_after_review(self):
         decision = self.create_decision(ImportImageDecision.DecisionKind.KEEP_LOCKED_IMAGE)
+        self.assertIsInstance(
+            ImportImageDecision._base_manager,
+            type(ImportImageDecision._base_objects),
+        )
         decision.decision_kind = ImportImageDecision.DecisionKind.USE_APPROVED_FALLBACK
         with self.assertRaises(ImmutableImportImageDecisionError):
             decision.save()
@@ -312,12 +316,23 @@ class Phase3FImportImageDecisionTests(TestCase):
         with self.assertRaises(ImmutableImportImageDecisionError):
             decision.delete()
         with self.assertRaises(ImmutableImportImageDecisionError):
-            ImportImageDecision.objects.bulk_create(
-                [],
-                update_conflicts=True,
-                update_fields=["decision_kind"],
-                unique_fields=["id"],
+            ImportImageDecision._base_manager.filter(pk=decision.pk).update(
+                decision_kind=ImportImageDecision.DecisionKind.USE_APPROVED_FALLBACK
             )
+        with self.assertRaises(ImmutableImportImageDecisionError):
+            ImportImageDecision._base_manager.filter(pk=decision.pk).delete()
+
+    def test_direct_orm_creation_routes_are_blocked(self):
+        for create in (
+            lambda: ImportImageDecision.objects.create(),
+            lambda: ImportImageDecision.objects.get_or_create(import_row=self.row),
+            lambda: ImportImageDecision.objects.bulk_create([]),
+            lambda: ImportImageDecision().save(),
+        ):
+            with self.subTest(create=create), self.assertRaises(
+                ImmutableImportImageDecisionError
+            ):
+                create()
 
     def test_stored_actor_snapshot_tampering_is_rejected(self):
         decision = self.create_decision(ImportImageDecision.DecisionKind.KEEP_LOCKED_IMAGE)
@@ -509,13 +524,17 @@ class Phase3FImportImageDecisionTests(TestCase):
         snapshot, snapshot_hash = image_decisions.canonical_actor_snapshot(self.snapshot)
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
-                ImportImageDecision.objects.create(
+                invalid_decision = ImportImageDecision(
                     import_row=self.row,
                     decided_by=self.actor,
                     decision_kind=ImportImageDecision.DecisionKind.KEEP_LOCKED_IMAGE,
                     asset=asset,
                     proposed_actor_snapshot=snapshot,
                     canonical_snapshot_hash_sha256=snapshot_hash,
+                )
+                models.QuerySet.bulk_create(
+                    ImportImageDecision._base_objects.get_queryset(),
+                    [invalid_decision],
                 )
 
         other_row = ImportRow.objects.create(import_job=self.job, row_number=2)

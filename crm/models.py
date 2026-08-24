@@ -187,6 +187,16 @@ class ImmutableImageReleaseManager(
 
 
 class ImmutableImportImageDecisionQuerySet(models.QuerySet):
+    def create(self, **kwargs):
+        raise ImmutableImportImageDecisionError(
+            "Import image decisions must be created through the typed domain service."
+        )
+
+    def get_or_create(self, defaults=None, **kwargs):
+        raise ImmutableImportImageDecisionError(
+            "Import image decisions must be created through the typed domain service."
+        )
+
     def update(self, **kwargs):
         raise ImmutableImportImageDecisionError(
             "Import image decisions cannot be updated after review."
@@ -223,17 +233,8 @@ class ImmutableImportImageDecisionQuerySet(models.QuerySet):
         update_fields=None,
         unique_fields=None,
     ):
-        if update_conflicts:
-            raise ImmutableImportImageDecisionError(
-                "Import image decisions cannot be updated by bulk upsert."
-            )
-        return super().bulk_create(
-            objs,
-            batch_size=batch_size,
-            ignore_conflicts=ignore_conflicts,
-            update_conflicts=update_conflicts,
-            update_fields=update_fields,
-            unique_fields=unique_fields,
+        raise ImmutableImportImageDecisionError(
+            "Import image decisions must be created through the typed domain service."
         )
 
 
@@ -241,6 +242,13 @@ class ImmutableImportImageDecisionManager(
     models.Manager.from_queryset(ImmutableImportImageDecisionQuerySet)
 ):
     use_in_migrations = True
+
+    def _insert_from_import_service(self, objs):
+        """Private insert primitive for the typed import-image decision service."""
+        objs = list(objs)
+        for obj in objs:
+            obj.full_clean()
+        return models.QuerySet.bulk_create(self.get_queryset(), objs)
 
 
 def import_job_upload_to(instance, filename: str) -> str:
@@ -1686,6 +1694,8 @@ class ImportImageDecision(models.Model):
     objects = ImmutableImportImageDecisionManager()
 
     class Meta:
+        base_manager_name = "_base_objects"
+        default_manager_name = "objects"
         indexes = [
             models.Index(fields=["import_row", "decision_kind"], name="imp_img_row_kind_idx"),
         ]
@@ -1803,11 +1813,9 @@ class ImportImageDecision(models.Model):
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
-        if not self._state.adding:
-            raise ImmutableImportImageDecisionError(
-                "Import image decisions cannot be updated after review."
-            )
-        return super().save(*args, **kwargs)
+        raise ImmutableImportImageDecisionError(
+            "Import image decisions must be created through the typed domain service."
+        )
 
     def delete(self, *args, **kwargs):
         raise ImmutableImportImageDecisionError(

@@ -295,7 +295,7 @@ def create_import_image_decision(
         decision.full_clean()
     except ValidationError as error:
         raise ImportImageDecisionError("The typed image decision is invalid.") from error
-    decision.save()
+    ImportImageDecision._base_objects._insert_from_import_service([decision])
     return decision
 
 

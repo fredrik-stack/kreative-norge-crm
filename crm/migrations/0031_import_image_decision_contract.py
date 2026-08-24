@@ -60,6 +60,10 @@ class Migration(migrations.Migration):
                 ("_base_objects", crm.models.ImmutableImportImageDecisionManager()),
                 ("objects", crm.models.ImmutableImportImageDecisionManager()),
             ],
+            options={
+                "base_manager_name": "_base_objects",
+                "default_manager_name": "objects",
+            },
         ),
         migrations.AddField(
             model_name="imagereviewevent",

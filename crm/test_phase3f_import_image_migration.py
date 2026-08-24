@@ -80,7 +80,7 @@ class ImportImageDecisionMigrationTests(TransactionTestCase):
             status="PREVIEW_READY",
         )
         row = ImportRow.objects.create(import_job=job, row_number=1)
-        ImportImageDecision.objects.create(
+        image_decision = ImportImageDecision(
             import_row=row,
             decided_by=user,
             decision_kind="KEEP_LOCKED_IMAGE",
@@ -89,6 +89,7 @@ class ImportImageDecisionMigrationTests(TransactionTestCase):
                 "1eeb7922a1f1d5fc62d105a0a477e9f0b046629d1c0cd60b907ca9876289d4a8"
             ),
         )
+        ImportImageDecision._base_objects._insert_from_import_service([image_decision])
 
         executor = MigrationExecutor(connection)
         with self.assertRaises(IrreversibleError):
