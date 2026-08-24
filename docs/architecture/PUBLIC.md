@@ -1,6 +1,6 @@
 # Public Architecture
 
-**Status:** Implementert grunnløsning; kontaktregel og fase 2-stabilisering implementert; standalone public image serving er `ACTIVE` i staging; 3E.2 projection/API-shadow er `CLOSED / SHADOW VERIFIED`; PUBLIC-kobling er ikke implementert og bruker fortsatt legacybilder
+**Status:** Implementert grunnløsning; kontaktregel og fase 2-stabilisering implementert; standalone public image serving er `ACTIVE` i staging; 3E.2 projection/API-shadow er `CLOSED / SHADOW VERIFIED`; 3E.3 PUBLIC/head-kobling er implementert default-off og venter på staginggaten, der PUBLIC fortsatt bruker legacybilder
 
 **Sist verifisert:** 2026-08-24
 

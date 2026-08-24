@@ -512,6 +512,10 @@ class PublicImageProjectionTests(TestCase):
         self.assertContains(public_detail, "https://legacy.example.no/thumbnail.jpg")
         self.assertNotContains(public_list, 'rel="canonical"')
         self.assertNotContains(public_detail, 'rel="canonical"')
+        self.assertNotContains(public_detail, 'class="public-image-cutover"')
+        self.assertNotContains(public_detail, 'class="image-shell"')
+        self.assertContains(public_detail, "grid-template-columns: 112px")
+        self.assertContains(public_detail, "--tag: #4f332c")
 
     @override_settings(PUBLIC_IMAGE_API_SCHEMA_ENABLED=True)
     def test_target_api_aliases_equal_projection_for_asset_and_fallback(self):
@@ -619,6 +623,7 @@ class PublicImageProjectionTests(TestCase):
         self.assertContains(public_list, f'data-fallback-src="{fallback_square}"')
         self.assertContains(public_detail, f'data-fallback-src="{fallback_square}"')
         self.assertContains(public_detail, "this.onerror=null")
+        self.assertContains(public_detail, "this.alt=''")
         self.assertNotContains(public_list, "legacy.example.no")
         self.assertNotContains(public_detail, "legacy.example.no")
 

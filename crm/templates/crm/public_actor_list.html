@@ -468,7 +468,7 @@
         {% for actor in actors %}
           <a class="card" href="{% url 'public-actor-detail' actor.id %}">
             {% if actor.public_image_projection %}
-              <img class="thumb" src="{{ actor.public_image_projection.square.url }}" alt="{{ actor.public_image_projection.alt_text }}" loading="lazy"{% if actor.public_image_projection.kind == "asset" %} data-fallback-src="{{ public_image_fallback_square_url }}" onerror="this.onerror=null;this.src=this.dataset.fallbackSrc"{% endif %} />
+              <img class="thumb" src="{{ actor.public_image_projection.square.url }}" alt="{{ actor.public_image_projection.alt_text }}" loading="lazy"{% if actor.public_image_projection.kind == "asset" %} data-fallback-src="{{ public_image_fallback_square_url }}" onerror="this.onerror=null;this.alt='';this.src=this.dataset.fallbackSrc"{% endif %} />
             {% elif actor.get_public_image_url %}
               <img class="thumb" src="{{ actor.get_public_image_url }}" alt="{{ actor.name }}" loading="lazy" />
             {% else %}

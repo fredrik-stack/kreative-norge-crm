@@ -87,7 +87,7 @@ def _fallback(reason: str, *, authorize_count: int = 0) -> PublicImageProjection
     return PublicImageProjectionResult(
         projection=PublicImageProjection(
             kind="system_fallback",
-            # Final fallback copy and graphics belong to phase 3E.3.
+            # Production fallback v1 is generic decoration, not actor content.
             alt_text="",
             credit=None,
             square=variants["square"],

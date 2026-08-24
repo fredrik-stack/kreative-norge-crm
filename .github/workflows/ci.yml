@@ -172,6 +172,7 @@ jobs:
       PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED: "True"
       PUBLIC_SITE_ORIGIN: "http://127.0.0.1:8000"
       PUBLIC_MEDIA_ORIGIN: "http://127.0.0.1:8000"
+      PUBLIC_IMAGE_SAFETY_BRIDGE_SOCKET: "/tmp/public-image-e2e.sock"
     defaults:
       run:
         working-directory: frontend
@@ -191,13 +192,22 @@ jobs:
         run: python manage.py migrate --noinput
         working-directory: .
 
-      - name: Seed public fallback actor
-        run: >-
-          python manage.py shell -c "from crm.models import Organization, Tenant;
-          tenant, _ = Tenant.objects.get_or_create(slug='public-e2e', defaults={'name': 'Public E2E'});
-          Organization.objects.update_or_create(tenant=tenant, org_number='999999999',
-          defaults={'name': 'Playwright fallback actor', 'description': 'Browser-verifisert offentlig aktør.',
-          'is_published': True, 'thumbnail_image_url': 'https://legacy.invalid/forbidden.jpg'})"
+      - name: Seed public asset and fallback actors
+        run: python scripts/public_image_e2e_fixture.py seed
+        working-directory: .
+
+      - name: Start read-only public image E2E bridge
+        run: |
+          nohup python scripts/public_image_e2e_fixture.py serve \
+            --socket /tmp/public-image-e2e.sock > bridge.log 2>&1 &
+          for i in {1..30}; do
+            if test -S /tmp/public-image-e2e.sock; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "E2E bridge failed to start"
+          exit 1
         working-directory: .
 
       - name: Start backend server
@@ -241,4 +251,5 @@ jobs:
             frontend/playwright-report
             frontend/test-results
             backend.log
+            bridge.log
           if-no-files-found: ignore

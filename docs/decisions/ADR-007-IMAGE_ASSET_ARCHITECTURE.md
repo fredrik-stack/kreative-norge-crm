@@ -1320,7 +1320,7 @@ Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkj
 
 **Rollback:**
 
-- cutoverflagget kan slås av per tenant
+- det globale PUBLIC-cutoverflagget kan slås av uten å slette projection-, release- eller historikkstate
 - tatt ned, avvist eller karantenelagt bilde kan ikke gjenkomme via legacy
 - systemfallback brukes når sikker legacyrollback ikke er mulig
 - ingen nye modeller eller auditdata slettes
