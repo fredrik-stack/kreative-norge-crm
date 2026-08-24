@@ -297,14 +297,35 @@ class PublicImageProjectionTests(TestCase):
             locked_by=self.user,
             locked_at=timezone.now(),
         )
+        archived_org = Organization.objects.create(
+            tenant=self.tenant,
+            name="Archived selection",
+            org_number="666666666",
+            is_published=True,
+        )
+        OrganizationImageSelection.objects.create(
+            tenant=self.tenant,
+            organization=archived_org,
+            selection_kind="system_fallback",
+            rendition_set=None,
+            alt_text="Archived fallback",
+            public_credit="",
+            revision=1,
+            status="archived",
+            locked_by=self.user,
+            locked_at=timezone.now(),
+        )
 
         explicit = project_public_image(fallback_org)
         missing = project_public_image(no_release_org)
+        archived = project_public_image(archived_org)
 
         self.assertEqual(explicit.projection.kind, "system_fallback")
         self.assertEqual(explicit.reason, "selection_system_fallback")
         self.assertEqual(missing.projection.kind, "system_fallback")
         self.assertEqual(missing.reason, "release_missing")
+        self.assertEqual(archived.projection.kind, "system_fallback")
+        self.assertEqual(archived.reason, "no_active_selection")
         self.assertEqual(ProjectionBridge.calls, [])
 
     def test_safety_failure_and_any_negative_variant_fail_closed(self):
@@ -344,6 +365,24 @@ class PublicImageProjectionTests(TestCase):
             0
         ].tenant_id = other_tenant.pk
         cases.append((wrong_tenant, "release_scope_inactive"))
+
+        other_organization = Organization.objects.create(
+            tenant=self.tenant,
+            name="Other organization",
+            org_number="777777777",
+            is_published=True,
+        )
+        wrong_release_organization = self.prefetched_organization()
+        wrong_release_organization._public_image_projection_selections[
+            0
+        ]._projection_releases[0].organization_id = other_organization.pk
+        cases.append((wrong_release_organization, "release_scope_inactive"))
+
+        wrong_selection_organization = self.prefetched_organization()
+        wrong_selection_organization._public_image_projection_selections[
+            0
+        ].organization_id = other_organization.pk
+        cases.append((wrong_selection_organization, "selection_scope_mismatch"))
 
         malformed_key = self.prefetched_organization()
         release = malformed_key._public_image_projection_selections[
