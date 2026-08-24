@@ -1,6 +1,6 @@
 # Public image safety ledger og restore-gate
 
-**Status:** 3E.1A safety-ledger, dedikert off-server anchor og restore-gate er `ACTIVE` i staging fra 2026-08-20. 3E.1B-bro, socket, delivery og release-materialisering er `ACTIVE` fra 2026-08-23. 3E.1C read-only `authorize` og controlled serving er `ACTIVE` fra 2026-08-24. 3E.2 er `CLOSED / SHADOW VERIFIED`; 3E.3 schema/PUBLIC/head er `CLOSED / ACTIVE`. 3E.4-koden er default-off; stagingledgeren er fortsatt v1 og formell takedown er fortsatt av.
+**Status:** 3E.1A safety-ledger, dedikert off-server anchor og restore-gate er `ACTIVE` i staging fra 2026-08-20. 3E.1B-bro, socket, delivery og release-materialisering er `ACTIVE` fra 2026-08-23. 3E.1C read-only `authorize` og controlled serving er `ACTIVE` fra 2026-08-24. 3E.2 er `CLOSED / SHADOW VERIFIED`; 3E.3 schema/PUBLIC/head og 3E.4 ledger-v2/formell takedown er `CLOSED / ACTIVE`. Staging kjører schema v2 og writegaten på; kode-/eksempelstandarden er fortsatt av.
 
 **Arkitektur:** [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md)
 
@@ -312,5 +312,7 @@ sudo /usr/local/lib/kreative-norge-image-safety/image-safety.sh health
 Krev schema `2`, identisk ledger-ID/cursor/head, uendrede release states, tom checksumtabell og byteidentisk v1-bundle før første v2-event. Kjør deretter samme upgrade én gang på liveledgeren, restart bridge og krev `READY`. Upgrade er idempotent og transaksjonell; den omskriver aldri `ledger_events` eller hashes. Ikke forsøk downgrade.
 
 Deploy applikasjonskoden først med `PUBLIC_IMAGE_TAKEDOWN_ENABLED=False` og verifiser uendret 3E.1–3E.3-runtime. Aktiver write-gaten først etter grønn upgrade. Bruk bare en dedikert syntetisk Organization/release. Før deny registreres release/checksum/tre keys, filechecksums, cursor, API/PUBLIC/head, gammel URL/ETag/cacheheader og fysisk origin. Kjør takedown via intern API som tenant-/plattformadmin. Krev to nye events under én ankret head, fallbackaudit, tre fjernede filer, 404/no-store, ingen gammel ETag-304 og ingen cache-HIT. Retry samme request og krev samme event-/selectionidentiteter og tre missing-filer.
+
+**Gjennomført 2026-08-24:** Stagingledgeren ble oppgradert additivt fra schema v1/cursor `7` til schema v2 med samme ledger-ID og bevart v1-historikk. En permanent syntetisk release-/tenant-checksum-deny, idempotent retry, samme-byte-blokkering, full 3E.3-rollback, fysisk mediarestore, sikker republisering, restart og full backup/restore er grønne. Sluttstate er `READY` på cursor `13`; writegaten er `True` bare i ignorert stagingkonfigurasjon. Se [datert evidens](../status/STAGING_PHASE_3E4_TAKEDOWN_2026-08-24.md).
 
 Bevis deretter same-byte approval/release-blokkering, full 3E.3-rollback uten legacybilde, kontrollert restore av én gammel releasefil som fortsatt gir 404, og republisering med annen originalchecksum, ny selection-revisjon, UUID og keys. Den gamle deny/checksummen/URL-en skal fortsatt være terminal. Restart API/web/bridge og kjør post-deny backup, full verify og isolert restore. Hvis shared cache viser `HIT`, stopp aktiveringen til providerpurge og credentials er besluttet; ikke improviser.
