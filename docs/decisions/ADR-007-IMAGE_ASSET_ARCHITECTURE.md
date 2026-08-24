@@ -1151,7 +1151,7 @@ Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkj
 
 ### Fase 3B: teknisk prototype og kontrakt
 
-**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, fase 3B.1R er gjennomført og godkjent med representativ kvalitets- og sRGB-evidens, og fase 3B.3 har godkjent eksakt UUIDv4-basert public release identity, canonical key-format og varig reservasjonsinvariant. Fase 3B.3-A har implementert den additive release-domenegrunnmuren uten public runtime. ADR-008s lokale Hetzner storage-/backup-MVP er **ACTIVE**. ADR-009 har flyttet runtimegatene til fase 3E.1A–3E.4; 3E.1A–3E.1C er `ACTIVE`, 3E.2 er `CLOSED / SHADOW VERIFIED`, og 3E.3 er `CLOSED / ACTIVE` i staging. Takedown er ikke implementert.
+**Status:** Fase 3B.1 og fase 3B.2 er teknisk gjennomført som isolerte prototyper, fase 3B.1R er gjennomført og godkjent med representativ kvalitets- og sRGB-evidens, og fase 3B.3 har godkjent eksakt UUIDv4-basert public release identity, canonical key-format og varig reservasjonsinvariant. Fase 3B.3-A har implementert den additive release-domenegrunnmuren uten public runtime. ADR-008s lokale Hetzner storage-/backup-MVP er **ACTIVE**. ADR-009 har flyttet runtimegatene til fase 3E.1A–3E.4; 3E.1A–3E.1C er `ACTIVE`, 3E.2 er `CLOSED / SHADOW VERIFIED`, og 3E.3 er `CLOSED / ACTIVE` i staging. 3E.4-takedown er implementert default-off og venter på separat staginggate.
 
 **Omfang:**
 
@@ -1416,14 +1416,14 @@ Følgende gjenstår etter de godkjente fase 3B.1-, 3B.1R-, 3B.2- og 3B.3-valgene
 - auditretensjon og eventuell kontrollert anonymisering
 - scheduler-/workergrense for retensjon
 
-Disse valgene endrer ikke hovedarkitekturen. Fase 3B.1R, fase 3B.3, fase 3B.3-A-domenegrunnmuren, operativ aktivering av ADR-008-backupen og ADR-009s fase 3E.1A–3E.3 er gjennomført som beslutnings-, implementerings- og evidensgater. 3E.4 skal implementeres og bevises før formell takedown aktiveres.
+Disse valgene endrer ikke hovedarkitekturen. Fase 3B.1R, fase 3B.3, fase 3B.3-A-domenegrunnmuren, operativ aktivering av ADR-008-backupen og ADR-009s fase 3E.1A–3E.3 er gjennomført som beslutnings-, implementerings- og evidensgater. 3E.4 er implementert default-off og skal bevises i separat staginggate før formell takedown aktiveres.
 
 ## Beslutninger som fortsatt krever eksplisitt godkjenning
 
 Gjenstående fase 3B-resultater må godkjennes før de respektive produksjonsrettede runtimeleveransene aktiveres. Godkjenningen skal minst omfatte:
 
 - konkret implementasjonsevidens for ADR-009s purge og takedown; lokal ledger, off-server anker, read-model/cursor, host/systemd-placement, delivery/materialisering, controlled serving, origins, projection, API/PUBLIC/head og restoreadferd er bevist i 3E.1A–3E.3
-- cache-/purge-/headerverdier som ADR-009 lar stå åpne for 3E.4; production fallback v1 og blank fallback-alttekst er avklart i 3E.3
+- ekstern purgeintegrasjon bare dersom shared cache senere påvises; 3E.4-MVP-en beholder privat revalidation og krever 404/no-store, ingen gammel 304/HIT og slettet origin; production fallback v1 og blank fallback-alttekst er avklart i 3E.3
 - sync/async-grense og cleanupmekanisme
 - same-tenant reuse- og orphan-retensjonsregel
 

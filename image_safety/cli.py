@@ -85,6 +85,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("anchor")
     subparsers.add_parser("health")
     subparsers.add_parser("rebuild")
+    subparsers.add_parser("upgrade-v2")
     restore = subparsers.add_parser("restore-latest")
     restore.add_argument("--destination", required=True)
     restore.add_argument(
@@ -176,6 +177,14 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if health.ready else 1
     elif arguments.command == "rebuild":
         result = asdict(ledger.rebuild())
+    elif arguments.command == "upgrade-v2":
+        before = ledger.head()
+        after = ledger.upgrade_schema_v2()
+        result = {
+            "before": asdict(before),
+            "after": asdict(after),
+            "schema_version": ledger.schema_version(),
+        }
     elif arguments.command == "restore-latest":
         config, backend = _backend()
         restored = restore_latest_anchor(

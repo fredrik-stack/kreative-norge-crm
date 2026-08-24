@@ -229,6 +229,7 @@ class PublicImageServingTests(TestCase):
         self.assertEqual(payload["organization_id"], self.organization.pk)
         self.assertEqual(payload["release_id"], self.release_id)
         self.assertEqual(payload["variant"], "square")
+        self.assertEqual(payload["source_checksum_sha256"], "a" * 64)
         self.assertEqual(
             payload["public_storage_key"],
             f"releases/{self.release_id}/square.webp",
@@ -312,16 +313,27 @@ class PublicImageServingTests(TestCase):
         self.assertEqual(response["Cache-Control"], "no-store")
 
     def test_negative_authorization_is_404_and_bridge_failure_is_503(self):
-        ServingBridge.authorization = BridgeAuthorization(
-            authorized=False,
-            category="not_active",
-            release_id=self.release_id,
-            variant="square",
-            read_cursor=7,
+        square_checksum = next(
+            item.artifact_checksum_sha256_snapshot
+            for item in self.mappings
+            if item.variant == "square"
         )
-        negative = self.client.get(self.url())
-        self.assertEqual(negative.status_code, 404)
-        self.assertEqual(negative["Cache-Control"], "no-store")
+        for category in ("not_active", "denied", "checksum_denied"):
+            with self.subTest(category=category):
+                ServingBridge.authorization = BridgeAuthorization(
+                    authorized=False,
+                    category=category,
+                    release_id=self.release_id,
+                    variant="square",
+                    read_cursor=7,
+                )
+                negative = self.client.get(
+                    self.url(),
+                    HTTP_IF_NONE_MATCH=f'"{square_checksum}"',
+                )
+                self.assertEqual(negative.status_code, 404)
+                self.assertEqual(negative["Cache-Control"], "no-store")
+                self.assertNotEqual(negative.status_code, 304)
 
         ServingBridge.error = ImageSafetyBridgeUnavailable(
             "safety_unavailable", "synthetic failure", retryable=True

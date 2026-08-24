@@ -33,12 +33,19 @@ from .services.images.releases import (
     build_public_release_key,
     create_organization_image_release,
 )
-from .services.images.bridge_client import BridgeActivation, BridgeReservation
+from .services.images.bridge_client import (
+    BridgeActivation,
+    BridgeChecksumCheck,
+    BridgeReservation,
+)
 from .services.images.materialization import MaterializationResult
 
 
 class _FakeSafetyBridgeClient:
     reservations = {}
+
+    def check_checksum(self, **payload):
+        return BridgeChecksumCheck(denied=False, read_cursor=0)
 
     def reserve(self, **payload):
         identity = (

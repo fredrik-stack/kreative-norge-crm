@@ -19,6 +19,11 @@ from crm.models import (
     TenantMembership,
     validate_technical_warnings,
 )
+from .safety_guards import (
+    ImageSafetyGuardUnavailable,
+    ImageSourceChecksumDenied,
+    require_source_checksum_allowed,
+)
 
 
 IMAGE_APPROVAL_TEXT_VERSION = "image-approval-v1"
@@ -107,6 +112,14 @@ class ExpectedRevisionConflictError(ImageSelectionError):
 
 class ImageSelectionConcurrencyError(ImageSelectionError):
     pass
+
+
+class ImageSelectionSafetyUnavailable(ImageSelectionError):
+    code = "safety_unavailable"
+
+
+class ImageSelectionChecksumDenied(InvalidImageSelectionError):
+    code = "source_checksum_denied"
 
 
 @dataclass(frozen=True, slots=True)
@@ -241,6 +254,17 @@ def _locked_asset_context(tenant_id: int, rendition_set_id: int):
     if asset is None:
         raise ImageSelectionNotFoundError("The rendition asset does not belong to the target tenant.")
 
+    if settings.PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED:
+        try:
+            require_source_checksum_allowed(
+                tenant_id=tenant_id,
+                source_checksum_sha256=asset.checksum_sha256,
+            )
+        except ImageSourceChecksumDenied as error:
+            raise ImageSelectionChecksumDenied(str(error)) from error
+        except ImageSafetyGuardUnavailable as error:
+            raise ImageSelectionSafetyUnavailable(str(error)) from error
+
     renditions = list(
         ImageRendition.objects.select_for_update()
         .filter(rendition_set_id=rendition_set.pk)
@@ -271,15 +295,22 @@ def _build_event(
     timestamp,
     event_type: str,
     restored_from_selection: OrganizationImageSelection | None = None,
+    audit_rendition_set: ImageRenditionSet | None = None,
+    takedown_reason_code: str = "",
+    release_id_snapshot=None,
 ) -> ImageReviewEvent:
     is_asset = selection.selection_kind == OrganizationImageSelection.SelectionKind.ASSET
     is_restore = event_type == ImageReviewEvent.EventType.SELECTION_RESTORED
+    is_formal_takedown = event_type == ImageReviewEvent.EventType.FORMAL_TAKEDOWN
+    event_rendition_set = (
+        audit_rendition_set if is_formal_takedown else selection.rendition_set
+    )
     event = ImageReviewEvent(
         tenant_id=tenant_id,
         organization=organization,
         selection=selection,
-        rendition_set=selection.rendition_set if is_asset else None,
-        asset=asset if is_asset else None,
+        rendition_set=event_rendition_set if (is_asset or is_formal_takedown) else None,
+        asset=asset if (is_asset or is_formal_takedown) else None,
         previous_selection=previous_selection,
         restored_from_selection=restored_from_selection,
         actor_user=actor,
@@ -290,7 +321,9 @@ def _build_event(
         selection_id_snapshot=selection.pk,
         selection_revision_snapshot=selection.revision,
         selection_kind_snapshot=selection.selection_kind,
-        rendition_set_id_snapshot=selection.rendition_set_id if is_asset else None,
+        rendition_set_id_snapshot=(
+            event_rendition_set.pk if event_rendition_set is not None else None
+        ),
         asset_id_snapshot=asset.pk if asset else None,
         asset_checksum_sha256_snapshot=asset.checksum_sha256 if asset else "",
         asset_validation_version_snapshot=asset.validation_version if asset else "",
@@ -317,6 +350,8 @@ def _build_event(
             IMAGE_APPROVAL_TEXT_VERSION if is_asset and not is_restore else ""
         ),
         approval_text_snapshot=IMAGE_APPROVAL_TEXT if is_asset and not is_restore else "",
+        takedown_reason_code=takedown_reason_code,
+        release_id_snapshot=release_id_snapshot,
         created_at=timestamp,
     )
     try:
@@ -367,6 +402,9 @@ def _create_selection_revision(
     technical_warnings: list[str],
     event_type: str,
     restored_from_selection: OrganizationImageSelection | None = None,
+    audit_rendition_set: ImageRenditionSet | None = None,
+    takedown_reason_code: str = "",
+    release_id_snapshot=None,
 ) -> OrganizationImageSelectionResult:
     highest_revision = (
         OrganizationImageSelection.objects.filter(
@@ -411,6 +449,9 @@ def _create_selection_revision(
         timestamp=timestamp,
         event_type=event_type,
         restored_from_selection=restored_from_selection,
+        audit_rendition_set=audit_rendition_set,
+        takedown_reason_code=takedown_reason_code,
+        release_id_snapshot=release_id_snapshot,
     )
     return OrganizationImageSelectionResult(
         selection=selection,

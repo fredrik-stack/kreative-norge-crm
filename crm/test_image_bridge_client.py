@@ -8,7 +8,11 @@ import uuid
 
 from django.test import SimpleTestCase
 
-from image_safety.ledger import reservation_event_id
+from image_safety.ledger import (
+    release_denial_event_id,
+    reservation_event_id,
+    tenant_checksum_denial_event_id,
+)
 from image_safety.release_keys import build_public_release_key
 
 from .services.images.bridge_client import (
@@ -164,6 +168,7 @@ class ImageSafetyBridgeClientTests(SimpleTestCase):
                     "variant": "square",
                     "public_storage_key": expected_key,
                     "artifact_checksum_sha256": "a" * 64,
+                    "source_checksum_sha256": "b" * 64,
                 },
             )
             self.send_response(
@@ -192,6 +197,7 @@ class ImageSafetyBridgeClientTests(SimpleTestCase):
             variant="square",
             public_storage_key=expected_key,
             artifact_checksum_sha256="a" * 64,
+            source_checksum_sha256="b" * 64,
         )
         thread.join(timeout=2)
 
@@ -261,4 +267,114 @@ class ImageSafetyBridgeClientTests(SimpleTestCase):
                         variant="square",
                         public_storage_key=expected_key,
                         artifact_checksum_sha256="a" * 64,
+                        source_checksum_sha256="b" * 64,
                     )
+
+    def test_deny_checksum_and_legacy_operations_use_strict_minimal_schemas(self):
+        checksum = "d" * 64
+        checksum_event_id = tenant_checksum_denial_event_id(
+            tenant_id=1,
+            source_checksum_sha256=checksum,
+        )
+
+        def deny_response(connection, request):
+            self.assertEqual(request["operation"], "deny")
+            self.assertEqual(
+                set(request["payload"]),
+                {
+                    "release_id", "tenant_id", "organization_id",
+                    "source_checksum_sha256", "reason_code",
+                },
+            )
+            self.send_response(
+                connection,
+                {
+                    "protocol_version": 1,
+                    "operation": "deny",
+                    "result": "success",
+                    "release_disposition": "new",
+                    "checksum_disposition": "new",
+                    "events": {
+                        "release_denied": {
+                            "event_id": release_denial_event_id(self.release_id),
+                            "event_sequence": 10,
+                            "release_id": self.release_id,
+                        },
+                        "tenant_checksum_denied": {
+                            "event_id": checksum_event_id,
+                            "event_sequence": 11,
+                        },
+                    },
+                    "confirmation": {
+                        "anchored": True,
+                        "anchor_cursor": 11,
+                        "archive_reused": False,
+                    },
+                },
+            )
+
+        self.run_server(deny_response)
+        denied = ImageSafetyBridgeClient(
+            socket_path=self.socket_path, timeout=1
+        ).deny(
+            release_id=self.release_id,
+            tenant_id=1,
+            organization_id=2,
+            source_checksum_sha256=checksum,
+            reason_code="rights_request",
+        )
+        self.assertEqual(denied.anchor_cursor, 11)
+        self.assertEqual(denied.checksum_event_id, checksum_event_id)
+
+        def checksum_response(connection, request):
+            self.assertEqual(
+                request,
+                {
+                    "protocol_version": 1,
+                    "operation": "check_checksum",
+                    "payload": {
+                        "tenant_id": 1,
+                        "source_checksum_sha256": checksum,
+                    },
+                },
+            )
+            self.send_response(
+                connection,
+                {
+                    "protocol_version": 1,
+                    "operation": "check_checksum",
+                    "result": "success",
+                    "checksum": {"denied": True, "read_cursor": 11},
+                },
+            )
+
+        self.run_server(checksum_response)
+        checked = ImageSafetyBridgeClient(
+            socket_path=self.socket_path, timeout=1
+        ).check_checksum(tenant_id=1, source_checksum_sha256=checksum)
+        self.assertTrue(checked.denied)
+
+        def legacy_response(connection, request):
+            self.assertEqual(
+                request,
+                {
+                    "protocol_version": 1,
+                    "operation": "legacy_guard",
+                    "payload": {"tenant_id": 1, "organization_id": 2},
+                },
+            )
+            self.send_response(
+                connection,
+                {
+                    "protocol_version": 1,
+                    "operation": "legacy_guard",
+                    "result": "success",
+                    "legacy_guard": {"blocked": True, "read_cursor": 11},
+                },
+            )
+
+        self.run_server(legacy_response)
+        legacy = ImageSafetyBridgeClient(
+            socket_path=self.socket_path, timeout=1
+        ).legacy_guard(tenant_id=1, organization_id=2)
+        self.assertTrue(legacy.blocked)

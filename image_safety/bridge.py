@@ -29,7 +29,12 @@ PROTOCOL_VERSION = 1
 MAX_FRAME_BYTES = 16 * 1024
 FRAME_TIMEOUT_SECONDS = 5.0
 OPERATION_TIMEOUT_SECONDS = 45.0
-SUPPORTED_OPERATIONS = frozenset({"reserve", "activate", "authorize"})
+SUPPORTED_OPERATIONS = frozenset(
+    {"reserve", "activate", "authorize", "deny", "check_checksum", "legacy_guard"}
+)
+TAKEDOWN_REASON_CODES = frozenset(
+    {"rights_request", "privacy_safety", "legal_compliance", "editorial_policy"}
+)
 LOGGER = logging.getLogger("image_safety.bridge")
 
 
@@ -54,6 +59,16 @@ def _strict_object(value: object, fields: set[str], label: str) -> dict[str, Any
 def _positive_int(value: object, label: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise BridgeProtocolError("invalid_request", f"{label} must be a positive integer.")
+    return value
+
+
+def _checksum(value: object, label: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise BridgeProtocolError("invalid_request", f"{label} is invalid.")
     return value
 
 
@@ -113,6 +128,7 @@ def _authorization_payload(value: object) -> dict[str, Any]:
             "variant",
             "public_storage_key",
             "artifact_checksum_sha256",
+            "source_checksum_sha256",
         },
         "Authorization payload",
     )
@@ -135,15 +151,62 @@ def _authorization_payload(value: object) -> dict[str, Any]:
         raise BridgeProtocolError(
             "invalid_request", "public_storage_key is invalid."
         )
-    checksum = payload["artifact_checksum_sha256"]
-    if (
-        not isinstance(checksum, str)
-        or len(checksum) != 64
-        or any(character not in "0123456789abcdef" for character in checksum)
-    ):
+    payload["artifact_checksum_sha256"] = _checksum(
+        payload["artifact_checksum_sha256"], "artifact_checksum_sha256"
+    )
+    payload["source_checksum_sha256"] = _checksum(
+        payload["source_checksum_sha256"], "source_checksum_sha256"
+    )
+    return payload
+
+
+def _deny_payload(value: object) -> dict[str, Any]:
+    payload = _strict_object(
+        value,
+        {
+            "release_id", "tenant_id", "organization_id",
+            "source_checksum_sha256", "reason_code",
+        },
+        "Deny payload",
+    )
+    try:
+        payload["release_id"] = canonical_release_id(payload["release_id"])
+    except (TypeError, ValueError) as error:
         raise BridgeProtocolError(
-            "invalid_request", "artifact_checksum_sha256 is invalid."
-        )
+            "invalid_request", "release_id must be a canonical UUIDv4 string."
+        ) from error
+    payload["tenant_id"] = _positive_int(payload["tenant_id"], "tenant_id")
+    payload["organization_id"] = _positive_int(
+        payload["organization_id"], "organization_id"
+    )
+    payload["source_checksum_sha256"] = _checksum(
+        payload["source_checksum_sha256"], "source_checksum_sha256"
+    )
+    reason_code = payload["reason_code"]
+    if reason_code not in TAKEDOWN_REASON_CODES:
+        raise BridgeProtocolError("invalid_request", "reason_code is invalid.")
+    return payload
+
+
+def _checksum_check_payload(value: object) -> dict[str, Any]:
+    payload = _strict_object(
+        value, {"tenant_id", "source_checksum_sha256"}, "Checksum check payload"
+    )
+    payload["tenant_id"] = _positive_int(payload["tenant_id"], "tenant_id")
+    payload["source_checksum_sha256"] = _checksum(
+        payload["source_checksum_sha256"], "source_checksum_sha256"
+    )
+    return payload
+
+
+def _legacy_guard_payload(value: object) -> dict[str, Any]:
+    payload = _strict_object(
+        value, {"tenant_id", "organization_id"}, "Legacy guard payload"
+    )
+    payload["tenant_id"] = _positive_int(payload["tenant_id"], "tenant_id")
+    payload["organization_id"] = _positive_int(
+        payload["organization_id"], "organization_id"
+    )
     return payload
 
 
@@ -166,6 +229,12 @@ def _request(value: object) -> tuple[str, dict[str, Any]]:
         return operation, _reservation_payload(request["payload"])
     if operation == "authorize":
         return operation, _authorization_payload(request["payload"])
+    if operation == "deny":
+        return operation, _deny_payload(request["payload"])
+    if operation == "check_checksum":
+        return operation, _checksum_check_payload(request["payload"])
+    if operation == "legacy_guard":
+        return operation, _legacy_guard_payload(request["payload"])
     payload = _strict_object(request["payload"], {"release_id"}, "Activation payload")
     if not isinstance(payload["release_id"], str):
         raise BridgeProtocolError("invalid_request", "release_id must be a UUID string.")
@@ -323,15 +392,55 @@ class SafetyBridgeOperations:
                     },
                     "confirmation": confirmation,
                 }
+            if operation == "deny":
+                release_event, checksum_event = self.ledger.deny_release_and_checksum(
+                    **payload
+                )
+                confirmation = self._confirm(
+                    max((release_event, checksum_event), key=lambda event: event.sequence)
+                )
+                return {
+                    "protocol_version": PROTOCOL_VERSION,
+                    "operation": operation,
+                    "result": "success",
+                    "release_disposition": (
+                        "idempotent_retry"
+                        if release_event.idempotent_retry
+                        else "new"
+                    ),
+                    "checksum_disposition": (
+                        "idempotent_retry"
+                        if checksum_event.idempotent_retry
+                        else "new"
+                    ),
+                    "events": {
+                        "release_denied": {
+                            "event_id": release_event.event_id,
+                            "event_sequence": release_event.sequence,
+                            "release_id": release_event.release_id,
+                        },
+                        "tenant_checksum_denied": {
+                            "event_id": checksum_event.event_id,
+                            "event_sequence": checksum_event.sequence,
+                        },
+                    },
+                    "confirmation": confirmation,
+                }
             raise AssertionError("unreachable mutation operation")
 
     def _execute_authorize(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         with self._lifecycle_gate.read():
             health = self._require_ready_read_only()
+            checksum_denied = self.ledger.checksum_denied(
+                tenant_id=payload["tenant_id"],
+                source_checksum_sha256=payload["source_checksum_sha256"],
+            )
             state = self.ledger.release_state(payload["release_id"])
             category = "unknown"
             authorized = False
-            if state is not None:
+            if checksum_denied:
+                category = "checksum_denied"
+            elif state is not None:
                 category = "not_active"
                 if state["state"] == "active":
                     reservation = state["reservation"]
@@ -361,9 +470,41 @@ class SafetyBridgeOperations:
                 },
             }
 
+    def _execute_checksum_check(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        with self._lifecycle_gate.read():
+            health = self._require_ready_read_only()
+            denied = self.ledger.checksum_denied(**payload)
+            return {
+                "protocol_version": PROTOCOL_VERSION,
+                "operation": "check_checksum",
+                "result": "success",
+                "checksum": {
+                    "denied": denied,
+                    "read_cursor": health.read_cursor,
+                },
+            }
+
+    def _execute_legacy_guard(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        with self._lifecycle_gate.read():
+            health = self._require_ready_read_only()
+            blocked = self.ledger.organization_legacy_blocked(**payload)
+            return {
+                "protocol_version": PROTOCOL_VERSION,
+                "operation": "legacy_guard",
+                "result": "success",
+                "legacy_guard": {
+                    "blocked": blocked,
+                    "read_cursor": health.read_cursor,
+                },
+            }
+
     def execute(self, operation: str, payload: Mapping[str, Any]) -> dict[str, Any]:
         if operation == "authorize":
             return self._execute_authorize(payload)
+        if operation == "check_checksum":
+            return self._execute_checksum_check(payload)
+        if operation == "legacy_guard":
+            return self._execute_legacy_guard(payload)
         return self._execute_mutation(operation, payload)
 
 

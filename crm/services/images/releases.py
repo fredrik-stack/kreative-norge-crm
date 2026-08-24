@@ -27,9 +27,16 @@ from .bridge_client import (
     ImageSafetyBridgeClient,
 )
 from .materialization import (
+    ImageMaterializationError,
     MaterializationInput,
     MaterializationResult,
+    delete_materialized_release,
     materialize_release,
+)
+from .safety_guards import (
+    ImageSafetyGuardUnavailable,
+    ImageSourceChecksumDenied,
+    require_source_checksum_allowed,
 )
 
 
@@ -46,6 +53,14 @@ class InvalidImageReleaseError(ImageReleaseError):
 
 
 class IncompleteImageReleaseError(InvalidImageReleaseError):
+    pass
+
+
+class ImageReleaseSafetyUnavailable(ImageReleaseError):
+    pass
+
+
+class ImageReleaseChecksumDenied(InvalidImageReleaseError):
     pass
 
 
@@ -70,6 +85,7 @@ class _SelectionSnapshot:
     selection_id: int
     selection_revision: int
     rendition_set_id: int
+    source_checksum_sha256: str
     renditions: tuple[_RenditionSnapshot, ...]
 
 
@@ -216,6 +232,7 @@ def _snapshot_locked_selection(selection_id: int) -> _SelectionSnapshot:
         selection_id=selection.pk,
         selection_revision=selection.revision,
         rendition_set_id=selection.rendition_set_id,
+        source_checksum_sha256=selection.rendition_set.asset.checksum_sha256,
         renditions=tuple(
             _RenditionSnapshot(
                 rendition_id=item.pk,
@@ -403,6 +420,16 @@ def create_organization_image_release(
 
     snapshot = _take_snapshot(selection.pk)
     bridge = ImageSafetyBridgeClient()
+    try:
+        require_source_checksum_allowed(
+            tenant_id=snapshot.tenant_id,
+            source_checksum_sha256=snapshot.source_checksum_sha256,
+            bridge=bridge,
+        )
+    except ImageSourceChecksumDenied as error:
+        raise ImageReleaseChecksumDenied(str(error)) from error
+    except ImageSafetyGuardUnavailable as error:
+        raise ImageReleaseSafetyUnavailable(str(error)) from error
     reservation = bridge.reserve(
         tenant_id=snapshot.tenant_id,
         organization_id=snapshot.organization_id,
@@ -412,7 +439,27 @@ def create_organization_image_release(
         renditions=_bridge_renditions(snapshot),
     )
     release, mappings = _bind_release(snapshot, reservation)
-    materializations = materialize_release(_materialization_inputs(snapshot, reservation))
+    materialization_inputs = _materialization_inputs(snapshot, reservation)
+    materializations = materialize_release(materialization_inputs)
+    # Close the approval→materialization race with a concurrent takedown. A
+    # workflow that passed the first guard before deny must not leave restored
+    # origin bytes behind after the checksum becomes terminal.
+    try:
+        require_source_checksum_allowed(
+            tenant_id=snapshot.tenant_id,
+            source_checksum_sha256=snapshot.source_checksum_sha256,
+            bridge=bridge,
+        )
+    except (ImageSourceChecksumDenied, ImageSafetyGuardUnavailable) as error:
+        try:
+            delete_materialized_release(materialization_inputs)
+        except ImageMaterializationError as deletion_error:
+            raise ImageReleaseSafetyUnavailable(
+                "Unconfirmed release bytes could not be removed from public delivery."
+            ) from deletion_error
+        if isinstance(error, ImageSourceChecksumDenied):
+            raise ImageReleaseChecksumDenied(str(error)) from error
+        raise ImageReleaseSafetyUnavailable(str(error)) from error
     activation = bridge.activate(release_id=reservation.release_id)
     return OrganizationImageReleaseResult(
         release=release,

@@ -28,11 +28,14 @@ from .models import (
 )
 from .services.images.bridge_client import (
     BridgeActivation,
+    BridgeChecksumCheck,
     BridgeReservation,
     ImageSafetyBridgeConflict,
     ImageSafetyBridgeUnavailable,
 )
 from .services.images.releases import (
+    ImageReleaseChecksumDenied,
+    ImageReleaseSafetyUnavailable,
     InvalidImageReleaseError,
     create_organization_image_release,
 )
@@ -47,6 +50,9 @@ class WorkflowBridge:
     lose_reserve_response = False
     lose_activation_response = False
     reserve_hook = None
+
+    def check_checksum(self, **payload):
+        return BridgeChecksumCheck(denied=False, read_cursor=0)
 
     @classmethod
     def reset(cls):
@@ -306,6 +312,55 @@ class OrganizationImageReleaseWorkflowTests(TransactionTestCase):
         result = self.run_workflow()
         self.assertEqual(result.activation.disposition, "idempotent_retry")
         self.assertEqual([item.created for item in result.materializations], [False] * 3)
+
+    def test_concurrent_checksum_deny_after_materialization_removes_origin_before_exit(self):
+        class DeniedAfterMaterializationBridge(WorkflowBridge):
+            checksum_checks = 0
+
+            def check_checksum(self, **payload):
+                type(self).checksum_checks += 1
+                return BridgeChecksumCheck(
+                    denied=type(self).checksum_checks >= 2,
+                    read_cursor=4,
+                )
+
+        with patch(
+            "crm.services.images.releases.ImageSafetyBridgeClient",
+            DeniedAfterMaterializationBridge,
+        ):
+            with self.assertRaises(ImageReleaseChecksumDenied):
+                self.run_workflow()
+
+        self.assertEqual(DeniedAfterMaterializationBridge.checksum_checks, 2)
+        self.assertEqual(len(list(self.delivery_root.rglob("*.webp"))), 0)
+        self.assertEqual(WorkflowBridge.activate_calls, 0)
+        self.assertEqual(OrganizationImageRelease.objects.count(), 1)
+
+    def test_unknown_safety_after_materialization_removes_origin_before_exit(self):
+        class UnavailableAfterMaterializationBridge(WorkflowBridge):
+            checksum_checks = 0
+
+            def check_checksum(self, **payload):
+                type(self).checksum_checks += 1
+                if type(self).checksum_checks >= 2:
+                    raise ImageSafetyBridgeUnavailable(
+                        "safety_unavailable",
+                        "synthetic unknown safety state",
+                        retryable=True,
+                    )
+                return BridgeChecksumCheck(denied=False, read_cursor=2)
+
+        with patch(
+            "crm.services.images.releases.ImageSafetyBridgeClient",
+            UnavailableAfterMaterializationBridge,
+        ):
+            with self.assertRaises(ImageReleaseSafetyUnavailable):
+                self.run_workflow()
+
+        self.assertEqual(UnavailableAfterMaterializationBridge.checksum_checks, 2)
+        self.assertEqual(len(list(self.delivery_root.rglob("*.webp"))), 0)
+        self.assertEqual(WorkflowBridge.activate_calls, 0)
+        self.assertEqual(OrganizationImageRelease.objects.count(), 1)
 
     def test_conflicts_on_changed_snapshot_or_different_ledger_uuid(self):
         WorkflowBridge.lose_reserve_response = True

@@ -43,6 +43,12 @@ class MaterializationResult:
     created: bool
 
 
+@dataclass(frozen=True)
+class DeliveryDeletionResult:
+    public_storage_key: str
+    deleted: bool
+
+
 _FORMAT_NAMES = {"jpeg": "JPEG", "png": "PNG", "webp": "WEBP"}
 _DIRECTORY_FLAGS = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
 _READ_FLAGS = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
@@ -273,3 +279,70 @@ def materialize_release(
     for item in items:
         verify_materialized_rendition(item)
     return tuple(results)
+
+
+def delete_materialized_release(
+    items: tuple[MaterializationInput, ...],
+) -> tuple[DeliveryDeletionResult, ...]:
+    """Delete exactly one canonical three-variant release without following links."""
+    if len(items) != 3 or {item.variant for item in items} != REQUIRED_RELEASE_VARIANTS:
+        raise ImageMaterializationError(
+            "Release deletion requires square, landscape, and share exactly once."
+        )
+    release_ids = {item.release_id for item in items}
+    if len(release_ids) != 1:
+        raise ImageMaterializationError("Release deletion scope is inconsistent.")
+    release_id = next(iter(release_ids))
+    for item in items:
+        validate_storage_key(item.public_storage_key)
+        if item.public_storage_key != build_public_release_key(
+            release_id, item.variant, item.output_format
+        ):
+            raise ImageMaterializationError("Release deletion key is not canonical.")
+
+    root_fd = _open_delivery_root(create=False)
+    releases_fd = release_fd = None
+    results: list[DeliveryDeletionResult] = []
+    try:
+        releases_fd = os.open("releases", _DIRECTORY_FLAGS, dir_fd=root_fd)
+        release_fd = os.open(release_id, _DIRECTORY_FLAGS, dir_fd=releases_fd)
+        for item in sorted(items, key=lambda value: value.variant):
+            filename = item.public_storage_key.rsplit("/", 1)[-1]
+            try:
+                descriptor = os.open(filename, _READ_FLAGS, dir_fd=release_fd)
+            except FileNotFoundError:
+                results.append(DeliveryDeletionResult(item.public_storage_key, False))
+                continue
+            except OSError as error:
+                raise ImageMaterializationError(
+                    "Delivery object cannot be opened safely for deletion."
+                ) from error
+            try:
+                if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+                    raise ImageMaterializationError(
+                        "Delivery deletion target is not a regular file."
+                    )
+            finally:
+                os.close(descriptor)
+            try:
+                os.unlink(filename, dir_fd=release_fd)
+            except FileNotFoundError:
+                results.append(DeliveryDeletionResult(item.public_storage_key, False))
+            except OSError as error:
+                raise ImageMaterializationError(
+                    "Delivery object could not be deleted safely."
+                ) from error
+            else:
+                results.append(DeliveryDeletionResult(item.public_storage_key, True))
+        os.fsync(release_fd)
+        return tuple(results)
+    except (FileNotFoundError, OSError) as error:
+        raise ImageMaterializationError(
+            "Release delivery directory cannot be opened safely."
+        ) from error
+    finally:
+        if release_fd is not None:
+            os.close(release_fd)
+        if releases_fd is not None:
+            os.close(releases_fd)
+        os.close(root_fd)

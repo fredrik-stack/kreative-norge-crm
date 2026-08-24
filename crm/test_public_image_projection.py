@@ -33,6 +33,7 @@ from .models import (
 )
 from .services.images.bridge_client import (
     BridgeAuthorization,
+    BridgeLegacyGuard,
     ImageSafetyBridgeUnavailable,
 )
 from .services.images.projection import (
@@ -69,6 +70,9 @@ class ProjectionBridge:
             read_cursor=11,
         )
 
+    def legacy_guard(self, **payload):
+        return BridgeLegacyGuard(blocked=False, read_cursor=11)
+
 
 @override_settings(
     IMAGE_ASSET_FEATURE_ENABLED=True,
@@ -89,6 +93,12 @@ class PublicImageProjectionTests(TestCase):
         )
         bridge_patch.start()
         self.addCleanup(bridge_patch.stop)
+        legacy_guard_patch = patch(
+            "crm.services.images.safety_guards.ImageSafetyBridgeClient",
+            ProjectionBridge,
+        )
+        legacy_guard_patch.start()
+        self.addCleanup(legacy_guard_patch.stop)
 
         self.user = get_user_model().objects.create_user(username="projection-user")
         self.tenant = Tenant.objects.create(name="Projection", slug="projection")
@@ -220,6 +230,10 @@ class PublicImageProjectionTests(TestCase):
             {call["variant"] for call in ProjectionBridge.calls},
             {"square", "landscape", "share"},
         )
+        self.assertEqual(
+            {call["source_checksum_sha256"] for call in ProjectionBridge.calls},
+            {"a" * 64},
+        )
 
         self.selection.public_credit = "Foto: Test"
         self.selection.save(update_fields=["public_credit"])
@@ -335,7 +349,7 @@ class PublicImageProjectionTests(TestCase):
         self.assertEqual(ProjectionBridge.calls, [])
 
     def test_safety_failure_and_any_negative_variant_fail_closed(self):
-        for category in ("unknown", "not_active", "scope_mismatch"):
+        for category in ("unknown", "not_active", "scope_mismatch", "checksum_denied"):
             with self.subTest(category=category):
                 ProjectionBridge.reset()
                 ProjectionBridge.category_by_variant = {"share": category}
@@ -738,8 +752,8 @@ class PublicImageProjectionTests(TestCase):
         PUBLIC_IMAGE_API_SCHEMA_ENABLED=True,
         PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=True,
     )
-    def test_public_cutover_denied_retired_and_unknown_never_use_legacy(self):
-        for category in ("denied", "retired", "unknown"):
+    def test_public_cutover_denied_checksum_retired_and_unknown_never_use_legacy(self):
+        for category in ("denied", "checksum_denied", "retired", "unknown"):
             with self.subTest(category=category):
                 ProjectionBridge.reset()
                 ProjectionBridge.category_by_variant = {"share": category}

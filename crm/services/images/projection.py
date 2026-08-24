@@ -59,7 +59,7 @@ def prefetch_public_image_projection(queryset: QuerySet) -> QuerySet:
     """Prefetch all projection DB state in fixed queries for a catalog queryset."""
 
     releases = OrganizationImageRelease.objects.select_related(
-        "tenant", "organization", "selection", "rendition_set"
+        "tenant", "organization", "selection", "rendition_set__asset"
     ).prefetch_related("renditions__rendition")
     selections = OrganizationImageSelection.objects.filter(
         status=OrganizationImageSelection.Status.ACTIVE
@@ -106,7 +106,7 @@ def _active_selections(
     if prefetched is not None:
         return tuple(prefetched)
     releases = OrganizationImageRelease.objects.select_related(
-        "tenant", "organization", "selection", "rendition_set"
+        "tenant", "organization", "selection", "rendition_set__asset"
     ).prefetch_related("renditions__rendition")
     return tuple(
         organization.image_selections.filter(
@@ -188,6 +188,7 @@ def project_public_image(
                 variant=variant,
                 public_storage_key=mapping.public_storage_key,
                 artifact_checksum_sha256=mapping.artifact_checksum_sha256_snapshot,
+                source_checksum_sha256=release.rendition_set.asset.checksum_sha256,
             )
         except ImageSafetyBridgeError:
             return _fallback("safety_unavailable", authorize_count=authorize_count)
