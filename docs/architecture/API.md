@@ -21,7 +21,7 @@ Eksport har foreløpig grunnleggende oppretting, listing og visning av eksportjo
 På én tenant-scopet Organization finnes følgende interne handlinger under `images/`:
 
 - `GET legacy-candidates/` returnerer maksimalt tre dedupliserte, transient signerte kandidater fra de eksisterende `thumbnail_image_url`-, `og_image_url`- og `auto_thumbnail_url`-feltene uten DNS/HTTP, automatisk preview, approval eller write; safetyfeil og blokkert legacykilde feiler lukket
-- `POST discover/` finner maksimalt seks kandidater fra `website_url`, lagret Open Graph og én kontrollert sidefetch
+- `POST discover/` gjør én kontrollert sidefetch fra `website_url` og finner maksimalt seks Open Graph-/nettsidekandidater fra den hentede siden; lagrede legacy-URL-er inngår bare i `legacy-candidates/`
 - `GET search-context/` returnerer det deterministiske Brave-forslaget og eksplisitt valgbare kommuner, kategorier og aktive tilknyttede personer
 - `POST brave-search/` tar eksakt synlig `query`, `query_edited` og eventuelle eksplisitte refinement-ID-er og returnerer transient signerte kandidater
 - `POST url-candidate/` normaliserer én direkte bilde-URL og returnerer en transient signert kandidat uten å fetche eller velge bildet

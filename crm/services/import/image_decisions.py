@@ -81,6 +81,47 @@ def canonical_actor_snapshot(snapshot: dict[str, object]) -> tuple[dict[str, obj
     return canonical, hashlib.sha256(encoded).hexdigest()
 
 
+def canonical_rendition_set_snapshot(
+    rendition_set: ImageRenditionSet,
+) -> tuple[dict[str, object], str]:
+    renditions = list(
+        ImageRendition.objects.filter(rendition_set=rendition_set)
+        .order_by("variant", "pk")
+        .values(
+            "id",
+            "tenant_id",
+            "rendition_set_id",
+            "variant",
+            "output_format",
+            "width",
+            "height",
+            "file_size_bytes",
+            "checksum_sha256",
+            "artifact_storage_key",
+        )
+    )
+    snapshot = {
+        "tenant_id": rendition_set.tenant_id,
+        "rendition_set_id": rendition_set.pk,
+        "asset_id": rendition_set.asset_id,
+        "fit_mode": rendition_set.fit_mode,
+        "focus_x": format(rendition_set.focus_x, "f"),
+        "focus_y": format(rendition_set.focus_y, "f"),
+        "zoom": format(rendition_set.zoom, "f"),
+        "processing_version": rendition_set.processing_version,
+        "render_config_hash_sha256": rendition_set.render_config_hash_sha256,
+        "renditions": renditions,
+    }
+    encoded = json.dumps(
+        snapshot,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return json.loads(encoded.decode("utf-8")), hashlib.sha256(encoded).hexdigest()
+
+
 def _require_feature() -> None:
     if not settings.IMPORT_IMAGE_DECISIONS_ENABLED:
         raise ImportImageDecisionFeatureDisabled("Import image decisions are disabled.")
@@ -112,16 +153,22 @@ def _prepared_asset(
     asset_id: int | None,
     rendition_set_id: int | None,
 ) -> tuple[ImageAsset, ImageRenditionSet]:
-    asset = ImageAsset.objects.filter(pk=asset_id, tenant_id=tenant_id).first()
     rendition_set = (
-        ImageRenditionSet.objects.filter(pk=rendition_set_id, tenant_id=tenant_id)
-        .select_related("asset")
+        ImageRenditionSet.objects.select_for_update()
+        .filter(pk=rendition_set_id, tenant_id=tenant_id)
         .first()
     )
-    if asset is None or rendition_set is None or rendition_set.asset_id != asset.pk:
+    asset = None
+    if rendition_set is not None and rendition_set.asset_id == asset_id:
+        asset = (
+            ImageAsset.objects.select_for_update()
+            .filter(pk=asset_id, tenant_id=tenant_id)
+            .first()
+        )
+    if asset is None or rendition_set is None:
         raise ImportImageDecisionNotReady("The approved asset is not ready in the import tenant.")
     variants = list(
-        ImageRendition.objects.filter(
+        ImageRendition.objects.select_for_update().filter(
             tenant_id=tenant_id,
             rendition_set=rendition_set,
         ).values_list("variant", flat=True)
@@ -187,6 +234,8 @@ def create_import_image_decision(
     asset = None
     rendition_set = None
     evidence = None
+    rendition_set_snapshot: dict[str, object] = {}
+    rendition_set_snapshot_hash = ""
     if decision_kind == ImportImageDecision.DecisionKind.SET_APPROVED_IMAGE:
         asset, rendition_set = _prepared_asset(
             tenant_id=tenant_id,
@@ -197,6 +246,9 @@ def create_import_image_decision(
             raise ImportImageDecisionError("SET_APPROVED_IMAGE requires typed approval evidence.")
         evidence = asset_evidence
         validate_asset_approval_evidence(evidence)
+        rendition_set_snapshot, rendition_set_snapshot_hash = (
+            canonical_rendition_set_snapshot(rendition_set)
+        )
         if settings.PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED:
             try:
                 require_source_checksum_allowed(
@@ -234,6 +286,8 @@ def create_import_image_decision(
         approval_text_snapshot=IMAGE_APPROVAL_TEXT if evidence else "",
         asset_checksum_sha256_snapshot=asset.checksum_sha256 if asset else "",
         asset_validation_version_snapshot=asset.validation_version if asset else "",
+        rendition_set_snapshot=rendition_set_snapshot,
+        rendition_set_snapshot_hash_sha256=rendition_set_snapshot_hash,
         proposed_actor_snapshot=snapshot,
         canonical_snapshot_hash_sha256=snapshot_hash,
     )
@@ -278,10 +332,6 @@ def apply_import_image_decision(
         )
         .get(pk=decision.pk)
     )
-    existing = _existing_applied_result(decision)
-    if existing is not None:
-        return existing
-
     tenant_id = decision.import_row.import_job.tenant_id
     if organization.tenant_id != tenant_id:
         raise ImportImageDecisionError("The target organization was not found in the import tenant.")
@@ -291,9 +341,17 @@ def apply_import_image_decision(
     elif organization_was_created or organization.pk != decision.target_organization_id:
         raise ImportImageDecisionConflict("The reviewed target organization changed before commit.")
 
+    _, stored_snapshot_hash = canonical_actor_snapshot(decision.proposed_actor_snapshot)
     _, snapshot_hash = canonical_actor_snapshot(proposed_actor_snapshot)
-    if snapshot_hash != decision.canonical_snapshot_hash_sha256:
+    if (
+        stored_snapshot_hash != decision.canonical_snapshot_hash_sha256
+        or snapshot_hash != decision.canonical_snapshot_hash_sha256
+    ):
         raise ImportImageDecisionConflict("The proposed actor changed after image review.")
+
+    existing = _existing_applied_result(decision)
+    if existing is not None:
+        return existing
 
     active_selection = (
         OrganizationImageSelection.objects.select_for_update()
@@ -325,15 +383,43 @@ def apply_import_image_decision(
             decision.asset is None
             or decision.rendition_set is None
             or decision.rendition_set.asset_id != decision.asset_id
-            or decision.asset.checksum_sha256 != decision.asset_checksum_sha256_snapshot
-            or decision.asset.validation_version != decision.asset_validation_version_snapshot
         ):
             raise ImportImageDecisionNotReady("The approved image state changed after review.")
-        _prepared_asset(
+        current_asset, current_rendition_set = _prepared_asset(
             tenant_id=tenant_id,
             asset_id=decision.asset_id,
             rendition_set_id=decision.rendition_set_id,
         )
+        if (
+            current_asset.checksum_sha256 != decision.asset_checksum_sha256_snapshot
+            or current_asset.validation_version
+            != decision.asset_validation_version_snapshot
+        ):
+            raise ImportImageDecisionNotReady("The approved image state changed after review.")
+        current_rendition_snapshot, current_rendition_hash = (
+            canonical_rendition_set_snapshot(current_rendition_set)
+        )
+        try:
+            stored_rendition_encoded = json.dumps(
+                decision.rendition_set_snapshot,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            ).encode("utf-8")
+        except (TypeError, ValueError) as error:
+            raise ImportImageDecisionNotReady(
+                "The reviewed rendition snapshot is invalid."
+            ) from error
+        stored_rendition_hash = hashlib.sha256(stored_rendition_encoded).hexdigest()
+        if (
+            stored_rendition_hash != decision.rendition_set_snapshot_hash_sha256
+            or current_rendition_hash != decision.rendition_set_snapshot_hash_sha256
+            or current_rendition_snapshot != decision.rendition_set_snapshot
+        ):
+            raise ImportImageDecisionNotReady(
+                "The approved rendition state changed after review."
+            )
         result = lock_organization_image_selection(
             actor=decision.decided_by,
             tenant_id=tenant_id,

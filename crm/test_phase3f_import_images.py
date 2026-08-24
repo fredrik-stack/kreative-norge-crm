@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import importlib
+import json
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
@@ -14,6 +15,7 @@ from crm.models import (
     ImageRendition,
     ImageRenditionSet,
     ImageReviewEvent,
+    ImmutableImportImageDecisionError,
     ImportImageDecision,
     ImportJob,
     ImportRow,
@@ -260,8 +262,119 @@ class Phase3FImportImageDecisionTests(TestCase):
         self.assertEqual(ImageReviewEvent.objects.count(), 1)
         self.assertEqual(first.event.import_image_decision_id, decision.pk)
         self.assertEqual(first.event.actor_user_id, self.actor.pk)
+        self.assertEqual(
+            first.event.approval_text_version_snapshot,
+            decision.approval_text_version_snapshot,
+        )
+        self.assertEqual(first.event.approval_text_snapshot, decision.approval_text_snapshot)
         refresh.assert_not_called()
         fetch.assert_not_called()
+
+    def test_applied_retry_revalidates_tenant_target_and_actor_snapshot(self):
+        asset, rendition_set = self.image_domain()
+        decision = self.create_decision(
+            ImportImageDecision.DecisionKind.SET_APPROVED_IMAGE,
+            asset=asset,
+            rendition_set=rendition_set,
+        )
+        original = self.apply(decision)
+        self.assertEqual(self.apply(decision).event.pk, original.event.pk)
+
+        wrong_target = Organization.objects.create(tenant=self.tenant, name="Wrong target")
+        wrong_tenant_target = Organization.objects.create(
+            tenant=self.other_tenant,
+            name="Wrong tenant target",
+        )
+        for organization, snapshot in (
+            (wrong_target, self.snapshot),
+            (wrong_tenant_target, self.snapshot),
+            (self.organization, {"name": "Changed after apply"}),
+        ):
+            with self.subTest(organization=organization.pk, snapshot=snapshot), self.assertRaises(
+                image_decisions.ImportImageDecisionError
+            ):
+                image_decisions.apply_import_image_decision(
+                    decision=decision,
+                    organization=organization,
+                    organization_was_created=False,
+                    proposed_actor_snapshot=snapshot,
+                )
+
+    def test_decision_is_orm_immutable_after_review(self):
+        decision = self.create_decision(ImportImageDecision.DecisionKind.KEEP_LOCKED_IMAGE)
+        decision.decision_kind = ImportImageDecision.DecisionKind.USE_APPROVED_FALLBACK
+        with self.assertRaises(ImmutableImportImageDecisionError):
+            decision.save()
+        with self.assertRaises(ImmutableImportImageDecisionError):
+            ImportImageDecision.objects.filter(pk=decision.pk).update(
+                decision_kind=ImportImageDecision.DecisionKind.USE_APPROVED_FALLBACK
+            )
+        with self.assertRaises(ImmutableImportImageDecisionError):
+            decision.delete()
+        with self.assertRaises(ImmutableImportImageDecisionError):
+            ImportImageDecision.objects.bulk_create(
+                [],
+                update_conflicts=True,
+                update_fields=["decision_kind"],
+                unique_fields=["id"],
+            )
+
+    def test_stored_actor_snapshot_tampering_is_rejected(self):
+        decision = self.create_decision(ImportImageDecision.DecisionKind.KEEP_LOCKED_IMAGE)
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE crm_importimagedecision SET proposed_actor_snapshot = %s WHERE id = %s",
+                [json.dumps({"name": "Tampered actor"}), decision.pk],
+            )
+        decision.refresh_from_db()
+        with self.assertRaises(image_decisions.ImportImageDecisionConflict):
+            self.apply(decision)
+
+    def test_rendition_recipe_or_artifact_drift_is_rejected(self):
+        for drift in ("recipe", "artifact"):
+            with self.subTest(drift=drift):
+                self.row = ImportRow.objects.create(
+                    import_job=self.job,
+                    row_number=10 if drift == "recipe" else 11,
+                )
+                asset, rendition_set = self.image_domain()
+                decision = self.create_decision(
+                    ImportImageDecision.DecisionKind.SET_APPROVED_IMAGE,
+                    asset=asset,
+                    rendition_set=rendition_set,
+                )
+                if drift == "recipe":
+                    ImageRenditionSet.objects.filter(pk=rendition_set.pk).update(
+                        processing_version="processing-v2"
+                    )
+                else:
+                    ImageRendition.objects.filter(
+                        rendition_set=rendition_set,
+                        variant=ImageRendition.Variant.SQUARE,
+                    ).update(checksum_sha256="f" * 64)
+                with self.assertRaises(image_decisions.ImportImageDecisionNotReady):
+                    self.apply(decision)
+
+    def test_event_uses_reviewed_approval_copy_when_runtime_constants_change(self):
+        asset, rendition_set = self.image_domain()
+        decision = self.create_decision(
+            ImportImageDecision.DecisionKind.SET_APPROVED_IMAGE,
+            asset=asset,
+            rendition_set=rendition_set,
+        )
+        with patch(
+            "crm.services.images.selections.IMAGE_APPROVAL_TEXT_VERSION",
+            "image-approval-v999",
+        ), patch(
+            "crm.services.images.selections.IMAGE_APPROVAL_TEXT",
+            "Changed after review",
+        ):
+            result = self.apply(decision)
+        self.assertEqual(
+            result.event.approval_text_version_snapshot,
+            decision.approval_text_version_snapshot,
+        )
+        self.assertEqual(result.event.approval_text_snapshot, decision.approval_text_snapshot)
 
     def test_set_replacement_uses_expected_revision(self):
         previous = self.existing_fallback()

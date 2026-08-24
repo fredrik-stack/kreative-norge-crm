@@ -1,4 +1,5 @@
 from django.db import connection
+from django.db.migrations.exceptions import IrreversibleError
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase
 
@@ -58,3 +59,39 @@ class ImportImageDecisionMigrationTests(TransactionTestCase):
         self.assertTrue(
             reversed_apps.get_model("crm", "ImportDecision").objects.filter(pk=decision.pk).exists()
         )
+
+    def test_reverse_is_blocked_after_first_typed_decision(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_to])
+        apps = executor.loader.project_state([self.migrate_to]).apps
+        Tenant = apps.get_model("crm", "Tenant")
+        User = apps.get_model("auth", "User")
+        ImportJob = apps.get_model("crm", "ImportJob")
+        ImportRow = apps.get_model("crm", "ImportRow")
+        ImportImageDecision = apps.get_model("crm", "ImportImageDecision")
+
+        tenant = Tenant.objects.create(name="Guarded import", slug="guarded-import")
+        user = User.objects.create(username="guarded-import-user")
+        job = ImportJob.objects.create(
+            tenant=tenant,
+            created_by=user,
+            source_type="CSV",
+            import_mode="ORGANIZATIONS_ONLY",
+            status="PREVIEW_READY",
+        )
+        row = ImportRow.objects.create(import_job=job, row_number=1)
+        ImportImageDecision.objects.create(
+            import_row=row,
+            decided_by=user,
+            decision_kind="KEEP_LOCKED_IMAGE",
+            proposed_actor_snapshot={"name": "Guarded actor"},
+            canonical_snapshot_hash_sha256=(
+                "1eeb7922a1f1d5fc62d105a0a477e9f0b046629d1c0cd60b907ca9876289d4a8"
+            ),
+        )
+
+        executor = MigrationExecutor(connection)
+        with self.assertRaises(IrreversibleError):
+            executor.migrate([self.migrate_from])
+        self.assertIn("crm_importimagedecision", connection.introspection.table_names())
+        self.assertEqual(ImportImageDecision.objects.count(), 1)

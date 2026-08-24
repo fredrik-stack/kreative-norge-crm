@@ -311,6 +311,17 @@ def _build_event(
     event_rendition_set = (
         audit_rendition_set if is_formal_takedown else selection.rendition_set
     )
+    approval_text_version_snapshot = ""
+    approval_text_snapshot = ""
+    if is_asset and not is_restore:
+        if import_image_decision is not None:
+            approval_text_version_snapshot = (
+                import_image_decision.approval_text_version_snapshot
+            )
+            approval_text_snapshot = import_image_decision.approval_text_snapshot
+        else:
+            approval_text_version_snapshot = IMAGE_APPROVAL_TEXT_VERSION
+            approval_text_snapshot = IMAGE_APPROVAL_TEXT
     event = ImageReviewEvent(
         tenant_id=tenant_id,
         organization=organization,
@@ -353,10 +364,8 @@ def _build_event(
         source_page_url_snapshot=evidence.source_page_url if evidence else "",
         provider_snapshot=evidence.provider if evidence else "",
         technical_warnings_snapshot=technical_warnings,
-        approval_text_version_snapshot=(
-            IMAGE_APPROVAL_TEXT_VERSION if is_asset and not is_restore else ""
-        ),
-        approval_text_snapshot=IMAGE_APPROVAL_TEXT if is_asset and not is_restore else "",
+        approval_text_version_snapshot=approval_text_version_snapshot,
+        approval_text_snapshot=approval_text_snapshot,
         takedown_reason_code=takedown_reason_code,
         release_id_snapshot=release_id_snapshot,
         created_at=timestamp,

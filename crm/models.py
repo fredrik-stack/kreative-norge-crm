@@ -17,6 +17,10 @@ class ImmutableImageReleaseError(Exception):
     """Raised when an immutable public image release mutation is attempted."""
 
 
+class ImmutableImportImageDecisionError(Exception):
+    """Raised when a reviewed import-image decision is mutated through the ORM."""
+
+
 IMAGE_REVIEW_EVENT_NULLABLE_LIVE_REFERENCE_FIELDS = frozenset(
     {
         "organization",
@@ -180,6 +184,63 @@ class ImmutableImageReleaseManager(
         for obj in objs:
             obj.full_clean()
         return models.QuerySet.bulk_create(self.get_queryset(), objs)
+
+
+class ImmutableImportImageDecisionQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        raise ImmutableImportImageDecisionError(
+            "Import image decisions cannot be updated after review."
+        )
+
+    def delete(self):
+        raise ImmutableImportImageDecisionError(
+            "Import image decisions cannot be deleted after review."
+        )
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ImmutableImportImageDecisionError(
+            "Import image decisions cannot be bulk-updated after review."
+        )
+
+    def _update(self, values):
+        raise ImmutableImportImageDecisionError(
+            "Import image decisions cannot be privately updated after review."
+        )
+
+    _update.queryset_only = False
+
+    def update_or_create(self, defaults=None, create_defaults=None, **kwargs):
+        raise ImmutableImportImageDecisionError(
+            "Import image decisions cannot be updated by upsert."
+        )
+
+    def bulk_create(
+        self,
+        objs,
+        batch_size=None,
+        ignore_conflicts=False,
+        update_conflicts=False,
+        update_fields=None,
+        unique_fields=None,
+    ):
+        if update_conflicts:
+            raise ImmutableImportImageDecisionError(
+                "Import image decisions cannot be updated by bulk upsert."
+            )
+        return super().bulk_create(
+            objs,
+            batch_size=batch_size,
+            ignore_conflicts=ignore_conflicts,
+            update_conflicts=update_conflicts,
+            update_fields=update_fields,
+            unique_fields=unique_fields,
+        )
+
+
+class ImmutableImportImageDecisionManager(
+    models.Manager.from_queryset(ImmutableImportImageDecisionQuerySet)
+):
+    use_in_migrations = True
 
 
 def import_job_upload_to(instance, filename: str) -> str:
@@ -1610,9 +1671,19 @@ class ImportImageDecision(models.Model):
         validators=[validate_sha256],
     )
     asset_validation_version_snapshot = models.CharField(max_length=64, blank=True, default="")
+    rendition_set_snapshot = models.JSONField(blank=True, default=dict)
+    rendition_set_snapshot_hash_sha256 = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        validators=[validate_sha256],
+    )
     proposed_actor_snapshot = models.JSONField(default=dict)
     canonical_snapshot_hash_sha256 = models.CharField(max_length=64, validators=[validate_sha256])
     created_at = models.DateTimeField(auto_now_add=True)
+
+    _base_objects = ImmutableImportImageDecisionManager()
+    objects = ImmutableImportImageDecisionManager()
 
     class Meta:
         indexes = [
@@ -1652,6 +1723,8 @@ class ImportImageDecision(models.Model):
                     & ~models.Q(approval_text_snapshot="")
                     & ~models.Q(asset_checksum_sha256_snapshot="")
                     & ~models.Q(asset_validation_version_snapshot="")
+                    & ~models.Q(rendition_set_snapshot={})
+                    & ~models.Q(rendition_set_snapshot_hash_sha256="")
                 )
                 | models.Q(
                     decision_kind__in=["KEEP_LOCKED_IMAGE", "USE_APPROVED_FALLBACK"],
@@ -1664,6 +1737,8 @@ class ImportImageDecision(models.Model):
                     approval_text_snapshot="",
                     asset_checksum_sha256_snapshot="",
                     asset_validation_version_snapshot="",
+                    rendition_set_snapshot={},
+                    rendition_set_snapshot_hash_sha256="",
                 ),
                 name="imp_img_approval_snapshot_contract",
             ),
@@ -1726,6 +1801,18 @@ class ImportImageDecision(models.Model):
             errors["proposed_actor_snapshot"] = "The actor snapshot cannot be empty."
         if errors:
             raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ImmutableImportImageDecisionError(
+                "Import image decisions cannot be updated after review."
+            )
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ImmutableImportImageDecisionError(
+            "Import image decisions cannot be deleted after review."
+        )
 
     def __str__(self) -> str:
         return f"Import image decision for row {self.import_row_id}: {self.decision_kind}"

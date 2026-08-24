@@ -27,6 +27,7 @@ from crm.models import (
 from crm.services.images.candidates import (
     ImageCandidateFlowError,
     get_legacy_image_candidates,
+    process_image_candidate,
     render_candidate_preview,
 )
 from crm.services.images.legacy_inventory import audit_legacy_image_sources
@@ -99,6 +100,47 @@ class Phase3FLegacyCandidateTests(TestCase):
             ),
             (),
         )
+
+    def test_existing_legacy_ref_rechecks_guard_before_preview_or_processing(self):
+        with patch(
+            "crm.services.images.candidates.legacy_image_is_blocked",
+            return_value=False,
+        ):
+            candidate = get_legacy_image_candidates(
+                actor=self.actor,
+                tenant_id=self.tenant.pk,
+                organization_id=self.organization.pk,
+            )[0]
+
+        for operation in (
+            lambda: render_candidate_preview(
+                actor=self.actor,
+                tenant_id=self.tenant.pk,
+                organization_id=self.organization.pk,
+                candidate_ref=candidate.candidate_ref,
+                original=True,
+            ),
+            lambda: process_image_candidate(
+                actor=self.actor,
+                tenant_id=self.tenant.pk,
+                organization_id=self.organization.pk,
+                candidate_ref=candidate.candidate_ref,
+                image_kind="photo",
+            ),
+        ):
+            with self.subTest(operation=operation), patch(
+                "crm.services.images.candidates.legacy_image_is_blocked",
+                return_value=True,
+            ), patch(
+                "crm.services.images.candidates.fetch_external_resource"
+            ) as fetch_mock, patch(
+                "crm.services.images.candidates.ingest_uploaded_image"
+            ) as ingest_mock:
+                with self.assertRaises(ImageCandidateFlowError) as raised:
+                    operation()
+                self.assertEqual(raised.exception.code, "legacy_blocked")
+                fetch_mock.assert_not_called()
+                ingest_mock.assert_not_called()
 
     @patch("crm.services.images.candidates.legacy_image_is_blocked", return_value=False)
     def test_invalid_sensitive_fragment_and_favicon_urls_are_not_candidates(self, _guard):

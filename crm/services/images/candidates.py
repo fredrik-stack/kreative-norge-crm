@@ -532,6 +532,14 @@ def _candidate_context(
         raise ImageCandidateFlowError("invalid_ref", "Candidate source is unsupported.")
     if not isinstance(payload.get("image_url"), str):
         raise ImageCandidateFlowError("invalid_ref", "Candidate image URL is invalid.")
+    if payload.get("provider") == "legacy_database" and legacy_image_is_blocked(
+        tenant_id=tenant_id,
+        organization_id=organization_id,
+    ):
+        raise ImageCandidateFlowError(
+            "legacy_blocked",
+            "The stored legacy image is no longer available.",
+        )
     return payload
 
 
