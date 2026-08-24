@@ -26,6 +26,9 @@ from .models import (
     OrganizationImageRelease,
     OrganizationImageReleaseRendition,
     OrganizationImageSelection,
+    OrganizationPerson,
+    Person,
+    PersonContact,
     Tenant,
 )
 from .services.images.bridge_client import (
@@ -450,6 +453,48 @@ class PublicImageProjectionTests(TestCase):
         self.assertEqual(len(results), 2)
         self.assertLessEqual(len(queries), 5)
         self.assertEqual(len(ProjectionBridge.calls), 3)
+
+    def test_api_list_prefetches_public_people_and_contacts_without_n_plus_one(self):
+        for index in range(6):
+            organization = Organization.objects.create(
+                tenant=self.tenant,
+                name=f"Fallback actor {index}",
+                org_number=f"22222222{index}",
+                is_published=True,
+            )
+            person = Person.objects.create(
+                tenant=self.tenant,
+                full_name=f"Public person {index}",
+            )
+            OrganizationPerson.objects.create(
+                tenant=self.tenant,
+                organization=organization,
+                person=person,
+                status="ACTIVE",
+                publish_person=True,
+            )
+            PersonContact.objects.create(
+                tenant=self.tenant,
+                person=person,
+                type="EMAIL",
+                value=f"person-{index}@example.no",
+                is_public=True,
+            )
+
+        with override_settings(PUBLIC_IMAGE_API_SCHEMA_ENABLED=True):
+            with CaptureQueriesContext(connection) as queries:
+                response = self.client.get("/api/public/actors/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 7)
+        self.assertLessEqual(len(queries), 16)
+        fallback_actor = next(
+            actor for actor in response.json() if actor["org_number"] == "222222220"
+        )
+        self.assertEqual(
+            fallback_actor["people"][0]["public_contacts"],
+            [{"type": "EMAIL", "value": "person-0@example.no"}],
+        )
 
     def test_canonical_route_and_legacy_contract_remain_unchanged_off(self):
         list_match = resolve("/api/public/actors/")

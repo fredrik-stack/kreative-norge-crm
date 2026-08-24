@@ -201,35 +201,33 @@ class PublicActorSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(PublicPersonSerializer(many=True))
     def get_people(self, obj):
-        qs = (
-            OrganizationPerson.objects.select_related("person")
-            .filter(
-                organization=obj,
-                status="ACTIVE",
-                publish_person=True,
+        links = getattr(obj, "_public_people_links", None)
+        if links is None:
+            links = (
+                OrganizationPerson.objects.select_related("person")
+                .filter(
+                    organization=obj,
+                    status="ACTIVE",
+                    publish_person=True,
+                )
+                .order_by("person__full_name", "person_id")
             )
-            .order_by("person__full_name", "person_id")
-        )
 
         people_payload = []
-        for op in qs:
+        for op in links:
             person = op.person
-
-            contacts_qs = (
-                PersonContact.objects.filter(person=person, is_public=True)
-                .order_by("type", "value")
-            )
-
-            # Hvis du ikke vil vise personer uten public contacts, uncomment:
-            # if not contacts_qs.exists():
-            #     continue
+            contacts = getattr(person, "_public_contacts", None)
+            if contacts is None:
+                contacts = PersonContact.objects.filter(
+                    person=person, is_public=True
+                ).order_by("type", "value")
 
             people_payload.append(
                 {
                     "full_name": getattr(person, "full_name", str(person)),
                     "title": getattr(person, "title", None),
                     "municipality": getattr(person, "municipality", None),
-                    "public_contacts": contacts_qs,
+                    "public_contacts": contacts,
                 }
             )
 
