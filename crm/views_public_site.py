@@ -1,5 +1,6 @@
 import random
 
+from django.conf import settings
 from django.http import Http404
 from django.db.models import Q
 from django.shortcuts import redirect
@@ -8,6 +9,15 @@ from django.views import View
 from django.views.generic import DetailView, ListView
 
 from .models import Organization, Tag
+from .services.images.projection import (
+    prefetch_public_image_projection,
+    project_public_image,
+)
+from .services.images.public_urls import build_public_fallback_url
+from .services.public_metadata import (
+    build_public_actor_list_metadata,
+    build_public_actor_metadata,
+)
 
 
 CATEGORY_ORDER = [
@@ -74,7 +84,10 @@ class PublicActorListView(ListView):
         if subcategory_slug:
             qs = qs.filter(subcategories__slug=subcategory_slug)
 
-        return qs.distinct()
+        qs = qs.distinct()
+        if settings.PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED:
+            return prefetch_public_image_projection(qs)
+        return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -98,6 +111,13 @@ class PublicActorListView(ListView):
             subcategory_slug=context["selected_subcategory"],
             tag_slug=context["selected_tag"],
         )
+        if settings.PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED:
+            for actor in context["actors"]:
+                actor.public_image_projection = project_public_image(actor).projection
+            context["public_image_fallback_square_url"] = build_public_fallback_url(
+                "square"
+            )
+            context["public_head"] = build_public_actor_list_metadata()
         return context
 
 
@@ -107,11 +127,27 @@ class PublicActorDetailView(DetailView):
     pk_url_kwarg = "actor_id"
 
     def get_queryset(self):
-        return (
+        queryset = (
             Organization.objects.filter(is_published=True)
             .prefetch_related("tags", "categories", "subcategories__category", "org_people__person__contacts")
             .order_by("name")
         )
+        if settings.PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED:
+            return prefetch_public_image_projection(queryset)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if settings.PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED:
+            projection = project_public_image(context["actor"]).projection
+            context["actor"].public_image_projection = projection
+            context["public_image_fallback_square_url"] = build_public_fallback_url(
+                "square"
+            )
+            context["public_head"] = build_public_actor_metadata(
+                context["actor"], projection
+            )
+        return context
 
 
 class PublicActorLegacyDetailRedirectView(View):

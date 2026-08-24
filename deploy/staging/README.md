@@ -55,6 +55,12 @@ IMAGE_ORIGINALS_ROOT=/srv/kreative-norge/media/private
 IMAGE_RENDITIONS_ROOT=/srv/kreative-norge/media/public
 PUBLIC_IMAGE_DELIVERY_ROOT=/srv/kreative-norge/media/public-delivery
 PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED=False
+PUBLIC_IMAGE_SERVING_ENABLED=False
+PUBLIC_IMAGE_PROJECTION_ENABLED=False
+PUBLIC_IMAGE_API_SCHEMA_ENABLED=False
+PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=False
+PUBLIC_SITE_ORIGIN=https://staging.your-domain.no
+PUBLIC_MEDIA_ORIGIN=https://staging.your-domain.no
 PUBLIC_IMAGE_SAFETY_BRIDGE_SOCKET=/run/kreative-norge-image-safety/bridge.sock
 PUBLIC_IMAGE_SAFETY_BRIDGE_TIMEOUT=50
 BRAVE_IMAGE_SEARCH_API_KEY=
@@ -327,3 +333,44 @@ Evidensen skal registrere aggregert JSON med publisert antall, asset/fallback, r
 `PUBLIC_IMAGE_API_SCHEMA_ENABLED` skal forbli `False`; target-schemarespons, PUBLIC-cutover og 3E.3 inngår ikke i gaten. Ved enhver response-/PUBLIC-/safetyregresjon: sett projectionflagget tilbake til `False`, recreate bare `api`, verifiser baseline og behold serving, ledger, release-DB og delivery urørt. Dersom rollback ikke gjenoppretter baseline, stopp deployen og bruk forrige eksakte mergecommit uten å slette database, media, ledger eller volume.
 
 **Gjennomført 2026-08-24:** Eksakt merge `90ff5e9` ble deployet etter grønn backup og isolert restore. Off/off-baseline, canonical route, fullkatalog `122 = 1 asset + 121 fallback`, alle seks asset-/fallback-HEAD-kall, unpublished-adferd, sanitert logg, performance og uendret API/PUBLIC/safety/DB/delivery var grønne. Projection står `True` i ignorert stagingkonfigurasjon; schema står `False`. En kontrollert operatørverktøyfeil utløste og beviste API-only rollback før korrigert rerun. Se [datert evidens](../../docs/status/STAGING_PHASE_3E2_SHADOW_2026-08-24.md).
+
+## 17. Fase 3E.3 – separat API/PUBLIC/head-cutovergate
+
+Deploy bare eksakt reviewet mergecommit etter grønn main-CI og fersk, fullverifisert backup. Behold først den aktive 3E.2-tilstanden og den nye gaten av:
+
+```text
+PUBLIC_IMAGE_PROJECTION_ENABLED=True
+PUBLIC_IMAGE_API_SCHEMA_ENABLED=False
+PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=False
+```
+
+Rebuild/recreate nødvendige `api`/`web`-tjenester fra den eksakte commiten. Registrer før-state for Git-head, containerimages, flagg, safety health/cursor, publisert antall, release-/selection-/renditionrader, deliverymanifest/checksummer og fullkatalog-audit. Verifiser at API/OpenAPI og PUBLIC HTML fortsatt følger 3E.2-legacykontrakten, at legacydetailredirecten virker og at de tre canonical production fallback v1-filene kan hentes fra `/static/crm/public-image-fallback/v1/fallback-{square,landscape,share}.png`. Kontroller fallbackgrafikken visuelt på desktop og mobil før cutover.
+
+Aktiver deretter bare targetschemaet:
+
+```text
+PUBLIC_IMAGE_API_SCHEMA_ENABLED=True
+PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=False
+```
+
+Recreate bare `api` og bekreft faktiske settings. Verifiser public API list/detail og OpenAPI: eksakt `image`-schema, `asset|system_fallback`, tre dimensjoner, absolutte configured-origin-URL-er og invarianten `thumbnail_image_url == preview_image_url == image.square.url`. API-responsen skal ikke inneholde legacybilde eller intern tenant-/selection-/artifact-/checksum-/safetyinformasjon.
+
+Bevis schema-rollback før PUBLIC aktiveres: sett `PUBLIC_IMAGE_API_SCHEMA_ENABLED=False`, recreate `api`, og krev at API/OpenAPI er tilbake på byte-/semantisk legacybaseline mens projection, safety, DB og delivery er uendret. Sett deretter schemaflagget tilbake til `True`, recreate `api` og gjenta targetkontrakten grønt.
+
+Aktiver til slutt bare:
+
+```text
+PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=True
+```
+
+Recreate `api`, bekreft hele flaggkjeden og verifiser:
+
+- samme asset/fallback-decision i API, PUBLIC list/detail og head; square i kort/hero og share 1200 × 630 i Open Graph/Twitter
+- canonical fra `PUBLIC_SITE_ORIGIN` + faktisk `reverse()`-route, base-list canonical også med filter/query, og invarians ved manipulert `Host`/`X-Forwarded-Host`/`X-Forwarded-Proto`
+- godkjent asset-alttekst/kreditering, blank systemfallback-alt og én-gangs asset-bytefeil til static square-fallback med blank slutt-alt uten legacyoppslag
+- faktisk asset og representative fallbackkort/detail på desktop og mobil, mange fallbackkort, lange navn/tags/kommuner og fravær av overlap/overflow/broken layout
+- denied/retired/unknown, stoppet bridge og relevant scopefeil gir systemfallback i API/PUBLIC/head uten metadata- eller legacy-lekkasje; reaktivert bridge gjenoppretter asset
+- API/PUBLIC list/detail query-/authorizeprofil uten N+1 og akseptabel responstid sammenlignet med 3E.2-baseline
+- safety cursor/events, PostgreSQL-radantall, deliveryfiler/checksummer og backupstate er uendret av read-only schema-/PUBLIC-gaten
+
+Ved avvik: sett først `PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=False`, recreate `api` og krev full visuell/semantisk legacyrollback. Ved API-kontraktavvik settes også `PUBLIC_IMAGE_API_SCHEMA_ENABLED=False` og API recreates. Behold projection, serving, ledger, release-DB, deliveryfiler og gamle emergency-fallbackfiler; slett eller omskriv ingen state. Dersom rollback ikke gjenoppretter baselinen, stopp og deploy forrige eksakte mergecommit. Dokumenter eksakt implementation merge, målinger og før/etter/rollback i en separat evidens-PR. Stopp før 3E.4, deny/retire/purge eller legacyopprydding.

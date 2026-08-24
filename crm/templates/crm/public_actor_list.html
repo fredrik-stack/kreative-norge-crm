@@ -4,6 +4,21 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Kreative Norge</title>
+  {% if public_head %}
+    <link rel="canonical" href="{{ public_head.canonical_url }}" />
+    <meta name="description" content="{{ public_head.description }}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="{{ public_head.title }}" />
+    <meta property="og:description" content="{{ public_head.description }}" />
+    <meta property="og:url" content="{{ public_head.canonical_url }}" />
+    <meta property="og:image" content="{{ public_head.image.url }}" />
+    <meta property="og:image:width" content="{{ public_head.image.width }}" />
+    <meta property="og:image:height" content="{{ public_head.image.height }}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="{{ public_head.title }}" />
+    <meta name="twitter:description" content="{{ public_head.description }}" />
+    <meta name="twitter:image" content="{{ public_head.image.url }}" />
+  {% endif %}
   <style>
     :root {
       --bg: #f7ece7;
@@ -452,7 +467,9 @@
       <section class="results">
         {% for actor in actors %}
           <a class="card" href="{% url 'public-actor-detail' actor.id %}">
-            {% if actor.get_public_image_url %}
+            {% if actor.public_image_projection %}
+              <img class="thumb" src="{{ actor.public_image_projection.square.url }}" alt="{{ actor.public_image_projection.alt_text }}" loading="lazy"{% if actor.public_image_projection.kind == "asset" %} data-fallback-src="{{ public_image_fallback_square_url }}" onerror="this.onerror=null;this.alt='';this.src=this.dataset.fallbackSrc"{% endif %} />
+            {% elif actor.get_public_image_url %}
               <img class="thumb" src="{{ actor.get_public_image_url }}" alt="{{ actor.name }}" loading="lazy" />
             {% else %}
               <div class="thumb-fallback">

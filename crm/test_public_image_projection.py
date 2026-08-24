@@ -73,6 +73,7 @@ class ProjectionBridge:
     PUBLIC_IMAGE_SERVING_ENABLED=True,
     PUBLIC_IMAGE_PROJECTION_ENABLED=True,
     PUBLIC_IMAGE_API_SCHEMA_ENABLED=False,
+    PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=False,
     PUBLIC_SITE_ORIGIN="https://public.example.no",
     PUBLIC_MEDIA_ORIGIN="https://media.example.no",
 )
@@ -239,7 +240,7 @@ class PublicImageProjectionTests(TestCase):
         self.assertEqual(
             result.projection.square.url,
             "https://public.example.no/static/crm/public-image-fallback/v1/"
-            "emergency-fallback-square.png",
+            "fallback-square.png",
         )
         self.assertNotIn("legacy.example.no", repr(result.projection))
 
@@ -251,14 +252,16 @@ class PublicImageProjectionTests(TestCase):
             / "v1"
         )
         expected = {
-            "emergency-fallback-square.png": (12423, "25c248"),
-            "emergency-fallback-landscape.png": (11510, "3cc8c5"),
-            "emergency-fallback-share.png": (17174, "1afe1d"),
+            "fallback-square.png": (12423, "25c248"),
+            "fallback-landscape.png": (11510, "3cc8c5"),
+            "fallback-share.png": (17174, "1afe1d"),
         }
         for filename, (size, checksum_prefix) in expected.items():
             payload = (fallback_root / filename).read_bytes()
             self.assertEqual(len(payload), size)
             self.assertTrue(sha256(payload).hexdigest().startswith(checksum_prefix))
+            emergency_payload = (fallback_root / f"emergency-{filename}").read_bytes()
+            self.assertEqual(payload, emergency_payload)
 
     def test_selection_and_release_absence_fall_back_without_authorization(self):
         fallback_org = Organization.objects.create(
@@ -501,6 +504,19 @@ class PublicImageProjectionTests(TestCase):
             404,
         )
 
+        public_list = self.client.get("/public/actors/")
+        public_detail = self.client.get(
+            reverse("public-actor-detail", args=[self.organization.pk])
+        )
+        self.assertContains(public_list, "https://legacy.example.no/thumbnail.jpg")
+        self.assertContains(public_detail, "https://legacy.example.no/thumbnail.jpg")
+        self.assertNotContains(public_list, 'rel="canonical"')
+        self.assertNotContains(public_detail, 'rel="canonical"')
+        self.assertNotContains(public_detail, 'class="public-image-cutover"')
+        self.assertNotContains(public_detail, 'class="image-shell"')
+        self.assertContains(public_detail, "grid-template-columns: 112px")
+        self.assertContains(public_detail, "--tag: #4f332c")
+
     @override_settings(PUBLIC_IMAGE_API_SCHEMA_ENABLED=True)
     def test_target_api_aliases_equal_projection_for_asset_and_fallback(self):
         asset = self.client.get("/api/public/actors/998544092/")
@@ -531,6 +547,199 @@ class PublicImageProjectionTests(TestCase):
         self.assertEqual(
             fallback["thumbnail_image_url"], fallback["image"]["square"]["url"]
         )
+
+    @override_settings(
+        PUBLIC_IMAGE_API_SCHEMA_ENABLED=True,
+        PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=True,
+        ALLOWED_HOSTS=["attacker.example"],
+    )
+    def test_public_cutover_uses_projection_metadata_credit_and_configured_origin(self):
+        self.selection.alt_text = "Scene under nordlyset"
+        self.selection.public_credit = "Foto: Testfotograf"
+        self.selection.save(update_fields=["alt_text", "public_credit"])
+        self.organization.description = '  En <offentlig> & "trygg" beskrivelse.  '
+        self.organization.save(update_fields=["description"])
+
+        public_list = self.client.get(
+            "/public/actors/?q=Projected",
+            HTTP_HOST="attacker.example",
+            HTTP_X_FORWARDED_HOST="forwarded.attacker.example",
+            HTTP_X_FORWARDED_PROTO="http",
+        )
+        detail_path = reverse("public-actor-detail", args=[self.organization.pk])
+        public_detail = self.client.get(
+            detail_path,
+            HTTP_HOST="attacker.example",
+            HTTP_X_FORWARDED_HOST="forwarded.attacker.example",
+            HTTP_X_FORWARDED_PROTO="http",
+        )
+        api_detail = self.client.get(
+            "/api/public/actors/998544092/",
+            HTTP_HOST="attacker.example",
+            HTTP_X_FORWARDED_HOST="forwarded.attacker.example",
+            HTTP_X_FORWARDED_PROTO="http",
+        )
+        api_list = self.client.get(
+            "/api/public/actors/",
+            HTTP_HOST="attacker.example",
+            HTTP_X_FORWARDED_HOST="forwarded.attacker.example",
+            HTTP_X_FORWARDED_PROTO="http",
+        )
+
+        self.assertEqual(public_list.status_code, 200)
+        self.assertEqual(public_detail.status_code, 200)
+        self.assertEqual(api_detail.status_code, 200)
+        self.assertEqual(api_list.status_code, 200)
+        payload = api_detail.json()
+        square_url = payload["image"]["square"]["url"]
+        share_url = payload["image"]["share"]["url"]
+        self.assertEqual(
+            set(payload["image"]),
+            {"kind", "alt_text", "credit", "square", "landscape", "share"},
+        )
+        self.assertEqual(payload["image"]["credit"], "Foto: Testfotograf")
+        self.assertEqual(payload["thumbnail_image_url"], square_url)
+        self.assertEqual(payload["preview_image_url"], square_url)
+        self.assertEqual(api_list.json()[0]["image"], payload["image"])
+
+        self.assertContains(public_list, f'src="{square_url}"')
+        self.assertContains(public_detail, f'src="{square_url}"')
+        self.assertContains(public_detail, f'content="{share_url}"')
+        self.assertContains(public_detail, 'content="1200"')
+        self.assertContains(public_detail, 'content="630"')
+        self.assertContains(public_detail, 'alt="Scene under nordlyset"')
+        self.assertContains(public_detail, "Foto: Testfotograf")
+        self.assertContains(
+            public_detail,
+            "En &lt;offentlig&gt; &amp; &quot;trygg&quot; beskrivelse.",
+        )
+        self.assertContains(public_detail, "grid-template-columns: 160px")
+        self.assertContains(public_detail, "--tag: #4a8755")
+
+        fallback_square = (
+            "https://public.example.no/static/crm/public-image-fallback/v1/"
+            "fallback-square.png"
+        )
+        self.assertContains(public_list, f'data-fallback-src="{fallback_square}"')
+        self.assertContains(public_detail, f'data-fallback-src="{fallback_square}"')
+        self.assertContains(public_detail, "this.onerror=null")
+        self.assertContains(public_detail, "this.alt=''")
+        self.assertNotContains(public_list, "legacy.example.no")
+        self.assertNotContains(public_detail, "legacy.example.no")
+
+        list_html = public_list.content.decode()
+        detail_html = public_detail.content.decode()
+        self.assertIn(
+            '<link rel="canonical" href="https://public.example.no/public/actors/"',
+            list_html,
+        )
+        self.assertIn(
+            f'<link rel="canonical" href="https://public.example.no{detail_path}"',
+            detail_html,
+        )
+        self.assertNotIn("attacker.example", list_html)
+        self.assertNotIn("attacker.example", detail_html)
+        self.assertNotIn("forwarded.attacker.example", detail_html)
+        serialized = json.dumps(payload)
+        for forbidden in (
+            "tenant_id",
+            "selection_id",
+            "artifact_storage_key",
+            "checksum",
+            "safety_cursor",
+            "private_storage_key",
+            "legacy.example.no",
+        ):
+            self.assertNotIn(forbidden, serialized)
+
+    @override_settings(
+        PUBLIC_IMAGE_API_SCHEMA_ENABLED=True,
+        PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=True,
+    )
+    def test_public_cutover_fails_closed_to_blank_alt_fallback_without_legacy(self):
+        ProjectionBridge.error = ImageSafetyBridgeUnavailable(
+            "safety_unavailable", "synthetic", retryable=True
+        )
+
+        public_list = self.client.get("/public/actors/")
+        public_detail = self.client.get(
+            reverse("public-actor-detail", args=[self.organization.pk])
+        )
+        api_detail = self.client.get("/api/public/actors/998544092/")
+
+        fallback_square = (
+            "https://public.example.no/static/crm/public-image-fallback/v1/"
+            "fallback-square.png"
+        )
+        fallback_share = (
+            "https://public.example.no/static/crm/public-image-fallback/v1/"
+            "fallback-share.png"
+        )
+        self.assertEqual(api_detail.json()["image"]["kind"], "system_fallback")
+        self.assertEqual(api_detail.json()["image"]["alt_text"], "")
+        self.assertContains(public_list, f'src="{fallback_square}" alt=""')
+        self.assertContains(public_detail, f'src="{fallback_square}" alt=""')
+        self.assertContains(public_detail, f'content="{fallback_share}"')
+        self.assertNotContains(public_detail, "og:image:alt")
+        self.assertNotContains(public_detail, "twitter:image:alt")
+        self.assertNotContains(public_list, "legacy.example.no")
+        self.assertNotContains(public_detail, "legacy.example.no")
+        self.assertNotContains(public_list, "onerror=")
+        self.assertNotContains(public_detail, "onerror=")
+        self.assertNotContains(public_detail, self.release_id)
+        self.assertNotContains(public_detail, "safety_unavailable")
+
+    @override_settings(
+        PUBLIC_IMAGE_API_SCHEMA_ENABLED=True,
+        PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=True,
+    )
+    def test_public_cutover_denied_retired_and_unknown_never_use_legacy(self):
+        for category in ("denied", "retired", "unknown"):
+            with self.subTest(category=category):
+                ProjectionBridge.reset()
+                ProjectionBridge.category_by_variant = {"share": category}
+
+                api_detail = self.client.get("/api/public/actors/998544092/")
+                public_list = self.client.get("/public/actors/")
+                public_detail = self.client.get(
+                    reverse("public-actor-detail", args=[self.organization.pk])
+                )
+
+                self.assertEqual(
+                    api_detail.json()["image"]["kind"], "system_fallback"
+                )
+                self.assertNotContains(public_list, "legacy.example.no")
+                self.assertNotContains(public_detail, "legacy.example.no")
+                self.assertContains(public_list, "fallback-square.png")
+                self.assertContains(public_detail, "fallback-share.png")
+
+    @override_settings(
+        PUBLIC_IMAGE_API_SCHEMA_ENABLED=True,
+        PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=True,
+    )
+    def test_public_cutover_prefetch_keeps_list_query_count_constant(self):
+        with CaptureQueriesContext(connection) as one_actor_queries:
+            first = self.client.get("/public/actors/")
+        self.assertEqual(first.status_code, 200)
+
+        Organization.objects.bulk_create(
+            [
+                Organization(
+                    tenant=self.tenant,
+                    name=f"Fallback actor {index}",
+                    org_number=f"70000000{index}",
+                    is_published=True,
+                )
+                for index in range(5)
+            ]
+        )
+        ProjectionBridge.reset()
+        with CaptureQueriesContext(connection) as six_actor_queries:
+            second = self.client.get("/public/actors/")
+
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(len(six_actor_queries), len(one_actor_queries))
+        self.assertEqual(len(ProjectionBridge.calls), 3)
 
     def test_shadow_detail_logs_but_does_not_change_or_expose_response(self):
         with self.assertLogs("crm.public_image_projection", level="INFO") as logs:

@@ -1,6 +1,6 @@
 # API
 
-**Status:** implementert grunn-API; 3E.2 public image projection/API shadow er `CLOSED / SHADOW VERIFIED`; target-response-schemaet er fortsatt av
+**Status:** implementert grunn-API; 3E.2 public image projection/API shadow er `CLOSED / SHADOW VERIFIED`; 3E.3-targetschemaet er implementert bak default-off gate og venter på separat stagingaktivering
 
 API-et omfatter autentisering, tenants, taksonomi, aktører, personer, koblinger, kontaktkanaler, interne bildekandidathandlinger, public actors, importjobber og eksportjobber.
 
@@ -16,7 +16,7 @@ Eksport har foreløpig grunnleggende oppretting, listing og visning av eksportjo
 
 ## Intern bildekandidatflyt og planlagt public bildekontrakt – ADR-007
 
-[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent målarkitektur. Fase 3D.1s offisielle flyt er aktivert og visuelt godkjent i staging. Fase 3D.2 utvider den interne, feature-gated API-flyten med Brave-søk, limt URL, manuell upload, fokusforvalg, presis X/Y, Foto-zoom og valgfri asset-alttekst. Precision/zoom-oppfølgingen er gjennomført og merget til `main` med PR #33, CI-grønn på mergecommiten, teknisk stagingverifisert, historisk live Brave-verifisert og visuelt eiergodkjent. Brave-credentialen er deretter deaktivert; providerkallet er operativt ikke aktivt for ordinære Editor-sluttbrukere før sluttbrukeravtalegaten er dokumentert oppfylt. Det aktive public API-et returnerer fortsatt bare legacy bilde-URL-er.
+[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent målarkitektur. Fase 3D.1s offisielle flyt er aktivert og visuelt godkjent i staging. Fase 3D.2 utvider den interne, feature-gated API-flyten med Brave-søk, limt URL, manuell upload, fokusforvalg, presis X/Y, Foto-zoom og valgfri asset-alttekst. Precision/zoom-oppfølgingen er gjennomført og merget til `main` med PR #33, CI-grønn på mergecommiten, teknisk stagingverifisert, historisk live Brave-verifisert og visuelt eiergodkjent. Brave-credentialen er deretter deaktivert; providerkallet er operativt ikke aktivt for ordinære Editor-sluttbrukere før sluttbrukeravtalegaten er dokumentert oppfylt. Targetschemaet er implementert, men det aktive staging-API-et returnerer fortsatt legacy bilde-URL-er frem til 3E.3-gaten.
 
 På én tenant-scopet Organization finnes følgende interne handlinger under `images/`:
 
@@ -59,7 +59,7 @@ Schema-migrasjon `0028` legger additivt til `ImageRenditionSet.zoom` med default
 
 Uploadtjenestens filgrense er 15 MiB. Staging-nginx har 16 MiB request-body-grense for å gi plass til multipart-overhead. 3D.2-konfigurasjonen og faktisk multipartflyt er deployet og stagingverifisert.
 
-Den godkjente overgangen i [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) er implementert som et default-off 3E.2-target og er ennå ikke aktivt response-schema:
+Den godkjente overgangen i [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) er implementert som et default-off target og er ennå ikke aktivt i staging:
 
 - et strukturert `image`-objekt får `kind` med enum `asset|system_fallback`, `alt_text`, nullable `credit` og `square`-, `landscape`- og `share`-renditions med `url`, `width` og `height`
 - bare CRM-kontrollerte renditions eller systemfallback blir aktive bildekilder etter cutover
@@ -74,8 +74,8 @@ Canonical app-URL-er og public rendition-URL-er skal bygges fra miljøkonfigurer
 
 `PublicImageProjection` er read-only og blir eneste resolver for public API, PUBLIC HTML og head. Den gjør ingen HTTP-/DNS-oppslag, decode, render eller storage-write og leser samme journal/read-model som serving-gaten. De interne refsene og previewene er ikke public projection eller public serving.
 
-`PUBLIC_IMAGE_PROJECTION_ENABLED=False` er kode-/eksempelstandard og styrer projection/shadow; den ignorerte stagingverdien er `True` etter den separate [shadowgaten](../status/STAGING_PHASE_3E2_SHADOW_2026-08-24.md). Projection krever gyldige site-/media-origins slik at både teknisk static fallback og release-URL-er er absolutte. Den reproducerbare, skrivebeskyttede fullkataloggaten er `python manage.py audit_public_image_projection`; request-shadow kjøres bare for detail, ikke for hele listen. `PUBLIC_IMAGE_API_SCHEMA_ENABLED=False` styrer target-response og OpenAPI og er fortsatt `False` i staging. Schemaflagget krever projection og controlled serving. Med schemaflagget av er responsefeltene og legacyverdiene uendret. Med flagget på kommer `image` og begge deprecated aliasene fra samme projection. PUBLIC-cutoveren hører til 3E.3.
+`PUBLIC_IMAGE_PROJECTION_ENABLED=False` er kode-/eksempelstandard og styrer projection/shadow; den ignorerte stagingverdien er `True` etter den separate [shadowgaten](../status/STAGING_PHASE_3E2_SHADOW_2026-08-24.md). Projection krever gyldige site-/media-origins slik at både static fallback og release-URL-er er absolutte. Den reproducerbare, skrivebeskyttede fullkataloggaten er `python manage.py audit_public_image_projection`; request-shadow kjøres bare for detail, ikke for hele listen. `PUBLIC_IMAGE_API_SCHEMA_ENABLED=False` styrer target-response og OpenAPI og er fortsatt `False` i staging. Schemaflagget krever projection og controlled serving. Med schemaflagget av er responsefeltene og legacyverdiene uendret. Med flagget på kommer `image` og begge deprecated aliasene fra samme projection. `PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=False` er en separat global PUBLIC/head-gate og krever projection, targetschema, serving og gyldige origins. Ingen tenant-enrollment er innført uten en konkret blocker.
 
-Projection og byte-serving deler samme fail-closed validering av publication, tenant/Organization/selection/revision/rendition-sett, eksakt tre mappinger, canonical keys og immutable snapshots. Projection autoriserer alle tre varianter gjennom 3E.1Cs read-only bridge, men leser ikke bildefiler. Serving beholder den separate byte-/filverifikasjonen. Ved ukjent eller utilgjengelig safety-state returnerer projection den versjonerte tekniske 3B.1-fallbacken, aldri legacybilde. Endelig fallbackgrafikk og fallback-alttekst avgjøres først i 3E.3.
+Projection og byte-serving deler samme fail-closed validering av publication, tenant/Organization/selection/revision/rendition-sett, eksakt tre mappinger, canonical keys og immutable snapshots. Projection autoriserer alle tre varianter gjennom 3E.1Cs read-only bridge, men leser ikke bildefiler. Serving beholder den separate byte-/filverifikasjonen. Ved ukjent eller utilgjengelig safety-state returnerer projection production fallback v1, aldri legacybilde. Fallback v1 gjenbruker de visuelt kontrollerte 3B.1-bytene på canonical `fallback-{square,landscape,share}.png`-stier og bruker blank alttekst.
 
 Endelig endepunktliste skal genereres fra aktive ruter og kontrolleres mot Swagger/OpenAPI.
