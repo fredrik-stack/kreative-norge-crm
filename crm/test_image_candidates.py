@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 import zlib
 
 from django.contrib.auth import get_user_model
+from django.core import signing
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files.storage import storages
 from django.test import SimpleTestCase, TestCase, override_settings
@@ -386,12 +387,18 @@ class OfficialImageCandidateFlowTests(TestCase):
                 **kwargs,
             )
 
-    def test_discovery_includes_stored_and_page_candidates_ordered_deduplicated_and_capped(self):
+    def test_discovery_uses_current_page_candidates_not_stored_legacy_fields(self):
         candidates = self.discover()
         self.assertEqual(len(candidates), 6)
         self.assertEqual(candidates[0].source_type, ImageReviewEvent.SourceType.OPEN_GRAPH)
         self.assertEqual(candidates[0].source_domain, "official.example")
         self.assertEqual(len({item.candidate_ref for item in candidates}), 6)
+        loaded = [
+            signing.loads(item.candidate_ref, salt="crm.image-candidate.v1")
+            for item in candidates
+        ]
+        self.assertNotIn(self.organization.og_image_url, {item["image_url"] for item in loaded})
+        self.assertNotIn(self.organization.auto_thumbnail_url, {item["image_url"] for item in loaded})
 
     def test_candidate_preview_is_bounded_ephemeral_and_private_data_is_not_persisted(self):
         candidate = self.discover()[0]

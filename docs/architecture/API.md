@@ -1,6 +1,6 @@
 # API
 
-**Status:** implementert grunn-API; 3E.2 public image projection/API shadow er `CLOSED / SHADOW VERIFIED`; 3E.3-targetschemaet er `CLOSED / ACTIVE` i staging; 3E.4-takedownaction er `CLOSED / ACTIVE` i staging med kode-/eksempelstandard fortsatt av
+**Status:** implementert grunn-API; 3E.2 public image projection/API shadow er `CLOSED / SHADOW VERIFIED`; 3E.3-targetschemaet er `CLOSED / ACTIVE` i staging; 3E.4-takedownaction er `CLOSED / ACTIVE` i staging med kode-/eksempelstandard fortsatt av; 3F legacy-/Import-kontrakten er implementert default-off og venter på staginggate
 
 API-et omfatter autentisering, tenants, taksonomi, aktører, personer, koblinger, kontaktkanaler, interne bildekandidathandlinger, public actors, importjobber og eksportjobber.
 
@@ -20,7 +20,8 @@ Eksport har foreløpig grunnleggende oppretting, listing og visning av eksportjo
 
 På én tenant-scopet Organization finnes følgende interne handlinger under `images/`:
 
-- `POST discover/` finner maksimalt seks kandidater fra `website_url`, lagret Open Graph og én kontrollert sidefetch
+- `GET legacy-candidates/` returnerer maksimalt tre dedupliserte, transient signerte kandidater fra de eksisterende `thumbnail_image_url`-, `og_image_url`- og `auto_thumbnail_url`-feltene uten DNS/HTTP, automatisk preview, approval eller write; safetyfeil og blokkert legacykilde feiler lukket
+- `POST discover/` gjør én kontrollert sidefetch fra `website_url` og finner maksimalt seks Open Graph-/nettsidekandidater fra den hentede siden; lagrede legacy-URL-er inngår bare i `legacy-candidates/`
 - `GET search-context/` returnerer det deterministiske Brave-forslaget og eksplisitt valgbare kommuner, kategorier og aktive tilknyttede personer
 - `POST brave-search/` tar eksakt synlig `query`, `query_edited` og eventuelle eksplisitte refinement-ID-er og returnerer transient signerte kandidater
 - `POST url-candidate/` normaliserer én direkte bilde-URL og returnerer en transient signert kandidat uten å fetche eller velge bildet
@@ -33,6 +34,10 @@ På én tenant-scopet Organization finnes følgende interne handlinger under `im
 - `POST takedown/` mottar eksakt `{"reason_code": "rights_request|privacy_safety|legal_compliance|editorial_policy"}` og utfører en formell deny-first takedown når `PUBLIC_IMAGE_TAKEDOWN_ENABLED=True`; serveren utleder eksakt aktiv release og avviser ekstra callerfelt
 
 Kildeprioriteten i Editor er offisiell nettside/Open Graph → Brave → direkte URL → upload. Dette er en presentert brukerreise, ikke automatisk godkjenning: søk, discovery, preview, URL-oppretting, upload og processing kan ikke opprette selection eller event alene.
+
+Legacykandidatene vises i en separat read-only gruppe og inngår ikke i automatisk discovery. Først et eksplisitt klikk bruker den eksisterende kontrollerte kandidat-previewen; listing alene starter ingen DNS-, HTTP- eller previewrequest. Vanlig `POST`/`PATCH` av Organization kjører ikke Open Graph-refresh, og `og_*`, `auto_thumbnail_url` og `thumbnail_image_url` er read-only i serializer. Eksplisitt `POST refresh-preview/` er fortsatt den eneste vanlige API-ruten som oppdaterer legacy Open Graph-state.
+
+Fase 3F eksponerer ingen ny Import 2.0-image-UX eller fri beslutningspayload. Den interne typed domenekontrakten er default-off med `IMPORT_IMAGE_DECISIONS_ENABLED=False`, krever både den eksisterende image asset-gaten og safety-materialiseringsruntimeen og kan bare anvende en forhåndsgodkjent beslutning som allerede er bundet til importrow og review-snapshot. Dermed kan gaten ikke konfigureres på uten tenant-checksum-guard. Import-commit uten slik beslutning bevarer eksisterende bilde; commit utfører aldri providerkall, fetch, Open Graph-refresh, processing, release eller publiseringswrite.
 
 Takedownhandlingen er en intern sikkerhetsaction, ikke en offentlig lifecycle-API. Plattform-superadmin kan bruke den på tvers av tenants; aktiv tenant-`SUPERADMIN` og `GRUPPEADMIN` kan bruke den i egen tenant; redigerer/leser og cross-tenant object-ID-angrep avvises. Successresponsen inneholder bare ny selection/revisjon, review-event-ID, idempotens/dispositions, anchorcursor og aggregerte delete-tall. Source-checksum, reasonaudit, ledgerhistorikk, private paths og release-ID eksponeres ikke i public API, PUBLIC eller image response.
 

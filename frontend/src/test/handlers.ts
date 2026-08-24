@@ -221,6 +221,10 @@ export const handlers = [
     return HttpResponse.json(updated);
   }),
 
+  http.get("/api/tenants/:tenantId/organizations/:organizationId/images/legacy-candidates/", () => {
+    return HttpResponse.json({ candidates: [] });
+  }),
+
   http.get("/api/tenants/:tenantId/tags/", ({ params }) => {
     const tenantId = Number(params.tenantId);
     return HttpResponse.json(tagsByTenantState[tenantId] ?? []);

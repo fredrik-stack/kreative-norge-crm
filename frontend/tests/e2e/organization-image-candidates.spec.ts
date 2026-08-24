@@ -1,6 +1,57 @@
 import { expect, test } from "@playwright/test";
 import { loginAsEditor, setupMockEditorApi } from "./mockEditorApi";
 
+test("legacy candidates are listed without network preview until explicit selection", async ({ page }) => {
+  const state = await setupMockEditorApi(page);
+  state.organizations[0].image_asset_feature_enabled = true;
+  let previewRequests = 0;
+  await page.route("**/api/tenants/1/organizations/10/images/state/", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ expected_revision: 0, active_selection: null }),
+    });
+  });
+  await page.route("**/api/tenants/1/organizations/10/images/legacy-candidates/", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        candidates: [{
+          candidate_ref: "signed-legacy-ref",
+          source_type: "open_graph",
+          source_label: "Tidligere Open Graph-bilde",
+          source_domain: "legacy.example",
+          source_title: null,
+          source_publisher: null,
+          source_key: "og_image_url",
+          provider: "legacy_database",
+          width: null,
+          height: null,
+          technical_status: "ready_for_preview",
+        }],
+      }),
+    });
+  });
+  await page.route("**/api/tenants/1/organizations/10/images/candidate-preview/", async (route) => {
+    previewRequests += 1;
+    expect(route.request().postDataJSON()).toEqual({
+      candidate_ref: "signed-legacy-ref",
+      original: true,
+    });
+    await route.fulfill({ status: 200, contentType: "image/webp", body: "legacy-preview" });
+  });
+
+  await page.goto("/organizations");
+  await loginAsEditor(page);
+  await page.getByRole("button", { name: "Rediger" }).click();
+  await expect(page.getByText("Tidligere lagrede bilder")).toBeVisible();
+  await expect(page.getByText("Ingen automatisk forhåndshenting")).toBeVisible();
+  expect(previewRequests).toBe(0);
+  await page.getByRole("button", { name: /Tidligere Open Graph-bilde/ }).click();
+  await expect.poll(() => previewRequests).toBe(1);
+});
+
 test("official candidate can be processed, previewed, and explicitly locked", async ({ page }) => {
   const state = await setupMockEditorApi(page);
   state.organizations[0].image_asset_feature_enabled = true;

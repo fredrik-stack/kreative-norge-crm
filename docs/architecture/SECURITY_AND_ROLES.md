@@ -20,7 +20,7 @@ Systemet bruker Django session-auth og CSRF. Kombinasjonen av tenant-medlemskap,
 
 ## Godkjent planlagt bilderollematrise
 
-[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) beslutter en capability-basert bilderollematrise. Hele matrisen er ikke implementert; dagens generelle read/write/delete-regler gjelder fortsatt utenfor de eksplisitte bildehandlingene. 3E.4 implementerer det avgrensede takedown-subsettet server-side som beskrevet nedenfor.
+[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) beslutter en capability-basert bilderollematrise. Hele matrisen er ikke implementert; dagens generelle read/write/delete-regler gjelder fortsatt utenfor de eksplisitte bildehandlingene. 3E.4 implementerer det avgrensede takedown-subsettet server-side som beskrevet nedenfor. Fase 3F gjenbruker eksisterende tenant-scopede image write-capabilities for typed importbeslutninger; flagg, ImportRow og målobjekt er ikke en autorisasjon i seg selv.
 
 I målarkitekturen:
 
@@ -32,6 +32,8 @@ I målarkitekturen:
 - leser kan se bilde og vanlig status, men ikke sensitiv kilde, audit eller karanteneinformasjon
 
 Rettighetene skal håndheves server-side per handling og objekt. Bilde-capabilities endrer ikke de separate rollespørsmålene for kontaktpublisering og full kontakteksport.
+
+Legacyinventaret er en skrivebeskyttet operatørkommando og eksponerer aggregater som standard; `--verbose` redakterer credentials og alle queryverdier. Tenantbrukere med eksisterende image write-capability kan bare hente legacykandidater for en Organization i egen tenant. En typed importbeslutning krever aktiv autentisert principal med samme capability i samme tenant både ved oppretting og anvendelse; cross-tenant asset, rendition-sett, selection eller mål avvises. Beslutningen kan ikke endre publiseringsflagg.
 
 ## Godkjent public image runtime-sikkerhet – serving ACTIVE i staging
 

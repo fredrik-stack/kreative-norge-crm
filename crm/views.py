@@ -68,6 +68,7 @@ from .services.images.candidates import (
     discover_brave_image_candidates,
     discover_official_image_candidates,
     get_brave_search_context,
+    get_legacy_image_candidates,
     get_organization_image_state,
     process_image_candidate,
     process_uploaded_image_candidate,
@@ -247,14 +248,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         tenant_id = self.kwargs.get("tenant_id")
         if tenant_id is not None:
-            organization = serializer.save(tenant_id=tenant_id)
+            serializer.save(tenant_id=tenant_id)
         else:
-            organization = serializer.save()
-        refresh_organization_open_graph(organization, force=True)
+            serializer.save()
 
     def perform_update(self, serializer):
-        organization = serializer.save()
-        refresh_organization_open_graph(organization, force=True)
+        serializer.save()
 
     @action(detail=True, methods=["post"], url_path="refresh-preview")
     def refresh_preview(self, request, tenant_id=None, pk=None):
@@ -320,6 +319,18 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             )
             return Response({"candidates": [asdict(candidate) for candidate in candidates]})
         except (ImageCandidateFlowError, SecureImageFetchError) as error:
+            return self._image_error_response(error)
+
+    @action(detail=True, methods=["get"], url_path="images/legacy-candidates")
+    def legacy_image_candidates(self, request, tenant_id=None, pk=None):
+        try:
+            candidates = get_legacy_image_candidates(
+                actor=request.user,
+                tenant_id=int(tenant_id),
+                organization_id=int(pk),
+            )
+            return Response({"candidates": [asdict(candidate) for candidate in candidates]})
+        except ImageCandidateFlowError as error:
             return self._image_error_response(error)
 
     @action(detail=True, methods=["get"], url_path="images/search-context")

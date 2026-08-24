@@ -17,6 +17,10 @@ class ImmutableImageReleaseError(Exception):
     """Raised when an immutable public image release mutation is attempted."""
 
 
+class ImmutableImportImageDecisionError(Exception):
+    """Raised when a reviewed import-image decision is mutated through the ORM."""
+
+
 IMAGE_REVIEW_EVENT_NULLABLE_LIVE_REFERENCE_FIELDS = frozenset(
     {
         "organization",
@@ -176,6 +180,71 @@ class ImmutableImageReleaseManager(
 
     def _insert_from_release_service(self, objs):
         """Private insert primitive for the atomic release aggregate service."""
+        objs = list(objs)
+        for obj in objs:
+            obj.full_clean()
+        return models.QuerySet.bulk_create(self.get_queryset(), objs)
+
+
+class ImmutableImportImageDecisionQuerySet(models.QuerySet):
+    def create(self, **kwargs):
+        raise ImmutableImportImageDecisionError(
+            "Import image decisions must be created through the typed domain service."
+        )
+
+    def get_or_create(self, defaults=None, **kwargs):
+        raise ImmutableImportImageDecisionError(
+            "Import image decisions must be created through the typed domain service."
+        )
+
+    def update(self, **kwargs):
+        raise ImmutableImportImageDecisionError(
+            "Import image decisions cannot be updated after review."
+        )
+
+    def delete(self):
+        raise ImmutableImportImageDecisionError(
+            "Import image decisions cannot be deleted after review."
+        )
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ImmutableImportImageDecisionError(
+            "Import image decisions cannot be bulk-updated after review."
+        )
+
+    def _update(self, values):
+        raise ImmutableImportImageDecisionError(
+            "Import image decisions cannot be privately updated after review."
+        )
+
+    _update.queryset_only = False
+
+    def update_or_create(self, defaults=None, create_defaults=None, **kwargs):
+        raise ImmutableImportImageDecisionError(
+            "Import image decisions cannot be updated by upsert."
+        )
+
+    def bulk_create(
+        self,
+        objs,
+        batch_size=None,
+        ignore_conflicts=False,
+        update_conflicts=False,
+        update_fields=None,
+        unique_fields=None,
+    ):
+        raise ImmutableImportImageDecisionError(
+            "Import image decisions must be created through the typed domain service."
+        )
+
+
+class ImmutableImportImageDecisionManager(
+    models.Manager.from_queryset(ImmutableImportImageDecisionQuerySet)
+):
+    use_in_migrations = True
+
+    def _insert_from_import_service(self, objs):
+        """Private insert primitive for the typed import-image decision service."""
         objs = list(objs)
         for obj in objs:
             obj.full_clean()
@@ -1043,6 +1112,13 @@ class ImageReviewEvent(models.Model):
         blank=True,
         related_name="image_review_events",
     )
+    import_image_decision = models.OneToOneField(
+        "ImportImageDecision",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="applied_review_event",
+    )
 
     event_type = models.CharField(max_length=29, choices=EventType.choices)
     organization_id_snapshot = models.PositiveBigIntegerField()
@@ -1530,6 +1606,224 @@ class ImportDecision(models.Model):
 
     def __str__(self) -> str:
         return f"Decision {self.get_decision_type_display()} for row {self.import_row.row_number}"
+
+
+class ImportImageDecision(models.Model):
+    class DecisionKind(models.TextChoices):
+        KEEP_LOCKED_IMAGE = "KEEP_LOCKED_IMAGE", "Keep locked image"
+        SET_APPROVED_IMAGE = "SET_APPROVED_IMAGE", "Set approved image"
+        USE_APPROVED_FALLBACK = "USE_APPROVED_FALLBACK", "Use approved fallback"
+
+    import_row = models.OneToOneField(
+        ImportRow,
+        on_delete=models.CASCADE,
+        related_name="image_decision",
+    )
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="import_image_decisions",
+    )
+    decision_kind = models.CharField(max_length=24, choices=DecisionKind.choices)
+    target_organization = models.ForeignKey(
+        Organization,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="import_image_decisions",
+    )
+    expected_selection = models.ForeignKey(
+        OrganizationImageSelection,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="expected_by_import_image_decisions",
+    )
+    expected_selection_revision = models.PositiveIntegerField(default=0)
+    asset = models.ForeignKey(
+        ImageAsset,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="import_image_decisions",
+    )
+    rendition_set = models.ForeignKey(
+        ImageRenditionSet,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="import_image_decisions",
+    )
+    approved_alt_text = models.CharField(max_length=500, blank=True, default="")
+    approved_public_credit = models.CharField(max_length=500, blank=True, default="")
+    source_type_snapshot = models.CharField(
+        max_length=32,
+        choices=ImageReviewEvent.SourceType.choices,
+        blank=True,
+        default="",
+    )
+    source_url_snapshot = models.URLField(max_length=2048, blank=True, default="")
+    source_page_url_snapshot = models.URLField(max_length=2048, blank=True, default="")
+    provider_snapshot = models.CharField(max_length=255, blank=True, default="")
+    technical_warnings_snapshot = models.JSONField(
+        blank=True,
+        default=list,
+        validators=[validate_technical_warnings],
+    )
+    approval_text_version_snapshot = models.CharField(max_length=64, blank=True, default="")
+    approval_text_snapshot = models.TextField(blank=True, default="")
+    asset_checksum_sha256_snapshot = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        validators=[validate_sha256],
+    )
+    asset_validation_version_snapshot = models.CharField(max_length=64, blank=True, default="")
+    rendition_set_snapshot = models.JSONField(blank=True, default=dict)
+    rendition_set_snapshot_hash_sha256 = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        validators=[validate_sha256],
+    )
+    proposed_actor_snapshot = models.JSONField(default=dict)
+    canonical_snapshot_hash_sha256 = models.CharField(max_length=64, validators=[validate_sha256])
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    _base_objects = ImmutableImportImageDecisionManager()
+    objects = ImmutableImportImageDecisionManager()
+
+    class Meta:
+        base_manager_name = "_base_objects"
+        default_manager_name = "objects"
+        indexes = [
+            models.Index(fields=["import_row", "decision_kind"], name="imp_img_row_kind_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(expected_selection__isnull=True, expected_selection_revision=0)
+                    | models.Q(
+                        expected_selection__isnull=False,
+                        expected_selection_revision__gt=0,
+                    )
+                ),
+                name="imp_img_expected_selection_contract",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        decision_kind="SET_APPROVED_IMAGE",
+                        asset__isnull=False,
+                        rendition_set__isnull=False,
+                    )
+                    | models.Q(
+                        decision_kind__in=["KEEP_LOCKED_IMAGE", "USE_APPROVED_FALLBACK"],
+                        asset__isnull=True,
+                        rendition_set__isnull=True,
+                    )
+                ),
+                name="imp_img_decision_asset_xor",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(decision_kind="SET_APPROVED_IMAGE")
+                    & ~models.Q(source_type_snapshot="")
+                    & ~models.Q(approval_text_version_snapshot="")
+                    & ~models.Q(approval_text_snapshot="")
+                    & ~models.Q(asset_checksum_sha256_snapshot="")
+                    & ~models.Q(asset_validation_version_snapshot="")
+                    & ~models.Q(rendition_set_snapshot={})
+                    & ~models.Q(rendition_set_snapshot_hash_sha256="")
+                )
+                | models.Q(
+                    decision_kind__in=["KEEP_LOCKED_IMAGE", "USE_APPROVED_FALLBACK"],
+                    source_type_snapshot="",
+                    source_url_snapshot="",
+                    source_page_url_snapshot="",
+                    provider_snapshot="",
+                    technical_warnings_snapshot=[],
+                    approval_text_version_snapshot="",
+                    approval_text_snapshot="",
+                    asset_checksum_sha256_snapshot="",
+                    asset_validation_version_snapshot="",
+                    rendition_set_snapshot={},
+                    rendition_set_snapshot_hash_sha256="",
+                ),
+                name="imp_img_approval_snapshot_contract",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(decision_kind="SET_APPROVED_IMAGE")
+                    | models.Q(
+                        decision_kind="KEEP_LOCKED_IMAGE",
+                        approved_alt_text="",
+                        approved_public_credit="",
+                    )
+                    | (
+                        models.Q(
+                            decision_kind="USE_APPROVED_FALLBACK",
+                            approved_public_credit="",
+                        )
+                        & ~models.Q(approved_alt_text="")
+                    )
+                ),
+                name="imp_img_presentation_contract",
+            ),
+        ]
+
+    def clean(self) -> None:
+        super().clean()
+        errors = {}
+        tenant_id = self.import_row.import_job.tenant_id if self.import_row_id else None
+        if self.target_organization_id and self.target_organization.tenant_id != tenant_id:
+            errors["target_organization"] = "Target organization must belong to the import tenant."
+        if self.expected_selection_id:
+            if self.expected_selection.tenant_id != tenant_id:
+                errors["expected_selection"] = "Expected selection must belong to the import tenant."
+            if (
+                self.target_organization_id
+                and self.expected_selection.organization_id != self.target_organization_id
+            ):
+                errors["expected_selection"] = "Expected selection must belong to the target organization."
+            if self.expected_selection.revision != self.expected_selection_revision:
+                errors["expected_selection_revision"] = "Expected revision must match the selection."
+        if self.asset_id and self.asset.tenant_id != tenant_id:
+            errors["asset"] = "Asset must belong to the import tenant."
+        if self.rendition_set_id:
+            if self.rendition_set.tenant_id != tenant_id:
+                errors["rendition_set"] = "Rendition set must belong to the import tenant."
+            if self.asset_id and self.rendition_set.asset_id != self.asset_id:
+                errors["rendition_set"] = "Rendition set must belong to the approved asset."
+        if self.decision_kind == self.DecisionKind.USE_APPROVED_FALLBACK and not self.approved_alt_text.strip():
+            errors["approved_alt_text"] = "Approved fallback alt text cannot be empty."
+        if self.decision_kind == self.DecisionKind.KEEP_LOCKED_IMAGE:
+            if self.approved_alt_text:
+                errors["approved_alt_text"] = "KEEP_LOCKED_IMAGE cannot change alt text."
+            if self.approved_public_credit:
+                errors["approved_public_credit"] = "KEEP_LOCKED_IMAGE cannot change credit."
+        if (
+            self.decision_kind == self.DecisionKind.USE_APPROVED_FALLBACK
+            and self.approved_public_credit
+        ):
+            errors["approved_public_credit"] = "System fallback cannot have public credit."
+        if self.canonical_snapshot_hash_sha256 and not self.proposed_actor_snapshot:
+            errors["proposed_actor_snapshot"] = "The actor snapshot cannot be empty."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        raise ImmutableImportImageDecisionError(
+            "Import image decisions must be created through the typed domain service."
+        )
+
+    def delete(self, *args, **kwargs):
+        raise ImmutableImportImageDecisionError(
+            "Import image decisions cannot be deleted after review."
+        )
+
+    def __str__(self) -> str:
+        return f"Import image decision for row {self.import_row_id}: {self.decision_kind}"
 
 
 class ImportCommitLog(models.Model):

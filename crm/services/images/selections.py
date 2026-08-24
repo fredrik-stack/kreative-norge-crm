@@ -235,6 +235,11 @@ def _validate_asset_evidence(evidence: AssetApprovalEvidence) -> list[str]:
     return warnings
 
 
+def validate_asset_approval_evidence(evidence: AssetApprovalEvidence) -> tuple[str, ...]:
+    """Validate typed approval evidence without creating or changing image state."""
+    return tuple(_validate_asset_evidence(evidence))
+
+
 def _locked_asset_context(tenant_id: int, rendition_set_id: int):
     rendition_set = (
         ImageRenditionSet.objects.select_for_update()
@@ -298,6 +303,7 @@ def _build_event(
     audit_rendition_set: ImageRenditionSet | None = None,
     takedown_reason_code: str = "",
     release_id_snapshot=None,
+    import_image_decision=None,
 ) -> ImageReviewEvent:
     is_asset = selection.selection_kind == OrganizationImageSelection.SelectionKind.ASSET
     is_restore = event_type == ImageReviewEvent.EventType.SELECTION_RESTORED
@@ -305,6 +311,17 @@ def _build_event(
     event_rendition_set = (
         audit_rendition_set if is_formal_takedown else selection.rendition_set
     )
+    approval_text_version_snapshot = ""
+    approval_text_snapshot = ""
+    if is_asset and not is_restore:
+        if import_image_decision is not None:
+            approval_text_version_snapshot = (
+                import_image_decision.approval_text_version_snapshot
+            )
+            approval_text_snapshot = import_image_decision.approval_text_snapshot
+        else:
+            approval_text_version_snapshot = IMAGE_APPROVAL_TEXT_VERSION
+            approval_text_snapshot = IMAGE_APPROVAL_TEXT
     event = ImageReviewEvent(
         tenant_id=tenant_id,
         organization=organization,
@@ -314,6 +331,7 @@ def _build_event(
         previous_selection=previous_selection,
         restored_from_selection=restored_from_selection,
         actor_user=actor,
+        import_image_decision=import_image_decision,
         event_type=event_type,
         organization_id_snapshot=organization.pk,
         organization_name_snapshot=organization.name,
@@ -346,10 +364,8 @@ def _build_event(
         source_page_url_snapshot=evidence.source_page_url if evidence else "",
         provider_snapshot=evidence.provider if evidence else "",
         technical_warnings_snapshot=technical_warnings,
-        approval_text_version_snapshot=(
-            IMAGE_APPROVAL_TEXT_VERSION if is_asset and not is_restore else ""
-        ),
-        approval_text_snapshot=IMAGE_APPROVAL_TEXT if is_asset and not is_restore else "",
+        approval_text_version_snapshot=approval_text_version_snapshot,
+        approval_text_snapshot=approval_text_snapshot,
         takedown_reason_code=takedown_reason_code,
         release_id_snapshot=release_id_snapshot,
         created_at=timestamp,
@@ -405,6 +421,7 @@ def _create_selection_revision(
     audit_rendition_set: ImageRenditionSet | None = None,
     takedown_reason_code: str = "",
     release_id_snapshot=None,
+    import_image_decision=None,
 ) -> OrganizationImageSelectionResult:
     highest_revision = (
         OrganizationImageSelection.objects.filter(
@@ -452,6 +469,7 @@ def _create_selection_revision(
         audit_rendition_set=audit_rendition_set,
         takedown_reason_code=takedown_reason_code,
         release_id_snapshot=release_id_snapshot,
+        import_image_decision=import_image_decision,
     )
     return OrganizationImageSelectionResult(
         selection=selection,
@@ -471,6 +489,7 @@ def lock_organization_image_selection(
     alt_text: str,
     public_credit: str = "",
     asset_evidence: AssetApprovalEvidence | None = None,
+    import_image_decision=None,
 ) -> OrganizationImageSelectionResult:
     if not settings.IMAGE_ASSET_FEATURE_ENABLED:
         raise ImageFeatureDisabledError("Image asset selection is disabled.")
@@ -545,6 +564,7 @@ def lock_organization_image_selection(
                     if active_selection
                     else ImageReviewEvent.EventType.SELECTION_LOCKED
                 ),
+                import_image_decision=import_image_decision,
             )
     except IntegrityError as error:
         raise ImageSelectionConcurrencyError(
@@ -559,6 +579,7 @@ def remove_organization_image_to_fallback(
     organization_id: int,
     expected_revision: int,
     fallback_alt_text: str,
+    import_image_decision=None,
 ) -> OrganizationImageSelectionResult:
     if not settings.IMAGE_ASSET_FEATURE_ENABLED:
         raise ImageFeatureDisabledError("Image asset selection is disabled.")
@@ -604,6 +625,7 @@ def remove_organization_image_to_fallback(
                 evidence=None,
                 technical_warnings=[],
                 event_type=ImageReviewEvent.EventType.SELECTION_REMOVED_TO_FALLBACK,
+                import_image_decision=import_image_decision,
             )
     except IntegrityError as error:
         raise ImageSelectionConcurrencyError(

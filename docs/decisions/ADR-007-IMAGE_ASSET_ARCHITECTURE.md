@@ -2,7 +2,7 @@
 
 ## Status
 
-Godkjent som arkitekturgrunnlag. Fase 3A, de isolerte fase 3B.1- og 3B.2-prototypene og fase 3B.1R med representativ kvalitetsvalidering er gjennomført. Fase 3B.3 har fastsatt separat UUIDv4-basert public release identity, canonical public release keys og varig release-reservasjon. Fase 3B.3-A har implementert den additive organization-typed release-aggregaten, canonical key-builderen, immutable historisk mapping og atomisk feature-gated opprettelse i databasedomenet. Fase 3C.7 har implementert intern processing/storage, og fase 3D.1 har implementert første offisielle website/Open Graph-kandidatflyt til eksplisitt Organization-selection bak det fortsatt avslåtte kode-default-flagget. Fase 3D.2 er implementert og verifisert som tidligere dokumentert; Brave-integrasjonen er likevel **operativt ikke aktiv** for ordinære Editor-sluttbrukere. [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokal one-server media og kryptert Hetzner Storage Box-backup som operasjonell MVP. [ADR-009](ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) formaliserer fase 3E-runtimearkitekturen; 3E.1A–3E.1C er `ACTIVE`, 3E.2 er `CLOSED / SHADOW VERIFIED`, og 3E.3 API/PUBLIC/head-cutover samt 3E.4 formell takedown/tenant-checksum-deny er `CLOSED / ACTIVE` i staging. Kode-/eksempelstandarden for nye takedownwrites er fortsatt av.
+Godkjent som arkitekturgrunnlag. Fase 3A, de isolerte fase 3B.1- og 3B.2-prototypene og fase 3B.1R med representativ kvalitetsvalidering er gjennomført. Fase 3B.3 har fastsatt separat UUIDv4-basert public release identity, canonical public release keys og varig release-reservasjon. Fase 3B.3-A har implementert den additive organization-typed release-aggregaten, canonical key-builderen, immutable historisk mapping og atomisk feature-gated opprettelse i databasedomenet. Fase 3C.7 har implementert intern processing/storage, og fase 3D.1 har implementert første offisielle website/Open Graph-kandidatflyt til eksplisitt Organization-selection bak det fortsatt avslåtte kode-default-flagget. Fase 3D.2 er implementert og verifisert som tidligere dokumentert; Brave-integrasjonen er likevel **operativt ikke aktiv** for ordinære Editor-sluttbrukere. [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokal one-server media og kryptert Hetzner Storage Box-backup som operasjonell MVP. [ADR-009](ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) formaliserer fase 3E-runtimearkitekturen; 3E.1A–3E.1C er `ACTIVE`, 3E.2 er `CLOSED / SHADOW VERIFIED`, og 3E.3 API/PUBLIC/head-cutover samt 3E.4 formell takedown/tenant-checksum-deny er `CLOSED / ACTIVE` i staging. Fase 3F-koden er implementert med read-only legacyovergang og typed Import-kontrakt bak default-off gate; staging-/restoreevidens gjenstår før 3F og hele fase 3 kan lukkes. Kode-/eksempelstandardene for nye takedown- og import-image-writes er fortsatt av.
 
 **Beslutningsdato:** 2026-07-30
 
@@ -1327,6 +1327,8 @@ Ingen leveranse under skal starte før gate og stoppunkt for leveransen er godkj
 
 ### Fase 3F: legacyovergang, Import-kontrakt og driftsverifisering
 
+**Implementeringsstatus 2026-08-24:** Koden er implementert bak `IMPORT_IMAGE_DECISIONS_ENABLED=False` og additiv migrasjon `0031`. Vanlig Organization CRUD og import-commit gjør ikke lenger automatisk bilde-/Open Graph-I/O; legacyfeltene er read-only, inventory og legacykandidater er DB-only, og typed beslutninger anvendes gjennom eksisterende selection-/auditkommandoer. Lokal backend-, frontend- og browserverifikasjon er grønn. Separat backup, staging-/restore-/orphanbevis og evidens-PR gjenstår; fasen er derfor ikke `CLOSED`.
+
 **Omfang:**
 
 - skrivebeskyttet legacyinventar og kandidater uten automatisk godkjenning
@@ -1430,4 +1432,4 @@ Den overordnede arkitekturen, rollene, approvalteksten, fallbacken, den additive
 
 ## Ferdigkriterium
 
-ADR-007 kan omtales som implementert først når fase 3B–3F er levert og verifisert, legacy URL ikke lenger er aktiv offentlig bildekilde, relevante tester er grønne, database og assets kan gjenopprettes sammen, staging er kontrollert og autoritativ dokumentasjon beskriver faktisk adferd.
+ADR-007 kan omtales som implementert først når fase 3B–3F er levert og verifisert, legacy URL ikke lenger er aktiv offentlig bildekilde, relevante tester er grønne, database og assets kan gjenopprettes sammen, staging er kontrollert og autoritativ dokumentasjon beskriver faktisk adferd. 3F-implementasjonen alene oppfyller ikke ferdigkriteriet før den separate driftsgaten og evidens-PR-en er gjennomført.

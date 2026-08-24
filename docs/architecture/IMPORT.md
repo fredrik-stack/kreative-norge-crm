@@ -96,7 +96,7 @@ Det skal utarbeides:
 
 ## Godkjent fremtidig bildekontrakt
 
-[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) avgjør prinsippene for hvordan Import 2.0 senere skal samspille med bildearkitekturen. Kontrakten er ikke implementert.
+[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) avgjør prinsippene for hvordan Import 2.0 senere skal samspille med bildearkitekturen. Fase 3F har implementert den typed backendkontrakten bak `IMPORT_IMAGE_DECISIONS_ENABLED=False`; produkt- og review-UX for Import 2.0 er fortsatt ikke implementert.
 
 Fremtidige typed bildeutfall er:
 
@@ -111,6 +111,10 @@ Manglende bildevalg for en eksisterende aktør betyr `KEEP_LOCKED_IMAGE`. Et ten
 Import-commit skal bare koble et allerede godkjent og ferdig asset eller fallbackvalg. Den skal ikke utføre Brave-søk, Open Graph-henting, ekstern nedlasting, dekoding, rendition-generering, automatisk replacement eller noen publiseringsendring.
 
 Approvalhistorikken skal ligge i append-only bildehistorikk, ikke bare i `decision_json` eller en commitlogg som kan regenereres. Full produkt- og review-UX for bilder implementeres fortsatt først som del av senere Import 2.0.
+
+Migrasjon `0031` legger additivt til én `ImportImageDecision` per `ImportRow` og en nullable, beskyttet én-til-én-binding fra det anvendte `ImageReviewEvent`. Beslutningen fryser type, besluttende principal, target eller canonical proposed-actor-snapshot, forventet selection/revisjon og — for `SET_APPROVED_IMAGE` — tenant-eid asset/rendition-sett og approval-/proveniens-/checksum-/versjonssnapshots. `KEEP_LOCKED_IMAGE` uten eksplisitt beslutningsrad er fortsatt standard og gjør ingen image-write.
+
+Ved commit låses beslutningsraden, proposed actor og target revalideres, og eksisterende selection må fortsatt ha eksakt reviewet ID og revisjon. `SET_APPROVED_IMAGE` bruker de vanlige selection-/approvalinvariantene; `USE_APPROVED_FALLBACK` bruker den vanlige fallbackkommandoen. Det produserte review-eventet peker tilbake på beslutningen, slik at retry returnerer samme resultat i stedet for å opprette en ny selection. Commit gjør ingen søk, DNS/HTTP, Open Graph-refresh, nedlasting, decode, rendition-generering, release/materialisering eller publiseringsendring. Feil tenant, stale selection, endret actor-snapshot, ufullstendig asset eller manglende approval feiler lukket.
 
 ## Besluttet kontaktretning
 
