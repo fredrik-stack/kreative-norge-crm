@@ -508,6 +508,17 @@ class PublicImageProjectionTests(TestCase):
         self.assertNotIn(self.release_id, logs.output[0])
         self.assertNotIn("https://", logs.output[0])
 
+    def test_shadow_list_avoids_unused_projection_prefetch_and_bridge_calls(self):
+        with patch(
+            "crm.views_public.prefetch_public_image_projection",
+            side_effect=AssertionError("list shadow must use the catalog audit"),
+        ):
+            response = self.client.get("/api/public/actors/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("image", response.json()[0])
+        self.assertEqual(ProjectionBridge.calls, [])
+
     def test_catalog_audit_is_json_read_only_and_contains_required_counts(self):
         before = Organization.objects.count()
         output = StringIO()

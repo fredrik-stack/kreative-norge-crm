@@ -21,7 +21,7 @@ class PublicActorPublicViewSet(ReadOnlyModelViewSet):
         queryset = queryset.prefetch_related(
             "tags", "categories", "subcategories__category"
         )
-        if settings.PUBLIC_IMAGE_PROJECTION_ENABLED:
+        if settings.PUBLIC_IMAGE_API_SCHEMA_ENABLED:
             return prefetch_public_image_projection(queryset)
         return queryset
 
@@ -30,4 +30,3 @@ class PublicActorPublicViewSet(ReadOnlyModelViewSet):
     )
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
-
