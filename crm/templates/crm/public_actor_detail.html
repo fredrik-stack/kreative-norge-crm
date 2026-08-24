@@ -4,6 +4,23 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ actor.name }}</title>
+  {% if public_head %}
+    <link rel="canonical" href="{{ public_head.canonical_url }}" />
+    {% if public_head.description %}<meta name="description" content="{{ public_head.description }}" />{% endif %}
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="{{ public_head.title }}" />
+    {% if public_head.description %}<meta property="og:description" content="{{ public_head.description }}" />{% endif %}
+    <meta property="og:url" content="{{ public_head.canonical_url }}" />
+    <meta property="og:image" content="{{ public_head.image.url }}" />
+    <meta property="og:image:width" content="{{ public_head.image.width }}" />
+    <meta property="og:image:height" content="{{ public_head.image.height }}" />
+    {% if public_head.image_alt %}<meta property="og:image:alt" content="{{ public_head.image_alt }}" />{% endif %}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="{{ public_head.title }}" />
+    {% if public_head.description %}<meta name="twitter:description" content="{{ public_head.description }}" />{% endif %}
+    <meta name="twitter:image" content="{{ public_head.image.url }}" />
+    {% if public_head.image_alt %}<meta name="twitter:image:alt" content="{{ public_head.image_alt }}" />{% endif %}
+  {% endif %}
   <style>
     :root {
       --bg: #f7ece7;
@@ -15,7 +32,7 @@
       --line: rgba(103, 63, 50, 0.12);
       --category: #6b493d;
       --subcategory: #38a8ec;
-      --tag: #4f332c;
+      --tag: #4a8755;
       --tag-ink: #ffffff;
       --shadow: 0 14px 30px rgba(132, 95, 82, 0.09);
     }
@@ -50,7 +67,7 @@
 
     .hero-card {
       display: grid;
-      grid-template-columns: 112px minmax(0, 1fr);
+      grid-template-columns: 160px minmax(0, 1fr);
       gap: 14px;
       align-items: center;
       padding: 16px;
@@ -63,8 +80,8 @@
 
     .thumb,
     .thumb-fallback {
-      width: 112px;
-      height: 112px;
+      width: 160px;
+      height: 160px;
       border-radius: 16px;
       overflow: hidden;
       background: #e6d3cb;
@@ -90,6 +107,19 @@
       font-size: 12px;
       font-weight: 700;
       line-height: 1.15;
+    }
+
+    .image-shell {
+      width: 160px;
+      display: grid;
+      gap: 7px;
+    }
+
+    .image-credit {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.3;
     }
 
     .hero-body {
@@ -309,6 +339,7 @@
         grid-template-columns: 88px minmax(0, 1fr);
       }
 
+      .image-shell,
       .thumb,
       .thumb-fallback {
         width: 88px;
@@ -329,6 +360,7 @@
         grid-template-columns: 1fr;
       }
 
+      .image-shell,
       .thumb,
       .thumb-fallback {
         width: 100%;
@@ -350,13 +382,18 @@
     <a class="back-link" href="/public/actors/">← Tilbake til aktører</a>
 
     <section class="hero-card">
-      {% if actor.get_public_image_url %}
-        <img class="thumb" src="{{ actor.get_public_image_url }}" alt="{{ actor.name }}" />
-      {% else %}
-        <div class="thumb-fallback">
-          <span>{{ actor.name|truncatechars:18 }}</span>
-        </div>
-      {% endif %}
+      <div class="image-shell">
+        {% if actor.public_image_projection %}
+          <img class="thumb" src="{{ actor.public_image_projection.square.url }}" alt="{{ actor.public_image_projection.alt_text }}"{% if actor.public_image_projection.kind == "asset" %} data-fallback-src="{{ public_image_fallback_square_url }}" onerror="this.onerror=null;this.src=this.dataset.fallbackSrc"{% endif %} />
+          {% if actor.public_image_projection.credit %}<p class="image-credit">{{ actor.public_image_projection.credit }}</p>{% endif %}
+        {% elif actor.get_public_image_url %}
+          <img class="thumb" src="{{ actor.get_public_image_url }}" alt="{{ actor.name }}" />
+        {% else %}
+          <div class="thumb-fallback">
+            <span>{{ actor.name|truncatechars:18 }}</span>
+          </div>
+        {% endif %}
+      </div>
 
       <div class="hero-body">
         <div class="hero-head">

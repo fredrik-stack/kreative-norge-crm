@@ -17,6 +17,7 @@ class PublicDeliverySettingsTests(SimpleTestCase):
             "PUBLIC_IMAGE_SERVING_ENABLED",
             "PUBLIC_IMAGE_PROJECTION_ENABLED",
             "PUBLIC_IMAGE_API_SCHEMA_ENABLED",
+            "PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED",
             "PUBLIC_SITE_ORIGIN",
             "PUBLIC_MEDIA_ORIGIN",
         ):
@@ -39,7 +40,8 @@ class PublicDeliverySettingsTests(SimpleTestCase):
                 "import config.settings as settings; "
                 "print(settings.PUBLIC_SITE_ORIGIN, settings.PUBLIC_MEDIA_ORIGIN, "
                 "settings.PUBLIC_IMAGE_PROJECTION_ENABLED, "
-                "settings.PUBLIC_IMAGE_API_SCHEMA_ENABLED)",
+                "settings.PUBLIC_IMAGE_API_SCHEMA_ENABLED, "
+                "settings.PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED)",
             ],
             cwd=settings.BASE_DIR,
             env=env,
@@ -54,6 +56,7 @@ class PublicDeliverySettingsTests(SimpleTestCase):
         self.assertFalse(settings.PUBLIC_IMAGE_SERVING_ENABLED)
         self.assertFalse(settings.PUBLIC_IMAGE_PROJECTION_ENABLED)
         self.assertFalse(settings.PUBLIC_IMAGE_API_SCHEMA_ENABLED)
+        self.assertFalse(settings.PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED)
         self.assertIsNone(
             settings.STORAGES["public_image_delivery"]["OPTIONS"]["base_url"]
         )
@@ -137,7 +140,7 @@ class PublicDeliverySettingsTests(SimpleTestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout.strip(),
-            "https://staging.example.no https://staging.example.no False False",
+            "https://staging.example.no https://staging.example.no False False False",
         )
 
     def test_projection_and_schema_dependencies_fail_closed(self):
@@ -166,6 +169,45 @@ class PublicDeliverySettingsTests(SimpleTestCase):
         )
         self.assertNotEqual(schema_without_serving.returncode, 0)
         self.assertIn("requires PUBLIC_IMAGE_SERVING_ENABLED", schema_without_serving.stderr)
+
+    def test_public_cutover_dependencies_fail_closed_and_valid_stack_starts(self):
+        cutover_without_projection = self.run_settings(
+            PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED="True"
+        )
+        self.assertNotEqual(cutover_without_projection.returncode, 0)
+        self.assertIn(
+            "requires PUBLIC_IMAGE_PROJECTION_ENABLED",
+            cutover_without_projection.stderr,
+        )
+
+        cutover_without_schema = self.run_settings(
+            PUBLIC_IMAGE_PROJECTION_ENABLED="True",
+            PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED="True",
+            PUBLIC_SITE_ORIGIN="https://public.example.no",
+            PUBLIC_MEDIA_ORIGIN="https://media.example.no",
+        )
+        self.assertNotEqual(cutover_without_schema.returncode, 0)
+        self.assertIn(
+            "requires PUBLIC_IMAGE_API_SCHEMA_ENABLED",
+            cutover_without_schema.stderr,
+        )
+
+        valid = self.run_settings(
+            DJANGO_ALLOWED_HOSTS="public.example.no,media.example.no",
+            IMAGE_ASSET_FEATURE_ENABLED="True",
+            PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED="True",
+            PUBLIC_IMAGE_SERVING_ENABLED="True",
+            PUBLIC_IMAGE_PROJECTION_ENABLED="True",
+            PUBLIC_IMAGE_API_SCHEMA_ENABLED="True",
+            PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED="True",
+            PUBLIC_SITE_ORIGIN="https://public.example.no",
+            PUBLIC_MEDIA_ORIGIN="https://media.example.no",
+        )
+        self.assertEqual(valid.returncode, 0, valid.stderr)
+        self.assertEqual(
+            valid.stdout.strip(),
+            "https://public.example.no https://media.example.no True True True",
+        )
 
     def test_invalid_origins_fail_closed(self):
         cases = (

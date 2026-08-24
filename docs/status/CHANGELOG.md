@@ -2,6 +2,16 @@
 
 ## 2026-08-24
 
+### Fase 3E.3 API/PUBLIC/head-cutover implementert bak default-off gate
+
+- lagt fail-closed `PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=False`, som krever projection, target-API-schema, controlled serving og gyldige origins uten å innføre tenant-enrollment
+- koblet PUBLIC list/detail til samme read-only `PublicImageProjection` som API-et, med fixed-query prefetch, square i kort/hero, share i detail-head og ingen legacyresolver i aktiv branch
+- lagt canonical fra konfigurert `PUBLIC_SITE_ORIGIN` + `reverse()`, Open Graph/Twitter, description-/alt-escaping, 160 × 160 desktopdetail, grønne tags, offentlig kreditering og én-gangs browserfallback ved asset-bytefeil
+- gjort target-API-schema og aliasinvarianten klar for stagingaktivering: `thumbnail_image_url == preview_image_url == image.square.url`
+- etablert production fallback v1 på ryddige canonical static-stier ved å kopiere de eksisterende, visuelt kontrollerte fallbackbytene eksakt; gamle emergency-stier beholdes for rollback/historikk og systemfallback har blank alttekst
+- lagt settings-, API-, PUBLIC-, head-, safety-, host/proxy-, privacy-, fixed-query- og Chromium desktop/mobiltester uten modellendring eller migrasjon
+- beholdt både API-schema- og PUBLIC-cutoverflagg av som kode-/eksempelstandard; stagingdeploy, kontrollert aktivering, rollback og visuell kataloggate gjenstår før 3E.3 kan markeres `CLOSED / ACTIVE`
+
 ### Fase 3E.2 CLOSED / SHADOW VERIFIED i staging
 
 - merget implementerings-PR #47 som `90ff5e9` etter separat review med `0 BLOCKER`, `0 HIGH`, ett rettet performancefunn og grønne PR-/main-CI- og image-workflows

@@ -1,6 +1,6 @@
 # Feature: Public
 
-**Status:** grunnløsning implementert; kontakt-, lenke- og tittelregel stabilisert i fase 2
+**Status:** grunnløsning implementert; kontakt-, lenke- og tittelregel stabilisert i fase 2; 3E.3-bilde-/head-cutover implementert default-off og venter på staginggaten
 
 Public skal vise et kontrollert utvalg av publiserte aktørdata i et symmetrisk og skalerbart grensesnitt.
 
@@ -9,6 +9,8 @@ Dagens public API fungerer, og HTML-visningen brukes i staging. Public API og pu
 `Person.email` og `Person.phone` brukes ikke som offentlig fallback. PUBLIC HTML-kort lenker til kanoniske ID-baserte aktørsider, slik at publiserte aktører uten organisasjonsnummer fortsatt får fungerende detaljside.
 
 Når en publisert kontaktperson har `Person.title`, vises tittelen både i public API og på PUBLIC HTML-kortet. Null eller tom tittel gir ikke en tom visningsrad eller et tomt API-felt.
+
+Når 3E.3-gaten aktiveres, bruker API, PUBLIC list/detail og delingsmetadata samme read-only bildeprojection. Kort og hero bruker square, Open Graph/Twitter bruker share, og canonical kommer fra konfigurert site-origin. Manglende eller ikke-autorisert asset gir production fallback v1 med blank alttekst, aldri legacybilde. Kode-/eksempelstandarden `PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=False` bevarer dagens stagingreise frem til separat aktivering og rollbacktest.
 
 Nye publiseringsvalg i Editor starter avslått. En telefon fra legacy-feltet kan repareres til en privat primær `PersonContact` gjennom en eksplisitt, dry-run-først-kommando, men blir aldri offentlig som bivirkning.
 

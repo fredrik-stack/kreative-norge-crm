@@ -117,7 +117,7 @@ Direkte `Person.phone` brukes fortsatt aldri som PUBLIC-fallback. Offentlig tele
 
 Dagens løsning velger mellom manuell thumbnail, automatisk thumbnail og Open Graph-bilde. Eksterne bilde-URL-er kan forsvinne, endres, blokkere hotlinking eller ha feil format.
 
-[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som målarkitektur, og fase 3B–3D har implementert intern bilde-/selection-/rendition-/release-domenegrunnmur. [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) har godkjent public runtimearkitekturen. 3E.1A-journalen/off-serverankeret, 3E.1B-materialisering og 3E.1C standalone controlled serving er `ACTIVE` i staging. 3E.1C-livegaten beviste canonical media-route, kontrollert Django-gate, intern Nginx-serving, eksplisitte origins, cache, fail-closed og restart/restore. 3E.2 projection-shadow er `CLOSED / SHADOW VERIFIED`; API-schema, PUBLIC-cutover og takedown er ikke implementert, og dagens eksterne URL- og fallbackflyt gjelder fortsatt i PUBLIC.
+[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som målarkitektur, og fase 3B–3D har implementert intern bilde-/selection-/rendition-/release-domenegrunnmur. [ADR-009](../decisions/ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) har godkjent public runtimearkitekturen. 3E.1A-journalen/off-serverankeret, 3E.1B-materialisering og 3E.1C standalone controlled serving er `ACTIVE` i staging. 3E.1C-livegaten beviste canonical media-route, kontrollert Django-gate, intern Nginx-serving, eksplisitte origins, cache, fail-closed og restart/restore. 3E.2 projection-shadow er `CLOSED / SHADOW VERIFIED`. 3E.3-targetschema, PUBLIC/head-cutover og production fallback v1 er implementert bak default-off gater, men dagens eksterne URL-flyt gjelder fortsatt i staging til den separate aktiveringsgaten er bestått. Takedown er ikke implementert.
 
 Godkjent retning:
 
@@ -139,13 +139,15 @@ Før cutover skal public runtimeen bruke:
 - eksplisitte `PUBLIC_SITE_ORIGIN` og `PUBLIC_MEDIA_ORIGIN`, aldri vilkårlig `Host` eller `X-Forwarded-Host`
 - én read-only `PublicImageProjection` som bruker samme ledger/read-model som serving-gaten og gjør ingen nettverks-, decode-, render- eller storage-writekall
 
-Manglende eller korrupt journal, stale/ukjent cursor, denied/retired release, scope mismatch, upublisert aktør eller manglende/ufullstendige filer feiler lukket til statisk systemfallback eller ingen levering. Fallback finnes som uavhengige, versjonerte square-, landscape- og sharefiler; endelig grafikk og alttekst avgjøres i fase 3E.3.
+Manglende eller korrupt journal, stale/ukjent cursor, denied/retired release, scope mismatch, upublisert aktør eller manglende/ufullstendige filer feiler lukket til statisk systemfallback eller ingen levering. Production fallback v1 finnes som uavhengige, versjonerte square-, landscape- og sharefiler på canonical static-stier. Den gjenbruker de visuelt kontrollerte 3B.1-bytene byte-for-byte og har blank alttekst fordi grafikken er dekorativ og aktørnavnet allerede er synlig.
 
 PUBLIC skal etter cutover bare bruke CRM-kontrollerte renditions eller systemfallback. Rå kilde-URL, intern proveniens, audit og privat original skal ikke eksponeres.
 
 Godkjente kortmål beholder 90 × 90 i PUBLIC-oversikten og bruker 160 × 160 på desktop-detaljen. Mobil detalj forblir rektangulær; eksakt felles høyde avgjøres i fase 3B. Logo bruker `contain`, foto bruker `cover` og fokuspunkt, PUBLIC-tags er grønne, og lange navn, kommuner, tags og knapper skal ikke gi overflow.
 
 PUBLIC-detaljen skal få absolutt canonical, Open Graph og Twitter Card. Canonical app-origin og public media-origin skal være miljøkonfigurerte og allowlistede, ikke avledet fra vilkårlig request-host. `og:image` bruker CRM-kontrollert share-rendition eller fallback på 1200 × 630. Korrekt metadata kan leveres, men det kan ikke loves at alle meldingsklienter viser preview.
+
+3E.3 implementerer dette med en liten read-only metadata-DTO. List og detail bruker `projection.square`; detail-head bruker `projection.share`; list-head bruker den generiske share-fallbacken. Canonical bygges fra `PUBLIC_SITE_ORIGIN` og `reverse()`, også for filtrerte listsider. Et asset som feiler i nettleseren byttes én gang til static square-fallback uten legacyoppslag eller state-write. `PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=False` er kode-/eksempelstandard og krever projection, API-schema og controlled serving når den slås på.
 
 Fase 3E.1C velger foreløpig `private, max-age=60, must-revalidate`, checksum-`ETag`, `no-store` på 404/503 og ingen shared proxycache eller `immutable`. Dette begrenser klientens stale-vindu uten å påstå at formell purge/takedown er levert. Endelig purge-/verifikasjonskontrakt fastsettes i fase 3E.4. Formell takedown forblir deaktivert til release-deny, tenant-scopet checksum-deny, legacyguard, felles projection/gateway-state, originblokkering, cache expiry/purge/verifikasjon, gammel restore og republisering med ny UUID/key er bevist. Global checksum-deny er ikke del av godkjent MVP.
 

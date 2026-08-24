@@ -164,6 +164,14 @@ jobs:
       DB_PASSWORD: crm_password
       DB_HOST: 127.0.0.1
       DB_PORT: "5432"
+      IMAGE_ASSET_FEATURE_ENABLED: "True"
+      PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED: "True"
+      PUBLIC_IMAGE_SERVING_ENABLED: "True"
+      PUBLIC_IMAGE_PROJECTION_ENABLED: "True"
+      PUBLIC_IMAGE_API_SCHEMA_ENABLED: "True"
+      PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED: "True"
+      PUBLIC_SITE_ORIGIN: "http://127.0.0.1:8000"
+      PUBLIC_MEDIA_ORIGIN: "http://127.0.0.1:8000"
     defaults:
       run:
         working-directory: frontend
@@ -181,6 +189,15 @@ jobs:
 
       - name: Apply backend migrations
         run: python manage.py migrate --noinput
+        working-directory: .
+
+      - name: Seed public fallback actor
+        run: >-
+          python manage.py shell -c "from crm.models import Organization, Tenant;
+          tenant, _ = Tenant.objects.get_or_create(slug='public-e2e', defaults={'name': 'Public E2E'});
+          Organization.objects.update_or_create(tenant=tenant, org_number='999999999',
+          defaults={'name': 'Playwright fallback actor', 'description': 'Browser-verifisert offentlig aktør.',
+          'is_published': True, 'thumbnail_image_url': 'https://legacy.invalid/forbidden.jpg'})"
         working-directory: .
 
       - name: Start backend server

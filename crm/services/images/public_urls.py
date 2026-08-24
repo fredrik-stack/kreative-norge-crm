@@ -14,9 +14,9 @@ _PUBLIC_KEY_RE = re.compile(
 )
 _FORMAT_BY_EXTENSION = {"webp": "webp", "png": "png", "jpg": "jpeg"}
 _FALLBACK_PATHS = {
-    "square": "crm/public-image-fallback/v1/emergency-fallback-square.png",
-    "landscape": "crm/public-image-fallback/v1/emergency-fallback-landscape.png",
-    "share": "crm/public-image-fallback/v1/emergency-fallback-share.png",
+    "square": "crm/public-image-fallback/v1/fallback-square.png",
+    "landscape": "crm/public-image-fallback/v1/fallback-landscape.png",
+    "share": "crm/public-image-fallback/v1/fallback-share.png",
 }
 
 
