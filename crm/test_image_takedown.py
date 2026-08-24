@@ -591,10 +591,14 @@ class FormalImageTakedownTests(TestCase):
     )
     def test_ledger_guard_alone_blocks_all_legacy_paths_and_fails_closed(self):
         class BlockedBridge:
+            calls = 0
+            timeout = None
+
             def __init__(self, *args, **kwargs):
-                pass
+                type(self).timeout = kwargs["timeout"]
 
             def legacy_guard(self, **payload):
+                type(self).calls += 1
                 return BridgeLegacyGuard(blocked=True, read_cursor=9)
 
         with patch(
@@ -603,6 +607,9 @@ class FormalImageTakedownTests(TestCase):
         ):
             self.assertIsNone(self.organization.get_public_image_url())
             self.assertIsNone(self.organization.get_preview_image_url())
+        self.assertEqual(BlockedBridge.calls, 1)
+        self.assertEqual(BlockedBridge.timeout, 0.1)
+        del self.organization._legacy_image_blocked_result
 
         class UnavailableBridge:
             def __init__(self, *args, **kwargs):

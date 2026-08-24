@@ -14,31 +14,95 @@ from django.test import TransactionTestCase, override_settings
 from django.utils import timezone
 from PIL import Image
 
+from image_safety.anchor import anchor_current_head
+from image_safety.bridge import SafetyBridgeOperations, handle_request
+from image_safety.ledger import PublicImageSafetyLedger
 from image_safety.release_keys import build_public_release_key
 
 from .models import (
     ImageAsset,
     ImageRendition,
     ImageRenditionSet,
+    ImageReviewEvent,
     Organization,
     OrganizationImageRelease,
     OrganizationImageReleaseRendition,
     OrganizationImageSelection,
     Tenant,
+    TenantMembership,
 )
 from .services.images.bridge_client import (
     BridgeActivation,
     BridgeChecksumCheck,
     BridgeReservation,
+    ImageSafetyBridgeClient,
     ImageSafetyBridgeConflict,
     ImageSafetyBridgeUnavailable,
 )
+from .services.images.projection import project_public_image
 from .services.images.releases import (
+    ImageReleaseActivationRejected,
     ImageReleaseChecksumDenied,
     ImageReleaseSafetyUnavailable,
     InvalidImageReleaseError,
     create_organization_image_release,
 )
+from .services.images.selections import (
+    AssetApprovalEvidence,
+    ImageSelectionChecksumDenied,
+    lock_organization_image_selection,
+)
+from .services.images.serving import PublicImageNotFound, prepare_public_image
+from .services.images.takedown import formal_takedown_organization_image
+
+
+IN_PROCESS_REPOSITORY_ID = "9" * 64
+
+
+class InProcessAnchor:
+    def __init__(self):
+        self.archives = {}
+
+    def verified_repository_id(self):
+        return IN_PROCESS_REPOSITORY_ID
+
+    def read(self, archive_name):
+        return self.archives.get(archive_name)
+
+    def create(self, archive_name, content):
+        if archive_name in self.archives:
+            raise AssertionError("anchor archive must be create-only")
+        self.archives[archive_name] = content
+
+    def list_archives(self, prefix):
+        return sorted(name for name in self.archives if name.startswith(prefix))
+
+
+class InProcessSafetyBridgeClient(ImageSafetyBridgeClient):
+    def __init__(self, operations):
+        self.operations = operations
+
+    def _request(self, operation, payload):
+        response = handle_request(
+            {
+                "protocol_version": 1,
+                "operation": operation,
+                "payload": payload,
+            },
+            self.operations,
+        )
+        if response.get("result") == "error":
+            error_class = (
+                ImageSafetyBridgeUnavailable
+                if response["retryable"]
+                else ImageSafetyBridgeConflict
+            )
+            raise error_class(
+                response["code"],
+                response["message"],
+                retryable=response["retryable"],
+            )
+        return response
 
 
 class WorkflowBridge:
@@ -112,7 +176,7 @@ class WorkflowBridge:
                 )
             return reservation
 
-    def activate(self, *, release_id):
+    def activate(self, *, release_id, tenant_id, source_checksum_sha256):
         with self.lock:
             type(self).activate_calls += 1
             disposition = "idempotent_retry" if release_id in self.active else "new"
@@ -167,8 +231,13 @@ class OrganizationImageReleaseWorkflowTests(TransactionTestCase):
         self.bridge_patch.start()
         self.addCleanup(self.bridge_patch.stop)
 
-        user = get_user_model().objects.create_user(username="workflow-user")
+        self.user = get_user_model().objects.create_user(username="workflow-user")
         self.tenant = Tenant.objects.create(name="Workflow", slug="workflow")
+        TenantMembership.objects.create(
+            tenant=self.tenant,
+            user=self.user,
+            role=TenantMembership.Role.GRUPPEADMIN,
+        )
         self.organization = Organization.objects.create(
             tenant=self.tenant, name="Workflow organization"
         )
@@ -225,7 +294,7 @@ class OrganizationImageReleaseWorkflowTests(TransactionTestCase):
             public_credit="",
             revision=1,
             status="active",
-            locked_by=user,
+            locked_by=self.user,
             locked_at=timezone.now(),
         )
 
@@ -361,6 +430,253 @@ class OrganizationImageReleaseWorkflowTests(TransactionTestCase):
         self.assertEqual(len(list(self.delivery_root.rglob("*.webp"))), 0)
         self.assertEqual(WorkflowBridge.activate_calls, 0)
         self.assertEqual(OrganizationImageRelease.objects.count(), 1)
+
+    def test_checksum_deny_winning_inside_activation_removes_origin(self):
+        class DeniedAtActivationBridge(WorkflowBridge):
+            def activate(self, **payload):
+                type(self).activate_calls += 1
+                raise ImageSafetyBridgeConflict(
+                    "invalid_transition",
+                    "Denied source bytes cannot be activated.",
+                    retryable=False,
+                )
+
+        with patch(
+            "crm.services.images.releases.ImageSafetyBridgeClient",
+            DeniedAtActivationBridge,
+        ):
+            with self.assertRaises(ImageReleaseActivationRejected):
+                self.run_workflow()
+
+        self.assertEqual(DeniedAtActivationBridge.activate_calls, 1)
+        self.assertEqual(len(list(self.delivery_root.rglob("*.webp"))), 0)
+        self.assertEqual(OrganizationImageRelease.objects.count(), 1)
+
+    @override_settings(
+        PUBLIC_IMAGE_TAKEDOWN_ENABLED=True,
+        PUBLIC_IMAGE_SERVING_ENABLED=True,
+        PUBLIC_IMAGE_PROJECTION_ENABLED=True,
+        PUBLIC_SITE_ORIGIN="https://public.example.no",
+        PUBLIC_MEDIA_ORIGIN="https://media.example.no",
+    )
+    def test_real_ledger_older_db_media_restore_and_safe_django_republish(self):
+        ledger = PublicImageSafetyLedger(
+            Path(self.temporary.name) / "safety" / "ledger.sqlite3"
+        )
+        ledger.initialize()
+        anchor = InProcessAnchor()
+        anchor_current_head(
+            ledger,
+            anchor,
+            expected_repository_id=IN_PROCESS_REPOSITORY_ID,
+        )
+        operations = SafetyBridgeOperations(
+            ledger=ledger,
+            anchor_backend=anchor,
+            expected_repository_id=IN_PROCESS_REPOSITORY_ID,
+        )
+        bridge = InProcessSafetyBridgeClient(operations)
+
+        with patch(
+            "crm.services.images.releases.ImageSafetyBridgeClient",
+            return_value=bridge,
+        ):
+            old_result = self.run_workflow()
+        old_release = old_result.release
+        old_selection = self.selection
+        old_source_checksum = old_selection.rendition_set.asset.checksum_sha256
+        old_square = next(
+            item for item in old_result.renditions if item.variant == "square"
+        )
+        old_square_bytes = (
+            Path(storages["image_renditions_public"].path(
+                old_square.artifact_storage_key_snapshot
+            )).read_bytes()
+        )
+
+        ledger.upgrade_schema_v2()
+        self.organization.is_published = True
+        self.organization.thumbnail_image_url = "https://legacy.example.no/old.jpg"
+        self.organization.auto_thumbnail_url = "https://legacy.example.no/auto.jpg"
+        self.organization.og_image_url = "https://legacy.example.no/og.jpg"
+        self.organization.save(
+            update_fields=[
+                "is_published",
+                "thumbnail_image_url",
+                "auto_thumbnail_url",
+                "og_image_url",
+            ]
+        )
+        formal_takedown_organization_image(
+            actor=self.user,
+            tenant_id=self.tenant.pk,
+            organization_id=self.organization.pk,
+            reason_code=ImageReviewEvent.TakedownReason.RIGHTS_REQUEST,
+            bridge=bridge,
+        )
+
+        denied_head = ledger.head()
+        self.assertEqual(ledger.release_state(old_release.release_id)["state"], "denied")
+        self.assertTrue(
+            ledger.checksum_denied(
+                tenant_id=self.tenant.pk,
+                source_checksum_sha256=old_source_checksum,
+            )
+        )
+
+        # Simulate an older PostgreSQL workflow snapshot while retaining the
+        # newer independent safety ledger as authority.
+        OrganizationImageSelection.objects.filter(
+            organization=self.organization,
+            status=OrganizationImageSelection.Status.ACTIVE,
+        ).update(status=OrganizationImageSelection.Status.ARCHIVED)
+        OrganizationImageSelection.objects.filter(pk=old_selection.pk).update(
+            status=OrganizationImageSelection.Status.ACTIVE
+        )
+        self.organization.refresh_from_db()
+        with patch(
+            "crm.services.images.safety_guards.ImageSafetyBridgeClient",
+            return_value=bridge,
+        ):
+            self.assertIsNone(self.organization.get_public_image_url())
+            self.assertIsNone(self.organization.get_preview_image_url())
+        self.assertEqual(
+            project_public_image(self.organization, bridge=bridge).projection.kind,
+            "system_fallback",
+        )
+        with patch(
+            "crm.services.images.safety_guards.ImageSafetyBridgeClient",
+            return_value=bridge,
+        ):
+            with self.assertRaises(ImageSelectionChecksumDenied):
+                lock_organization_image_selection(
+                    actor=self.user,
+                    tenant_id=self.tenant.pk,
+                    organization_id=self.organization.pk,
+                    expected_revision=old_selection.revision,
+                    selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+                    rendition_set_id=old_selection.rendition_set_id,
+                    alt_text="Denied restored bytes",
+                    asset_evidence=AssetApprovalEvidence(
+                        source_type=ImageReviewEvent.SourceType.UPLOAD
+                    ),
+                )
+
+        # Restore one denied origin file as an older media restore. Safety must
+        # still reject it, and an idempotent formal retry removes it again.
+        restored_path = self.delivery_root / old_square.public_storage_key
+        restored_path.parent.mkdir(parents=True, exist_ok=True)
+        restored_path.write_bytes(old_square_bytes)
+        with self.assertRaises(PublicImageNotFound):
+            prepare_public_image(
+                release_id=str(old_release.release_id),
+                variant=old_square.variant,
+                extension="webp",
+                bridge=bridge,
+            )
+        recovered = formal_takedown_organization_image(
+            actor=self.user,
+            tenant_id=self.tenant.pk,
+            organization_id=self.organization.pk,
+            reason_code=ImageReviewEvent.TakedownReason.RIGHTS_REQUEST,
+            bridge=bridge,
+        )
+        self.assertEqual(recovered.release_disposition, "idempotent_retry")
+        self.assertFalse(restored_path.exists())
+        self.assertEqual(ledger.head(), denied_head)
+
+        new_asset = ImageAsset.objects.create(
+            tenant=self.tenant,
+            private_storage_key="assets/new-safe-source.jpg",
+            checksum_sha256="f" * 64,
+            original_format="jpeg",
+            mime_type="image/jpeg",
+            width=40,
+            height=40,
+            file_size_bytes=200,
+            validation_version="test-v1",
+        )
+        new_set = ImageRenditionSet.objects.create(
+            tenant=self.tenant,
+            asset=new_asset,
+            fit_mode="cover",
+            processing_version="test-v1",
+            render_config_hash_sha256="e" * 64,
+        )
+        for index, variant in enumerate(("square", "landscape", "share"), start=1):
+            size = (index + 8, index + 9)
+            buffer = BytesIO()
+            Image.new("RGB", size, "blue").save(buffer, "WEBP")
+            data = buffer.getvalue()
+            checksum = sha256(data).hexdigest()
+            key = (
+                f"tenants/{self.tenant.pk}/artifacts/{new_set.processing_version}/"
+                f"{new_asset.checksum_sha256}/{new_set.render_config_hash_sha256}/"
+                f"{variant}-{checksum}.webp"
+            )
+            artifact_path = Path(storages["image_renditions_public"].path(key))
+            artifact_path.parent.mkdir(parents=True, exist_ok=True)
+            artifact_path.write_bytes(data)
+            ImageRendition.objects.create(
+                tenant=self.tenant,
+                rendition_set=new_set,
+                variant=variant,
+                output_format="webp",
+                width=size[0],
+                height=size[1],
+                file_size_bytes=len(data),
+                checksum_sha256=checksum,
+                artifact_storage_key=key,
+            )
+
+        fallback = OrganizationImageSelection.objects.get(
+            organization=self.organization,
+            status=OrganizationImageSelection.Status.ACTIVE,
+        )
+        with patch(
+            "crm.services.images.safety_guards.ImageSafetyBridgeClient",
+            return_value=bridge,
+        ):
+            selection_result = lock_organization_image_selection(
+                actor=self.user,
+                tenant_id=self.tenant.pk,
+                organization_id=self.organization.pk,
+                expected_revision=fallback.revision,
+                selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+                rendition_set_id=new_set.pk,
+                alt_text="New safe synthetic image",
+                asset_evidence=AssetApprovalEvidence(
+                    source_type=ImageReviewEvent.SourceType.UPLOAD
+                ),
+            )
+        with patch(
+            "crm.services.images.releases.ImageSafetyBridgeClient",
+            return_value=bridge,
+        ):
+            new_result = create_organization_image_release(
+                selection=selection_result.selection
+            )
+
+        self.assertGreater(selection_result.selection.revision, old_selection.revision)
+        self.assertNotEqual(new_result.release.release_id, old_release.release_id)
+        self.assertNotEqual(
+            {item.public_storage_key for item in new_result.renditions},
+            {item.public_storage_key for item in old_result.renditions},
+        )
+        self.assertEqual(
+            ledger.release_state(new_result.release.release_id)["state"], "active"
+        )
+        self.assertEqual(
+            project_public_image(self.organization, bridge=bridge).projection.kind,
+            "asset",
+        )
+        self.assertEqual(ledger.release_state(old_release.release_id)["state"], "denied")
+        self.assertTrue(
+            ledger.checksum_denied(
+                tenant_id=self.tenant.pk,
+                source_checksum_sha256=old_source_checksum,
+            )
+        )
 
     def test_conflicts_on_changed_snapshot_or_different_ledger_uuid(self):
         WorkflowBridge.lose_reserve_response = True

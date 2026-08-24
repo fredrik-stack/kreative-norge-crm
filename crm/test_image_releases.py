@@ -82,7 +82,7 @@ class _FakeSafetyBridgeClient:
             }
         )
 
-    def activate(self, *, release_id):
+    def activate(self, *, release_id, tenant_id, source_checksum_sha256):
         return BridgeActivation(
             event_id=f"release-activation:v1:{release_id}",
             event_sequence=2,

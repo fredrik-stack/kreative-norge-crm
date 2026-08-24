@@ -394,8 +394,21 @@ class ImageSafetyBridgeClient:
             anchor_cursor=self._confirmation(response, sequence),
         )
 
-    def activate(self, *, release_id: str) -> BridgeActivation:
-        response = self._request("activate", {"release_id": release_id})
+    def activate(
+        self,
+        *,
+        release_id: str,
+        tenant_id: int,
+        source_checksum_sha256: str,
+    ) -> BridgeActivation:
+        response = self._request(
+            "activate",
+            {
+                "release_id": release_id,
+                "tenant_id": tenant_id,
+                "source_checksum_sha256": source_checksum_sha256,
+            },
+        )
         response = _require_object(
             response,
             {

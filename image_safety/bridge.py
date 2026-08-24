@@ -210,6 +210,25 @@ def _legacy_guard_payload(value: object) -> dict[str, Any]:
     return payload
 
 
+def _activation_payload(value: object) -> dict[str, Any]:
+    payload = _strict_object(
+        value,
+        {"release_id", "tenant_id", "source_checksum_sha256"},
+        "Activation payload",
+    )
+    try:
+        payload["release_id"] = canonical_release_id(payload["release_id"])
+    except (TypeError, ValueError) as error:
+        raise BridgeProtocolError(
+            "invalid_request", "release_id must be a canonical UUIDv4 string."
+        ) from error
+    payload["tenant_id"] = _positive_int(payload["tenant_id"], "tenant_id")
+    payload["source_checksum_sha256"] = _checksum(
+        payload["source_checksum_sha256"], "source_checksum_sha256"
+    )
+    return payload
+
+
 def _request(value: object) -> tuple[str, dict[str, Any]]:
     request = _strict_object(
         value, {"protocol_version", "operation", "payload"}, "Request"
@@ -235,10 +254,7 @@ def _request(value: object) -> tuple[str, dict[str, Any]]:
         return operation, _checksum_check_payload(request["payload"])
     if operation == "legacy_guard":
         return operation, _legacy_guard_payload(request["payload"])
-    payload = _strict_object(request["payload"], {"release_id"}, "Activation payload")
-    if not isinstance(payload["release_id"], str):
-        raise BridgeProtocolError("invalid_request", "release_id must be a UUID string.")
-    return operation, payload
+    return operation, _activation_payload(request["payload"])
 
 
 class _WriterPreferredReadWriteGate:
@@ -376,7 +392,7 @@ class SafetyBridgeOperations:
                     "confirmation": confirmation,
                 }
             if operation == "activate":
-                event = self.ledger.activate_or_get(release_id=payload["release_id"])
+                event = self.ledger.activate_or_get(**payload)
                 confirmation = self._confirm(event)
                 return {
                     "protocol_version": PROTOCOL_VERSION,

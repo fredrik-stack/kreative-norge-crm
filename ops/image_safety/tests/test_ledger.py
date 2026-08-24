@@ -21,6 +21,7 @@ from image_safety.anchor import (
     anchor_current_head,
     restore_latest_anchor,
 )
+from image_safety.cli import main as cli_main
 from image_safety.ledger import (
     EventConflictError,
     InvalidLedgerError,
@@ -358,6 +359,31 @@ class LedgerV2ContractTests(LedgerFixture):
                 tenant_id=1, source_checksum_sha256="d" * 64
             )
         )
+
+    def test_legacy_cli_deny_is_technically_disabled_without_mutation(self):
+        self.ledger.upgrade_schema_v2()
+        before = self.ledger.head()
+
+        with patch.dict(
+            os.environ,
+            {"IMAGE_SAFETY_LEDGER_PATH": str(self.path)},
+            clear=False,
+        ):
+            with self.assertRaisesRegex(ValueError, "Legacy CLI deny is disabled"):
+                cli_main(
+                    [
+                        "deny",
+                        "--event-id",
+                        "arbitrary-deny",
+                        "--release-id",
+                        self.release_id,
+                        "--reason-code",
+                        "rights_request",
+                    ]
+                )
+
+        self.assertEqual(self.ledger.head(), before)
+        self.assertEqual(self.ledger.release_state(self.release_id)["state"], "active")
 
 
 class HealthAndReplayTests(LedgerFixture):

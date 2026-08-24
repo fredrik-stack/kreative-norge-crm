@@ -25,6 +25,7 @@ from .bridge_client import (
     BridgeRenditionSnapshot,
     BridgeReservation,
     ImageSafetyBridgeClient,
+    ImageSafetyBridgeConflict,
 )
 from .materialization import (
     ImageMaterializationError,
@@ -61,6 +62,10 @@ class ImageReleaseSafetyUnavailable(ImageReleaseError):
 
 
 class ImageReleaseChecksumDenied(InvalidImageReleaseError):
+    pass
+
+
+class ImageReleaseActivationRejected(InvalidImageReleaseError):
     pass
 
 
@@ -460,7 +465,22 @@ def create_organization_image_release(
         if isinstance(error, ImageSourceChecksumDenied):
             raise ImageReleaseChecksumDenied(str(error)) from error
         raise ImageReleaseSafetyUnavailable(str(error)) from error
-    activation = bridge.activate(release_id=reservation.release_id)
+    try:
+        activation = bridge.activate(
+            release_id=reservation.release_id,
+            tenant_id=snapshot.tenant_id,
+            source_checksum_sha256=snapshot.source_checksum_sha256,
+        )
+    except ImageSafetyBridgeConflict as error:
+        try:
+            delete_materialized_release(materialization_inputs)
+        except ImageMaterializationError as deletion_error:
+            raise ImageReleaseSafetyUnavailable(
+                "Rejected release bytes could not be removed from public delivery."
+            ) from deletion_error
+        raise ImageReleaseActivationRejected(
+            "Image safety rejected release activation after materialization."
+        ) from error
     return OrganizationImageReleaseResult(
         release=release,
         renditions=mappings,

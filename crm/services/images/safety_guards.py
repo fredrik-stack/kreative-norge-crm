@@ -3,6 +3,9 @@ from __future__ import annotations
 from .bridge_client import ImageSafetyBridgeClient, ImageSafetyBridgeError
 
 
+LEGACY_GUARD_TIMEOUT_SECONDS = 0.1
+
+
 class ImageSafetyGuardError(RuntimeError):
     pass
 
@@ -45,7 +48,7 @@ def legacy_image_is_blocked(
     bridge: ImageSafetyBridgeClient | None = None,
 ) -> bool:
     """Fail closed: unavailable safety state must never reveal a legacy image."""
-    bridge = bridge or ImageSafetyBridgeClient(timeout=5.0)
+    bridge = bridge or ImageSafetyBridgeClient(timeout=LEGACY_GUARD_TIMEOUT_SECONDS)
     try:
         return bridge.legacy_guard(
             tenant_id=tenant_id,

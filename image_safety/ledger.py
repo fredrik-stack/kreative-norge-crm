@@ -449,21 +449,50 @@ class PublicImageSafetyLedger:
     def activate_release(self, *, event_id: str, release_id: uuid.UUID | str) -> AppendedEvent:
         return self._append_transition(event_id, "release_activated", release_id)
 
-    def activate_or_get(self, *, release_id: uuid.UUID | str) -> AppendedEvent:
+    def activate_or_get(
+        self,
+        *,
+        release_id: uuid.UUID | str,
+        tenant_id: int | None = None,
+        source_checksum_sha256: str | None = None,
+    ) -> AppendedEvent:
         canonical_id = canonical_release_id(release_id)
+        guarded_activation = tenant_id is not None or source_checksum_sha256 is not None
+        if guarded_activation:
+            tenant_id = _require_positive_int("Tenant ID", tenant_id)
+            source_checksum_sha256 = _require_sha256(
+                "Source checksum", source_checksum_sha256
+            )
         event_id = activation_event_id(canonical_id)
         payload = {"release_id": canonical_id, "schema_version": SCHEMA_VERSION}
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             try:
                 state = connection.execute(
-                    "SELECT state FROM release_state WHERE release_id = ?",
+                    "SELECT state, reservation_payload_json FROM release_state "
+                    "WHERE release_id = ?",
                     (canonical_id,),
                 ).fetchone()
                 if state is None:
                     raise InvalidTransitionError("Release ID is unknown.")
                 if state["state"] in TERMINAL_STATES:
                     raise InvalidTransitionError("Terminal releases cannot be activated.")
+                if guarded_activation:
+                    reservation = json.loads(state["reservation_payload_json"])
+                    if reservation["tenant_id"] != tenant_id:
+                        raise InvalidTransitionError(
+                            "Release tenant does not match the activation request."
+                        )
+                    if self._database_schema_version(connection) >= LATEST_LEDGER_SCHEMA_VERSION:
+                        denied = connection.execute(
+                            "SELECT 1 FROM tenant_checksum_denials "
+                            "WHERE tenant_id = ? AND source_checksum_sha256 = ?",
+                            (tenant_id, source_checksum_sha256),
+                        ).fetchone()
+                        if denied is not None:
+                            raise InvalidTransitionError(
+                                "Denied source bytes cannot be activated."
+                            )
                 event = self._append_event_in_transaction(
                     connection,
                     event_id=event_id,

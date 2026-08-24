@@ -83,6 +83,18 @@ def reserve_request(checksum="a" * 64):
     }
 
 
+def activate_request(release_id, *, tenant_id=1, source_checksum="c" * 64):
+    return {
+        "protocol_version": 1,
+        "operation": "activate",
+        "payload": {
+            "release_id": release_id,
+            "tenant_id": tenant_id,
+            "source_checksum_sha256": source_checksum,
+        },
+    }
+
+
 def authorize_request(
     release_id,
     *,
@@ -179,14 +191,7 @@ class BridgeOperationTests(BridgeFixture):
     def _active_release(self):
         reserved = handle_request(reserve_request(), self.operations)
         release_id = reserved["reservation"]["release_id"]
-        activated = handle_request(
-            {
-                "protocol_version": 1,
-                "operation": "activate",
-                "payload": {"release_id": release_id},
-            },
-            self.operations,
-        )
+        activated = handle_request(activate_request(release_id), self.operations)
         self.assertEqual(activated["result"], "success")
         return release_id
 
@@ -194,11 +199,7 @@ class BridgeOperationTests(BridgeFixture):
         first = handle_request(reserve_request(), self.operations)
         second = handle_request(reserve_request(), self.operations)
         release_id = first["reservation"]["release_id"]
-        activation = {
-            "protocol_version": 1,
-            "operation": "activate",
-            "payload": {"release_id": release_id},
-        }
+        activation = activate_request(release_id)
         active = handle_request(activation, self.operations)
         active_retry = handle_request(activation, self.operations)
 
@@ -239,11 +240,7 @@ class BridgeOperationTests(BridgeFixture):
 
     def test_unknown_and_terminal_activation_are_rejected(self):
         unknown = handle_request(
-            {
-                "protocol_version": 1,
-                "operation": "activate",
-                "payload": {"release_id": str(uuid.uuid4())},
-            },
+            activate_request(str(uuid.uuid4())),
             self.operations,
         )
         reserved = handle_request(reserve_request(), self.operations)
@@ -257,11 +254,7 @@ class BridgeOperationTests(BridgeFixture):
             self.ledger, self.anchor, expected_repository_id=REPOSITORY_ID
         )
         terminal = handle_request(
-            {
-                "protocol_version": 1,
-                "operation": "activate",
-                "payload": {"release_id": release_id},
-            },
+            activate_request(release_id),
             self.operations,
         )
 
@@ -331,11 +324,7 @@ class BridgeOperationTests(BridgeFixture):
         inactive = handle_request(authorize_request(release_id), self.operations)
         unknown = handle_request(authorize_request(str(uuid.uuid4())), self.operations)
         handle_request(
-            {
-                "protocol_version": 1,
-                "operation": "activate",
-                "payload": {"release_id": release_id},
-            },
+            activate_request(release_id),
             self.operations,
         )
         active_head = self.ledger.head()
@@ -554,11 +543,9 @@ class BridgeV2TakedownTests(BridgeOperationTests):
         )
         tenant_b_release = reserved["reservation"]["release_id"]
         activated = handle_request(
-            {
-                "protocol_version": 1,
-                "operation": "activate",
-                "payload": {"release_id": tenant_b_release},
-            },
+            activate_request(
+                tenant_b_release, tenant_id=9, source_checksum="d" * 64
+            ),
             self.operations,
         )
         authorized = handle_request(
@@ -608,11 +595,7 @@ class BridgeV2TakedownTests(BridgeOperationTests):
         )
         new_release_id = reservation["reservation"]["release_id"]
         handle_request(
-            {
-                "protocol_version": 1,
-                "operation": "activate",
-                "payload": {"release_id": new_release_id},
-            },
+            activate_request(new_release_id, source_checksum="e" * 64),
             self.operations,
         )
 
@@ -631,6 +614,39 @@ class BridgeV2TakedownTests(BridgeOperationTests):
         self.assertEqual(
             denied_old_bytes["authorization"]["category"], "checksum_denied"
         )
+
+    def test_checksum_deny_between_guard_and_activation_wins_atomically(self):
+        old_release_id = self._active_release()
+        payload = reservation_payload("b" * 64)
+        payload["selection_id"] = 31
+        payload["selection_revision"] = 7
+        reservation = handle_request(
+            {"protocol_version": 1, "operation": "reserve", "payload": payload},
+            self.operations,
+        )
+        new_release_id = reservation["reservation"]["release_id"]
+
+        before_deny = handle_request(
+            {
+                "protocol_version": 1,
+                "operation": "check_checksum",
+                "payload": {
+                    "tenant_id": 1,
+                    "source_checksum_sha256": "d" * 64,
+                },
+            },
+            self.operations,
+        )
+        handle_request(self._deny_request(old_release_id), self.operations)
+        activation = handle_request(
+            activate_request(new_release_id, source_checksum="d" * 64),
+            self.operations,
+        )
+
+        self.assertFalse(before_deny["checksum"]["denied"])
+        self.assertEqual(activation["result"], "error")
+        self.assertEqual(activation["code"], "invalid_transition")
+        self.assertEqual(self.ledger.release_state(new_release_id)["state"], "reserved")
 
 
 class BridgeFramingTests(BridgeFixture):

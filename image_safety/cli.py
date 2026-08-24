@@ -161,13 +161,10 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"local_event": asdict(event)}, sort_keys=True), flush=True)
         result = _anchor(ledger)
     elif arguments.command == "deny":
-        event = ledger.deny_release(
-            event_id=arguments.event_id,
-            release_id=arguments.release_id,
-            reason_code=arguments.reason_code,
+        raise ValueError(
+            "Legacy CLI deny is disabled; use the scoped Django formal takedown "
+            "action so release and tenant checksum deny are atomic."
         )
-        print(json.dumps({"local_event": asdict(event)}, sort_keys=True), flush=True)
-        result = _anchor(ledger)
     elif arguments.command == "anchor":
         result = _anchor(ledger)
     elif arguments.command == "health":

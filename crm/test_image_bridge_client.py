@@ -122,12 +122,20 @@ class ImageSafetyBridgeClientTests(SimpleTestCase):
     def test_missing_socket_and_truncated_response_are_retryable(self):
         client = ImageSafetyBridgeClient(socket_path=self.socket_path, timeout=0.2)
         with self.assertRaises(ImageSafetyBridgeUnavailable) as missing:
-            client.activate(release_id=self.release_id)
+            client.activate(
+                release_id=self.release_id,
+                tenant_id=1,
+                source_checksum_sha256="b" * 64,
+            )
         self.assertTrue(missing.exception.retryable)
 
         self.run_server(lambda connection, _: connection.sendall(struct.pack("!I", 50) + b"{}"))
         with self.assertRaises(ImageSafetyBridgeUnavailable) as truncated:
-            client.activate(release_id=self.release_id)
+            client.activate(
+                release_id=self.release_id,
+                tenant_id=1,
+                source_checksum_sha256="b" * 64,
+            )
         self.assertTrue(truncated.exception.retryable)
 
     def test_malformed_or_unconfirmed_response_fails_closed(self):
@@ -147,11 +155,24 @@ class ImageSafetyBridgeClientTests(SimpleTestCase):
                 "archive_reused": False,
             },
         }
-        self.run_server(lambda connection, _: self.send_response(connection, response))
+        def respond(connection, request):
+            self.assertEqual(
+                request["payload"],
+                {
+                    "release_id": self.release_id,
+                    "tenant_id": 1,
+                    "source_checksum_sha256": "b" * 64,
+                },
+            )
+            self.send_response(connection, response)
+
+        self.run_server(respond)
 
         with self.assertRaises(ImageSafetyBridgeUnavailable):
             ImageSafetyBridgeClient(socket_path=self.socket_path, timeout=1).activate(
-                release_id=self.release_id
+                release_id=self.release_id,
+                tenant_id=1,
+                source_checksum_sha256="b" * 64,
             )
 
     def test_authorize_sends_exact_identity_and_accepts_strict_response(self):

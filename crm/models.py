@@ -571,14 +571,22 @@ class Organization(models.Model):
     def _legacy_image_blocked(self) -> bool:
         from .services.images.safety_guards import legacy_image_is_blocked
 
+        cached = getattr(self, "_legacy_image_blocked_result", None)
+        if cached is not None:
+            return cached
         if not settings.PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED:
             return False
         if self.pk is None or self.tenant_id is None:
             return True
-        return legacy_image_is_blocked(
+        blocked = legacy_image_is_blocked(
             tenant_id=self.tenant_id,
             organization_id=self.pk,
         )
+        # Django model instances are request-/query-local in these serializers.
+        # Reuse one fail-closed decision for thumbnail and preview fields so a
+        # slow local bridge cannot multiply the timeout per object.
+        self._legacy_image_blocked_result = blocked
+        return blocked
 
     def _legacy_public_image_url(self) -> str | None:
         from .services.open_graph import is_fallback_preview_image
