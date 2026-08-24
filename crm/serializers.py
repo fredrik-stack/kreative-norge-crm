@@ -173,6 +173,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "og_title",
             "og_description",
             "og_image_url",
+            "thumbnail_image_url",
             "auto_thumbnail_url",
             "og_last_fetched_at",
         ]

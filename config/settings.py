@@ -110,6 +110,17 @@ PUBLIC_IMAGE_TAKEDOWN_ENABLED = _read_fail_closed_bool(
     "PUBLIC_IMAGE_TAKEDOWN_ENABLED",
     default=False,
 )
+IMPORT_IMAGE_DECISIONS_ENABLED = _read_fail_closed_bool(
+    "IMPORT_IMAGE_DECISIONS_ENABLED",
+    default=False,
+)
+if IMPORT_IMAGE_DECISIONS_ENABLED and (
+    not IMAGE_ASSET_FEATURE_ENABLED
+    or not PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED
+):
+    raise ImproperlyConfigured(
+        "IMPORT_IMAGE_DECISIONS_ENABLED requires the image asset and safety materialization runtime"
+    )
 if PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED and not IMAGE_ASSET_FEATURE_ENABLED:
     raise ImproperlyConfigured(
         "PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED requires IMAGE_ASSET_FEATURE_ENABLED"

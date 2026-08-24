@@ -104,6 +104,7 @@ class StagingImageRuntimeContractTests(unittest.TestCase):
         self.assertIn("PUBLIC_IMAGE_API_SCHEMA_ENABLED=False", environment)
         self.assertIn("PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=False", environment)
         self.assertIn("PUBLIC_IMAGE_TAKEDOWN_ENABLED=False", environment)
+        self.assertIn("IMPORT_IMAGE_DECISIONS_ENABLED=False", environment)
         self.assertIn("PUBLIC_SITE_ORIGIN=https://staging.example.no", environment)
         self.assertIn("PUBLIC_MEDIA_ORIGIN=https://staging.example.no", environment)
         self.assertIn(

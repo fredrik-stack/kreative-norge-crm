@@ -261,7 +261,6 @@ export type OrganizationPatch = Pick<
   | "tiktok_url"
   | "linkedin_url"
   | "youtube_url"
-  | "thumbnail_image_url"
 > & {
   tag_ids: number[];
   category_ids: number[];
@@ -318,6 +317,16 @@ export async function discoverOfficialImages(
   const result = await request<{ candidates: OrganizationImageCandidate[] }>(
     organizationImagePath(tenantId, organizationId, "discover"),
     { method: "POST", body: JSON.stringify({}) },
+  );
+  return result.candidates;
+}
+
+export async function getLegacyImageCandidates(
+  tenantId: number,
+  organizationId: number,
+): Promise<OrganizationImageCandidate[]> {
+  const result = await request<{ candidates: OrganizationImageCandidate[] }>(
+    organizationImagePath(tenantId, organizationId, "legacy-candidates"),
   );
   return result.candidates;
 }

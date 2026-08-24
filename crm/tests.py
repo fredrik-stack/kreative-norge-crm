@@ -85,6 +85,7 @@ class ImageStorageSettingsTests(SimpleTestCase):
         "IMAGE_RENDITIONS_ROOT",
         "PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED",
         "PUBLIC_IMAGE_TAKEDOWN_ENABLED",
+        "IMPORT_IMAGE_DECISIONS_ENABLED",
         "PUBLIC_IMAGE_DELIVERY_ROOT",
         "PUBLIC_IMAGE_SAFETY_BRIDGE_SOCKET",
         "PUBLIC_IMAGE_SAFETY_BRIDGE_TIMEOUT",
@@ -133,6 +134,7 @@ else:
     delivery_url_disabled = False
 print(json.dumps({
     "feature_enabled": settings.IMAGE_ASSET_FEATURE_ENABLED,
+    "import_image_decisions_enabled": settings.IMPORT_IMAGE_DECISIONS_ENABLED,
     "aliases": sorted(settings.STORAGES),
     "default_backend": settings.STORAGES["default"]["BACKEND"],
     "default_options": settings.STORAGES["default"].get("OPTIONS"),
@@ -179,6 +181,36 @@ print(json.dumps({
         snapshot = self.settings_snapshot(IMAGE_ASSET_FEATURE_ENABLED="enable-maybe")
 
         self.assertIs(snapshot["feature_enabled"], False)
+
+    def test_import_image_decisions_gate_defaults_false_and_fails_closed(self):
+        self.assertIs(self.settings_snapshot()["import_image_decisions_enabled"], False)
+        self.assertIs(
+            self.settings_snapshot(
+                IMPORT_IMAGE_DECISIONS_ENABLED="true",
+                IMAGE_ASSET_FEATURE_ENABLED="true",
+                PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED="true",
+            )[
+                "import_image_decisions_enabled"
+            ],
+            True,
+        )
+        self.assertIs(
+            self.settings_snapshot(IMPORT_IMAGE_DECISIONS_ENABLED="maybe")[
+                "import_image_decisions_enabled"
+            ],
+            False,
+        )
+        self.assert_settings_rejected(
+            "IMPORT_IMAGE_DECISIONS_ENABLED requires the image asset and safety materialization runtime",
+            IMPORT_IMAGE_DECISIONS_ENABLED="true",
+            IMAGE_ASSET_FEATURE_ENABLED="false",
+        )
+        self.assert_settings_rejected(
+            "IMPORT_IMAGE_DECISIONS_ENABLED requires the image asset and safety materialization runtime",
+            IMPORT_IMAGE_DECISIONS_ENABLED="true",
+            IMAGE_ASSET_FEATURE_ENABLED="true",
+            PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED="false",
+        )
 
     def test_storage_aliases_preserve_defaults_and_separate_image_storages(self):
         snapshot = self.settings_snapshot()
@@ -1158,8 +1190,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(row.decisions.count(), 1)
         self.assertEqual(row.row_status, ImportRow.RowStatus.VALID)
 
-    @patch("crm.services.import.commit.refresh_organization_open_graph")
-    def test_commit_success_creates_entities_and_contacts(self, refresh_mock):
+    def test_commit_success_creates_entities_and_contacts(self):
         self._upload_csv()
         self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
 
@@ -1183,10 +1214,133 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertTrue(person.contacts.filter(value="ada.booking@example.com", is_public=False).exists())
         self.assertTrue(Tag.objects.filter(tenant=self.tenant, name="jazz").exists())
         self.assertGreater(self.job.commit_logs.count(), 0)
-        refresh_mock.assert_called_once()
 
-    @patch("crm.services.import.commit.refresh_organization_open_graph")
-    def test_commit_can_publish_primary_person_email_explicitly(self, refresh_mock):
+    def test_import_commit_with_website_forbids_all_implicit_image_network_and_processing(self):
+        self._upload_csv()
+        self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
+        forbidden = AssertionError("network/image I/O forbidden during import commit")
+        with patch("crm.services.open_graph.refresh_organization_open_graph", side_effect=forbidden), patch(
+            "crm.services.open_graph.fetch_open_graph", side_effect=forbidden
+        ), patch(
+            "crm.services.images.fetch.fetch_external_resource", side_effect=forbidden
+        ), patch(
+            "crm.services.images.processing.process_uploaded_image", side_effect=forbidden
+        ), patch(
+            "crm.services.images.ingest.ingest_uploaded_image", side_effect=forbidden
+        ):
+            response = self.client.post(
+                f"{self.import_jobs_url()}{self.job.id}/commit/",
+                {"skip_unresolved": False},
+                format="json",
+            )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertTrue(
+            Organization.objects.filter(
+                tenant=self.tenant,
+                org_number="123456789",
+                website_url="https://nordlyd.no",
+            ).exists()
+        )
+
+    def test_all_existing_import_modes_and_update_commit_without_image_io(self):
+        existing_update = Organization.objects.create(
+            tenant=self.tenant,
+            name="Existing combined actor",
+            org_number="333333333",
+        )
+        existing_people_target = Organization.objects.create(
+            tenant=self.tenant,
+            name="Existing people target",
+            org_number="444444444",
+        )
+        organization_only = {
+            key: value
+            for key, value in (
+                self.base_row
+                | {
+                    "organization_name": "Organization only no I/O",
+                    "organization_org_number": "111111111",
+                }
+            ).items()
+            if key.startswith("organization_")
+        }
+        combined_new = self.base_row | {
+            "organization_name": "Combined new no I/O",
+            "organization_org_number": "222222222",
+            "person_full_name": "Combined New Person",
+        }
+        combined_update = self.base_row | {
+            "organization_name": existing_update.name,
+            "organization_org_number": existing_update.org_number,
+            "organization_website_url": "https://updated.example.no",
+            "person_full_name": "Combined Update Person",
+        }
+        people_only = {
+            key: value
+            for key, value in (
+                self.base_row
+                | {
+                    "organization_name": existing_people_target.name,
+                    "organization_org_number": existing_people_target.org_number,
+                    "person_full_name": "People Only Person",
+                }
+            ).items()
+            if key.startswith("person_")
+            or key
+            in {
+                "organization_org_number",
+                "organization_name",
+                "link_status",
+                "link_publish_person",
+            }
+        }
+        scenarios = (
+            (ImportJob.ImportMode.ORGANIZATIONS_ONLY, organization_only),
+            (ImportJob.ImportMode.COMBINED, combined_new),
+            (ImportJob.ImportMode.COMBINED, combined_update),
+            (ImportJob.ImportMode.PEOPLE_ONLY, people_only),
+        )
+        forbidden = AssertionError("network/image I/O forbidden during import commit")
+        for index, (mode, row) in enumerate(scenarios, start=1):
+            with self.subTest(mode=mode, index=index):
+                self.job = ImportJob.objects.create(
+                    tenant=self.tenant,
+                    created_by=self.user,
+                    source_type=ImportJob.SourceType.CSV,
+                    import_mode=mode,
+                    status=ImportJob.Status.UPLOADED,
+                )
+                self._upload_csv([row])
+                preview = self.client.post(
+                    f"{self.import_jobs_url()}{self.job.id}/preview/",
+                    {},
+                    format="json",
+                )
+                self.assertEqual(preview.status_code, 200, preview.content)
+                with patch(
+                    "crm.services.open_graph.refresh_organization_open_graph",
+                    side_effect=forbidden,
+                ), patch(
+                    "crm.services.open_graph.fetch_open_graph",
+                    side_effect=forbidden,
+                ), patch(
+                    "crm.services.images.fetch.fetch_external_resource",
+                    side_effect=forbidden,
+                ), patch(
+                    "crm.services.images.processing.process_uploaded_image",
+                    side_effect=forbidden,
+                ), patch(
+                    "crm.services.images.ingest.ingest_uploaded_image",
+                    side_effect=forbidden,
+                ):
+                    response = self.client.post(
+                        f"{self.import_jobs_url()}{self.job.id}/commit/",
+                        {"skip_unresolved": False},
+                        format="json",
+                    )
+                self.assertEqual(response.status_code, 200, response.content)
+
+    def test_commit_can_publish_primary_person_email_explicitly(self):
         self._upload_csv([self.base_row | {"person_email_public": "ja"}])
         self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
 
@@ -1195,10 +1349,8 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
 
         contact = PersonContact.objects.get(type="EMAIL", value="ada@example.com", is_primary=True)
         self.assertTrue(contact.is_public)
-        refresh_mock.assert_called_once()
 
-    @patch("crm.services.import.commit.refresh_organization_open_graph")
-    def test_commit_without_person_email_public_preserves_existing_public_flag(self, refresh_mock):
+    def test_commit_without_person_email_public_preserves_existing_public_flag(self):
         organization = Organization.objects.create(
             tenant=self.tenant,
             name="Nordlyd Existing",
@@ -1234,7 +1386,6 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
 
         contact.refresh_from_db()
         self.assertTrue(contact.is_public)
-        refresh_mock.assert_called_once()
 
     def test_commit_is_blocked_by_unresolved_rows(self):
         review_row = self.base_row | {"organization_categories": "Ukjent kategori"}
@@ -1455,8 +1606,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(suggestions["suggested_fields"]["suggested_categories"]["value"], ["Musikk"])
         self.assertEqual(suggestions["suggested_fields"]["suggested_tags"]["value"], ["jazz"])
 
-    @patch("crm.services.import.commit.refresh_organization_open_graph")
-    def test_accepted_ai_suggestion_can_influence_commit(self, refresh_mock):
+    def test_accepted_ai_suggestion_can_influence_commit(self):
         row = self.base_row | {"organization_website_url": "", "organization_note": "Sterk aktør i musikkfeltet."}
         self._upload_csv([row])
         self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
@@ -1492,10 +1642,8 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(commit_response.status_code, 200, commit_response.content)
         organization = Organization.objects.get(tenant=self.tenant, org_number="123456789")
         self.assertEqual(organization.description, "Suggested short description")
-        refresh_mock.assert_not_called()
 
-    @patch("crm.services.import.commit.refresh_organization_open_graph")
-    def test_accepted_social_url_suggestion_can_influence_commit(self, refresh_mock):
+    def test_accepted_social_url_suggestion_can_influence_commit(self):
         row = self.base_row | {"organization_instagram_url": ""}
         self._upload_csv([row])
         self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
@@ -1531,10 +1679,8 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(commit_response.status_code, 200, commit_response.content)
         organization = Organization.objects.get(tenant=self.tenant, org_number="123456789")
         self.assertEqual(organization.instagram_url, "https://instagram.com/nordlyd")
-        refresh_mock.assert_called_once()
 
-    @patch("crm.services.import.commit.refresh_organization_open_graph")
-    def test_accepted_municipality_suggestion_can_influence_commit(self, refresh_mock):
+    def test_accepted_municipality_suggestion_can_influence_commit(self):
         row = self.base_row | {"organization_municipalities": ""}
         self._upload_csv([row])
         self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
@@ -1570,10 +1716,8 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(commit_response.status_code, 200, commit_response.content)
         organization = Organization.objects.get(tenant=self.tenant, org_number="123456789")
         self.assertEqual(organization.municipalities, "Bodø")
-        refresh_mock.assert_called_once()
 
-    @patch("crm.services.import.commit.refresh_organization_open_graph")
-    def test_unaccepted_ai_suggestion_does_not_influence_commit(self, refresh_mock):
+    def test_unaccepted_ai_suggestion_does_not_influence_commit(self):
         row = self.base_row | {"organization_website_url": "", "organization_note": "Sterk aktør i musikkfeltet."}
         self._upload_csv([row])
         self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
@@ -1586,10 +1730,8 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertEqual(commit_response.status_code, 200, commit_response.content)
         organization = Organization.objects.get(tenant=self.tenant, org_number="123456789")
         self.assertEqual(organization.description, "Konsertselskap")
-        refresh_mock.assert_not_called()
 
-    @patch("crm.services.import.commit.refresh_organization_open_graph")
-    def test_forbidden_publish_flags_are_not_set_even_if_ai_suggestion_is_accepted(self, refresh_mock):
+    def test_forbidden_publish_flags_are_not_set_even_if_ai_suggestion_is_accepted(self):
         self._upload_csv()
         self.client.post(f"{self.import_jobs_url()}{self.job.id}/preview/", {}, format="json")
         preview_row = self.job.rows.get()
@@ -1625,7 +1767,6 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         link = OrganizationPerson.objects.get(tenant=self.tenant, organization=organization)
         self.assertFalse(link.publish_person)
         self.assertFalse(PersonContact.objects.filter(person=link.person, is_public=True).exists())
-        refresh_mock.assert_called_once()
 
 
 class PersonContactViewSetTests(AuthenticatedAPITestCase):
@@ -2447,6 +2588,51 @@ class OrganizationPreviewRefreshTests(AuthenticatedAPITestCase):
         self.assertEqual(payload["primary_link"], "https://example.com")
         self.assertEqual(payload["primary_link_field"], "website_url")
         refresh_mock.assert_called_once()
+
+    def test_ordinary_create_and_update_never_refresh_or_fetch_images(self):
+        forbidden = AssertionError("network/image I/O forbidden during ordinary Organization save")
+        with patch("crm.views.refresh_organization_open_graph", side_effect=forbidden), patch(
+            "crm.services.open_graph.fetch_open_graph", side_effect=forbidden
+        ), patch(
+            "crm.services.images.fetch.fetch_external_resource", side_effect=forbidden
+        ):
+            created = self.client.post(
+                f"/api/tenants/{self.tenant.id}/organizations/",
+                {"name": "No network create", "website_url": "https://create.example.no"},
+                format="json",
+            )
+            updated = self.client.patch(
+                f"/api/tenants/{self.tenant.id}/organizations/{self.organization.id}/",
+                {"name": "No network update", "website_url": "https://update.example.no"},
+                format="json",
+            )
+        self.assertEqual(created.status_code, 201, created.content)
+        self.assertEqual(updated.status_code, 200, updated.content)
+        self.organization.refresh_from_db()
+        self.assertEqual(self.organization.name, "No network update")
+        self.assertEqual(self.organization.website_url, "https://update.example.no")
+
+    def test_ordinary_payload_cannot_change_legacy_generated_image_fields(self):
+        self.organization.thumbnail_image_url = "https://cdn.example.no/original.jpg"
+        self.organization.og_image_url = "https://cdn.example.no/original-og.jpg"
+        self.organization.save(update_fields=["thumbnail_image_url", "og_image_url"])
+        response = self.client.patch(
+            f"/api/tenants/{self.tenant.id}/organizations/{self.organization.id}/",
+            {
+                "thumbnail_image_url": "https://attacker.example/change.jpg",
+                "og_image_url": "https://attacker.example/change-og.jpg",
+                "auto_thumbnail_url": "https://attacker.example/change-auto.jpg",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.organization.refresh_from_db()
+        self.assertEqual(
+            self.organization.thumbnail_image_url,
+            "https://cdn.example.no/original.jpg",
+        )
+        self.assertEqual(self.organization.og_image_url, "https://cdn.example.no/original-og.jpg")
+        self.assertIsNone(self.organization.auto_thumbnail_url)
 
     def _fake_refresh(self, organization, force=False):
         organization.og_title = "Preview Org OG"

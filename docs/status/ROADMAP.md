@@ -209,11 +209,11 @@ Host/systemd er valgt execution placement for off-serverankeret; ledger og write
 
 ### Fase 3F – legacyovergang og driftsverifisering
 
-**Status:** Planlagt.
+**Status:** Implementert bak default-off gate; separat staging- og restoregate gjenstår.
 
-- inventere legacy URL-er og gjøre dem til kandidater uten automatisk godkjenning
-- stoppe automatisk refresh ved vanlig aktørlagring og nettverk i import-commit
-- etablere typed bildekontrakt for senere Import 2.0
+- skrivebeskyttet, aggregert legacyinventar er implementert med valgfri redaktert detaljvisning; Editor viser opptil tre DB-baserte legacykandidater uten automatisk preview eller godkjenning
+- vanlig aktøroppretting/-lagring kjører ikke lenger Open Graph-refresh, legacyfeltene er read-only i API-et, og import-commit utfører ingen bildenettverk eller processing
+- typed `ImportImageDecision`-kontrakt for senere Import 2.0 er implementert i additiv migrasjon `0031` bak `IMPORT_IMAGE_DECISIONS_ENABLED=False`, med stale-/tenant-/approvalkontroll og idempotent review-eventbinding
 - verifisere database- og assetrestore, staging, takedown, fallback og API-overgang
 - beholde legacyfelt og aliaser gjennom stabiliseringsperioden; fysisk opprydding får egne senere gater
 

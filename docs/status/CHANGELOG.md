@@ -2,6 +2,15 @@
 
 ## 2026-08-24
 
+### Fase 3F legacyovergang og typed Import-bildekontrakt implementert default-off
+
+- lagt additiv migrasjon `0031` med én typed `ImportImageDecision` per `ImportRow`, immutable review-/actor-/approval-snapshots og beskyttet én-til-én-binding til anvendt `ImageReviewEvent`, uten backfill av eksisterende importdata
+- lagt fail-closed `IMPORT_IMAGE_DECISIONS_ENABLED=False`; typed apply revaliderer tenant, actor, selection/revisjon, asset/rendition-sett og approval, gjenbruker selectionkommandoene, er idempotent og endrer ingen publiserings- eller release-state
+- fjernet automatisk Open Graph-refresh fra vanlig Organization create/update og import-commit; legacy URL-feltene er read-only, mens eksplisitt refresh-endepunkt beholdes
+- lagt read-only `audit_legacy_image_sources` og tenant-scopet `GET images/legacy-candidates/`; listing bruker bare DB/safety, redakterer operatørdetaljer og starter ingen DNS/HTTP, automatisk preview eller approval
+- oppdatert Editor med separat legacykandidatgruppe og eksplisitt previewvalg, og lagt backend-, migrasjon-, frontend- og browserregresjoner for no-network/no-write, tenant/stale/idempotens og bevaring av eksisterende selection
+- beholdt Import 2.0-produkt-/review-UX, fysisk legacyfeltdropp, generell retensjon/providerpurge og telefon-/fase 4-arbeid utenfor leveransen; separat review, merge, backup og staging-/restoregate gjenstår før `CLOSED`
+
 ### Fase 3E.4 CLOSED / ACTIVE i staging
 
 - merget PR #52 som `087026e` etter separat frozen-head-review uten BLOCKER/HIGH/MEDIUM og seks grønne PR-/main-CI-jobber

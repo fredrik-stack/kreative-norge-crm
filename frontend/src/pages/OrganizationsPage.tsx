@@ -13,6 +13,7 @@ import {
   discoverOfficialImages,
   getCandidatePreview,
   getImageSearchContext,
+  getLegacyImageCandidates,
   getOrganizationImageState,
   getRenditionPreview,
   processOrganizationImage,
@@ -794,6 +795,7 @@ export function OrganizationImagePanel(props: {
   const selectedPreviewRequest = useRef(0);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const [candidates, setCandidates] = useState<OrganizationImageCandidate[]>([]);
+  const [legacyCandidates, setLegacyCandidates] = useState<OrganizationImageCandidate[]>([]);
   const [candidatePreviews, setCandidatePreviews] = useState<Record<string, string | null>>({});
   const [candidateOriginalPreviews, setCandidateOriginalPreviews] = useState<Record<string, string>>({});
   const [selectedRef, setSelectedRef] = useState<string | null>(null);
@@ -968,6 +970,7 @@ export function OrganizationImagePanel(props: {
     candidateRefs.current = new Set();
     candidatePreviewQueue.current = [];
     setCandidates([]);
+    setLegacyCandidates([]);
     setCandidatePreviews({});
     setCandidateOriginalPreviews({});
     setSelectedRef(null);
@@ -999,7 +1002,14 @@ export function OrganizationImagePanel(props: {
     let cancelled = false;
     setBusy("state");
     setError(null);
-    loadState(generation)
+    Promise.all([
+      loadState(generation),
+      getLegacyImageCandidates(tenantId, organizationId).then((items) => {
+        if (scopeGeneration.current !== generation) return;
+        setLegacyCandidates(items);
+        items.forEach((candidate) => candidateRefs.current.add(candidate.candidate_ref));
+      }),
+    ])
       .catch((nextError) => {
         if (!cancelled && scopeGeneration.current === generation) setError(imageFlowError(nextError));
       })
@@ -1191,7 +1201,7 @@ export function OrganizationImagePanel(props: {
         && candidateSetVersion.current === version
         && selectedPreviewRequest.current === request
       ) {
-        const candidate = candidates.find((item) => item.candidate_ref === candidateRef);
+        const candidate = [...legacyCandidates, ...candidates].find((item) => item.candidate_ref === candidateRef);
         setError(imageFlowError(nextError, candidate?.source_type === "pasted_url" ? "direct_url" : "generic"));
       }
     } finally {
@@ -1342,6 +1352,35 @@ export function OrganizationImagePanel(props: {
         </div>
       ) : busy !== "state" ? (
         <div className="empty-state compact">Ingen aktivt valgt bilde ennå.</div>
+      ) : null}
+
+      {legacyCandidates.length > 0 ? (
+        <div className="image-source-section" aria-label="Tidligere lagrede bilder">
+          <strong>Tidligere lagrede bilder</strong>
+          <p className="muted">
+            Disse historiske URL-ene er bare forslag. Forhåndsvisning og godkjenning må gjøres eksplisitt.
+          </p>
+          <div className="image-candidate-grid">
+            {legacyCandidates.map((candidate) => (
+              <button
+                type="button"
+                key={candidate.candidate_ref}
+                className={`image-candidate-card ${selectedRef === candidate.candidate_ref ? "active" : ""}`}
+                disabled={busy !== null}
+                onClick={() => { void selectRemoteCandidate(candidate.candidate_ref); }}
+              >
+                {candidateOriginalPreviews[candidate.candidate_ref] ? (
+                  <img src={candidateOriginalPreviews[candidate.candidate_ref]} alt="" />
+                ) : (
+                  <span className="empty-state compact">Ingen automatisk forhåndshenting</span>
+                )}
+                <strong>{candidate.source_label}</strong>
+                <span className="meta">{candidate.source_domain ?? "Ukjent kilde"}</span>
+                <span>{selectedRef === candidate.candidate_ref ? "Valgt bilde" : "Forhåndsvis og velg"}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       ) : null}
 
       {candidates.length > 0 || uploadFile ? (

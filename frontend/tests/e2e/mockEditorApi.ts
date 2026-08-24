@@ -56,6 +56,8 @@ type Organization = {
    og_title: string | null;
    og_description: string | null;
    og_image_url: string | null;
+   thumbnail_image_url: string | null;
+   auto_thumbnail_url: string | null;
    og_last_fetched_at: string | null;
    primary_link: string | null;
    primary_link_field: string | null;
@@ -461,6 +463,14 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
       return;
     }
     await route.fallback();
+  });
+
+  await page.route("**/api/tenants/1/organizations/*/images/legacy-candidates/", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ candidates: [] }),
+    });
   });
 
   await page.route("**/api/tenants/1/persons", async (route) => {

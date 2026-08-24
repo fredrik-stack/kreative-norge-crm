@@ -155,6 +155,7 @@ export type OrganizationImageCandidate = {
   width: number | null;
   height: number | null;
   technical_status: string;
+  source_key?: string | null;
 };
 
 export type OrganizationImageQuerySource =

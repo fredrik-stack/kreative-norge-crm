@@ -21,7 +21,7 @@ from crm.models import (
     Tenant,
     TenantMembership,
 )
-from crm.services.open_graph import MetaParser, _candidate_score
+from crm.services.open_graph import MetaParser, _candidate_score, is_fallback_preview_image
 
 from .brave import (
     BraveImageSearchError,
@@ -39,6 +39,7 @@ from .selections import (
     OrganizationImageSelectionResult,
     lock_organization_image_selection,
 )
+from .safety_guards import legacy_image_is_blocked
 
 
 CANDIDATE_REF_SALT = "crm.image-candidate.v1"
@@ -80,6 +81,7 @@ class OfficialImageCandidate:
     technical_status: str
     source_title: str | None = None
     source_publisher: str | None = None
+    source_key: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -221,7 +223,11 @@ def _candidate_from_payload(payload: dict[str, object]) -> OfficialImageCandidat
     return OfficialImageCandidate(
         candidate_ref=_signed_payload(payload, CANDIDATE_REF_SALT),
         source_type=source_type,
-        source_label=labels.get(source_type, "Offisiell nettside"),
+        source_label=(
+            str(payload["source_label"])
+            if isinstance(payload.get("source_label"), str)
+            else labels.get(source_type, "Offisiell nettside")
+        ),
         source_domain=(
             str(payload["source_domain"])
             if isinstance(payload.get("source_domain"), str)
@@ -245,6 +251,11 @@ def _candidate_from_payload(payload: dict[str, object]) -> OfficialImageCandidat
             if isinstance(payload.get("source_publisher"), str)
             else None
         ),
+        source_key=(
+            str(payload["source_key"])
+            if isinstance(payload.get("source_key"), str)
+            else None
+        ),
     )
 
 
@@ -255,6 +266,77 @@ def _normalized_candidate_url(page_url: str, value: str) -> str | None:
         return normalize_external_url(urljoin(page_url, value))
     except SecureImageFetchError:
         return None
+
+
+def _normalized_legacy_url(value: str) -> str | None:
+    try:
+        if urlsplit(value).fragment:
+            return None
+        return normalize_external_url(value)
+    except (SecureImageFetchError, ValueError):
+        return None
+
+
+def get_legacy_image_candidates(
+    *,
+    actor,
+    tenant_id: int,
+    organization_id: int,
+) -> tuple[OfficialImageCandidate, ...]:
+    """Return signed legacy refs without DNS, HTTP, decoding, or persistence."""
+    _feature_guard()
+    _validate_actor(actor, tenant_id)
+    organization = _organization(tenant_id, organization_id)
+    if legacy_image_is_blocked(
+        tenant_id=tenant_id,
+        organization_id=organization_id,
+    ):
+        return ()
+
+    sources = (
+        (
+            "thumbnail_image_url",
+            organization.thumbnail_image_url,
+            ImageReviewEvent.SourceType.PASTED_URL,
+            "Tidligere manuelt bilde",
+        ),
+        (
+            "og_image_url",
+            organization.og_image_url,
+            ImageReviewEvent.SourceType.OPEN_GRAPH,
+            "Tidligere Open Graph-bilde",
+        ),
+        (
+            "auto_thumbnail_url",
+            organization.auto_thumbnail_url,
+            ImageReviewEvent.SourceType.OFFICIAL_WEBSITE,
+            "Tidligere automatisk bilde",
+        ),
+    )
+    candidates: list[OfficialImageCandidate] = []
+    seen: set[str] = set()
+    for source_key, raw_url, source_type, source_label in sources:
+        if not raw_url or is_fallback_preview_image(raw_url):
+            continue
+        normalized_url = _normalized_legacy_url(raw_url)
+        if normalized_url is None or normalized_url in seen:
+            continue
+        seen.add(normalized_url)
+        payload = _candidate_payload(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            actor=actor,
+            source_type=source_type,
+            image_url=normalized_url,
+            source_page_url=None,
+            provider="legacy_database",
+            width=None,
+            height=None,
+        )
+        payload["source_key"] = source_key
+        payload["source_label"] = source_label
+        candidates.append(_candidate_from_payload(payload))
+    return tuple(candidates)
 
 
 def discover_official_image_candidates(
@@ -271,12 +353,6 @@ def discover_official_image_candidates(
 
     page_url = normalize_external_url(organization.website_url)
     raw_candidates: list[tuple[int, str, str, int | None, int | None]] = []
-    if organization.og_image_url:
-        raw_candidates.append((400, organization.og_image_url, ImageReviewEvent.SourceType.OPEN_GRAPH, None, None))
-    if organization.auto_thumbnail_url:
-        raw_candidates.append(
-            (120, organization.auto_thumbnail_url, ImageReviewEvent.SourceType.OFFICIAL_WEBSITE, None, None)
-        )
 
     try:
         page = fetch_external_resource(
@@ -285,9 +361,7 @@ def discover_official_image_candidates(
             max_bytes=MAX_DISCOVERY_HTML_BYTES,
         )
     except SecureImageFetchError:
-        if not raw_candidates:
-            raise
-        page = None
+        raise
     if page is not None:
         parser = MetaParser()
         parser.feed(page.body.decode("utf-8", errors="replace"))

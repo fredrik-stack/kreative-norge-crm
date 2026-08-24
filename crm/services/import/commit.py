@@ -20,7 +20,7 @@ from crm.models import (
     Tag,
 )
 from crm.services.person_contacts import ensure_primary_contact_for_person_field
-from crm.services.open_graph import refresh_organization_open_graph
+from .image_decisions import apply_import_image_decision
 
 
 class ImportCommitBlocked(Exception):
@@ -238,7 +238,11 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
     import_job.status = ImportJob.Status.COMMITTING
     import_job.save(update_fields=["status", "updated_at"])
 
-    rows = list(import_job.rows.all().prefetch_related("decisions"))
+    rows = list(
+        import_job.rows.all()
+        .select_related("image_decision")
+        .prefetch_related("decisions")
+    )
     try:
         with transaction.atomic():
             import_job.commit_logs.all().delete()
@@ -388,8 +392,20 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
                     person.categories.set(_resolve_categories(person_data["categories"], resolved.category_ids))
                     person.subcategories.set(_resolve_subcategories(person_data["subcategories"], resolved.subcategory_ids))
 
-                if organization and organization.get_primary_link():
-                    refresh_organization_open_graph(organization, force=True)
+                image_decision = getattr(row, "image_decision", None)
+                if image_decision is not None:
+                    if organization is None:
+                        raise ImportCommitBlocked(
+                            "An image decision requires a resolved organization."
+                        )
+                    apply_import_image_decision(
+                        decision=image_decision,
+                        organization=organization,
+                        organization_was_created=(
+                            organization_action == ImportCommitLog.Action.CREATED
+                        ),
+                        proposed_actor_snapshot=organization_data,
+                    )
 
                 row.row_status = ImportRow.RowStatus.COMMITTED
                 row.save(update_fields=["row_status", "updated_at"])
