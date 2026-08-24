@@ -2,6 +2,17 @@
 
 ## 2026-08-24
 
+### Fase 3E.2 CLOSED / SHADOW VERIFIED i staging
+
+- merget implementerings-PR #47 som `90ff5e9` etter separat review med `0 BLOCKER`, `0 HIGH`, ett rettet performancefunn og grønne PR-/main-CI- og image-workflows
+- tatt og fullverifisert backup `kreative-norge-staging-20260824T074240Z`, deployet eksakt merge uten migrasjon og rekreert bare API med begge nye gater først av
+- bevist byteidentisk API list/detail, én canonical OpenAPI-route uten `image`, semantisk uendret PUBLIC og fortsatt controlled media før shadow
+- aktivert bare projection-shadow og målt fullkatalogen til `122 = 1 asset + 121 systemfallback`, fem queries, tre authorize-kall, `0` safety-unavailable og `0` scopefeil
+- bevist faktisk asset, teknisk fallback, unpublished fail-closed, seks HEAD `200`, sanitert logg og uendret safety cursor `7`, DB-radantall og seks deliveryfiler/checksummer
+- bevist API-only rollback etter et avgrenset Compose 1.29.2-verktøyavvik, deretter rerunnet hele korrigerte gaten grønt
+- beholdt `PUBLIC_IMAGE_PROJECTION_ENABLED=True` bare i ignorert stagingkonfigurasjon og `PUBLIC_IMAGE_API_SCHEMA_ENABLED=False`; PUBLIC/API bruker fortsatt legacybilder og 3E.3 er ikke startet
+- dokumentert hele gaten i [stagingrapporten](STAGING_PHASE_3E2_SHADOW_2026-08-24.md)
+
 ### Fase 3E.2 projection og public API shadow implementert bak default-off gater
 
 - konsolidert `/api/public/actors/` til `crm.urls_public`, `PublicActorPublicViewSet` og `PublicActorSerializer`, med `org_number` som detail-lookup og den shadowed duplikatruten/serializeren fjernet
@@ -10,7 +21,7 @@
 - lagt target `image`-schema og aliaslikhet bak `PUBLIC_IMAGE_API_SCHEMA_ENABLED=False`, mens `PUBLIC_IMAGE_PROJECTION_ENABLED=False` styrer projection/shadow og begge standardverdier er fail-closed
 - lagt detail-shadowlogging uten URLs/intern metadata og `audit_public_image_projection` for skrivebeskyttet fullkatalogmåling av projection, safetyutfall, legacydiff, query count og runtime
 - lagt route-, legacy contract-, asset/fallback-, safety-, tenant/scope-, no-I/O-, query-, audit-, alias- og OpenAPI-tester uten ny modell eller migrasjon
-- staging shadow-gaten gjenstår; schema, PUBLIC, 3E.3 og formell takedown er fortsatt av
+- staging shadow-gaten er senere gjennomført separat; schema, PUBLIC, 3E.3 og formell takedown er fortsatt av
 
 ### Fase 3E.1C kontrollert serving aktivert og verifisert i staging
 
