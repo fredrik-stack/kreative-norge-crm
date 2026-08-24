@@ -2,7 +2,7 @@
 
 ## Status
 
-Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som lokal safety-ledger, dedikert off-server Borg-anchor, separat recovery-gate og fail-closed health. Fase 3E.1B.1–3E.1B.2-materialisering er `ACTIVE` etter syntetisk ankret reserve/activate-, crash/restart/retry- og no-clobber-gate. Fase 3E.1C-controlled serving er `CLOSED / ACTIVE` i staging etter separat HTTP-, fail-closed-, restart-, observability- og backup/restore-gate. Staging har én upublisert 3E.1B-evidensrelease og én publisert standalone servingrelease. Fase 3E.2 er `CLOSED / SHADOW VERIFIED`: projection er aktiv bare i staging, mens target-schemaet er av. Fase 3E.3 er implementert bak default-off schema-/PUBLIC-gater og venter på separat stagingaktivering. Fase 3E.4, formell takedown og ordinær offentlig bildebruk er ikke aktivert.
+Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som lokal safety-ledger, dedikert off-server Borg-anchor, separat recovery-gate og fail-closed health. Fase 3E.1B.1–3E.1B.2-materialisering er `ACTIVE` etter syntetisk ankret reserve/activate-, crash/restart/retry- og no-clobber-gate. Fase 3E.1C-controlled serving er `CLOSED / ACTIVE` i staging etter separat HTTP-, fail-closed-, restart-, observability- og backup/restore-gate. Staging har én upublisert 3E.1B-evidensrelease og én publisert release. Fase 3E.2 er `CLOSED / SHADOW VERIFIED`, og fase 3E.3 target-API/PUBLIC/head er `CLOSED / ACTIVE` etter separat aktiverings-, rollback-, browser- og ytelsesgate. Fase 3E.4 og formell takedown er ikke aktivert.
 
 **Beslutningsdato:** 2026-08-17
 
@@ -18,6 +18,8 @@ Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som
 
 **3E.3 implementert bak default-off gater:** 2026-08-24
 
+**3E.3 stagingaktivert:** 2026-08-24
+
 ADR-et formaliserer fase 3E og supplerer [ADR-007](ADR-007-IMAGE_ASSET_ARCHITECTURE.md) og [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md). Det endrer ikke de implementerte fase 3B–3D-modellene, dagens legacybildebruk eller den aktive generelle Borg-backupen.
 
 ## Kontekst
@@ -29,7 +31,7 @@ Fase 3B–3D har implementert og verifisert intern bildebehandling, immutable ar
 - dagens orphan-cleanup kjenner bare `ImageRendition.artifact_storage_key`; `releases/...` i samme root ville bli behandlet som urefererte filer og kunne slettes etter aldersgrensen
 - dagens public API hadde før 3E.2 to ruteregistreringer for `/api/public/actors/`; 3E.2 har beholdt `crm.urls_public` som én canonical route og fjernet den shadowed viewset-/serializerkjeden
 - legacyaliasene kan allerede divergere fordi `preview_image_url` og `thumbnail_image_url` bruker ulike resolvere
-- permanent reservation-/lifecycle-ledger og dedikert off-serverkjede er implementert og live-verifisert i 3E.1A; kontrollert serving og en foreløpig privat revalidationpolicy er aktivert i 3E.1C; projection-shadow er liveverifisert i 3E.2; API/PUBLIC/head-cutover er implementert default-off i 3E.3, mens formell purge og takedown ikke finnes
+- permanent reservation-/lifecycle-ledger og dedikert off-serverkjede er implementert og live-verifisert i 3E.1A; kontrollert serving og en foreløpig privat revalidationpolicy er aktivert i 3E.1C; projection-shadow er liveverifisert i 3E.2; API/PUBLIC/head-cutover er implementert default-off og stagingaktivert i 3E.3, mens formell purge og takedown ikke finnes
 
 ADR-007 krever at en eldre database- eller apprestore aldri kan reaktivere en nyere denied release eller gjenbruke en tidligere release-ID/key. ADR-008s nattlige Borg-kjede har et foreløpig RPO på omtrent 24 timer pluss timerforsinkelse og bruker ikke et append-only/admin-key-regime. Den generelle backupen kan derfor ikke alene være den autoritative sikkerhetstilstanden for public image runtime.
 
@@ -37,12 +39,11 @@ ADR-007 krever at en eldre database- eller apprestore aldri kan reaktivere en ny
 
 ### 1. Tydelig grense mellom implementert grunnmur og planlagt runtime
 
-Fase 3B–3D-grunnmuren forblir implementert. 3E.1A-ledger/read-model/restore/health og live off-servergate, 3E.1B-materialisering/release-livssyklus for reserve/activate, 3E.1C kontrollert serving/origins og 3E.2 projection-shadow er implementert og aktivert/verifisert i staging. 3E.3-targetschema, PUBLIC/head-integrasjon og production fallback v1 er implementert bak default-off gater. Targetschemaet og PUBLIC forblir av i staging. Følgende gjenstår før ordinær PUBLIC-bruk og fase 3E.4:
+Fase 3B–3D-grunnmuren forblir implementert. 3E.1A-ledger/read-model/restore/health og live off-servergate, 3E.1B-materialisering/release-livssyklus for reserve/activate, 3E.1C kontrollert serving/origins, 3E.2 projection-shadow og 3E.3 target-API/PUBLIC/head er implementert og aktivert/verifisert i staging. Følgende gjenstår:
 
-- separat 3E.3-staginggate for target `image`-schema, aliaser, PUBLIC, canonical, Open Graph/Twitter, rollback og visuell fallbackaksept
-- formell takedown og tenant-scopet checksum-deny
+- formell takedown og tenant-scopet checksum-deny i 3E.4
 
-Dokumentasjon, UI og operativ status skal bruke dette skillet: standalone release-serving er kjørende i staging, men PUBLIC og den samlede public image runtime-reisen er ikke koblet eller ferdig.
+Dokumentasjon, UI og operativ status skal bruke dette skillet: den samlede public image runtime-reisen er aktiv i staging, mens formell takedown fortsatt er deaktivert og uimplementert.
 
 ### 2. Autoritativ append-only sikkerhetsledger
 
@@ -454,7 +455,7 @@ Trinnvis innføring holder risikoen avgrenset: journal og restorebevis kommer f�
 
 **Rollback:** det globale cutoverflagget av; systemfallback brukes når legacy ikke kan brukes sikkert.
 
-**Implementeringspresisering 2026-08-24:** 3E.3 bruker en global fail-closed `PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=False`; ingen tenant-enrollment eller eventmodell innføres uten en konkret blocker. Cutover krever projection, targetschema, controlled serving og gyldige site-/media-origins. Views løser og attacher en transient `PublicImageProjection`; templates kaller ingen domenetjeneste. List/detail bruker square, detail-head bruker share, og list-head bruker production fallback v1 share. Canonical bygges bare fra `PUBLIC_SITE_ORIGIN` og `reverse()`, også på filtrerte lister. Approved nonblank alt og offentlig kreditering bevares; systemfallback og blank asset-alt gir ingen skjult aktørnavn-alt. Asset-bytefeil i PUBLIC kan bytte én gang til static square-fallback uten legacyoppslag eller write. Legacyfeltene beholdes for kontrollert rollback og senere 3F. Ingen modell eller migrasjon er lagt til. Implementasjonen er ikke `ACTIVE` før separat staginggate har bevist schemaaktivering, rollback, PUBLIC-cutover, live asset/fallback, safety, host/proxyinvarians, ytelse og visuell katalogaksept.
+**Implementeringspresisering 2026-08-24:** 3E.3 bruker en global fail-closed `PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=False`; ingen tenant-enrollment eller eventmodell innføres uten en konkret blocker. Cutover krever projection, targetschema, controlled serving og gyldige site-/media-origins. Views løser og attacher en transient `PublicImageProjection`; templates kaller ingen domenetjeneste. List/detail bruker square, detail-head bruker share, og list-head bruker production fallback v1 share. Canonical bygges bare fra `PUBLIC_SITE_ORIGIN` og `reverse()`, også på filtrerte lister. Approved nonblank alt og offentlig kreditering bevares; systemfallback og blank asset-alt gir ingen skjult aktørnavn-alt. Asset-bytefeil i PUBLIC kan bytte én gang til static square-fallback uten legacyoppslag eller write. Legacyfeltene beholdes for kontrollert rollback og senere 3F. Ingen modell eller migrasjon er lagt til. Den separate staginggaten har bevist schemaaktivering, rollback, PUBLIC-cutover, live asset/fallback, safety, host/proxyinvarians, fast queryprofil og visuell katalogaksept; 3E.3 er derfor `CLOSED / ACTIVE`.
 
 ### Fase 3E.4 – formell takedown
 
@@ -526,6 +527,6 @@ Servinggaten 2026-08-24 aktiverte deretter 3E.1C på eksakt merge `38663b5` og b
 
 3E.2-shadowgaten 2026-08-24 deployet eksakt merge `90ff5e9`, beholdt schema/PUBLIC av og beviste én canonical route, `122 = 1 asset + 121 systemfallback`, fem faste queries, tre authorize-kall, `0` safety-/scopefeil, asset/fallback/unpublished, uendret API/PUBLIC/OpenAPI og uendret cursor/radantall/deliverymanifest. Projection-shadow står på med lav målt request-overhead. Se [3E.2-evidensen](../status/STAGING_PHASE_3E2_SHADOW_2026-08-24.md).
 
-3E.3 er implementert bak default-off gater med target-API, PUBLIC/head, canonical origins, production fallback v1, host/proxy-/privacy-/safetytester og Chromium desktop/mobil. Separat implementation-PR/review/CI og staginggaten for schema → rollback → schema → PUBLIC gjenstår før status kan endres til `CLOSED / ACTIVE`.
+3E.3-cutovergaten 2026-08-24 aktiverte target-API, PUBLIC/head, canonical origins og production fallback v1 på eksakt merge `e04220b`. Schema og PUBLIC ble rollbacket og reaktivert; desktop/mobil, host/proxy-/privacy-/safetyadferd, fullkatalogen `122 = 1 asset + 121 systemfallback`, fast queryprofil, backupstatus og uendret deliverymanifest ble bevist. Se [3E.3-evidensen](../status/STAGING_PHASE_3E3_CUTOVER_2026-08-24.md).
 
-Retensjon og eksplisitt apply-prosedyre for release-aware cleanup er fortsatt ikke godkjent. API/PUBLIC-cutoveren krever 3E.3-staginggaten; endelig purge og takedown krever 3E.4.
+Retensjon og eksplisitt apply-prosedyre for release-aware cleanup er fortsatt ikke godkjent. Endelig purge og takedown krever 3E.4.
