@@ -54,7 +54,7 @@ Dette er ikke full implementering av [ADR-005](../decisions/ADR-005-CONTACT_ARCH
 
 ## Fase 3 – Robust thumbnail-, bilde- og kortarkitektur
 
-**Status:** Fase 3A–3D.2 er gjennomført som tidligere dokumentert. ADR-008s lokale storage-/backup-MVP og ADR-009 fase 3E.1A safety-ledger/off-server anchor er **ACTIVE** i staging. Fase 3E.1B-materialisering er **ACTIVE / VERIFIED**. Fase 3E.1C-controlled serving er **CLOSED / ACTIVE**. Fase 3E.2 er **CLOSED / SHADOW VERIFIED**. Fase 3E.3 API/PUBLIC/head-cutover og fase 3E.4 ledger-v2/formell takedown er **CLOSED / ACTIVE** i staging. Brave er operativt deaktivert for ordinære Editor-sluttbrukere.
+**Status:** `CLOSED / VERIFIED`. Fase 3A–3D.2 er gjennomført som tidligere dokumentert. ADR-008s lokale storage-/backup-MVP og ADR-009 fase 3E.1A safety-ledger/off-server anchor er **ACTIVE** i staging. Fase 3E.1B-materialisering er **ACTIVE / VERIFIED**. Fase 3E.1C-controlled serving er **CLOSED / ACTIVE**. Fase 3E.2 er **CLOSED / SHADOW VERIFIED**. Fase 3E.3 API/PUBLIC/head-cutover og fase 3E.4 ledger-v2/formell takedown er **CLOSED / ACTIVE** i staging. Fase 3F legacy-/Import-kontrakt og restore er **CLOSED / VERIFIED** med Import-gaten av i shared staging. Brave er operativt deaktivert for ordinære Editor-sluttbrukere.
 
 Fase 3A kartla dagens legacy URL-, Open Graph-, kort-, import-, storage- og driftsflyt. [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag.
 
@@ -209,15 +209,15 @@ Host/systemd er valgt execution placement for off-serverankeret; ledger og write
 
 ### Fase 3F – legacyovergang og driftsverifisering
 
-**Status:** Implementert bak default-off gate; separat staging- og restoregate gjenstår.
+**Status:** `CLOSED / VERIFIED` 2026-08-25. Implementert på merge `438a480`, staging-/restoreverifisert med shared Import-gate av. Se [3F-evidensen](STAGING_PHASE_3F_LEGACY_IMPORT_2026-08-25.md).
 
 - skrivebeskyttet, aggregert legacyinventar er implementert med valgfri redaktert detaljvisning; Editor viser opptil tre DB-baserte legacykandidater uten automatisk preview eller godkjenning
 - vanlig aktøroppretting/-lagring kjører ikke lenger Open Graph-refresh, legacyfeltene er read-only i API-et, og import-commit utfører ingen bildenettverk eller processing
 - typed `ImportImageDecision`-kontrakt for senere Import 2.0 er implementert i additiv migrasjon `0031` bak `IMPORT_IMAGE_DECISIONS_ENABLED=False`, med stale-/tenant-/approvalkontroll og idempotent review-eventbinding
-- verifisere database- og assetrestore, staging, takedown, fallback og API-overgang
+- database- og assetrestore, staging, takedown, fallback og API-overgang er verifisert uten endret 3E-state
 - beholde legacyfelt og aliaser gjennom stabiliseringsperioden; fysisk opprydding får egne senere gater
 
-Fase 3 etablerer bare bildekontrakten som senere Import 2.0 skal bruke. Produkt- og UX-design for Import 2.0 ligger fortsatt i fase 4, og implementeringen ligger i fase 6. Beslutningsgaten for internasjonal telefon ved overgangen til fase 4 er uendret.
+Fase 3 er avsluttet og etablerer bare bildekontrakten som senere Import 2.0 skal bruke. Produkt- og UX-design for Import 2.0 ligger fortsatt i fase 4, og implementeringen ligger i fase 6. Beslutningsgaten for internasjonal telefon ved overgangen til fase 4 er uendret og er ikke startet av 3F.
 
 Leveransevise akseptansekriterier, testkrav, rollback og de tverrgående ferdigkriteriene for aktivt CRM-bilde, privat original, renditions, approval, locking, fallback, API-kompatibilitet, Open Graph, import, takedown, backup/restore og legacyutfasing finnes i [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md#implementeringsleveranser-og-akseptansekriterier).
 
