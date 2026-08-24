@@ -2,6 +2,16 @@
 
 ## 2026-08-24
 
+### Fase 3E.3 CLOSED / ACTIVE i staging
+
+- merget implementerings-PR #49 og aktiveringsblocker-fix PR #50 etter separate fullreviews uten funn og seks grønne CI-jobber per endelig head; endelig deployet merge er `e04220b`
+- deployet først med schema/PUBLIC av, bevist legacybaseline og production fallback v1, og kjørt schema `OFF → ON → OFF → ON` og full PUBLIC `OFF → ON → OFF → ON` uten endret ledger-, DB- eller delivery-state
+- aktivert én projection for target-API, PUBLIC list/detail, canonical, Open Graph og Twitter; bevist asset/fallback/unpublished, aliases, hostinvarians, privacy og ingen legacybilde i aktiv reise
+- browserverifisert desktop/mobil, full fallbackkatalog, lange navn/overflow, credit-kontrakt og én-gangs static fallback med blank alt ved asset-bytefeil
+- funnet og automatisk rollbacket en 299-query N+1 i den avsluttende staginggaten; rettet person-/kontaktprefetch og målt endelig API-liste til 11 queries for 122 aktører og 0,110–0,192 sekunder eksternt
+- beholdt safety `READY` på cursor `7`, `122 = 1 asset + 121 systemfallback`, seks deliveryfiler med manifest `fb94a302...` og fullverifisert/isolert restore-verifisert backup `kreative-norge-staging-20260824T131620Z`
+- beholdt kode-/eksempelstandardene av og stoppet før 3E.4, deny/retire, origin delete, purge og legacyopprydding; se [stagingrapporten](STAGING_PHASE_3E3_CUTOVER_2026-08-24.md)
+
 ### Fase 3E.3 API/PUBLIC/head-cutover implementert bak default-off gate
 
 - lagt fail-closed `PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=False`, som krever projection, target-API-schema, controlled serving og gyldige origins uten å innføre tenant-enrollment
