@@ -5,6 +5,7 @@
 ## Kontrollpunkt
 
 - Implementerings-PR: #52
+- Evidens-PR: #53
 - Endelig reviewet head: `d4a60274cf7e3d9199edabd053574dc6227adc2a`
 - Deployet merge: `087026e7e8bb43f9619c605e75f538976c6f1566`
 - PR-CI: run `32754356644`, 6/6 grønn
