@@ -1,6 +1,6 @@
 # Project Status Current
 
-**Status:** Fase 1 og 2 gjennomført; fase 3 er **CLOSED / VERIFIED** etter fullførte 3A–3F-gater. Lokal Hetzner storage-/backup-MVP og ADR-009 fase 3E.1A safety-ledger/off-server anchor er **ACTIVE** i staging; fase 3E.1B-materialisering er **ACTIVE / VERIFIED**; fase 3E.1C-controlled serving er **CLOSED / ACTIVE**; fase 3E.2 projection/API shadow er **CLOSED / SHADOW VERIFIED**; fase 3E.3 API/PUBLIC/head-cutover og fase 3E.4 ledger-v2/formell takedown er **CLOSED / ACTIVE** i staging; fase 3F legacy-/Import-kontrakt og restore er **CLOSED / VERIFIED** med den nye Import-gaten av i shared staging. Brave er operativt ikke aktiv for ordinære Editor-sluttbrukere
+**Status:** Fase 1 og 2 gjennomført; fase 3 er **CLOSED / VERIFIED** etter fullførte 3A–3F-gater. Lokal Hetzner storage-/backup-MVP og ADR-009 fase 3E.1A safety-ledger/off-server anchor er **ACTIVE** i staging; fase 3E.1B-materialisering er **ACTIVE / VERIFIED**; fase 3E.1C-controlled serving er **CLOSED / ACTIVE**; fase 3E.2 projection/API shadow er **CLOSED / SHADOW VERIFIED**; fase 3E.3 API/PUBLIC/head-cutover og fase 3E.4 ledger-v2/formell takedown er **CLOSED / ACTIVE** i staging; fase 3F legacy-/Import-kontrakt og restore er **CLOSED / VERIFIED** med den nye Import-gaten av i shared staging. Fase 4A er dokumentert i foreslått ADR-010; ingen telefonimplementasjon, dataanalyse eller stagingendring er startet. Brave er operativt ikke aktiv for ordinære Editor-sluttbrukere
 
 **Teknisk sist verifisert:** 2026-08-25
 
@@ -18,7 +18,7 @@ Den separate [3E.3-cutovergaten 2026-08-24](STAGING_PHASE_3E3_CUTOVER_2026-08-24
 
 Den separate [3E.4-takedowngaten 2026-08-24](STAGING_PHASE_3E4_TAKEDOWN_2026-08-24.md) ble fullført på eksakt deployet merge `087026e7e8bb43f9619c605e75f538976c6f1566` etter separat frozen-head-review av PR #52 og grønn 6/6 PR-/main-CI. Ledgeren ble oppgradert additivt fra schema v1 til v2 med uendret ledger-ID og bevarte sju v1-events. Én permanent syntetisk release-/tenant-checksum-deny ble ankret før fallback/origin-delete; gammel URL ga `404/no-store`, gammel ETag ga aldri `304`, Cloudflare ga aldri `HIT`, og retry, samme-byte-blokkering, 3E.3-rollback, fysisk mediarestore, sikker republisering, restart og backup/restore var grønne. Safety er `READY` på cursor `13`. Den unpubliserte testhistorikken består i PostgreSQL og ledger; normal katalog er tilbake på `122 = 1 asset + 121 systemfallback` med fem projectionqueries.
 
-Den separate [3F-gaten 2026-08-25](STAGING_PHASE_3F_LEGACY_IMPORT_2026-08-25.md) ble fullført på eksakt implementasjonsmerge `438a4800ded325fdf1ba99acc3d03812fb9ef1e9` etter frozen-head-review uten funn og grønn 6/6 PR-/main-CI. Migrasjon `0031` ble anvendt uten backfill. To identiske legacyinventar, gate av → på → av, 7 off-state/no-network-tester, 18 typed KEEP/SET/FALLBACK-/scope-/stale-/deny-/idempotens-tester, existing-import-/API-/PUBLIC-regresjoner, older DB/media mot nyere safety, orphan dry-run og pre-/postdeploy-backup med full verify/isolert restore var grønne. Live ImportImageDecision/eventbinding forble `0`, public katalog `122 = 1 asset + 121 fallback`, safety `READY` cursor `13`, DB-/release-/deny-state og ni deliveryfiler var uendret. Shared staging og kode-/eksempelstandard avsluttet med `IMPORT_IMAGE_DECISIONS_ENABLED=False`. Fase 3F og fase 3 er dermed lukket; Import 2.0-UX, telefon-ADR/fase 4, fysisk feltdropp, generell retensjon og providerpurge er ikke startet.
+Den separate [3F-gaten 2026-08-25](STAGING_PHASE_3F_LEGACY_IMPORT_2026-08-25.md) ble fullført på eksakt implementasjonsmerge `438a4800ded325fdf1ba99acc3d03812fb9ef1e9` etter frozen-head-review uten funn og grønn 6/6 PR-/main-CI. Migrasjon `0031` ble anvendt uten backfill. To identiske legacyinventar, gate av → på → av, 7 off-state/no-network-tester, 18 typed KEEP/SET/FALLBACK-/scope-/stale-/deny-/idempotens-tester, existing-import-/API-/PUBLIC-regresjoner, older DB/media mot nyere safety, orphan dry-run og pre-/postdeploy-backup med full verify/isolert restore var grønne. Live ImportImageDecision/eventbinding forble `0`, public katalog `122 = 1 asset + 121 fallback`, safety `READY` cursor `13`, DB-/release-/deny-state og ni deliveryfiler var uendret. Shared staging og kode-/eksempelstandard avsluttet med `IMPORT_IMAGE_DECISIONS_ENABLED=False`. Fase 3F og fase 3 er dermed lukket. Fase 4A dokumenterer nå telefonarkitekturen; Import 2.0-UX, fysisk feltdropp, generell retensjon og providerpurge er fortsatt ikke startet.
 
 **Produkt-roadmap sist oppdatert:** 2026-08-25
 
@@ -62,7 +62,7 @@ Fase 3D.2 er gjennomført og merget til `main` med PR #33 og utvider den priorit
 
 Editor har norske provider-/fetch-/processingfeil, fokusforvalg Venstre/Midt/Høyre og Topp/Midt/Bunn, presis X/Y, 100–300 % Foto-zoom og tre live previews med samme cropgeometri som serverprocessing. Logo viser hele motivet med contain og uten cropkontroller. Asset-alttekst kan være tom uten skjult fallback. Migrasjon `0027` beholder den dokumenterte blank-alt-rollbackgrensen; additiv migrasjon `0028` gir historiske rendition-sett zoom `1.0000`, constraint 1–3 og reverse-guard etter non-default zoom. Fase 3D.2 er lokal-/CI-/teknisk stagingverifisert og visuelt eiergodkjent. Prosjekteier har bekreftet at Logo uten crop-/zoomkontroller er riktig kontrakt, og at Foto-zoom betyr innzooming og retur til standard cover-nivå uten mulighet for å zoome ut til tom flate. Brave-parametrene, privacy-/rettighetscopyen og `search_lang=nb` er eiergodkjent, og den historiske live providerreisen er grønn. Brave er nå operativt deaktivert i staging og kan ikke aktiveres for ordinære Editor-sluttbrukere før avtaleeier dokumenterer den manuelle sluttbrukeravtalegaten. Public release, materialisering, projection, serving, PUBLIC, persistent kandidat, permanent journal og retentionpolicy er uendret og ikke levert av 3D.2.
 
-Den langsiktige relasjonsspesifikke kontaktmodellen fra [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md) kommer fortsatt senere. Internasjonal telefonmodell skal spesifiseres i et eget ADR ved overgangen fra fase 3 til fase 4 og implementeres tidlig i fase 5; dette blokkerer ikke fase 3.
+Den langsiktige relasjonsspesifikke kontaktmodellen fra [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md) kommer fortsatt senere. Foreslått [ADR-010](../decisions/ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md) presiserer nå internasjonal telefonidentitet og fase 4A–4H uten å implementere den. Fase 4B starter først etter separat review, prosjekteiergodkjenning og merge av ADR-010.
 
 ## Godkjent bildearkitektur – domenegrunnmur og intern processing implementert
 
@@ -216,6 +216,10 @@ Fase 3A-kartleggingen, ADR-007 og fase 3B-grunnlaget er gjennomført. ADR-008s l
 
 Deretter skal Import 2.0 gjennom en egen produkt- og UX-designfase før større kodeendringer. Dagens importmotor skal gjenbrukes der den er solid, men skal ikke låse den nye brukeropplevelsen.
 
+### 4. Internasjonal telefonidentitet – fase 4A dokumentert
+
+[ADR-010](../decisions/ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md) foreslår E.164 som kanonisk maskinidentitet, libphonenumber-modellen bak én intern adapter, eksplisitt regionkontekst, typed normaliseringsutfall og konservativ additiv legacyovergang for både person- og organisasjonstelefon. Dette er målarkitektur, ikke implementert funksjonalitet. Fase 4B er et separat skrivebeskyttet databaselineoppdrag etter review, godkjenning og merge.
+
 Detaljert faseinndeling, AI-prinsipp og senere produktområder finnes i [ROADMAP.md](ROADMAP.md).
 
 ## Verifisert kontaktstatus
@@ -267,29 +271,22 @@ Målarkitekturen er godkjent i `docs/decisions/ADR-005-CONTACT_ARCHITECTURE.md`:
 
 Den langsiktige ADR-005-modellen er ikke implementert. Direktefelt finnes fortsatt av kompatibilitetshensyn, og dagens `PersonContact.is_public` er fortsatt globalt for kontaktkanalen, ikke relasjonsspesifikt.
 
-## Godkjent fremtidig retning for internasjonal telefon
+## Fase 4A – dokumentert retning for internasjonal telefon
 
-Den konservative PHONE-reparasjonskommandoen fra fase 2 beholdes uendret som en avgrenset legacy-reparasjon. Internasjonal telefonarkitektur blokkerer ikke fase 3.
+Den konservative PHONE-reparasjonskommandoen fra fase 2 beholdes uendret som en avgrenset legacyreparasjon. [ADR-010](../decisions/ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md) er foreslått til formell godkjenning og presiserer ADR-005 uten å erstatte den.
 
-Godkjent beslutningsgate og tidsplan:
+Låst målretning:
 
-- et eget ADR for internasjonal telefonmodell, landkontekst og normalisering skal utarbeides ved overgangen fra fase 3 til fase 4
-- fase 4, produkt- og UX-design for Import 2.0, kan ikke godkjennes som ferdig før dette ADR-et er godkjent
-- den nye telefonarkitekturen skal implementeres tidlig i fase 5
-- en stabil internasjonal telefonmodell er en forutsetning for full telefonmatching i fase 6
+- E.164 er kanonisk maskinidentitet for gyldige telefonnumre, mens presentasjons-/råverdi bevares separat
+- Google libphonenumber-modellen brukes gjennom en egnet Python-implementasjon, normalt `phonenumbers`, bak én intern adapter
+- nasjonale numre krever eksplisitt tenant- eller importregion; Norge er ikke en skjult universell gjetning
+- normalisering skiller typed mellom gyldig, ugyldig og tvetydig/manglende region
+- person- og organisasjonstelefon bruker samme prinsipper og domenegrense
+- lik E.164 er et sterkt matchsignal, men ikke personidentitet, global unikhet eller automatisk mergegrunnlag
+- legacydata migreres gjennom read-only inventory, deterministisk klassifisering, safe additive backfill og review av rester
+- normalisering og matching endrer aldri publisering
 
-Det senere ADR-et skal bygge på disse godkjente prinsippene:
-
-- original/raw telefonverdi bevares
-- normalisert sammenligningsverdi lagres separat
-- nasjonale numre får uttrykkelig land-/regionkontekst
-- fullstendige internasjonale numre støttes
-- internnummer kan håndteres separat
-- én sentral backendtjeneste brukes av Editor, API, import, eksport og reparasjonsverktøy
-- tvetydige verdier går til review og slås ikke sammen automatisk
-- normalisering og matching aktiverer aldri publisering
-
-Denne retningen er besluttet, men telefonarkitekturen er ikke implementert og et nytt ADR er ikke opprettet eller godkjent.
+Fase 4 er nå `International phone identity foundation` med leveransene 4A–4H. Telefonarkitekturen er ikke implementert; 4B–4H, dependencies, modeller, migrasjoner, dataendringer, Editor/importendringer og stagingverifikasjon gjenstår. Extensions er eksplisitt utenfor MVP og fase 4. Full Import 2.0-design og -implementering ligger i senere faser.
 
 ## Planlagt senere
 
@@ -332,9 +329,9 @@ Sikker automatisk staging-deploy er planlagt utenfor produktfasene og blokkerer 
 - behandlingsgrunnlag og retensjon for kontakt-, import-, eksport- og auditdata
 - versjonering av ny public kontaktkontrakt
 - om personens offentlige tittel senere skal være koblingsspesifikk
-- bibliotek og konkret normaliseringsstandard for internasjonale telefonnumre
-- modell- og feltnavn, constraints og API-kontrakt for originalverdi, normalisert sammenligningsverdi, land-/regionkontekst og internnummer
-- migrerings-, backfill-, konfliktreview- og rollbackopplegg for eksisterende telefondata
+- eksakt `phonenumbers`-versjon ved implementasjon
+- konkrete modell-, felt- og enumnavn, constraints, indekser og API-kontrakt for E.164-verdi og eksplisitt regionkontekst
+- konkret inventory-, backfill-, review-, aktiverings- og rollbackmekanisme innen ADR-010s additive og konservative grenser
 
 ## Dokumentasjonsstatus
 

@@ -2,6 +2,16 @@
 
 ## 2026-08-25
 
+### Fase 4A: internasjonal telefonarkitektur dokumentert
+
+- opprettet foreslått [ADR-010](../decisions/ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md) som presiserer ADR-005 med E.164-identitet, libphonenumber-modellen, eksplisitt regionkontekst og typed gyldig/ugyldig/tvetydig utfall
+- fastlagt én telefonkontrakt for `PersonContact` og `Organization.phone`, med bevart presentasjonsverdi og additiv kanonisk sammenligningsverdi
+- fastlagt at lik E.164 er et sterkt matchsignal, men ikke global unik personidentitet eller grunnlag for automatisk merge
+- delt fase 4 i 4A–4H: ADR, skrivebeskyttet databaseline, normaliseringsdomene, additiv modell, Editor, importkontrakt, kontrollert backfill og stagingverifikasjon
+- flyttet produkt-/UX-design for Import 2.0 og de senere kontakt-, Import- og eksportfasene ett fasenummer frem i roadmapen
+- beholdt fase 3 og 3F `CLOSED / VERIFIED`; ingen kode, dependency, modell, migrasjon, data, staging, deploy eller bildearkitektur ble endret
+- stoppet før 4B; extensions er utenfor MVP/fase 4, og ADR-010 må reviewes, prosjekteiergodkjennes og merges før databaseline starter
+
 ### Fase 3F og fase 3 CLOSED / VERIFIED
 
 - merget implementasjons-PR #54 som `438a480` etter endelig frozen-head-review med `0 BLOCKER/HIGH/MEDIUM/LOW` og seks grønne PR-/main-CI-jobber
