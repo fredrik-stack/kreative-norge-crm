@@ -1,6 +1,6 @@
 # API
 
-**Status:** implementert grunn-API; 3E.2 public image projection/API shadow er `CLOSED / SHADOW VERIFIED`; 3E.3-targetschemaet er `CLOSED / ACTIVE` i staging; 3E.4-takedownaction er `CLOSED / ACTIVE` i staging med kode-/eksempelstandard fortsatt av; 3F legacy-/Import-kontrakten er `CLOSED / VERIFIED` med Import-gaten av i shared staging; fase 4E intern telefon-write-kontrakt er implementert og avventer staginggate
+**Status:** implementert grunn-API; 3E.2 public image projection/API shadow er `CLOSED / SHADOW VERIFIED`; 3E.3-targetschemaet er `CLOSED / ACTIVE` i staging; 3E.4-takedownaction er `CLOSED / ACTIVE` i staging med kode-/eksempelstandard fortsatt av; 3F legacy-/Import-kontrakten er `CLOSED / VERIFIED` med Import-gaten av i shared staging; fase 4E intern telefon-write-kontrakt er stagingverifisert; fase 4F Import-telefonkontrakt er implementert og avventer staginggate
 
 API-et omfatter autentisering, tenants, taksonomi, aktører, personer, koblinger, kontaktkanaler, interne bildekandidathandlinger, public actors, importjobber og eksportjobber.
 
@@ -19,6 +19,12 @@ Den ene kanoniske public API-ruten under `/api/public/` bruker `crm.urls_public`
 Personobjektet i public-kontrakten inneholder additivt `title` når `Person.title` har en verdi. Feltet utelates når tittelen er null eller tom. Tittelen er foreløpig global på `Person`; relasjonsspesifikk tittel er planlagt senere.
 
 Import har egne handlinger for opplasting, preview, rader, AI-generering, beslutninger, commit og feilrapport.
+
+Ved oppretting kan en importjobb ta nullable `phone_region`. Eksplisitt verdi,
+også `null`, vinner over tenantdefaulten og fryses i `config_json`; manglende
+felt snapshotter tenantens nullable default. Preview klassifiserer telefon som
+`VALID`, `INVALID`, `NEEDS_REGION` eller blank `KEEP`. Usikre utfall krever
+review, og bare gyldige numre kan skrive canonical identitet ved commit.
 
 Eksport har foreløpig grunnleggende oppretting, listing og visning av eksportjobber. Filgenerering og nedlasting er ikke bekreftet ferdig.
 

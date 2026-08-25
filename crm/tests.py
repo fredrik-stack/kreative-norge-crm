@@ -910,7 +910,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
             "organization_name": "Nordlyd AS",
             "organization_org_number": "123 456 789",
             "organization_email": "post@nordlyd.no",
-            "organization_phone": "+4711111111",
+            "organization_phone": "+4722123456",
             "organization_publish_phone": "",
             "organization_municipalities": "Oslo",
             "organization_website_url": "https://nordlyd.no",
@@ -929,7 +929,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
             "person_title": "Manager",
             "person_email": "ada@example.com",
             "person_email_public": "",
-            "person_phone": "+4722222222",
+            "person_phone": "+4790012345",
             "person_phone_public": "",
             "person_municipality": "Oslo",
             "person_website_url": "",
@@ -945,7 +945,7 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
             "link_status": "ACTIVE",
             "link_publish_person": "",
             "person_secondary_emails": "ada.booking@example.com",
-            "person_secondary_phones": "+4733333333",
+            "person_secondary_phones": "+4791111111",
             "person_secondary_emails_public": "",
             "person_secondary_phones_public": "",
         }
@@ -1206,12 +1206,23 @@ class ImportPhaseTwoApiTests(ImportExportAuthenticatedAPITestCase):
         self.assertFalse(link.publish_person)
         self.assertFalse(organization.is_published)
         self.assertFalse(organization.publish_phone)
+        self.assertEqual(organization.phone, "+4722123456")
+        self.assertEqual(organization.phone_normalized, "+4722123456")
+        self.assertIsNone(organization.phone_normalization_region)
         self.assertEqual(person.title, "Manager")
         self.assertEqual(person.contacts.filter(type="EMAIL", is_primary=True).count(), 1)
         self.assertEqual(person.contacts.filter(type="PHONE", is_primary=True).count(), 1)
         self.assertFalse(person.contacts.get(type="EMAIL", is_primary=True).is_public)
-        self.assertFalse(person.contacts.get(type="PHONE", is_primary=True).is_public)
+        primary_phone = person.contacts.get(type="PHONE", is_primary=True)
+        self.assertFalse(primary_phone.is_public)
+        self.assertEqual(primary_phone.value, "+4790012345")
+        self.assertEqual(primary_phone.normalized_value, "+4790012345")
+        self.assertIsNone(primary_phone.normalization_region)
         self.assertTrue(person.contacts.filter(value="ada.booking@example.com", is_public=False).exists())
+        secondary_phone = person.contacts.get(type="PHONE", is_primary=False)
+        self.assertEqual(secondary_phone.value, "+4791111111")
+        self.assertEqual(secondary_phone.normalized_value, "+4791111111")
+        self.assertIsNone(secondary_phone.normalization_region)
         self.assertTrue(Tag.objects.filter(tenant=self.tenant, name="jazz").exists())
         self.assertGreater(self.job.commit_logs.count(), 0)
 

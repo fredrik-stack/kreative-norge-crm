@@ -93,8 +93,11 @@ def _row_outcome(normalized_payload: dict, errors: list[str], warnings: list[str
         warning.startswith("Unknown category:") or warning.startswith("Unknown subcategory:")
         for warning in warnings
     )
+    phone_review_warning = any(
+        warning.startswith("Phone review required:") for warning in warnings
+    )
     fuzzy_match = any(match["status"] == "FUZZY" for match in matches.values())
-    if unknown_taxonomy_warning or fuzzy_match:
+    if unknown_taxonomy_warning or phone_review_warning or fuzzy_match:
         return ImportRow.RowStatus.REVIEW_REQUIRED, ImportRow.ProposedAction.SKIP
 
     org_match = matches["organization"]
@@ -121,7 +124,11 @@ def run_import_preview(import_job: ImportJob) -> ImportJob:
 
         row_instances = []
         for index, raw_payload in enumerate(parsed_rows, start=1):
-            normalized_payload = normalize_import_row(raw_payload, import_job.import_mode)
+            normalized_payload = normalize_import_row(
+                raw_payload,
+                import_job.import_mode,
+                phone_region=(import_job.config_json or {}).get("phone_region"),
+            )
             errors, warnings = validate_normalized_row(import_job.tenant, normalized_payload)
             matches = match_row_entities(import_job.tenant, normalized_payload)
             ai_suggestions = build_pending_ai_suggestions(import_job.tenant, normalized_payload, matches)

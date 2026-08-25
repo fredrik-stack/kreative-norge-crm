@@ -544,6 +544,7 @@ export async function deletePersonContact(
 export type ImportJobCreatePayload = {
   source_type: ImportJob["source_type"];
   import_mode: ImportJob["import_mode"];
+  phone_region?: string | null;
 };
 
 export async function getImportJobs(tenantId: number): Promise<ImportJob[]> {

@@ -51,8 +51,8 @@ bevare presentasjonsverdien og håndtere review, lagring og publisering.
 
 Fase 4C la ikke til schema eller callers. Fase 4D la bare til den additive
 persistensen. Fase 4E kobler ordinære interne Organization-, Person- og
-PHONE-`PersonContact`-writes til adapteren; Import, matching, repair og
-legacybackfill er fortsatt egne senere gater.
+PHONE-`PersonContact`-writes til adapteren. Fase 4F kobler Import og matching;
+repair og legacybackfill er fortsatt fase 4G.
 
 ## Additiv persistens i fase 4D
 
@@ -101,6 +101,25 @@ publiseringsvalg berøres ikke. Serializerlaget normaliserer bare når selve
 råtelefonen opprettes eller faktisk endres. Et fullstendig Editor-payload med
 uendret legacytelefon kan derfor ikke gi incidental backfill.
 
+## Importkontrakt i fase 4F
+
+`ImportJob.config_json.phone_region` er et immutable snapshot: eksplisitt
+jobbvalg, deretter tenantens nullable default, ellers `null`. Jobben viser dette
+valget i Editor, og retry leser bare snapshotet. `+`-numre er fortsatt
+regionuavhengige.
+
+Importpayloaden skiller `VALID`, `INVALID`, `NEEDS_REGION` og den
+importspesifikke blanksemantikken `KEEP`. Bare `VALID` kan skrive råverdi,
+canonical E.164 og faktisk brukt region. `INVALID` og `NEEDS_REGION` sendes til
+review og kan ikke automatisk overskrive eksisterende identitet. Blank input
+kaller ikke adapteren og bevarer eksisterende telefon.
+
+Canonical E.164 brukes som et sterkt, tenant-scopet `NAME_AND_PHONE`-signal,
+men telefon alene identifiserer aldri en person. Flere treff blir tvetydig
+review, aldri merge. Eksakt råverdi beholdes som kontrollert fallback frem til
+fase 4G. Import-commit endrer ingen publiseringsflagg uten eksplisitte
+publiseringskolonner, og AI kan ikke utlede region eller aktivere publisering.
+
 ## Verifikasjon og rollback
 
 Syntetiske tester dekker norske, svenske og britiske numre, internasjonale
@@ -113,5 +132,12 @@ syntetisk smoke, to identiske real-data-kjøringer i read-only transaksjoner og
 uendrede fingerprints for Organization, Person, PHONE PersonContact og
 OrganizationPerson. Se [stagingevidensen](../status/STAGING_PHASE_4C_PHONE_NORMALIZATION_2026-08-25.md).
 
-Før fase 4D kan rollback gjøres ved å reversere adapteren, testene og den
-pinnede dependencyen. Ingen data- eller migrasjonsrollback er nødvendig.
+Fase 4D er verifisert i shared staging med fullverifisert backup/restore,
+additiv migrasjon `0032`, alle nye felt fortsatt `NULL`, uendrede fingerprints
+og isolert reverse/forward. Fase 4E er verifisert med API- og synlig
+Editor-smoke for norsk, svensk, internasjonal, ugyldig og regionløs input,
+etterfulgt av full opprydding og identiske katalogfingerprints.
+
+Fase 4F har ingen migrasjon. Før 4G-backfill kan den rulles tilbake ved å
+reversere Import-callers og UI; eksisterende canonical felt fra ordinære
+4E-writes er fortsatt gyldige og trenger ingen datareversering.

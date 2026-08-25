@@ -674,10 +674,21 @@ class ImportJobViewSet(
         return ImportJobSerializer
 
     def perform_create(self, serializer):
+        tenant = self.get_tenant()
+        phone_region_supplied = "phone_region" in serializer.validated_data
+        requested_phone_region = serializer.validated_data.pop("phone_region", None)
+        resolved_phone_region = (
+            requested_phone_region
+            if phone_region_supplied
+            else tenant.default_phone_region
+        )
         serializer.save(
-            tenant=self.get_tenant(),
+            tenant=tenant,
             created_by=self.request.user,
-            config_json=build_import_template_config(serializer.validated_data["import_mode"]),
+            config_json=build_import_template_config(
+                serializer.validated_data["import_mode"],
+                phone_region=resolved_phone_region,
+            ),
         )
 
     @action(detail=True, methods=["post"], url_path="upload")

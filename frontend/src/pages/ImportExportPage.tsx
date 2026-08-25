@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Fragment } from "react";
 import { Field } from "../components/Field";
+import { PhoneRegionSelect } from "../components/PhoneRegionSelect";
 import { useEditor } from "../context/EditorContext";
 import { getExportJobFileUrl, getImportJobErrorReportUrl } from "../api";
 import { useExportJobs } from "../hooks/useExportJobs";
@@ -118,6 +119,8 @@ export function ImportExportPage() {
   const exportJobs = useExportJobs(editor.tenantId);
   const [sourceType, setSourceType] = useState<"CSV" | "XLSX">("CSV");
   const [importMode, setImportMode] = useState<"COMBINED" | "ORGANIZATIONS_ONLY" | "PEOPLE_ONLY">("COMBINED");
+  const selectedTenant = editor.tenants.find((tenant) => tenant.id === editor.tenantId) ?? null;
+  const [phoneRegion, setPhoneRegion] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [expandedRowId, setExpandedRowId] = useState<number | null>(null);
   const [skipUnresolved, setSkipUnresolved] = useState(false);
@@ -136,6 +139,10 @@ export function ImportExportPage() {
       job.id === selectedId || !["COMPLETED", "CANCELLED"].includes(job.status)
     ));
   }, [importJobs.jobs, importJobs.selectedJobId]);
+
+  useEffect(() => {
+    setPhoneRegion(selectedTenant?.default_phone_region ?? null);
+  }, [editor.tenantId, selectedTenant?.default_phone_region]);
 
   async function handlePreview() {
     const selectedJob = importJobs.selectedJob;
@@ -198,11 +205,22 @@ export function ImportExportPage() {
                   <option value="PEOPLE_ONLY">Personer</option>
                 </select>
               </Field>
+              <Field label="Telefonregion for importjobb">
+                <PhoneRegionSelect
+                  value={phoneRegion ?? ""}
+                  onChange={(value) => setPhoneRegion(value || null)}
+                  ariaLabel="Telefonregion for importjobb"
+                />
+              </Field>
               <button
                 type="button"
                 className="primary-button"
                 disabled={!!importJobs.busyAction || importJobs.forbidden || !editor.tenantId}
-                onClick={() => void importJobs.createJob({ source_type: sourceType, import_mode: importMode })}
+                onClick={() => void importJobs.createJob({
+                  source_type: sourceType,
+                  import_mode: importMode,
+                  phone_region: phoneRegion,
+                })}
               >
                 Opprett importjobb
               </button>
@@ -264,6 +282,9 @@ function ImportReviewWorkspace(props: {
   const showPersonColumns = mode !== "ORGANIZATIONS_ONLY";
   const orgLabel = mode === "PEOPLE_ONLY" ? "Knyttet aktør" : "Aktør";
   const aiProgressLabel = getAiProgressLabel(summary);
+  const jobPhoneRegion = typeof selectedJob.config_json.phone_region === "string"
+    ? selectedJob.config_json.phone_region
+    : null;
 
   return (
     <>
@@ -300,6 +321,7 @@ function ImportReviewWorkspace(props: {
           <span className="meta">
             {MODE_LABELS[mode]} · {SOURCE_TYPE_LABELS[selectedJob.source_type as "CSV" | "XLSX"] ?? selectedJob.source_type}
           </span>
+          <span className="meta">Telefonregion: {jobPhoneRegion ?? "ingen"}</span>
           <span className={`save-pill ${selectedJob.status === "COMPLETED" ? "saved" : selectedJob.status === "FAILED" ? "error" : "idle"}`}>
             {selectedJob.status}
           </span>

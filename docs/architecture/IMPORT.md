@@ -1,8 +1,8 @@
 # Import Architecture
 
-**Status:** Teknisk motor implementert; kontaktpublisering rettet som mellomleveranse; større produkt- og UX-revisjon planlagt
+**Status:** Teknisk motor implementert; fase 4F telefonkontrakt implementert og avventer staginggate; større produkt- og UX-revisjon planlagt
 
-**Sist verifisert:** 2026-07-25
+**Sist verifisert:** 2026-08-26
 
 **Verifisert mot:** importmodellene, importtjenestene, API-handlingene, React-siden for import/eksport, kontaktregresjonstester og nyere commit-historikk.
 
@@ -48,6 +48,31 @@ De skal ikke dokumenteres som fungerende integrasjoner før kode, tester og bruk
 ## Kvalitetsprinsipp
 
 Import skal ikke være en ukontrollert masseoppretting. Review, eksplisitte beslutninger, validering og sporbarhet er grunnleggende arkitekturvalg.
+
+## Telefonkontrakt i fase 4F
+
+Hver importjobb fryser `phone_region` i `ImportJob.config_json`. Eksplisitt
+jobbvalg har prioritet over tenantens nullable default, og eksplisitt `null`
+slår av defaulten for den jobben. Senere tenantendringer påvirker ikke retry
+eller preview av en eksisterende jobb. Norge brukes aldri skjult.
+
+Ikke-tomme telefonverdier normaliseres gjennom den felles adapteren og lagres i
+preview-payloaden med typed status `VALID`, `INVALID` eller `NEEDS_REGION`,
+stabil årsakskode, eventuell E.164 og faktisk brukt region. Tom eller manglende
+verdi er typed `KEEP` og kaller ikke adapteren. `INVALID` og `NEEDS_REGION`
+krever review og committes ikke automatisk.
+
+Ved commit beholdes rå presentasjonsverdi, mens gyldig E.164 og faktisk brukt
+region lagres på Organization eller PHONE-`PersonContact`. Blank eller usikker
+telefon overskriver ikke eksisterende telefonidentitet. Publiseringsvalg endres
+bare når importkolonnen var eksplisitt; telefonnormalisering eller matching kan
+aldri publisere data.
+
+Personmatching bruker samme navn og canonical E.164 som et sterkt
+`NAME_AND_PHONE`-signal når begge sider har canonical identitet. Samme telefon
+alene er aldri personidentitet, tvetydige treff auto-merges ikke, og matching er
+tenant-scopet. En kontrollert eksakt råverdi-fallback beholdes frem til fase 4G
+har gjennomført legacybackfill.
 
 ## Kontaktfelt i dagens import
 
