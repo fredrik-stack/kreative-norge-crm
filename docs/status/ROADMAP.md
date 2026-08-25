@@ -217,13 +217,13 @@ Host/systemd er valgt execution placement for off-serverankeret; ledger og write
 - database- og assetrestore, staging, takedown, fallback og API-overgang er verifisert uten endret 3E-state
 - beholde legacyfelt og aliaser gjennom stabiliseringsperioden; fysisk opprydding får egne senere gater
 
-Fase 3 er avsluttet og etablerer bare bildekontrakten som senere Import 2.0 skal bruke. Fase 4 etablerer internasjonal telefonidentitet før full Import 2.0. Produkt- og UX-design for Import 2.0 ligger deretter i fase 5, og full implementering ligger i fase 7. Fase 4A er godkjent og merget med [ADR-010](../decisions/ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md) via PR #56. Fase 4B er `READY_FOR_4C` etter [skrivebeskyttet stagingbaseline](STAGING_PHASE_4B_PHONE_BASELINE_2026-08-25.md). Fase 4C har implementert det isolerte normaliseringsdomenet; stagingverifikasjon gjenstår før `READY_FOR_4D`.
+Fase 3 er avsluttet og etablerer bare bildekontrakten som senere Import 2.0 skal bruke. Fase 4 etablerer internasjonal telefonidentitet før full Import 2.0. Produkt- og UX-design for Import 2.0 ligger deretter i fase 5, og full implementering ligger i fase 7. Fase 4A er godkjent og merget med [ADR-010](../decisions/ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md) via PR #56. Fase 4B er `READY_FOR_4C` etter [skrivebeskyttet stagingbaseline](STAGING_PHASE_4B_PHONE_BASELINE_2026-08-25.md). Fase 4C er `READY_FOR_4D` etter [API-only stagingverifikasjon](STAGING_PHASE_4C_PHONE_NORMALIZATION_2026-08-25.md) uten dataendring.
 
 Leveransevise akseptansekriterier, testkrav, rollback og de tverrgående ferdigkriteriene for aktivt CRM-bilde, privat original, renditions, approval, locking, fallback, API-kompatibilitet, Open Graph, import, takedown, backup/restore og legacyutfasing finnes i [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md#implementeringsleveranser-og-akseptansekriterier).
 
 ## Fase 4 – International phone identity foundation
 
-**Status:** 4A er godkjent og merget med [ADR-010](../decisions/ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md) via PR #56. 4B er gjennomført skrivebeskyttet og klassifisert `READY_FOR_4C`. 4C-normaliseringsdomenet er implementert med stagingverifikasjon pending; ingen modell- eller dataendring er utført.
+**Status:** 4A er godkjent og merget med [ADR-010](../decisions/ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md) via PR #56. 4B er gjennomført skrivebeskyttet og klassifisert `READY_FOR_4C`. 4C er `CLOSED / VERIFIED` og klassifisert `READY_FOR_4D`; ingen modell- eller dataendring er utført.
 
 **Mål:** etablere stabil og internasjonalt skalerbar telefonidentitet før full Import 2.0-implementering.
 
@@ -231,7 +231,7 @@ Fase 4 følger denne rekkefølgen:
 
 1. **4A – ADR-010:** arkitekturbeslutning og fasescope. Ren dokumentasjonsleveranse.
 2. **4B – Databaseline (`READY_FOR_4C` 2026-08-25):** to byteidentiske, personvernredigerte read-only-inventar kartla person- og organisasjonstelefon i staging. Fingerprints, publiseringsstate og runtime var uendret; se [evidensrapporten](STAGING_PHASE_4B_PHONE_BASELINE_2026-08-25.md).
-3. **4C – Normalization domain (`IMPLEMENTED / STAGING PENDING`):** `phonenumbers==9.0.37` bak én ren felles telefonadapter for parsing, eksplisitt regionkontekst, validering, typed resultat og E.164. Ingen caller er koblet til ennå; se [domenekontrakten](../architecture/PHONE_NORMALIZATION.md).
+3. **4C – Normalization domain (`READY_FOR_4D` 2026-08-25):** `phonenumbers==9.0.37` bak én ren felles telefonadapter for parsing, eksplisitt regionkontekst, validering, typed resultat og E.164. API-only stagingdeploy, syntetisk smoke, read-only klassifisering og no-write-fingerprints er grønne; se [domenekontrakten](../architecture/PHONE_NORMALIZATION.md) og [stagingevidensen](STAGING_PHASE_4C_PHONE_NORMALIZATION_2026-08-25.md). Ingen caller er koblet til ennå.
 4. **4D – Additiv datamodell:** normaliserte sammenligningsfelt og eventuelt eksplisitt tenant-regiongrunnlag uten destruktiv legacyfjerning.
 5. **4E – Editor:** internasjonal telefoninput og validering uten skjult landgjetning.
 6. **4F – Import contract:** dagens importgrunnlag bruker samme kontrakt og sender uklare verdier til review.
@@ -252,7 +252,7 @@ Godkjent målretning:
 
 Extensions, full Import 2.0-UX, generell persondeduplisering, automatisk person-merge, `OrganizationContact`, fysisk fjerning av `Person.phone`, SMS/WhatsApp og endringer i fase 3-bildearkitekturen er eksplisitt utenfor fase 4.
 
-Fase 4 kan først markeres `CLOSED / VERIFIED` etter separat implementasjon og stagingverifikasjon i 4B–4H. ADR-010- og 4B-gatene er oppfylt. 4C-koden er implementert isolert; separat stagingevidens må være grønn før neste oppgave kan være planlegging av fase 4D.
+Fase 4 kan først markeres `CLOSED / VERIFIED` etter separat implementasjon og stagingverifikasjon i 4B–4H. ADR-010-, 4B- og 4C-gatene er oppfylt. Neste oppgave er planlegging av fase 4D som en separat gate; 4D er ikke startet.
 
 ## Fase 5 – Produkt- og UX-design for Import 2.0
 
