@@ -2,7 +2,7 @@
 
 **Status:** Godkjent strategisk arbeidsrekkefølge
 
-**Sist oppdatert:** 2026-08-24
+**Sist oppdatert:** 2026-08-25
 
 Roadmapen skiller mellom produktfaser og et parallelt infrastrukturløp. En fase beskriver prioritert rekkefølge, ikke at innholdet allerede er implementert. Større implementering krever fortsatt et godkjent ADR når arbeidet innebærer et vesentlig arkitekturvalg.
 
@@ -217,28 +217,48 @@ Host/systemd er valgt execution placement for off-serverankeret; ledger og write
 - database- og assetrestore, staging, takedown, fallback og API-overgang er verifisert uten endret 3E-state
 - beholde legacyfelt og aliaser gjennom stabiliseringsperioden; fysisk opprydding får egne senere gater
 
-Fase 3 er avsluttet og etablerer bare bildekontrakten som senere Import 2.0 skal bruke. Produkt- og UX-design for Import 2.0 ligger fortsatt i fase 4, og implementeringen ligger i fase 6. Beslutningsgaten for internasjonal telefon ved overgangen til fase 4 er uendret og er ikke startet av 3F.
+Fase 3 er avsluttet og etablerer bare bildekontrakten som senere Import 2.0 skal bruke. Fase 4 etablerer internasjonal telefonidentitet før full Import 2.0. Produkt- og UX-design for Import 2.0 ligger deretter i fase 5, og full implementering ligger i fase 7. Fase 4A dokumenterer arkitekturen i [ADR-010](../decisions/ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md); ingen telefonkode eller dataendring er implementert.
 
 Leveransevise akseptansekriterier, testkrav, rollback og de tverrgående ferdigkriteriene for aktivt CRM-bilde, privat original, renditions, approval, locking, fallback, API-kompatibilitet, Open Graph, import, takedown, backup/restore og legacyutfasing finnes i [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md#implementeringsleveranser-og-akseptansekriterier).
 
-## Fase 4 – Produkt- og UX-design for Import 2.0
+## Fase 4 – International phone identity foundation
 
-**Status:** Planlegging før større kodeendringer.
+**Status:** 4A dokumentert i foreslått [ADR-010](../decisions/ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md); ingen telefonimplementasjon eller dataendring er startet.
 
-Den eksisterende importmotoren skal kartlegges og gjenbrukes der den er solid, men dagens brukeropplevelse skal ikke begrense det nye konseptet. Ingen større implementering starter før produkt- og UX-planen er godkjent.
+**Mål:** etablere stabil og internasjonalt skalerbar telefonidentitet før full Import 2.0-implementering.
 
-Før fase 4 kan godkjennes som ferdig, skal et eget ADR beskrive internasjonal telefonmodell, landkontekst og normalisering. ADR-arbeidet gjennomføres ved overgangen fra fase 3 til fase 4 og skal minst bygge på disse godkjente prinsippene:
+Fase 4 følger denne rekkefølgen:
 
-- original/raw telefonverdi bevares
-- en separat normalisert sammenligningsverdi brukes til kontrollert matching
-- nasjonale numre får uttrykkelig land-/regionkontekst
-- fullstendige internasjonale numre støttes
-- internnummer kan håndteres separat
-- én sentral backendtjeneste brukes av Editor, API, import, eksport og reparasjonsverktøy
-- tvetydige verdier går til review og slås ikke sammen automatisk
-- normalisering og matching aktiverer aldri publisering
+1. **4A – ADR-010:** arkitekturbeslutning og fasescope. Ren dokumentasjonsleveranse.
+2. **4B – Databaseline:** skrivebeskyttet og personvernbevisst inventory av person- og organisasjonstelefon i staging.
+3. **4C – Normalization domain:** én felles telefonadapter for parsing, eksplisitt regionkontekst, validering, typed resultat og E.164.
+4. **4D – Additiv datamodell:** normaliserte sammenligningsfelt og eventuelt eksplisitt tenant-regiongrunnlag uten destruktiv legacyfjerning.
+5. **4E – Editor:** internasjonal telefoninput og validering uten skjult landgjetning.
+6. **4F – Import contract:** dagens importgrunnlag bruker samme kontrakt og sender uklare verdier til review.
+7. **4G – Controlled backfill:** bare deterministisk normaliserbare legacyverdier backfilles; resten bevares.
+8. **4H – Staging verification:** Editor, import, API/PUBLIC-regresjoner, data, backup/restore og invariants verifiseres samlet.
 
-Eksakt bibliotek, modellnavn, databasefelt, constraints, API-kontrakt, migrering og backfill avgjøres i det senere ADR-et og er ikke besluttet i denne roadmapen.
+Godkjent målretning:
+
+- E.164 er kanonisk maskinidentitet for gyldige telefonnumre
+- presentasjons-/råverdi bevares separat
+- Google libphonenumber-modellen brukes gjennom en egnet Python-implementasjon, normalt `phonenumbers`
+- nasjonale numre krever eksplisitt tenant- eller importregion; Norge er aldri en skjult universell gjetning
+- normalisering gir typed `VALID`, `INVALID` eller `AMBIGUOUS` / `NEEDS_REGION`
+- person- og organisasjonstelefon bruker samme domenegrense
+- lik E.164 er et sterkt matchsignal, ikke personidentitet eller automatisk mergegrunnlag
+- legacyovergangen er additiv, konservativ og reviewbasert
+- normalisering og matching endrer aldri publisering
+
+Extensions, full Import 2.0-UX, generell persondeduplisering, automatisk person-merge, `OrganizationContact`, fysisk fjerning av `Person.phone`, SMS/WhatsApp og endringer i fase 3-bildearkitekturen er eksplisitt utenfor fase 4.
+
+Fase 4 kan først markeres `CLOSED / VERIFIED` etter separat implementasjon og stagingverifikasjon i 4B–4H. Fase 4B skal ikke starte før ADR-010 er reviewet, prosjekteiergodkjent og merget.
+
+## Fase 5 – Produkt- og UX-design for Import 2.0
+
+**Status:** Planlagt etter godkjent telefonarkitektur; ingen større Import 2.0-kodeendring starter før produkt- og UX-planen er godkjent.
+
+Den eksisterende importmotoren skal kartlegges og gjenbrukes der den er solid, men dagens brukeropplevelse skal ikke begrense det nye konseptet.
 
 Leveranser:
 
@@ -253,17 +273,15 @@ Leveranser:
 - akseptansekriterier og testplan
 - faseinndelt implementeringsplan
 
-## Fase 5 – Personer, kontaktarkitektur og Editor-UX
+## Fase 6 – Personer, kontaktarkitektur og Editor-UX
 
-**Status:** Planlagt langsiktig kontaktfase.
+**Status:** Planlagt langsiktig kontaktfase etter telefonfundamentet.
 
-Denne fasen realiserer målarkitekturen i [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md) i kontrollerte, reversible leveranser:
+Denne fasen realiserer resterende målarkitektur i [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md) i kontrollerte, reversible leveranser:
 
 - én samlet kontaktseksjon
 - flere e-postadresser og telefonnumre
-- tidlig implementering av den godkjente internasjonale telefonmodellen fra beslutningsgaten i fase 4
-- sentral telefonnormalisering med bevart originalverdi, normalisert sammenligningsverdi og uttrykkelig landkontekst
-- kontrollert og reverserbar datamigrering med review av tvetydige verdier
+- gjenbruk av fase 4s felles telefonnormalisering og additive telefonfelt
 - én primær intern kontakt per type
 - offentlige kontaktvalg per aktør–person-kobling
 - offentlig preview fra samme projeksjon som API og PUBLIC
@@ -275,20 +293,20 @@ Denne fasen realiserer målarkitekturen i [ADR-005](../decisions/ADR-005-CONTACT
 
 Alle personvern-, migrerings-, rollback-, API- og datakrav i ADR-005 gjelder fortsatt.
 
-## Fase 6 – Implementer Import 2.0
+## Fase 7 – Implementer Import 2.0
 
-**Status:** Planlagt etter godkjent prototype og stabil kontaktmodell.
+**Status:** Planlagt etter godkjent prototype og stabil kontakt-/telefonmodell.
 
 - gjenbruk den eksisterende importmotoren som teknisk fundament
 - implementer den godkjente brukerreisen i avgrensede etapper
 - integrer matching, berikelse og AI-forslag uten å skjule usikkerhet
-- la telefonmatching bruke den stabile kontakt- og telefonmodellen fra fase 5
+- bruk fase 4s telefonkontrakt for matching og review
 - gjør trygge rader raske og konflikter tydelige
 - behold menneskelig kontroll over irreversible eller publiserende valg
 - test med representative, reelle filer
 - gjennomfør brukertest med prosjekteier og minst én kollega
 
-## Fase 7 – Eksport som ferdig produkt
+## Fase 8 – Eksport som ferdig produkt
 
 **Status:** Delvis teknisk grunnlag, produktet er ikke ferdig.
 
