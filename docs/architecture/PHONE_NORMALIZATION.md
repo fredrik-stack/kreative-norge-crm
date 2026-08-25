@@ -51,8 +51,8 @@ bevare presentasjonsverdien og håndtere review, lagring og publisering.
 
 Fase 4C la ikke til schema eller callers. Fase 4D la bare til den additive
 persistensen. Fase 4E kobler ordinære interne Organization-, Person- og
-PHONE-`PersonContact`-writes til adapteren. Fase 4F kobler Import og matching;
-repair og legacybackfill er fortsatt fase 4G.
+PHONE-`PersonContact`-writes til adapteren. Fase 4F kobler Import og matching.
+Fase 4G har en separat, dry-run-first operatørvei for kontrollert legacybackfill.
 
 ## Additiv persistens i fase 4D
 
@@ -141,3 +141,22 @@ etterfulgt av full opprydding og identiske katalogfingerprints.
 Fase 4F har ingen migrasjon. Før 4G-backfill kan den rulles tilbake ved å
 reversere Import-callers og UI; eksisterende canonical felt fra ordinære
 4E-writes er fortsatt gyldige og trenger ingen datareversering.
+
+## Kontrollert legacybackfill i fase 4G
+
+`backfill_phone_identity` krever komplett eksplisitt tenantscope og forventet
+eksakt tenantantall. Den setter ikke region gjennom modell- eller
+databasedefault; bare en eksplisitt `--apply` kan sette de valgte tenantene og
+normalisere gyldige Organization- og PHONE-`PersonContact`-rader. Ugyldige
+eller regionløse verdier bevares raw med canonical felt som `NULL`.
+
+Kommandoen verifiserer eksisterende canonical data uten å overskrive dem,
+blokkerer Person/primær PHONE-integritetsavvik og endrer aldri `Person.phone`,
+rå kontaktverdier, primærstatus, publiseringsflagg eller OrganizationPerson.
+To aggregert redakterte fingerprints beskytter råtelefon og publisering før og
+etter apply; et tredje sporer de additive feltene.
+
+Apply krever unik batch-ID og skriver et no-clobber rollbackmanifest med bare
+nødvendige ID-er og additive feltverdier til en operatøreid path utenfor Git.
+Rollback gjenoppretter bare feltene batchen faktisk endret og stopper ved
+post-batch drift. Se [operatørprosedyren](../operations/PHONE_BACKFILL.md).

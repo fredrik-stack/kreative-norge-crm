@@ -2,6 +2,22 @@
 
 ## 2026-08-26
 
+### Fase 4G kontrollert telefonbackfill implementert; staging apply gjenstår
+
+- lagt dry-run-first, tenant-scopet og idempotent `backfill_phone_identity` med eksplisitt `--apply`, eksakt tenantgate og aggregert personvernredigert output
+- backfiller bare tenantregion og gyldige additive Organization-/PHONE PersonContact-felt, mens råtelefoner, Person, OrganizationPerson, primærstatus og publisering aldri skrives
+- verifiserer eksisterende canonical identitet og Person/primær PHONE-paritet fail-closed; ugyldige og regionløse verdier beholdes med canonical `NULL`
+- krever unik batch-ID og restriktivt no-clobber rollbackmanifest uten råtelefon utenfor Git; rollback gjenoppretter bare batchfeltene og stopper ved senere drift
+- rapporterer klassifisering og faktiske endringer per modell/tenant/resultat samt rå-, publiserings- og additiv fingerprint
+- dokumentert obligatorisk dobbel tørrkjøring, Borg-backup, isolert restore/rollback og post-apply idempotens i [operatørprosedyren](../operations/PHONE_BACKFILL.md)
+
+### Fase 4F READY_FOR_4G etter Import-stagingverifikasjon
+
+- merget PR #63 som `9119b03e263bc7c848b3b2e32db9b7a41d9e4964` etter frozen-head-review uten funn og seks grønne PR-/main-CI-jobber
+- verifiserte eksplisitt `NO`, snapshot/default/null-kontekst, `VALID`, `INVALID`, `NEEDS_REGION`, blank `KEEP`, commit-skip og uendret publisering med små syntetiske stagingfiler
+- rullet alle syntetiske databaserader tilbake, fjernet begge opplastede filer og bekreftet identiske katalog-/Import-fingerprints før og etter
+- beholdt PUBLIC `122/122`, projection `1 asset + 121 fallback`, safety `READY` cursor 13, ni deliveryfiler og restarttellere `0`; fase 4F er `READY_FOR_4G`
+
 ### Fase 4F Import-telefonkontrakt implementert; staginggate gjenstår
 
 - fryser eksplisitt jobbregion, tenantdefault eller `null` i hver `ImportJob` uten skjult Norge-default og viser snapshotet i Editor
