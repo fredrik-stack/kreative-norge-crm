@@ -27,6 +27,7 @@ import {
   type PersonPayload,
 } from "../api";
 import type { SaveState } from "../editor-utils";
+import { initialPhoneRegion } from "../components/PhoneRegionSelect";
 import type {
   Category,
   Organization,
@@ -41,6 +42,7 @@ import type {
 export type ContactDraft = {
   type: "EMAIL" | "PHONE";
   value: string;
+  phone_region: string | null;
   is_primary: boolean;
   is_public: boolean;
 };
@@ -50,6 +52,7 @@ export type LinkedPersonDraft = {
   municipality: string;
   email: string;
   phone: string;
+  phone_region: string | null;
   publish_email: boolean;
   publish_phone: boolean;
   publish_person: boolean;
@@ -90,6 +93,7 @@ const emptyDraft: OrganizationPatch = {
   org_number: "",
   email: "",
   phone: "",
+  phone_region: null,
   municipalities: "",
   note: "",
   description: "",
@@ -111,6 +115,7 @@ const emptyPersonDraft: PersonPayload = {
   title: "",
   email: "",
   phone: "",
+  phone_region: null,
   municipality: "",
   note: "",
   website_url: "",
@@ -127,6 +132,7 @@ const emptyPersonDraft: PersonPayload = {
 const emptyContactDraft: ContactDraft = {
   type: "EMAIL",
   value: "",
+  phone_region: null,
   is_primary: false,
   is_public: false,
 };
@@ -137,6 +143,7 @@ const emptyLinkedPersonDraft: LinkedPersonDraft = {
   municipality: "",
   email: "",
   phone: "",
+  phone_region: null,
   publish_email: false,
   publish_phone: false,
   publish_person: false,
@@ -153,6 +160,7 @@ export function useEditorData() {
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [organizationPeople, setOrganizationPeople] = useState<OrganizationPerson[]>([]);
   const [personContacts, setPersonContacts] = useState<PersonContact[]>([]);
+  const [contactPhoneRegions, setContactPhoneRegions] = useState<Record<number, string>>({});
   const [selectedOrgId, setSelectedOrgId] = useState<number | "new" | null>(null);
   const [selectedPersonId, setSelectedPersonId] = useState<number | "new" | null>(null);
   const [draft, setDraft] = useState<OrganizationPatch>(emptyDraft);
@@ -265,22 +273,27 @@ export function useEditorData() {
       ? organizations.find((org) => org.id === selectedOrgId) ?? null
       : null;
 
+  const selectedTenant = tenants.find((tenant) => tenant.id === tenantId) ?? null;
+
   const selectedPerson =
     typeof selectedPersonId === "number"
       ? persons.find((person) => person.id === selectedPersonId) ?? null
       : null;
 
   useEffect(() => {
-    setLinkedPersonDraft(emptyLinkedPersonDraft);
+    setLinkedPersonDraft({
+      ...emptyLinkedPersonDraft,
+      phone_region: selectedTenant?.default_phone_region ?? null,
+    });
     setLinkPublishPerson(false);
     setLinkStatus("ACTIVE");
     setLinkedPersonFieldErrors({});
     setLinkedPersonSaveState("idle");
-  }, [tenantId, selectedOrgId]);
+  }, [tenantId, selectedOrgId, selectedTenant?.default_phone_region]);
 
   useEffect(() => {
     if (selectedOrgId === "new") {
-      setDraft(emptyDraft);
+      setDraft({ ...emptyDraft, phone_region: selectedTenant?.default_phone_region ?? null });
       setOrganizationTagInput("");
       setSaveState("idle");
       setOrganizationFieldErrors({});
@@ -293,6 +306,11 @@ export function useEditorData() {
       org_number: selectedOrganization.org_number ?? "",
       email: selectedOrganization.email ?? "",
       phone: selectedOrganization.phone ?? "",
+      phone_region: initialPhoneRegion(
+        selectedOrganization.phone,
+        selectedOrganization.phone_region_used,
+        selectedTenant?.default_phone_region,
+      ),
       municipalities: selectedOrganization.municipalities ?? "",
       note: selectedOrganization.note ?? "",
       description: selectedOrganization.description ?? "",
@@ -311,13 +329,16 @@ export function useEditorData() {
     setOrganizationTagInput(formatTagInput(selectedOrganization.tags ?? []));
     setSaveState("idle");
     setOrganizationFieldErrors({});
-  }, [selectedOrgId, selectedOrganization]);
+  }, [selectedOrgId, selectedOrganization, selectedTenant?.default_phone_region]);
 
   useEffect(() => {
     if (selectedPersonId === "new") {
-      setPersonDraft(emptyPersonDraft);
+      setPersonDraft({ ...emptyPersonDraft, phone_region: selectedTenant?.default_phone_region ?? null });
       setPersonTagInput("");
-      setContactDraft(emptyContactDraft);
+      setContactDraft({
+        ...emptyContactDraft,
+        phone_region: selectedTenant?.default_phone_region ?? null,
+      });
       setPersonSaveState("idle");
       setPersonContacts([]);
       setPersonFieldErrors({});
@@ -332,6 +353,11 @@ export function useEditorData() {
       title: selectedPerson.title ?? "",
       email: selectedPerson.email ?? "",
       phone: selectedPerson.phone ?? "",
+      phone_region: initialPhoneRegion(
+        selectedPerson.phone,
+        selectedPerson.phone_region_used,
+        selectedTenant?.default_phone_region,
+      ),
       municipality: selectedPerson.municipality ?? "",
       note: selectedPerson.note ?? "",
       website_url: selectedPerson.website_url ?? "",
@@ -345,12 +371,18 @@ export function useEditorData() {
       subcategory_ids: (selectedPerson.subcategories ?? []).map((item) => item.id),
     });
     setPersonTagInput(formatTagInput(selectedPerson.tags ?? []));
-    setContactDraft(emptyContactDraft);
+    setContactDraft({
+      ...emptyContactDraft,
+      phone_region: selectedTenant?.default_phone_region ?? null,
+    });
     setPersonContacts(selectedPerson.contacts ?? []);
+    setContactPhoneRegions(
+      buildContactPhoneRegions(selectedPerson.contacts ?? [], selectedTenant?.default_phone_region),
+    );
     setPersonSaveState("idle");
     setPersonFieldErrors({});
     setContactFieldErrors({});
-  }, [selectedPersonId, selectedPerson]);
+  }, [selectedPersonId, selectedPerson, selectedTenant?.default_phone_region]);
 
   useEffect(() => {
     if (!tenantId || typeof selectedPersonId !== "number") return;
@@ -361,6 +393,9 @@ export function useEditorData() {
       .then((contacts) => {
         if (!cancelled) {
           setPersonContacts(contacts);
+          setContactPhoneRegions(
+            buildContactPhoneRegions(contacts, selectedTenant?.default_phone_region),
+          );
           setPersonContactsLoading(false);
         }
       })
@@ -374,7 +409,7 @@ export function useEditorData() {
     return () => {
       cancelled = true;
     };
-  }, [tenantId, selectedPersonId]);
+  }, [tenantId, selectedPersonId, selectedTenant?.default_phone_region]);
 
   const visibleOrganizations = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
@@ -488,6 +523,11 @@ export function useEditorData() {
               org_number: selectedOrganization.org_number ?? "",
               email: selectedOrganization.email ?? "",
               phone: selectedOrganization.phone ?? "",
+              phone_region: initialPhoneRegion(
+                selectedOrganization.phone,
+                selectedOrganization.phone_region_used,
+                selectedTenant?.default_phone_region,
+              ),
               municipalities: selectedOrganization.municipalities ?? "",
               note: selectedOrganization.note ?? "",
               description: selectedOrganization.description ?? "",
@@ -509,7 +549,7 @@ export function useEditorData() {
       !isEqualShallowOrganizationDraft(normalizeDraft(draft), normalizeDraft(baseline)) ||
       isDifferentTagInput(organizationTagInput, baselineTagInput)
     );
-  }, [draft, organizationTagInput, selectedOrgId, selectedOrganization]);
+  }, [draft, organizationTagInput, selectedOrgId, selectedOrganization, selectedTenant?.default_phone_region]);
 
   const peopleHasUnsavedChanges = useMemo(() => {
     const baseline =
@@ -521,6 +561,11 @@ export function useEditorData() {
               title: selectedPerson.title ?? "",
               email: selectedPerson.email ?? "",
               phone: selectedPerson.phone ?? "",
+              phone_region: initialPhoneRegion(
+                selectedPerson.phone,
+                selectedPerson.phone_region_used,
+                selectedTenant?.default_phone_region,
+              ),
               municipality: selectedPerson.municipality ?? "",
               note: selectedPerson.note ?? "",
               website_url: selectedPerson.website_url ?? "",
@@ -544,7 +589,7 @@ export function useEditorData() {
       contactDraft.is_primary !== emptyContactDraft.is_primary ||
       contactDraft.is_public !== emptyContactDraft.is_public;
     return personDirty || contactDirty;
-  }, [contactDraft, personDraft, personTagInput, selectedPerson, selectedPersonId]);
+  }, [contactDraft, personDraft, personTagInput, selectedPerson, selectedPersonId, selectedTenant?.default_phone_region]);
   const personDraftHasUnsavedChanges = useMemo(() => {
     const baseline =
       selectedPersonId === "new"
@@ -555,6 +600,11 @@ export function useEditorData() {
               title: selectedPerson.title ?? "",
               email: selectedPerson.email ?? "",
               phone: selectedPerson.phone ?? "",
+              phone_region: initialPhoneRegion(
+                selectedPerson.phone,
+                selectedPerson.phone_region_used,
+                selectedTenant?.default_phone_region,
+              ),
               municipality: selectedPerson.municipality ?? "",
               note: selectedPerson.note ?? "",
               website_url: selectedPerson.website_url ?? "",
@@ -573,7 +623,7 @@ export function useEditorData() {
       !isEqualShallowPersonDraft(normalizePersonDraft(personDraft), normalizePersonDraft(baseline)) ||
       isDifferentTagInput(personTagInput, baselineTagInput)
     );
-  }, [personDraft, personTagInput, selectedPerson, selectedPersonId]);
+  }, [personDraft, personTagInput, selectedPerson, selectedPersonId, selectedTenant?.default_phone_region]);
   const contactDraftHasUnsavedChanges =
     contactDraft.value.trim() !== "" ||
     contactDraft.type !== emptyContactDraft.type ||
@@ -739,6 +789,7 @@ export function useEditorData() {
         municipality: linkedPersonDraft.municipality.trim(),
         email: nullableString(linkedPersonDraft.email),
         phone: nullableString(linkedPersonDraft.phone),
+        phone_region: nullableString(linkedPersonDraft.phone_region),
       });
 
       const initialContacts = await getPersonContacts(tenantId, createdPerson.id);
@@ -751,6 +802,7 @@ export function useEditorData() {
         {
           type: "PHONE" as const,
           value: linkedPersonDraft.phone.trim(),
+          phoneRegion: linkedPersonDraft.phone_region,
           isPublic: linkedPersonDraft.publish_phone,
         },
       ];
@@ -767,6 +819,7 @@ export function useEditorData() {
           person: createdPerson.id,
           type: choice.type,
           value: choice.value,
+          ...(choice.type === "PHONE" ? { phone_region: choice.phoneRegion } : {}),
           is_primary: true,
           is_public: choice.isPublic,
         });
@@ -780,7 +833,10 @@ export function useEditorData() {
       });
 
       await reloadPeopleAndLinks();
-      setLinkedPersonDraft(emptyLinkedPersonDraft);
+      setLinkedPersonDraft({
+        ...emptyLinkedPersonDraft,
+        phone_region: selectedTenant?.default_phone_region ?? null,
+      });
       setLinkPublishPerson(false);
       setLinkStatus("ACTIVE");
       setLinkedPersonFieldErrors({});
@@ -886,6 +942,7 @@ export function useEditorData() {
         person: selectedPersonId,
         ...contactDraft,
         value: contactDraft.value.trim(),
+        ...(contactDraft.type === "PHONE" ? { phone_region: contactDraft.phone_region } : {}),
       });
       if (created.is_primary) {
         setPersonDraft((current) => ({
@@ -907,7 +964,13 @@ export function useEditorData() {
             : person,
         ),
       );
-      setContactDraft((prev) => ({ ...prev, value: "", is_primary: false, is_public: false }));
+      setContactDraft((prev) => ({
+        ...prev,
+        value: "",
+        phone_region: selectedTenant?.default_phone_region ?? null,
+        is_primary: false,
+        is_public: false,
+      }));
       setContactFieldErrors({});
       return true;
     } catch (err) {
@@ -929,7 +992,13 @@ export function useEditorData() {
 
   async function updateContact(
     contactId: number,
-    payload: Partial<{ type: "EMAIL" | "PHONE"; value: string; is_primary: boolean; is_public: boolean }>,
+    payload: Partial<{
+      type: "EMAIL" | "PHONE";
+      value: string;
+      phone_region: string | null;
+      is_primary: boolean;
+      is_public: boolean;
+    }>,
   ) {
     if (!tenantId || typeof selectedPersonId !== "number") return;
     try {
@@ -1018,7 +1087,7 @@ export function useEditorData() {
 
   function onResetOrganizationDraft() {
     if (selectedOrgId === "new") {
-      setDraft(emptyDraft);
+      setDraft({ ...emptyDraft, phone_region: selectedTenant?.default_phone_region ?? null });
       setOrganizationFieldErrors({});
       return;
     }
@@ -1028,6 +1097,11 @@ export function useEditorData() {
       org_number: selectedOrganization.org_number ?? "",
       email: selectedOrganization.email ?? "",
       phone: selectedOrganization.phone ?? "",
+      phone_region: initialPhoneRegion(
+        selectedOrganization.phone,
+        selectedOrganization.phone_region_used,
+        selectedTenant?.default_phone_region,
+      ),
       municipalities: selectedOrganization.municipalities ?? "",
       note: selectedOrganization.note ?? "",
       description: selectedOrganization.description ?? "",
@@ -1050,7 +1124,7 @@ export function useEditorData() {
 
   function onResetPersonDraft() {
     if (selectedPersonId === "new") {
-      setPersonDraft(emptyPersonDraft);
+      setPersonDraft({ ...emptyPersonDraft, phone_region: selectedTenant?.default_phone_region ?? null });
       setPersonFieldErrors({});
       return;
     }
@@ -1060,6 +1134,11 @@ export function useEditorData() {
       title: selectedPerson.title ?? "",
       email: selectedPerson.email ?? "",
       phone: selectedPerson.phone ?? "",
+      phone_region: initialPhoneRegion(
+        selectedPerson.phone,
+        selectedPerson.phone_region_used,
+        selectedTenant?.default_phone_region,
+      ),
       municipality: selectedPerson.municipality ?? "",
       note: selectedPerson.note ?? "",
       website_url: selectedPerson.website_url ?? "",
@@ -1097,9 +1176,15 @@ export function useEditorData() {
   function discardAllPendingChanges() {
     onResetOrganizationDraft();
     onResetPersonDraft();
-    setContactDraft(emptyContactDraft);
+    setContactDraft({
+      ...emptyContactDraft,
+      phone_region: selectedTenant?.default_phone_region ?? null,
+    });
     setContactFieldErrors({});
-    setLinkedPersonDraft(emptyLinkedPersonDraft);
+    setLinkedPersonDraft({
+      ...emptyLinkedPersonDraft,
+      phone_region: selectedTenant?.default_phone_region ?? null,
+    });
     setLinkedPersonFieldErrors({});
     setLinkedPersonSaveState("idle");
     setOrganizationFieldErrors({});
@@ -1191,6 +1276,9 @@ export function useEditorData() {
     setLinkPublishPerson,
     contactDraft,
     setContactDraft,
+    contactPhoneRegions,
+    setContactPhoneRegion: (contactId: number, region: string) =>
+      setContactPhoneRegions((current) => ({ ...current, [contactId]: region })),
     linkedPersonDraft,
     setLinkedPersonDraft,
     linkedPersonSaveState,
@@ -1432,6 +1520,7 @@ function normalizeDraft(draft: OrganizationPatch): OrganizationPatch {
     org_number: nullableString(draft.org_number),
     email: nullableString(draft.email),
     phone: nullableString(draft.phone),
+    phone_region: nullableString(draft.phone_region)?.toUpperCase() ?? null,
     municipalities: draft.municipalities.trim(),
     note: nullableString(draft.note),
     description: nullableString(draft.description),
@@ -1453,6 +1542,7 @@ function normalizePersonDraft(draft: PersonPayload): PersonPayload {
     title: nullableString(draft.title),
     email: nullableString(draft.email),
     phone: nullableString(draft.phone),
+    phone_region: nullableString(draft.phone_region)?.toUpperCase() ?? null,
     municipality: draft.municipality.trim(),
     note: nullableString(draft.note),
     website_url: nullableString(draft.website_url),
@@ -1477,12 +1567,27 @@ function sortContacts<T extends { is_primary?: boolean; type?: string; value?: s
   });
 }
 
+function buildContactPhoneRegions(
+  contacts: PersonContact[],
+  tenantDefault: string | null | undefined,
+): Record<number, string> {
+  return Object.fromEntries(
+    contacts
+      .filter((contact) => contact.type === "PHONE")
+      .map((contact) => [
+        contact.id,
+        initialPhoneRegion(contact.value, contact.phone_region_used, tenantDefault),
+      ]),
+  );
+}
+
 function isEqualShallowOrganizationDraft(a: OrganizationPatch, b: OrganizationPatch): boolean {
   return (
     a.name === b.name &&
     a.org_number === b.org_number &&
     a.email === b.email &&
     a.phone === b.phone &&
+    a.phone_region === b.phone_region &&
     a.municipalities === b.municipalities &&
     a.note === b.note &&
     a.description === b.description &&
@@ -1506,6 +1611,7 @@ function isEqualShallowPersonDraft(a: PersonPayload, b: PersonPayload): boolean 
     a.title === b.title &&
     a.email === b.email &&
     a.phone === b.phone &&
+    a.phone_region === b.phone_region &&
     a.municipality === b.municipality &&
     a.note === b.note &&
     a.website_url === b.website_url &&

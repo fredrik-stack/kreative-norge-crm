@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Field } from "../components/Field";
+import { PhoneRegionSelect } from "../components/PhoneRegionSelect";
 import { useEditor } from "../context/EditorContext";
 import { filterSubcategoriesForCategory, sortedCategories as sortCategoriesByTaxonomy } from "../editorTaxonomy";
 import { saveLabel } from "../editor-utils";
@@ -438,10 +439,26 @@ function PeopleEditorPanel(props: {
                 />
               </Field>
               <Field label="Telefon" error={editor.personFieldErrors.phone}>
-                <input
-                  value={editor.personDraft.phone ?? ""}
-                  onChange={(e) => editor.setPersonDraft((s) => ({ ...s, phone: e.target.value }))}
-                />
+                <div className="contact-inline-input">
+                  <input
+                    aria-label="Telefon"
+                    value={editor.personDraft.phone ?? ""}
+                    onChange={(e) =>
+                      editor.setPersonDraft((state) => ({
+                        ...state,
+                        phone: e.target.value,
+                        ...(e.target.value.trim().startsWith("+") ? { phone_region: null } : {}),
+                      }))
+                    }
+                  />
+                  <PhoneRegionSelect
+                    value={editor.personDraft.phone_region ?? ""}
+                    onChange={(phoneRegion) =>
+                      editor.setPersonDraft((state) => ({ ...state, phone_region: phoneRegion || null }))
+                    }
+                  />
+                </div>
+                <small className="meta">Land/region kreves bare for nasjonalt skrevne numre.</small>
               </Field>
             </div>
 
@@ -469,10 +486,22 @@ function PeopleEditorPanel(props: {
                         onBlur={(event) => {
                           const value = event.currentTarget.value.trim();
                           if (value && value !== contact.value) {
-                            editor.updateContact(contact.id, { value });
+                            editor.updateContact(contact.id, {
+                              value,
+                              ...(contact.type === "PHONE"
+                                ? { phone_region: editor.contactPhoneRegions[contact.id] || null }
+                                : {}),
+                            });
                           }
                         }}
                       />
+                      {contact.type === "PHONE" ? (
+                        <PhoneRegionSelect
+                          value={editor.contactPhoneRegions[contact.id] ?? ""}
+                          onChange={(phoneRegion) => editor.setContactPhoneRegion(contact.id, phoneRegion)}
+                          ariaLabel={`Land/region for ${contact.value}`}
+                        />
+                      ) : null}
                     </div>
                     <div className="modal-contact-actions">
                       <label className="inline-check compact">
@@ -533,6 +562,18 @@ function PeopleEditorPanel(props: {
                       onChange={(e) => editor.setContactDraft((state) => ({ ...state, value: e.target.value }))}
                       disabled={typeof editor.selectedPersonId !== "number"}
                     />
+                    {editor.contactDraft.type === "PHONE" ? (
+                      <PhoneRegionSelect
+                        value={editor.contactDraft.phone_region ?? ""}
+                        onChange={(phoneRegion) =>
+                          editor.setContactDraft((state) => ({
+                            ...state,
+                            phone_region: phoneRegion || null,
+                          }))
+                        }
+                        disabled={typeof editor.selectedPersonId !== "number"}
+                      />
+                    ) : null}
                   </div>
                 </Field>
                 <label className="inline-check compact">

@@ -2,6 +2,16 @@
 
 ## 2026-08-25
 
+### Fase 4E Editor/internal telefon-write implementert; staginggate gjenstår
+
+- koblet Organization, Person og PHONE-`PersonContact` til den felles 4C-adapteren gjennom én backend-writegrense
+- la til eksplisitt `phone_region`, read-only tenantdefault og intern `phone_region_used` uten å eksponere canonical E.164 offentlig
+- la til synlig regionvalg i Organization-, Person- og kontaktredigering med per-telefon override og regionuavhengige `+`-numre
+- bevarte rå presentasjonsverdi og publiseringsflagg, synkroniserte primær personkontakt og hindret incidental backfill ved unrelated save
+- verifiserte 4D i staging på merge `0198269892b7e59143393b4ed3f104098e81a24e`: backup/restore, migrasjon `0032`, alle nye felt `NULL`, uendrede rå-/publiseringsfingerprints, isolert reverse/forward og grønne API/PUBLIC/image/safety-gater
+
+## 2026-08-25
+
 ### Fase 4D additiv telefonmodell implementert; staginggate gjenstår
 
 - lagt nullable `Tenant.default_phone_region` uten modell- eller database-default; nye tenants får fortsatt ingen skjult region

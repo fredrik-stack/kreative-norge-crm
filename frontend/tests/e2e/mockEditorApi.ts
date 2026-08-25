@@ -23,6 +23,7 @@ type Tenant = {
   id: number;
   name: string;
   slug: string;
+  default_phone_region: string | null;
   created_at: string;
   current_user_role: "superadmin" | "gruppeadmin" | "redigerer" | "leser" | null;
 };
@@ -42,6 +43,7 @@ type Organization = {
   org_number: string | null;
   email: string | null;
   phone: string | null;
+  phone_region_used: string | null;
   municipalities: string;
   note: string | null;
   description: string | null;
@@ -77,6 +79,7 @@ type Person = {
   title: string | null;
   email: string | null;
   phone: string | null;
+  phone_region_used: string | null;
   municipality: string;
   note: string | null;
   website_url: string | null;
@@ -107,6 +110,7 @@ type PersonContact = {
   person: number;
   type: "EMAIL" | "PHONE";
   value: string;
+  phone_region_used: string | null;
   is_primary: boolean;
   is_public: boolean;
   created_at: string;
@@ -128,7 +132,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
   const now = "2026-01-01T00:00:00Z";
   const state: MockState = {
     authenticated: false,
-    tenants: [{ id: 1, name: "Demo Tenant", slug: "demo", created_at: now, current_user_role: "redigerer" }],
+    tenants: [{ id: 1, name: "Demo Tenant", slug: "demo", default_phone_region: "NO", created_at: now, current_user_role: "redigerer" }],
     categories: [{ id: 100, name: "Musikk", slug: "musikk", created_at: now }],
     subcategories: [
       {
@@ -148,6 +152,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         org_number: "123456789",
         email: "post@demo.no",
         phone: "+4712345678",
+        phone_region_used: null,
         municipalities: "Oslo",
         note: null,
         description: "Demoaktør brukt i testoppsettet.",
@@ -185,6 +190,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         title: "Manager",
         email: "ada@example.com",
         phone: "+4799999999",
+        phone_region_used: null,
         municipality: "Oslo",
         note: null,
         website_url: null,
@@ -346,6 +352,10 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         org_number: payload.org_number ?? null,
         email: payload.email ?? null,
         phone: payload.phone ?? null,
+        phone_region_used:
+          (payload.phone ?? "").trim().startsWith("+")
+            ? null
+            : ((payload as { phone_region?: string | null }).phone_region ?? null),
         municipalities: payload.municipalities ?? "",
         note: payload.note ?? null,
         description: payload.description ?? null,
@@ -491,6 +501,10 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         title: payload.title ?? null,
         email: payload.email ?? null,
         phone: payload.phone ?? null,
+        phone_region_used:
+          (payload.phone ?? "").trim().startsWith("+")
+            ? null
+            : ((payload as { phone_region?: string | null }).phone_region ?? null),
         municipality: payload.municipality ?? "",
         note: payload.note ?? null,
         website_url: payload.website_url ?? null,
@@ -520,6 +534,8 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
           person: created.id,
           type,
           value,
+          phone_region_used:
+            type === "PHONE" ? created.phone_region_used : null,
           is_primary: true,
           is_public: false,
           created_at: now,
@@ -651,6 +667,10 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         person: Number(payload.person),
         type: (payload.type ?? "EMAIL") as "EMAIL" | "PHONE",
         value: String(payload.value ?? ""),
+        phone_region_used:
+          (payload.type === "PHONE" && !String(payload.value ?? "").trim().startsWith("+"))
+            ? ((payload as { phone_region?: string | null }).phone_region ?? null)
+            : null,
         is_primary: Boolean(payload.is_primary),
         is_public: Boolean(payload.is_public),
         created_at: now,

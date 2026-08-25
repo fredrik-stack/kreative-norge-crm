@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.conf import settings
+from django.db import transaction
 from .permissions import get_user_tenant_role
 from .models import (
     Tenant,
@@ -18,6 +19,13 @@ from .models import (
     ExportJob,
 )
 from .services.person_contacts import sync_person_fields_to_primary_contacts, sync_primary_contact_to_person
+from .services.phone_writes import PhoneWriteValidationError, prepare_phone_write
+
+
+def _phone_error(field_name: str, error: PhoneWriteValidationError):
+    raise serializers.ValidationError(
+        {field_name: serializers.ErrorDetail(str(error), code=error.reason_code.value)}
+    )
 
 
 class TenantMembershipSerializer(serializers.ModelSerializer):
@@ -41,7 +49,15 @@ class TenantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tenant
-        fields = ["id", "name", "slug", "created_at", "current_user_role"]
+        fields = [
+            "id",
+            "name",
+            "slug",
+            "default_phone_region",
+            "created_at",
+            "current_user_role",
+        ]
+        read_only_fields = ["default_phone_region"]
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -98,6 +114,18 @@ class SubcategorySerializer(serializers.ModelSerializer):
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
+    phone_region = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        max_length=2,
+    )
+    phone_region_used = serializers.CharField(
+        source="phone_normalization_region",
+        read_only=True,
+        allow_null=True,
+    )
     active_people = serializers.SerializerMethodField()
     primary_link = serializers.SerializerMethodField()
     primary_link_field = serializers.SerializerMethodField()
@@ -137,6 +165,8 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "org_number",
             "email",
             "phone",
+            "phone_region",
+            "phone_region_used",
             "municipalities",
             "note",
             "description",
@@ -183,6 +213,19 @@ class OrganizationSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        phone_region = attrs.pop("phone_region", None)
+        phone_supplied = "phone" in attrs
+        phone_changed = phone_supplied and (
+            self.instance is None or attrs["phone"] != self.instance.phone
+        )
+        if phone_changed:
+            try:
+                identity = prepare_phone_write(attrs["phone"], region=phone_region)
+            except PhoneWriteValidationError as error:
+                _phone_error("phone", error)
+            attrs["phone"] = identity.raw_value
+            attrs["phone_normalized"] = identity.normalized_value
+            attrs["phone_normalization_region"] = identity.normalization_region
         tenant_id = self._get_effective_tenant_id()
         tags = attrs.get("tags")
         categories = attrs.get("categories")
@@ -239,9 +282,23 @@ class OrganizationSerializer(serializers.ModelSerializer):
         return obj.get_preview_image_url()
 
 class PersonContactSerializer(serializers.ModelSerializer):
+    phone_region = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        max_length=2,
+    )
+    phone_region_used = serializers.CharField(
+        source="normalization_region",
+        read_only=True,
+        allow_null=True,
+    )
+
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
+        phone_region = attrs.pop("phone_region", None)
         tenant_id = self._get_effective_tenant_id(attrs)
         person = attrs.get("person") or getattr(self.instance, "person", None)
         contact_type = attrs.get("type") or getattr(self.instance, "type", None)
@@ -272,6 +329,39 @@ class PersonContactSerializer(serializers.ModelSerializer):
                     }
                 )
 
+        effective_type = contact_type
+        value_supplied = "value" in attrs
+        type_changed = self.instance is not None and "type" in attrs and attrs["type"] != self.instance.type
+        value_changed = value_supplied and (
+            self.instance is None or attrs["value"] != self.instance.value
+        )
+        if effective_type == "PHONE" and (self.instance is None or value_changed or type_changed):
+            effective_value = attrs.get("value", getattr(self.instance, "value", None))
+            try:
+                identity = prepare_phone_write(effective_value, region=phone_region)
+            except PhoneWriteValidationError as error:
+                _phone_error("value", error)
+            if identity.raw_value is None:
+                raise serializers.ValidationError({"value": "Kontaktverdi er påkrevd."})
+            attrs["value"] = identity.raw_value
+            attrs["normalized_value"] = identity.normalized_value
+            attrs["normalization_region"] = identity.normalization_region
+            duplicate_identity = PersonContact.objects.filter(
+                tenant_id=tenant_id or person.tenant_id,
+                person=person,
+                type="PHONE",
+                normalized_value=identity.normalized_value,
+            )
+            if self.instance is not None:
+                duplicate_identity = duplicate_identity.exclude(pk=self.instance.pk)
+            if duplicate_identity.exists():
+                raise serializers.ValidationError(
+                    {"value": "Telefonnummeret finnes allerede på denne personen."}
+                )
+        elif effective_type != "PHONE" and (self.instance is None or type_changed):
+            attrs["normalized_value"] = None
+            attrs["normalization_region"] = None
+
         return attrs
 
     def _get_effective_tenant_id(self, attrs):
@@ -294,6 +384,8 @@ class PersonContactSerializer(serializers.ModelSerializer):
             "person",
             "type",
             "value",
+            "phone_region",
+            "phone_region_used",
             "is_primary",
             "is_public",
             "created_at",
@@ -301,13 +393,15 @@ class PersonContactSerializer(serializers.ModelSerializer):
         read_only_fields = ["tenant", "created_at"]
 
     def create(self, validated_data):
-        contact = super().create(validated_data)
-        sync_primary_contact_to_person(contact)
+        with transaction.atomic():
+            contact = super().create(validated_data)
+            sync_primary_contact_to_person(contact)
         return contact
 
     def update(self, instance, validated_data):
-        contact = super().update(instance, validated_data)
-        sync_primary_contact_to_person(contact)
+        with transaction.atomic():
+            contact = super().update(instance, validated_data)
+            sync_primary_contact_to_person(contact)
         return contact
 
 
@@ -330,6 +424,14 @@ class PersonForOrganizationSerializer(serializers.ModelSerializer):
 
 
 class PersonSerializer(serializers.ModelSerializer):
+    phone_region = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        max_length=2,
+    )
+    phone_region_used = serializers.SerializerMethodField()
     contacts = PersonContactSerializer(many=True, read_only=True)
     tags = TagSerializer(many=True, read_only=True)
     tag_ids = serializers.PrimaryKeyRelatedField(
@@ -365,6 +467,8 @@ class PersonSerializer(serializers.ModelSerializer):
             "title",
             "email",
             "phone",
+            "phone_region",
+            "phone_region_used",
             "website_url",
             "instagram_url",
             "tiktok_url",
@@ -387,6 +491,33 @@ class PersonSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        self._phone_identity = None
+        phone_region = attrs.pop("phone_region", None)
+        phone_supplied = "phone" in attrs
+        phone_changed = phone_supplied and (
+            self.instance is None or attrs["phone"] != self.instance.phone
+        )
+        if phone_changed:
+            try:
+                self._phone_identity = prepare_phone_write(
+                    attrs["phone"],
+                    region=phone_region,
+                )
+            except PhoneWriteValidationError as error:
+                _phone_error("phone", error)
+            attrs["phone"] = self._phone_identity.raw_value
+            if (
+                self.instance is not None
+                and self._phone_identity.normalized_value is not None
+                and self.instance.contacts.filter(
+                    type="PHONE",
+                    normalized_value=self._phone_identity.normalized_value,
+                    is_primary=False,
+                ).exists()
+            ):
+                raise serializers.ValidationError(
+                    {"phone": "Telefonnummeret finnes allerede på denne personen."}
+                )
         tenant_id = self._get_effective_tenant_id()
         tags = attrs.get("tags")
         categories = attrs.get("categories")
@@ -411,6 +542,12 @@ class PersonSerializer(serializers.ModelSerializer):
             attrs["categories"] = list(category_set | inferred_categories)
         return attrs
 
+    def get_phone_region_used(self, obj):
+        for contact in getattr(obj, "contacts", []).all():
+            if contact.type == "PHONE" and contact.is_primary:
+                return contact.normalization_region
+        return None
+
     def _get_effective_tenant_id(self):
         if self.instance is not None:
             return self.instance.tenant_id
@@ -425,17 +562,24 @@ class PersonSerializer(serializers.ModelSerializer):
         return None
 
     def create(self, validated_data):
-        person = super().create(validated_data)
-        sync_person_fields_to_primary_contacts(
-            person,
-            fields={field for field in {"email", "phone"} if field in validated_data},
-        )
+        with transaction.atomic():
+            person = super().create(validated_data)
+            sync_person_fields_to_primary_contacts(
+                person,
+                fields={field for field in {"email", "phone"} if field in validated_data},
+                phone_identity=getattr(self, "_phone_identity", None),
+            )
         return person
 
     def update(self, instance, validated_data):
         changed_contact_fields = {field for field in {"email", "phone"} if field in validated_data}
-        person = super().update(instance, validated_data)
-        sync_person_fields_to_primary_contacts(person, fields=changed_contact_fields)
+        with transaction.atomic():
+            person = super().update(instance, validated_data)
+            sync_person_fields_to_primary_contacts(
+                person,
+                fields=changed_contact_fields,
+                phone_identity=getattr(self, "_phone_identity", None),
+            )
         return person
 
 

@@ -1,10 +1,18 @@
 # API
 
-**Status:** implementert grunn-API; 3E.2 public image projection/API shadow er `CLOSED / SHADOW VERIFIED`; 3E.3-targetschemaet er `CLOSED / ACTIVE` i staging; 3E.4-takedownaction er `CLOSED / ACTIVE` i staging med kode-/eksempelstandard fortsatt av; 3F legacy-/Import-kontrakten er `CLOSED / VERIFIED` med Import-gaten av i shared staging
+**Status:** implementert grunn-API; 3E.2 public image projection/API shadow er `CLOSED / SHADOW VERIFIED`; 3E.3-targetschemaet er `CLOSED / ACTIVE` i staging; 3E.4-takedownaction er `CLOSED / ACTIVE` i staging med kode-/eksempelstandard fortsatt av; 3F legacy-/Import-kontrakten er `CLOSED / VERIFIED` med Import-gaten av i shared staging; fase 4E intern telefon-write-kontrakt er implementert og avventer staginggate
 
 API-et omfatter autentisering, tenants, taksonomi, aktører, personer, koblinger, kontaktkanaler, interne bildekandidathandlinger, public actors, importjobber og eksportjobber.
 
 Tenant-scope Editor-API returnerer både interne og offentlige `PersonContact` for autoriserte brukere.
+
+Ordinære interne telefonwrites på Organization, Person og PHONE-
+`PersonContact` tar et eksplisitt `phone_region`-kontekstfelt. Nasjonale numre
+uten region avvises kontrollert; internasjonale `+`-numre er regionuavhengige.
+Intern respons kan returnere `phone_region_used`, men eksponerer ikke canonical
+E.164. `Tenant.default_phone_region` er read-only i intern tenantrespons og
+endres ikke gjennom denne API-kontrakten. Public API er uendret og returnerer
+fortsatt bare presentasjonsverdien etter eksisterende publiseringsregler.
 
 Den ene kanoniske public API-ruten under `/api/public/` bruker `crm.urls_public`, `crm.views_public.PublicActorPublicViewSet` og `crm.serializers_public.PublicActorSerializer`. Detail-ruten slår opp på `org_number`. Den tidligere overlappende registreringen gjennom `crm.urls`, `PublicActorViewSet` og `PublicOrganizationSerializer` er fjernet i 3E.2. API-et returnerer bare kontaktpersoner fra aktive `OrganizationPerson`-koblinger med `publish_person=True`, og bare kontaktverdier fra `PersonContact` der `is_public=True`. Public API bruker ikke fallback fra `Person.email` eller `Person.phone`.
 

@@ -187,14 +187,14 @@ class PhoneIdentityModelTests(TestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn("person", serializer.errors)
 
-    def test_4d_fields_are_not_exposed_or_written_by_existing_api_serializers(self):
+    def test_4d_identity_fields_remain_internal_after_4e_serializer_writes(self):
         organization = Organization.objects.create(
             tenant=self.tenant,
             name="Unchanged API organization",
         )
         organization_serializer = OrganizationSerializer(
             organization,
-            data={"phone": "900 12 345"},
+            data={"phone": "+47 900 12 345"},
             partial=True,
         )
         self.assertTrue(organization_serializer.is_valid(), organization_serializer.errors)
@@ -209,20 +209,20 @@ class PhoneIdentityModelTests(TestCase):
         )
         contact_serializer = PersonContactSerializer(
             contact,
-            data={"value": "new display"},
+            data={"value": "+46 8 505 103 00"},
             partial=True,
         )
         self.assertTrue(contact_serializer.is_valid(), contact_serializer.errors)
         contact_serializer.save()
         contact.refresh_from_db()
 
-        self.assertEqual(organization.phone, "900 12 345")
-        self.assertIsNone(organization.phone_normalized)
+        self.assertEqual(organization.phone, "+47 900 12 345")
+        self.assertEqual(organization.phone_normalized, "+4790012345")
         self.assertIsNone(organization.phone_normalization_region)
-        self.assertEqual(contact.value, "new display")
-        self.assertIsNone(contact.normalized_value)
+        self.assertEqual(contact.value, "+46 8 505 103 00")
+        self.assertEqual(contact.normalized_value, "+46850510300")
         self.assertIsNone(contact.normalization_region)
-        self.assertNotIn("default_phone_region", TenantSerializer(self.tenant).data)
+        self.assertIsNone(TenantSerializer(self.tenant).data["default_phone_region"])
         self.assertNotIn("phone_normalized", OrganizationSerializer(organization).data)
         self.assertNotIn("normalized_value", PersonContactSerializer(contact).data)
 
