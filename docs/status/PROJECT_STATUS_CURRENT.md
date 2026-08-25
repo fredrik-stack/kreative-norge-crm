@@ -1,6 +1,6 @@
 # Project Status Current
 
-**Status:** Fase 1 og 2 gjennomført; fase 3 er **CLOSED / VERIFIED** etter fullførte 3A–3F-gater. Lokal Hetzner storage-/backup-MVP og ADR-009 fase 3E.1A safety-ledger/off-server anchor er **ACTIVE** i staging; fase 3E.1B-materialisering er **ACTIVE / VERIFIED**; fase 3E.1C-controlled serving er **CLOSED / ACTIVE**; fase 3E.2 projection/API shadow er **CLOSED / SHADOW VERIFIED**; fase 3E.3 API/PUBLIC/head-cutover og fase 3E.4 ledger-v2/formell takedown er **CLOSED / ACTIVE** i staging; fase 3F legacy-/Import-kontrakt og restore er **CLOSED / VERIFIED** med den nye Import-gaten av i shared staging. Fase 4A er dokumentert i foreslått ADR-010; ingen telefonimplementasjon, dataanalyse eller stagingendring er startet. Brave er operativt ikke aktiv for ordinære Editor-sluttbrukere
+**Status:** Fase 1 og 2 gjennomført; fase 3 er **CLOSED / VERIFIED** etter fullførte 3A–3F-gater. Lokal Hetzner storage-/backup-MVP og ADR-009 fase 3E.1A safety-ledger/off-server anchor er **ACTIVE** i staging; fase 3E.1B-materialisering er **ACTIVE / VERIFIED**; fase 3E.1C-controlled serving er **CLOSED / ACTIVE**; fase 3E.2 projection/API shadow er **CLOSED / SHADOW VERIFIED**; fase 3E.3 API/PUBLIC/head-cutover og fase 3E.4 ledger-v2/formell takedown er **CLOSED / ACTIVE** i staging; fase 3F legacy-/Import-kontrakt og restore er **CLOSED / VERIFIED** med den nye Import-gaten av i shared staging. Fase 4A og ADR-010 er godkjent og merget med PR #56; ingen telefonimplementasjon, dataanalyse eller stagingendring er startet. Brave er operativt ikke aktiv for ordinære Editor-sluttbrukere
 
 **Teknisk sist verifisert:** 2026-08-25
 
@@ -62,7 +62,7 @@ Fase 3D.2 er gjennomført og merget til `main` med PR #33 og utvider den priorit
 
 Editor har norske provider-/fetch-/processingfeil, fokusforvalg Venstre/Midt/Høyre og Topp/Midt/Bunn, presis X/Y, 100–300 % Foto-zoom og tre live previews med samme cropgeometri som serverprocessing. Logo viser hele motivet med contain og uten cropkontroller. Asset-alttekst kan være tom uten skjult fallback. Migrasjon `0027` beholder den dokumenterte blank-alt-rollbackgrensen; additiv migrasjon `0028` gir historiske rendition-sett zoom `1.0000`, constraint 1–3 og reverse-guard etter non-default zoom. Fase 3D.2 er lokal-/CI-/teknisk stagingverifisert og visuelt eiergodkjent. Prosjekteier har bekreftet at Logo uten crop-/zoomkontroller er riktig kontrakt, og at Foto-zoom betyr innzooming og retur til standard cover-nivå uten mulighet for å zoome ut til tom flate. Brave-parametrene, privacy-/rettighetscopyen og `search_lang=nb` er eiergodkjent, og den historiske live providerreisen er grønn. Brave er nå operativt deaktivert i staging og kan ikke aktiveres for ordinære Editor-sluttbrukere før avtaleeier dokumenterer den manuelle sluttbrukeravtalegaten. Public release, materialisering, projection, serving, PUBLIC, persistent kandidat, permanent journal og retentionpolicy er uendret og ikke levert av 3D.2.
 
-Den langsiktige relasjonsspesifikke kontaktmodellen fra [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md) kommer fortsatt senere. Foreslått [ADR-010](../decisions/ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md) presiserer nå internasjonal telefonidentitet og fase 4A–4H uten å implementere den. Fase 4B starter først etter separat review, prosjekteiergodkjenning og merge av ADR-010.
+Den langsiktige relasjonsspesifikke kontaktmodellen fra [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md) kommer fortsatt senere. Godkjent [ADR-010](../decisions/ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md) presiserer internasjonal telefonidentitet og fase 4A–4H uten å implementere den. Fase 4B er neste separate, skrivebeskyttede leveranse og krever eget godkjent oppdrag før staginginventory.
 
 ## Godkjent bildearkitektur – domenegrunnmur og intern processing implementert
 
@@ -216,9 +216,9 @@ Fase 3A-kartleggingen, ADR-007 og fase 3B-grunnlaget er gjennomført. ADR-008s l
 
 Deretter skal Import 2.0 gjennom en egen produkt- og UX-designfase før større kodeendringer. Dagens importmotor skal gjenbrukes der den er solid, men skal ikke låse den nye brukeropplevelsen.
 
-### 4. Internasjonal telefonidentitet – fase 4A dokumentert
+### 4. Internasjonal telefonidentitet – fase 4A godkjent
 
-[ADR-010](../decisions/ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md) foreslår E.164 som kanonisk maskinidentitet, libphonenumber-modellen bak én intern adapter, eksplisitt regionkontekst, typed normaliseringsutfall og konservativ additiv legacyovergang for både person- og organisasjonstelefon. Dette er målarkitektur, ikke implementert funksjonalitet. Fase 4B er et separat skrivebeskyttet databaselineoppdrag etter review, godkjenning og merge.
+[ADR-010](../decisions/ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md) fastsetter E.164 som kanonisk maskinidentitet, libphonenumber-modellen bak én intern adapter, eksplisitt regionkontekst, typed normaliseringsutfall og konservativ additiv legacyovergang for både person- og organisasjonstelefon. Dette er målarkitektur, ikke implementert funksjonalitet. Fase 4B er neste separate, skrivebeskyttede databaselineoppdrag og krever eget godkjent oppdrag før staginginventory.
 
 Detaljert faseinndeling, AI-prinsipp og senere produktområder finnes i [ROADMAP.md](ROADMAP.md).
 
@@ -271,9 +271,9 @@ Målarkitekturen er godkjent i `docs/decisions/ADR-005-CONTACT_ARCHITECTURE.md`:
 
 Den langsiktige ADR-005-modellen er ikke implementert. Direktefelt finnes fortsatt av kompatibilitetshensyn, og dagens `PersonContact.is_public` er fortsatt globalt for kontaktkanalen, ikke relasjonsspesifikt.
 
-## Fase 4A – dokumentert retning for internasjonal telefon
+## Fase 4A – godkjent retning for internasjonal telefon
 
-Den konservative PHONE-reparasjonskommandoen fra fase 2 beholdes uendret som en avgrenset legacyreparasjon. [ADR-010](../decisions/ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md) er foreslått til formell godkjenning og presiserer ADR-005 uten å erstatte den.
+Den konservative PHONE-reparasjonskommandoen fra fase 2 beholdes uendret som en avgrenset legacyreparasjon. [ADR-010](../decisions/ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md) er godkjent av prosjekteier og merget med PR #56; den presiserer ADR-005 uten å erstatte den.
 
 Låst målretning:
 
