@@ -44,8 +44,8 @@ Stabile årsakskoder er:
 
 ## Renhets- og personverngrense
 
-Adapteren har ingen Django-importer, modeller, settings, database-, nettverks-
-eller fil-I/O, logging, tenant-/entity-kobling eller sideeffekter. Det er derfor
+Adapteren har ingen Django-importer, modeller, settings, database-,
+nettverks- eller fil-I/O, logging, tenant-/entity-kobling eller sideeffekter. Det er derfor
 callers ansvar i senere faser å levere eksplisitt og sporbar regionkontekst,
 bevare presentasjonsverdien og håndtere review, lagring og publisering.
 
@@ -58,6 +58,11 @@ Syntetiske tester dekker norske, svenske og britiske numre, internasjonale
 `+`-numre, regionuavhengighet, `00`, manglende/ugyldig region, parsefeil,
 mulighet kontra gyldighet, extension, E.164-idempotens, personvern og
 deterministiske resultater.
+
+Fase 4C er verifisert API-only i shared staging med dependency `9.0.37`,
+syntetisk smoke, to identiske real-data-kjøringer i read-only transaksjoner og
+uendrede fingerprints for Organization, Person, PHONE PersonContact og
+OrganizationPerson. Se [stagingevidensen](../status/STAGING_PHASE_4C_PHONE_NORMALIZATION_2026-08-25.md).
 
 Før fase 4D kan rollback gjøres ved å reversere adapteren, testene og den
 pinnede dependencyen. Ingen data- eller migrasjonsrollback er nødvendig.
