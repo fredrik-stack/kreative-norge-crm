@@ -73,6 +73,22 @@ Planlagt retning:
 
 Dagens modeller og migrasjoner følger fortsatt den todelte legacy-modellen, men nye skriveruter holder primære kompatibilitetsfelt og `PersonContact` synkronisert.
 
+### Fase 4D – additiv telefonidentitet
+
+Migrasjon `0032_phone_identity_fields` etablerer nullable, additive felt for
+telefonidentitet uten backfill: `Tenant.default_phone_region`,
+`Organization.phone_normalized`, `Organization.phone_normalization_region`,
+`PersonContact.normalized_value` og `PersonContact.normalization_region`.
+Ingen felt har Norge- eller annen database-/modell-default, og `Person.phone`
+forblir uten normalisert felt.
+
+Canonical E.164 og uppercase regionkodeform håndheves med databaseconstraints,
+mens modellvalidering kontrollerer regionen mot libphonenumber. Region kan ikke
+lagres uten normalisert verdi. PersonContact-identiteten er unik bare innen
+tenant + person + kontakttype; telefon er ikke globalt unik mellom personer
+eller organisasjoner. 4D endrer ikke eksisterende API-writes og utfører ingen
+incidental normalisering.
+
 ## Additiv bildedomenemodell og planlagt bildearkitektur
 
 [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent som arkitekturgrunnlag. Den additive schema-grunnmuren er implementert i `crm` med vanlige heltallsnøkler:

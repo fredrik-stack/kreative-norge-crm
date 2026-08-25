@@ -2,6 +2,16 @@
 
 ## 2026-08-25
 
+### Fase 4D additiv telefonmodell implementert; staginggate gjenstår
+
+- lagt nullable `Tenant.default_phone_region` uten modell- eller database-default; nye tenants får fortsatt ingen skjult region
+- lagt canonical sammenligningsverdi og faktisk brukt normaliseringsregion på `Organization` og PHONE-`PersonContact`, men bevisst ingen normalisert verdi på legacyfeltet `Person.phone`
+- lagt databaseconstraints for E.164-form, uppercase regionform, region-avhengighet og PHONE-scope samt tenant-scopede oppslagsindekser
+- håndhevet unik normalized telefon bare innen tenant + person + kontakttype; samme telefon er fortsatt tillatt for ulike personer og organisasjoner
+- lagt schema-only migrasjon `0032` uten backfill; eksisterende råverdier, publiseringsflagg og API-kontrakt er uendret
+- testet forward/reverse fra realistiske eksisterende rader; reverse blokkeres etter at additive telefonidentitetsdata er lagret
+- beholdt 4C-adapteren uten callers; Editor-, Import- og kontrollert legacybackfill kommer i separate 4E–4G-gater
+
 ### Fase 4C READY_FOR_4D etter API-only stagingverifikasjon
 
 - merget implementerings-PR #59 som `b9cc84e` etter separat frozen-head-review med `0 BLOCKER/HIGH/MEDIUM/LOW` og grønne 6/6 PR-/main-CI-runs `32891948790`/`32892503493`
