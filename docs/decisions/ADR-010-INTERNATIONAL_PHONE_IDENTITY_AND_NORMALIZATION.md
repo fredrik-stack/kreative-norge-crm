@@ -2,9 +2,9 @@
 
 ## Status
 
-Foreslått til formell godkjenning. Prosjekteierbeslutningene i dette ADR-et er låst input, men fase 4B skal ikke starte før dokumentet er reviewet, godkjent og merget.
+Godkjent av prosjekteier 2026-08-25 etter uavhengig frozen-head-review uten funn og merget til `main` med PR #56 som `e0c38162a7e0b0c8b90daf7387a1682e44370f33`.
 
-Telefonarkitekturen er ikke implementert. Fase 4A er bare beslutnings- og dokumentasjonsarbeid.
+Telefonarkitekturen er ikke implementert. Fase 4A er beslutnings- og dokumentasjonsarbeid; fase 4B er neste separate, skrivebeskyttede gate og krever eget godkjent oppdrag før staginginventory starter.
 
 **Beslutningsdato:** 2026-08-25
 
@@ -267,7 +267,7 @@ Fase 4B kan først starte når:
 
 De låste arkitekturvalgene ovenfor skal ikke åpnes på nytt i implementasjonen. Følgende leveransegater krever likevel separat godkjenning:
 
-1. ADR-010-dokumentet skal reviewes, prosjekteiergodkjennes og merges før fase 4B.
+1. ADR-010-dokumentet er reviewet, prosjekteiergodkjent og merget med PR #56; denne gaten er oppfylt.
 2. Fase 4B skal ha godkjent staging-scope, no-write-bevis, redaksjonsnivå og håndtering/retensjon for eventuelle rapportartefakter.
 3. Hver av 4C–4H skal bestilles og godkjennes som en separat leveranse med konkret implementeringsplan, tester og rollback.
 4. ADR-005s åpne valg om kontaktroller, behandlingsgrunnlag og retensjon må være avklart før den aktuelle telefonleveransen er avhengig av dem.
