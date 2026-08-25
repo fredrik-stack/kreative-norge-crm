@@ -6,6 +6,7 @@ from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
 from crm.models import (
+    ImportDecision,
     ImportJob,
     ImportRow,
     Organization,
@@ -349,3 +350,56 @@ class Phase4FImportPhoneContractTests(TestCase):
         )
         self.assertEqual(first, second)
         self.assertEqual(second["person"]["phone_normalization"]["e164"], "+46850510300")
+
+    def test_accepted_ai_phone_never_guesses_missing_region(self):
+        job = ImportJob.objects.create(
+            tenant=self.tenant,
+            created_by=self.user,
+            source_type=ImportJob.SourceType.CSV,
+            import_mode=ImportJob.ImportMode.PEOPLE_ONLY,
+            status=ImportJob.Status.PREVIEW_READY,
+            config_json=build_import_template_config(
+                ImportJob.ImportMode.PEOPLE_ONLY,
+                phone_region=None,
+            ),
+        )
+        row = ImportRow.objects.create(
+            import_job=job,
+            row_number=1,
+            normalized_payload_json=normalize_import_row(
+                {"person_full_name": "AI Phone Review"},
+                ImportJob.ImportMode.PEOPLE_ONLY,
+                phone_region=None,
+            ),
+            match_result_json={
+                "organization": {
+                    "status": "NONE",
+                    "rule": None,
+                    "exact_id": None,
+                    "candidates": [],
+                },
+                "person": {
+                    "status": "NEW",
+                    "rule": None,
+                    "exact_id": None,
+                    "candidates": [],
+                },
+            },
+            row_status=ImportRow.RowStatus.VALID,
+            proposed_action=ImportRow.ProposedAction.CREATE,
+        )
+        ImportDecision.objects.create(
+            import_row=row,
+            decision_type=ImportDecision.DecisionType.ACCEPT_AI_SUGGESTION,
+            payload_json={
+                "suggestion_key": "person_phone",
+                "value": "22 12 34 56",
+            },
+            decided_by=self.user,
+        )
+
+        commit_import_job(job)
+
+        person = Person.objects.get(tenant=self.tenant, full_name="AI Phone Review")
+        self.assertIsNone(person.phone)
+        self.assertFalse(person.contacts.filter(type="PHONE").exists())
