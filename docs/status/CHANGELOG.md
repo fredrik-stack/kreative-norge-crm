@@ -2,6 +2,15 @@
 
 ## 2026-08-25
 
+### Fase 4C normaliseringsdomene implementert; stagingverifikasjon gjenstår
+
+- pinnet `phonenumbers==9.0.37` og kapslet biblioteket bak én ren intern adapter uten Django-, modell-, settings-, database-, nettverks-, fil-, logg-, tenant- eller entitykobling
+- lagt immutable typed resultat med eksakt `VALID`, `INVALID` og `NEEDS_REGION`, E.164 bare ved gyldig resultat, valgfri faktisk brukt region og stabile ikke-sensitive årsakskoder
+- håndhevet eksplisitt region for nasjonale numre uten skjult Norge-default, regionuavhengige `+`-numre, bibliotekstyrte `00`-/IDD-regler, gyldighetskontroll og eksplisitt avvisning av extensions
+- dekket kontrakten med syntetiske tester for Norge, Sverige og Storbritannia, ugyldige/kontekstløse verdier, idempotens, determinisme, personvern og alle definerte årsakskoder
+- beholdt modeller, migrasjoner, data, API, Editor, Import, matching, repair, backfill og publisering uendret; stagingdeploy og evidence-PR gjenstår før `READY_FOR_4D`
+- dokumentert domenekontrakten i [Phone normalization domain](../architecture/PHONE_NORMALIZATION.md)
+
 ### Fase 4B skrivebeskyttet telefonbaseline READY_FOR_4C
 
 - kjørt to separate PostgreSQL-inventar i eksplisitte transaksjoner med `transaction_read_only=on`; hele aggregatresultatet var byteidentisk og fingerprints for Organization, Person, PHONE PersonContact og OrganizationPerson var uendret
