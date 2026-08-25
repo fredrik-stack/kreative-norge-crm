@@ -95,12 +95,65 @@ def match_person(tenant: Tenant, normalized_payload: dict, organization_match: d
             return {"status": "EXACT", "rule": "NAME_AND_MUNICIPALITY", "exact_id": exact.id, "candidates": []}
 
     if data["normalized_full_name"] and data["phone"]:
-        exact = queryset.filter(
+        phone_normalization = data.get("phone_normalization") or {}
+        canonical_phone = (
+            phone_normalization.get("e164")
+            if phone_normalization.get("status") == "VALID"
+            else None
+        )
+        if canonical_phone:
+            canonical_matches = queryset.filter(
+                full_name__iexact=data["full_name"],
+                contacts__type="PHONE",
+                contacts__normalized_value=canonical_phone,
+            ).distinct()
+            canonical_candidates = list(canonical_matches[:6])
+            if len(canonical_candidates) == 1:
+                return {
+                    "status": "EXACT",
+                    "rule": "NAME_AND_PHONE",
+                    "exact_id": canonical_candidates[0].id,
+                    "candidates": [],
+                    "phone_signal": "NORMALIZED",
+                }
+            if len(canonical_candidates) > 1:
+                return {
+                    "status": "FUZZY",
+                    "rule": "AMBIGUOUS_NAME_AND_PHONE_NORMALIZED",
+                    "exact_id": None,
+                    "candidates": [
+                        {"id": item.id, "label": item.full_name}
+                        for item in canonical_candidates[:5]
+                    ],
+                }
+
+        legacy_matches = queryset.filter(
             Q(full_name__iexact=data["full_name"], phone=data["phone"])
-            | Q(full_name__iexact=data["full_name"], contacts__type="PHONE", contacts__value=data["phone"])
-        ).distinct().first()
-        if exact:
-            return {"status": "EXACT", "rule": "NAME_AND_PHONE", "exact_id": exact.id, "candidates": []}
+            | Q(
+                full_name__iexact=data["full_name"],
+                contacts__type="PHONE",
+                contacts__value=data["phone"],
+            )
+        ).distinct()
+        legacy_candidates = list(legacy_matches[:6])
+        if len(legacy_candidates) == 1:
+            return {
+                "status": "EXACT",
+                "rule": "NAME_AND_PHONE",
+                "exact_id": legacy_candidates[0].id,
+                "candidates": [],
+                "phone_signal": "LEGACY_RAW",
+            }
+        if len(legacy_candidates) > 1:
+            return {
+                "status": "FUZZY",
+                "rule": "AMBIGUOUS_NAME_AND_PHONE_LEGACY",
+                "exact_id": None,
+                "candidates": [
+                    {"id": item.id, "label": item.full_name}
+                    for item in legacy_candidates[:5]
+                ],
+            }
 
     fuzzy = queryset.filter(full_name__icontains=data["full_name"]) if data["full_name"] else queryset.none()
     if fuzzy.exists():

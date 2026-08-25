@@ -101,8 +101,13 @@ describe("App integration", () => {
     await userEvent.click(await screen.findByRole("link", { name: "Import / eksport" }));
     expect(await screen.findByRole("heading", { name: "Importjobber" })).toBeInTheDocument();
 
+    await userEvent.selectOptions(
+      screen.getByLabelText("Telefonregion for importjobb"),
+      "NO",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Opprett importjobb" }));
     expect(await screen.findByText("#1")).toBeInTheDocument();
+    expect(await screen.findByText("Telefonregion: NO")).toBeInTheDocument();
 
     const fileInput = screen.getByLabelText("Last opp CSV/XLSX");
     const csvFile = new File(["organization_name,person_full_name\nKreativ Demo AS,Ada Editor\n"], "import.csv", {

@@ -290,7 +290,9 @@ export const handlers = [
 
   http.post("/api/tenants/:tenantId/import-jobs/", async ({ params, request }) => {
     const tenantId = Number(params.tenantId);
-    const body = (await request.json()) as Pick<ImportJob, "source_type" | "import_mode">;
+    const body = (await request.json()) as Pick<ImportJob, "source_type" | "import_mode"> & {
+      phone_region?: string | null;
+    };
     const current = importJobsByTenantState[tenantId] ?? [];
     const created: ImportJob = {
       id: Math.max(0, ...current.map((job) => job.id)) + 1,
@@ -302,7 +304,7 @@ export const handlers = [
       filename: "",
       file: null,
       summary_json: {},
-      config_json: {},
+      config_json: { phone_region: body.phone_region ?? null },
       preview_report_file: null,
       error_report_file: null,
       committed_at: null,

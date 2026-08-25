@@ -20,7 +20,9 @@ from crm.models import (
     Tag,
 )
 from crm.services.person_contacts import ensure_primary_contact_for_person_field
+from crm.services.phone_writes import PhoneWriteIdentity
 from .image_decisions import apply_import_image_decision
+from .normalizers import normalize_import_phone
 
 
 class ImportCommitBlocked(Exception):
@@ -70,7 +72,13 @@ def _resolve_decisions(row: ImportRow) -> ResolvedRowDecision:
     return result
 
 
-def _apply_accepted_ai_suggestions(row: ImportRow, normalized_payload: dict, resolved: ResolvedRowDecision) -> dict:
+def _apply_accepted_ai_suggestions(
+    row: ImportRow,
+    normalized_payload: dict,
+    resolved: ResolvedRowDecision,
+    *,
+    phone_region: str | None,
+) -> dict:
     payload = deepcopy(normalized_payload)
     accepted = resolved.accepted_ai_suggestions or {}
     for suggestion_key, value in accepted.items():
@@ -136,7 +144,39 @@ def _apply_accepted_ai_suggestions(row: ImportRow, normalized_payload: dict, res
         elif suggestion_key == "suggested_subcategories" and isinstance(value, list):
             payload["organization"]["subcategories"] = [str(item) for item in value]
             payload["person"]["subcategories"] = [str(item) for item in value]
+    phone_suggestion_entities = {
+        "organization": "organization_phone" in accepted,
+        "person": "person_phone" in accepted,
+    }
+    for entity_name in ("organization", "person"):
+        entity = payload[entity_name]
+        if "phone_normalization" in entity or phone_suggestion_entities[entity_name]:
+            entity["phone_normalization"] = normalize_import_phone(
+                entity.get("phone"),
+                phone_region=phone_region,
+            )
     return payload
+
+
+def _valid_phone_identity(
+    data: dict,
+    *,
+    phone_region: str | None = None,
+) -> PhoneWriteIdentity | None:
+    if "phone_normalization" in data:
+        normalization = data.get("phone_normalization") or {}
+    else:
+        normalization = normalize_import_phone(
+            data.get("phone"),
+            phone_region=phone_region,
+        )
+    if normalization.get("status") != "VALID":
+        return None
+    return PhoneWriteIdentity(
+        raw_value=data.get("phone") or None,
+        normalized_value=normalization.get("e164"),
+        normalization_region=normalization.get("region_used"),
+    )
 
 
 def _get_or_create_tags(tenant, names: list[str]) -> list[Tag]:
@@ -188,13 +228,16 @@ def _upsert_person_contacts(person: Person, data: dict, row: ImportRow, job: Imp
                 {"type": "EMAIL", "primary": True},
             )
 
-    if data["phone"]:
+    phone_region = (job.config_json or {}).get("phone_region")
+    phone_identity = _valid_phone_identity(data, phone_region=phone_region)
+    if phone_identity is not None:
         existing = _get_primary_contact(person, "PHONE")
         primary = ensure_primary_contact_for_person_field(
             person,
             "PHONE",
-            data["phone"],
+            phone_identity.raw_value,
             is_public=data.get("phone_public"),
+            phone_identity=phone_identity,
         )
         if primary:
             _log(
@@ -207,16 +250,48 @@ def _upsert_person_contacts(person: Person, data: dict, row: ImportRow, job: Imp
             )
 
     for contact in data["secondary_contacts"]:
+        lookup = {
+            "tenant": person.tenant,
+            "person": person,
+            "type": contact["type"],
+        }
+        defaults = {
+            "value": contact["value"],
+            "is_primary": False,
+            "is_public": contact["is_public"],
+        }
+        if contact["type"] == "PHONE":
+            phone_normalization = contact.get("phone_normalization")
+            if phone_normalization is None:
+                phone_normalization = normalize_import_phone(
+                    contact.get("value"),
+                    phone_region=phone_region,
+                )
+            if phone_normalization.get("status") != "VALID":
+                continue
+            lookup["normalized_value"] = phone_normalization["e164"]
+            defaults["normalization_region"] = phone_normalization.get("region_used")
+        else:
+            lookup["value"] = contact["value"]
+            defaults.pop("value")
+
         secondary, created = PersonContact.objects.get_or_create(
-            tenant=person.tenant,
-            person=person,
-            type=contact["type"],
-            value=contact["value"],
-            defaults={"is_primary": False, "is_public": contact["is_public"]},
+            **lookup,
+            defaults=defaults,
         )
-        if not created and secondary.is_public != contact["is_public"]:
+        update_fields = []
+        if contact["type"] == "PHONE" and secondary.value != contact["value"]:
+            secondary.value = contact["value"]
+            update_fields.append("value")
+        if (
+            not created
+            and contact.get("is_public_explicit")
+            and secondary.is_public != contact["is_public"]
+        ):
             secondary.is_public = contact["is_public"]
-            secondary.save(update_fields=["is_public"])
+            update_fields.append("is_public")
+        if update_fields:
+            secondary.save(update_fields=update_fields)
         _log(
             job,
             row,
@@ -262,10 +337,24 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
                     _log(import_job, row, ImportCommitLog.EntityType.TAG, None, ImportCommitLog.Action.SKIPPED, {"reason": "unresolved review skipped"})
                     continue
 
-                normalized = _apply_accepted_ai_suggestions(row, row.normalized_payload_json, resolved)
+                normalized = _apply_accepted_ai_suggestions(
+                    row,
+                    row.normalized_payload_json,
+                    resolved,
+                    phone_region=(import_job.config_json or {}).get("phone_region"),
+                )
                 organization_data = normalized["organization"]
                 person_data = normalized["person"]
                 link_data = normalized["link"]
+                phone_region = (import_job.config_json or {}).get("phone_region")
+                organization_phone_identity = _valid_phone_identity(
+                    organization_data,
+                    phone_region=phone_region,
+                )
+                person_phone_identity = _valid_phone_identity(
+                    person_data,
+                    phone_region=phone_region,
+                )
                 matches = row.match_result_json or {}
                 org_tags = _get_or_create_tags(import_job.tenant, organization_data["tags"])
                 person_tags = _get_or_create_tags(import_job.tenant, person_data["tags"])
@@ -282,7 +371,21 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
                         name=organization_data["name"],
                         org_number=organization_data["org_number"] or None,
                         email=organization_data["email"] or None,
-                        phone=organization_data["phone"] or None,
+                        phone=(
+                            organization_phone_identity.raw_value
+                            if organization_phone_identity
+                            else None
+                        ),
+                        phone_normalized=(
+                            organization_phone_identity.normalized_value
+                            if organization_phone_identity
+                            else None
+                        ),
+                        phone_normalization_region=(
+                            organization_phone_identity.normalization_region
+                            if organization_phone_identity
+                            else None
+                        ),
                         municipalities=organization_data["municipalities"],
                         description=organization_data["description"] or None,
                         note=organization_data["note"] or None,
@@ -301,12 +404,9 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
                         "name": organization_data["name"],
                         "org_number": organization_data["org_number"] or None,
                         "email": organization_data["email"] or None,
-                        "phone": organization_data["phone"] or None,
                         "municipalities": organization_data["municipalities"],
                         "description": organization_data["description"] or None,
                         "note": organization_data["note"] or None,
-                        "is_published": organization_data["is_published"],
-                        "publish_phone": organization_data["publish_phone"],
                         "website_url": organization_data["website_url"] or None,
                         "instagram_url": organization_data["instagram_url"] or None,
                         "tiktok_url": organization_data["tiktok_url"] or None,
@@ -315,6 +415,16 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
                         "youtube_url": organization_data["youtube_url"] or None,
                     }.items():
                         setattr(organization, field, value)
+                    if organization_phone_identity is not None:
+                        organization.phone = organization_phone_identity.raw_value
+                        organization.phone_normalized = organization_phone_identity.normalized_value
+                        organization.phone_normalization_region = (
+                            organization_phone_identity.normalization_region
+                        )
+                    if organization_data.get("publish_phone_explicit"):
+                        organization.publish_phone = organization_data["publish_phone"]
+                    if organization_data.get("is_published_explicit"):
+                        organization.is_published = organization_data["is_published"]
                     organization.save()
                 if organization:
                     _log(import_job, row, ImportCommitLog.EntityType.ORGANIZATION, organization.id, organization_action, {})
@@ -331,7 +441,11 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
                         full_name=person_data["full_name"],
                         title=person_data["title"] or None,
                         email=person_data["email"] or None,
-                        phone=person_data["phone"] or None,
+                        phone=(
+                            person_phone_identity.raw_value
+                            if person_phone_identity
+                            else None
+                        ),
                         municipality=person_data["municipality"],
                         website_url=person_data["website_url"] or None,
                         instagram_url=person_data["instagram_url"] or None,
@@ -347,7 +461,6 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
                         "full_name": person_data["full_name"],
                         "title": person_data["title"] or None,
                         "email": person_data["email"] or None,
-                        "phone": person_data["phone"] or None,
                         "municipality": person_data["municipality"],
                         "website_url": person_data["website_url"] or None,
                         "instagram_url": person_data["instagram_url"] or None,
@@ -358,6 +471,8 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
                         "note": person_data["note"] or None,
                     }.items():
                         setattr(person, field, value)
+                    if person_phone_identity is not None:
+                        person.phone = person_phone_identity.raw_value
                     person.save()
                 if person:
                     _log(import_job, row, ImportCommitLog.EntityType.PERSON, person.id, person_action, {})
@@ -372,8 +487,11 @@ def commit_import_job(import_job: ImportJob, *, skip_unresolved: bool = False) -
                     )
                     if not created:
                         link.status = link_data["status"]
-                        link.publish_person = link_data["publish_person"]
-                        link.save(update_fields=["status", "publish_person"])
+                        update_fields = ["status"]
+                        if link_data.get("publish_person_explicit"):
+                            link.publish_person = link_data["publish_person"]
+                            update_fields.append("publish_person")
+                        link.save(update_fields=update_fields)
                     _log(
                         import_job,
                         row,

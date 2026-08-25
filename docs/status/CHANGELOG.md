@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-08-26
+
+### Fase 4F Import-telefonkontrakt implementert; staginggate gjenstår
+
+- fryser eksplisitt jobbregion, tenantdefault eller `null` i hver `ImportJob` uten skjult Norge-default og viser snapshotet i Editor
+- klassifiserer ikke-tomme telefoner som `VALID`, `INVALID` eller `NEEDS_REGION`, mens blank input er `KEEP` uten adapterkall
+- bruker canonical E.164 som sterkt tenant-scopet `NAME_AND_PHONE`-signal, men aldri telefon alene eller tvetydige treff som automatisk personmerge
+- committer bare gyldig råverdi/canonical identitet/faktisk brukt region og bevarer eksisterende telefon ved blankt eller usikkert utfall
+- lar telefonnormalisering og matching stå helt uten publiseringswrite; bare eksplisitte importkolonner kan endre publiseringsflagg
+- beholder kontrollert eksakt råverdi-fallback frem til fase 4G-backfill og har ingen schema- eller migrasjonsendring
+
+### Fase 4E READY_FOR_4F etter API- og synlig Editor-stagingverifikasjon
+
+- merget PR #62 som `8315c404f719f823f59eb1f104f7e5e921f9c02d` etter separat frozen-head-review uten funn og seks grønne PR-/main-CI-jobber
+- deployet eksakt merge og verifiserte norsk, svensk, internasjonal, ugyldig og regionløs Organization-/Person-telefon gjennom API og synlig Editor
+- beholdt publiseringsflagg, tenantdefault og alle katalogfingerprints uendret etter full opprydding av syntetiske rader og bruker
+- beholdt PUBLIC/API/image/safety grønt og restarttellere på null; fase 4E er `READY_FOR_4F`
+
 ## 2026-08-25
 
 ### Fase 4E Editor/internal telefon-write implementert; staginggate gjenstår

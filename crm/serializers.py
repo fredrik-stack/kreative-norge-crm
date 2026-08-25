@@ -1,6 +1,9 @@
+import phonenumbers
+
 from rest_framework import serializers
 from django.conf import settings
 from django.db import transaction
+
 from .permissions import get_user_tenant_role
 from .models import (
     Tenant,
@@ -732,9 +735,34 @@ class ImportJobSerializer(serializers.ModelSerializer):
 
 
 class ImportJobCreateSerializer(serializers.ModelSerializer):
+    phone_region = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        max_length=2,
+    )
+
+    def validate_phone_region(self, value):
+        if value in {None, ""}:
+            return None
+        normalized = value.strip().upper()
+        if normalized not in phonenumbers.SUPPORTED_REGIONS:
+            raise serializers.ValidationError("Velg en gyldig land-/regionkode.")
+        return normalized
+
     class Meta:
         model = ImportJob
-        fields = ["id", "source_type", "import_mode", "status", "tenant", "created_by", "created_at"]
+        fields = [
+            "id",
+            "source_type",
+            "import_mode",
+            "phone_region",
+            "status",
+            "tenant",
+            "created_by",
+            "created_at",
+        ]
         read_only_fields = ["id", "status", "tenant", "created_by", "created_at"]
 
 

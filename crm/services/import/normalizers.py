@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from urllib.parse import urlparse
 
+from crm.services.phone_normalization import normalize_phone as normalize_phone_identity
+
 
 ORGANIZATION_IMPORT_FIELDS = [
     "organization_name",
@@ -108,23 +110,26 @@ def get_expected_import_fields(import_mode: str = "COMBINED") -> list[str]:
     return COMBINED_IMPORT_FIELDS
 
 
-def build_import_template_config(import_mode: str) -> dict:
+def build_import_template_config(import_mode: str, *, phone_region: str | None = None) -> dict:
     if import_mode == "ORGANIZATIONS_ONLY":
         return {
             "template_code": "actors_v1",
             "sheet_name": "actors",
             "columns": ORGANIZATION_IMPORT_FIELDS,
+            "phone_region": phone_region,
         }
     if import_mode == "PEOPLE_ONLY":
         return {
             "template_code": "people_v1",
             "sheet_name": "people",
             "columns": PERSON_IMPORT_FIELDS,
+            "phone_region": phone_region,
         }
     return {
         "template_code": "combined_v1",
         "sheet_name": "combined",
         "columns": COMBINED_IMPORT_FIELDS,
+        "phone_region": phone_region,
     }
 
 
@@ -148,6 +153,25 @@ def normalize_org_number(value) -> str:
 
 def normalize_phone(value) -> str:
     return normalize_space(value)
+
+
+def normalize_import_phone(value, *, phone_region: str | None) -> dict:
+    raw_value = normalize_phone(value)
+    if not raw_value:
+        return {
+            "status": "KEEP",
+            "reason_code": None,
+            "e164": None,
+            "region_used": None,
+        }
+
+    result = normalize_phone_identity(raw_value, region=phone_region)
+    return {
+        "status": result.status.value,
+        "reason_code": result.reason_code.value if result.reason_code else None,
+        "e164": result.e164,
+        "region_used": result.region_used,
+    }
 
 
 def normalize_email(value) -> str:
@@ -191,29 +215,46 @@ def split_values(value) -> list[str]:
     return [item.strip() for item in re.split(r"[,\n;|]+", text) if item.strip()]
 
 
-def _contacts(values, public_flags, contact_type: str) -> list[dict]:
+def _contacts(
+    values,
+    public_flags,
+    contact_type: str,
+    *,
+    phone_region: str | None = None,
+) -> list[dict]:
     parsed_values = split_values(values)
     flags = [parse_bool(item, default=False) for item in split_values(public_flags)]
     contacts = []
     for index, value in enumerate(parsed_values):
-        contacts.append(
-            {
-                "type": contact_type,
-                "value": value,
-                "is_public": flags[index] if index < len(flags) else False,
-                "is_primary": False,
-            }
-        )
+        contact = {
+            "type": contact_type,
+            "value": value,
+            "is_public": flags[index] if index < len(flags) else False,
+            "is_public_explicit": index < len(flags),
+            "is_primary": False,
+        }
+        if contact_type == "PHONE":
+            contact["phone_normalization"] = normalize_import_phone(
+                value,
+                phone_region=phone_region,
+            )
+        contacts.append(contact)
     return contacts
 
 
-def normalize_import_row(raw_payload: dict, import_mode: str = "COMBINED") -> dict:
+def normalize_import_row(
+    raw_payload: dict,
+    import_mode: str = "COMBINED",
+    *,
+    phone_region: str | None = None,
+) -> dict:
     raw_payload = raw_payload or {}
     organization_name = normalize_space(raw_payload.get("organization_name"))
     organization_org_number = normalize_org_number(raw_payload.get("organization_org_number"))
     person_full_name = normalize_space(raw_payload.get("person_full_name"))
     person_email = normalize_email(raw_payload.get("person_email"))
     person_phone = normalize_phone(raw_payload.get("person_phone"))
+    organization_phone = normalize_phone(raw_payload.get("organization_phone"))
 
     normalized = {
         "organization": {
@@ -221,8 +262,13 @@ def normalize_import_row(raw_payload: dict, import_mode: str = "COMBINED") -> di
             "normalized_name": normalize_name(organization_name),
             "org_number": organization_org_number,
             "email": normalize_email(raw_payload.get("organization_email")),
-            "phone": normalize_phone(raw_payload.get("organization_phone")),
+            "phone": organization_phone,
+            "phone_normalization": normalize_import_phone(
+                organization_phone,
+                phone_region=phone_region,
+            ),
             "publish_phone": parse_bool(raw_payload.get("organization_publish_phone"), default=False),
+            "publish_phone_explicit": bool(clean_string(raw_payload.get("organization_publish_phone"))),
             "municipalities": normalize_space(raw_payload.get("organization_municipalities")),
             "website_url": clean_string(raw_payload.get("organization_website_url")),
             "website_domain": normalize_domain(raw_payload.get("organization_website_url")),
@@ -234,6 +280,7 @@ def normalize_import_row(raw_payload: dict, import_mode: str = "COMBINED") -> di
             "description": clean_string(raw_payload.get("organization_description")),
             "note": clean_string(raw_payload.get("organization_note")),
             "is_published": parse_bool(raw_payload.get("organization_is_published"), default=False),
+            "is_published_explicit": bool(clean_string(raw_payload.get("organization_is_published"))),
             "categories": split_values(raw_payload.get("organization_categories")),
             "subcategories": split_values(raw_payload.get("organization_subcategories")),
             "tags": split_values(raw_payload.get("organization_tags")),
@@ -245,6 +292,10 @@ def normalize_import_row(raw_payload: dict, import_mode: str = "COMBINED") -> di
             "email": person_email,
             "email_public": parse_optional_bool(raw_payload.get("person_email_public")),
             "phone": person_phone,
+            "phone_normalization": normalize_import_phone(
+                person_phone,
+                phone_region=phone_region,
+            ),
             "phone_public": parse_optional_bool(raw_payload.get("person_phone_public")),
             "municipality": normalize_space(raw_payload.get("person_municipality")),
             "website_url": clean_string(raw_payload.get("person_website_url")),
@@ -266,11 +317,13 @@ def normalize_import_row(raw_payload: dict, import_mode: str = "COMBINED") -> di
                 raw_payload.get("person_secondary_phones"),
                 raw_payload.get("person_secondary_phones_public"),
                 "PHONE",
+                phone_region=phone_region,
             ),
         },
         "link": {
             "status": normalize_space(raw_payload.get("link_status")).upper() or "ACTIVE",
             "publish_person": parse_bool(raw_payload.get("link_publish_person"), default=False),
+            "publish_person_explicit": bool(clean_string(raw_payload.get("link_publish_person"))),
         },
     }
 
@@ -282,6 +335,7 @@ def normalize_import_row(raw_payload: dict, import_mode: str = "COMBINED") -> di
             "email": "",
             "email_public": None,
             "phone": "",
+            "phone_normalization": normalize_import_phone("", phone_region=phone_region),
             "phone_public": None,
             "municipality": "",
             "website_url": "",
@@ -304,7 +358,9 @@ def normalize_import_row(raw_payload: dict, import_mode: str = "COMBINED") -> di
             "org_number": organization_org_number,
             "email": "",
             "phone": "",
+            "phone_normalization": normalize_import_phone("", phone_region=phone_region),
             "publish_phone": False,
+            "publish_phone_explicit": False,
             "municipalities": "",
             "website_url": "",
             "website_domain": "",
@@ -316,6 +372,7 @@ def normalize_import_row(raw_payload: dict, import_mode: str = "COMBINED") -> di
             "description": "",
             "note": "",
             "is_published": False,
+            "is_published_explicit": False,
             "categories": [],
             "subcategories": [],
             "tags": [],
@@ -323,6 +380,7 @@ def normalize_import_row(raw_payload: dict, import_mode: str = "COMBINED") -> di
         normalized["link"] = {
             "status": normalize_space(raw_payload.get("link_status")).upper() or "ACTIVE",
             "publish_person": parse_bool(raw_payload.get("link_publish_person"), default=False),
+            "publish_person_explicit": bool(clean_string(raw_payload.get("link_publish_person"))),
         }
 
     return normalized

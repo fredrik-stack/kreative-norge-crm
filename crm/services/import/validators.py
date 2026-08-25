@@ -3,6 +3,21 @@ from __future__ import annotations
 from crm.models import Category, Subcategory
 
 
+def _append_phone_review_warning(
+    warnings: list[str],
+    *,
+    field_name: str,
+    phone_normalization: dict,
+) -> None:
+    status = phone_normalization.get("status")
+    if status not in {"INVALID", "NEEDS_REGION"}:
+        return
+    reason_code = phone_normalization.get("reason_code") or "unknown"
+    warnings.append(
+        f"Phone review required: {field_name}: {status}: {reason_code}"
+    )
+
+
 def validate_normalized_row(tenant, normalized_payload: dict) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     warnings: list[str] = []
@@ -18,6 +33,17 @@ def validate_normalized_row(tenant, normalized_payload: dict) -> tuple[list[str]
         errors.append("Organization email is invalid.")
     if person["email"] and "@" not in person["email"]:
         errors.append("Person email is invalid.")
+
+    _append_phone_review_warning(
+        warnings,
+        field_name="organization.phone",
+        phone_normalization=organization["phone_normalization"],
+    )
+    _append_phone_review_warning(
+        warnings,
+        field_name="person.phone",
+        phone_normalization=person["phone_normalization"],
+    )
 
     if link["status"] and link["status"] not in {"ACTIVE", "INACTIVE"}:
         errors.append("Link status must be ACTIVE or INACTIVE.")
@@ -47,5 +73,11 @@ def validate_normalized_row(tenant, normalized_payload: dict) -> tuple[list[str]
         seen_secondary.add(key)
         if contact["type"] == "EMAIL" and "@" not in contact["value"]:
             errors.append(f"Invalid secondary email: {contact['value']}")
+        if contact["type"] == "PHONE":
+            _append_phone_review_warning(
+                warnings,
+                field_name="person.secondary_phone",
+                phone_normalization=contact["phone_normalization"],
+            )
 
     return errors, warnings
