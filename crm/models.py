@@ -6,7 +6,12 @@ from django.core.exceptions import ValidationError
 from django.utils.text import slugify
 from django.conf import settings
 
-from .validators import validate_sha256, validate_storage_key
+from .validators import (
+    validate_e164_phone,
+    validate_phone_region,
+    validate_sha256,
+    validate_storage_key,
+)
 
 
 class AppendOnlyEventError(Exception):
@@ -266,7 +271,24 @@ def export_job_upload_to(instance, filename: str) -> str:
 class Tenant(models.Model):
     name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True)
+    default_phone_region = models.CharField(
+        max_length=2,
+        null=True,
+        blank=True,
+        validators=[validate_phone_region],
+    )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(default_phone_region__isnull=True)
+                    | models.Q(default_phone_region__regex=r"^[A-Z]{2}$")
+                ),
+                name="tenant_phone_region_format",
+            ),
+        ]
 
     def __str__(self) -> str:
         return self.name
@@ -549,6 +571,18 @@ class Organization(models.Model):
     org_number = models.CharField(max_length=32, null=True, blank=True)
     email = models.EmailField(null=True, blank=True)
     phone = models.CharField(max_length=64, null=True, blank=True)
+    phone_normalized = models.CharField(
+        max_length=16,
+        null=True,
+        blank=True,
+        validators=[validate_e164_phone],
+    )
+    phone_normalization_region = models.CharField(
+        max_length=2,
+        null=True,
+        blank=True,
+        validators=[validate_phone_region],
+    )
 
     # MVP: vanlig tekstfelt
     municipalities = models.CharField(
@@ -587,6 +621,33 @@ class Organization(models.Model):
         indexes = [
             models.Index(fields=["tenant", "name"]),
             models.Index(fields=["tenant", "org_number"]),
+            models.Index(
+                fields=["tenant", "phone_normalized"],
+                name="org_tenant_phone_norm_idx",
+            ),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(phone_normalized__isnull=True)
+                    | models.Q(phone_normalized__regex=r"^\+[1-9][0-9]{1,14}$")
+                ),
+                name="org_phone_normalized_e164",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(phone_normalization_region__isnull=True)
+                    | models.Q(phone_normalization_region__regex=r"^[A-Z]{2}$")
+                ),
+                name="org_phone_region_format",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(phone_normalization_region__isnull=True)
+                    | models.Q(phone_normalized__isnull=False)
+                ),
+                name="org_phone_region_requires_norm",
+            ),
         ]
 
     def __str__(self) -> str:
@@ -1448,6 +1509,18 @@ class PersonContact(models.Model):
 
     type = models.CharField(max_length=16, choices=CONTACT_TYPES)
     value = models.CharField(max_length=255)
+    normalized_value = models.CharField(
+        max_length=16,
+        null=True,
+        blank=True,
+        validators=[validate_e164_phone],
+    )
+    normalization_region = models.CharField(
+        max_length=2,
+        null=True,
+        blank=True,
+        validators=[validate_phone_region],
+    )
 
     is_primary = models.BooleanField(default=False)
     is_public = models.BooleanField(default=False)  # til public API senere
@@ -1457,6 +1530,48 @@ class PersonContact(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["tenant", "type", "value"]),
+            models.Index(
+                fields=["tenant", "type", "normalized_value"],
+                name="pc_tenant_type_phone_idx",
+            ),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(normalized_value__isnull=True)
+                    | models.Q(normalized_value__regex=r"^\+[1-9][0-9]{1,14}$")
+                ),
+                name="pc_normalized_phone_e164",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(normalization_region__isnull=True)
+                    | models.Q(normalization_region__regex=r"^[A-Z]{2}$")
+                ),
+                name="pc_phone_region_format",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(normalization_region__isnull=True)
+                    | models.Q(normalized_value__isnull=False)
+                ),
+                name="pc_phone_region_requires_norm",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(type="PHONE")
+                    | (
+                        models.Q(normalized_value__isnull=True)
+                        & models.Q(normalization_region__isnull=True)
+                    )
+                ),
+                name="pc_phone_identity_fields_only",
+            ),
+            models.UniqueConstraint(
+                fields=["tenant", "person", "type", "normalized_value"],
+                condition=models.Q(normalized_value__isnull=False),
+                name="pc_person_type_phone_norm_uniq",
+            ),
         ]
 
     def __str__(self) -> str:

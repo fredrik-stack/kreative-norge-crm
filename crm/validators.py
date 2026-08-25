@@ -1,6 +1,7 @@
 import re
 import unicodedata
 
+import phonenumbers
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 
@@ -10,6 +11,21 @@ validate_sha256 = RegexValidator(
     message="Enter a lowercase hexadecimal SHA-256 checksum.",
     code="invalid_sha256",
 )
+
+validate_e164_phone = RegexValidator(
+    regex=r"^\+[1-9][0-9]{1,14}$",
+    message="Enter a canonical E.164 phone number.",
+    code="invalid_e164_phone",
+)
+
+
+def validate_phone_region(value: str) -> None:
+    """Validate an explicit uppercase libphonenumber region code."""
+    if value not in phonenumbers.SUPPORTED_REGIONS:
+        raise ValidationError(
+            "Enter a supported uppercase phone region code.",
+            code="invalid_phone_region",
+        )
 
 
 def validate_storage_key(value: str) -> None:
