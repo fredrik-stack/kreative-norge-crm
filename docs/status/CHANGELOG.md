@@ -2,6 +2,15 @@
 
 ## 2026-08-25
 
+### Fase 4B skrivebeskyttet telefonbaseline READY_FOR_4C
+
+- kjørt to separate PostgreSQL-inventar i eksplisitte transaksjoner med `transaction_read_only=on`; hele aggregatresultatet var byteidentisk og fingerprints for Organization, Person, PHONE PersonContact og OrganizationPerson var uendret
+- kartlagt alle tre tenants: 128 organisasjoner med 2 telefoner, 157 personer med 55 direkte telefoner, 56 primære PHONE-kontakter og 176 OrganizationPerson-lenker, uten tenantavvik, flere primærkontakter, direktefelt/primærkontakt-avvik eller delte eksakte persontelefoner
+- dokumentert syntaktisk profil uten E.164-påstand: 111 av 113 ikke-tomme lagringsrader mangler eksplisitt internasjonalt prefiks, 2 starter med `+`, 0 med `00`, og 10 lagringsrader er syntaktisk uvanlige fordi fem samsvarende person-/kontaktrader forekommer i begge lagringssteder
+- bevart personvern ved bare å lagre tellinger, kategorier og SHA-256-digests; ingen rå telefoner, navn, e-post, eksport, dump eller screenshots ble lagt i Git eller rapport
+- verifisert samme stagingrepo, container-ID-er, images, starttider og restartteller `0` før/etter; ingen dependency, kode, migrasjon, data, konfigurasjon, restart, recreate eller deploy ble utført
+- klassifisert resultatet `READY_FOR_4C` i [4B-evidensrapporten](STAGING_PHASE_4B_PHONE_BASELINE_2026-08-25.md); 4C er ikke startet
+
 ### Fase 4A: internasjonal telefonarkitektur dokumentert
 
 - opprettet foreslått [ADR-010](../decisions/ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md) som presiserer ADR-005 med E.164-identitet, libphonenumber-modellen, eksplisitt regionkontekst og typed gyldig/ugyldig/tvetydig utfall
