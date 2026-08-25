@@ -2,6 +2,7 @@ export type Tenant = {
   id: number;
   name: string;
   slug: string;
+  default_phone_region: string | null;
   created_at: string;
   current_user_role: "superadmin" | "gruppeadmin" | "redigerer" | "leser" | null;
 };
@@ -64,6 +65,7 @@ export type Person = {
   title: string | null;
   email: string | null;
   phone: string | null;
+  phone_region_used: string | null;
   municipality: string;
   note: string | null;
   website_url: string | null;
@@ -94,6 +96,7 @@ export type PersonContact = {
   id: number;
   type: "EMAIL" | "PHONE";
   value: string;
+  phone_region_used: string | null;
   is_primary: boolean;
   is_public: boolean;
   created_at: string;
@@ -108,6 +111,7 @@ export type Organization = {
   org_number: string | null;
   email: string | null;
   phone: string | null;
+  phone_region_used: string | null;
   municipalities: string;
   note: string | null;
   description: string | null;

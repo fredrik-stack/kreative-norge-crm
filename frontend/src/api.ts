@@ -262,6 +262,7 @@ export type OrganizationPatch = Pick<
   | "linkedin_url"
   | "youtube_url"
 > & {
+  phone_region: string | null;
   tag_ids: number[];
   category_ids: number[];
   subcategory_ids: number[];
@@ -272,6 +273,7 @@ export type PersonPayload = {
   title: string | null;
   email: string | null;
   phone: string | null;
+  phone_region: string | null;
   municipality: string;
   note: string | null;
   website_url: string | null;
@@ -504,6 +506,7 @@ export type PersonContactPayload = {
   person: number;
   type: "EMAIL" | "PHONE";
   value: string;
+  phone_region?: string | null;
   is_primary: boolean;
   is_public: boolean;
 };

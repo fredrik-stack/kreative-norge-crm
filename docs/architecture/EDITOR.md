@@ -1,6 +1,6 @@
 # Editor
 
-**Status:** implementert grunnløsning; fase 2-standarder for kontaktpublisering implementert; fase 3D.1 offisiell bildekandidatflyt teknisk aktivert og visuelt godkjent i staging; fase 3D.2 med precision/zoom er gjennomført og merget til `main` med PR #33, fullverifisert lokalt, CI-grønn, historisk live Brave-verifisert og visuelt eiergodkjent i staging; Brave er operativt deaktivert for ordinære Editor-sluttbrukere frem til sluttbrukeravtalegaten er dokumentert oppfylt
+**Status:** implementert grunnløsning; fase 2-standarder for kontaktpublisering implementert; fase 4E synlig telefonregion og servervalidert normalisering er implementert og avventer staginggate; fase 3D.1 offisiell bildekandidatflyt teknisk aktivert og visuelt godkjent i staging; fase 3D.2 med precision/zoom er gjennomført og merget til `main` med PR #33, fullverifisert lokalt, CI-grønn, historisk live Brave-verifisert og visuelt eiergodkjent i staging; Brave er operativt deaktivert for ordinære Editor-sluttbrukere frem til sluttbrukeravtalegaten er dokumentert oppfylt
 
 React-editoren støtter tenantvalg, rollebasert tilgang, aktører, personer, relasjoner, kontaktkanaler, søk, taksonomifiltrering og import/eksport-side.
 
@@ -55,6 +55,14 @@ På personens redigeringsside kan redaktøren:
 - endre kontaktverdi
 - styre `is_primary`
 - styre `is_public` med tekstene `Vis e-post offentlig` og `Vis telefon offentlig`
+
+Organization-, Person- og PHONE-kontaktskjemaene har et synlig
+land-/regionvalg. Tenantens nullable default forhåndsvelges når den finnes,
+men kan overstyres per telefon. `+`-numre trenger ikke region og tømmer valget
+i Editor. Nasjonale numre uten region og ugyldige numre blokkeres av backend
+med norsk feltfeil. Original skrivemåte beholdes i Editor/PUBLIC, mens canonical
+identitet holdes intern. Lagring av et annet felt normaliserer ikke en uendret
+legacytelefon.
 
 På aktørsiden skilles personpublisering fra kontaktpublisering:
 

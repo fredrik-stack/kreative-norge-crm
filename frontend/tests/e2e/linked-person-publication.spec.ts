@@ -127,7 +127,7 @@ test("switching organization clears linked-person draft, errors, status and publ
   await expect(secondForm.getByLabel(/^Fullt navn/)).toHaveValue("");
   await expect(secondForm.getByLabel("Tittel", { exact: true })).toHaveValue("");
   await expect(secondForm.getByLabel("Telefon", { exact: true })).toHaveValue("");
-  await expect(secondForm.getByRole("combobox")).toHaveValue("ACTIVE");
+  await expect(secondForm.getByRole("combobox").last()).toHaveValue("ACTIVE");
   await expect(secondForm.getByRole("checkbox", { name: /Gjør denne e-postadressen offentlig/ })).not.toBeChecked();
   await expect(secondForm.getByRole("checkbox", { name: /Gjør dette telefonnummeret offentlig/ })).not.toBeChecked();
   await expect(secondForm.getByRole("checkbox", { name: /Vis ny person som kontaktperson offentlig/ })).not.toBeChecked();

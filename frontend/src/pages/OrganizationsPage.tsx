@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
 import { Field } from "../components/Field";
+import { PhoneRegionSelect } from "../components/PhoneRegionSelect";
 import { useEditor } from "../context/EditorContext";
 import { filterSubcategoriesForCategory, sortedCategories as sortCategoriesByTaxonomy } from "../editorTaxonomy";
 import { saveLabel } from "../editor-utils";
@@ -445,10 +446,26 @@ function OrganizationEditorPanel(props: {
                 />
               </Field>
               <Field label="Telefon" error={editor.organizationFieldErrors.phone}>
-                <input
-                  value={editor.draft.phone ?? ""}
-                  onChange={(e) => editor.setDraft((s) => ({ ...s, phone: e.target.value }))}
-                />
+                <div className="contact-inline-input">
+                  <input
+                    aria-label="Telefon"
+                    value={editor.draft.phone ?? ""}
+                    onChange={(e) =>
+                      editor.setDraft((state) => ({
+                        ...state,
+                        phone: e.target.value,
+                        ...(e.target.value.trim().startsWith("+") ? { phone_region: null } : {}),
+                      }))
+                    }
+                  />
+                  <PhoneRegionSelect
+                    value={editor.draft.phone_region ?? ""}
+                    onChange={(phoneRegion) =>
+                      editor.setDraft((state) => ({ ...state, phone_region: phoneRegion || null }))
+                    }
+                  />
+                </div>
+                <small className="meta">Land/region kreves bare for nasjonalt skrevne numre.</small>
               </Field>
             </div>
 
@@ -1899,10 +1916,28 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
                   />
                 </Field>
                 <Field label="Telefon" error={editor.linkedPersonFieldErrors.phone}>
-                  <input
-                    value={editor.linkedPersonDraft.phone}
-                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, phone: e.target.value }))}
-                  />
+                  <div className="contact-inline-input">
+                    <input
+                      aria-label="Telefon"
+                      value={editor.linkedPersonDraft.phone}
+                      onChange={(e) =>
+                        editor.setLinkedPersonDraft((state) => ({
+                          ...state,
+                          phone: e.target.value,
+                          ...(e.target.value.trim().startsWith("+") ? { phone_region: null } : {}),
+                        }))
+                      }
+                    />
+                    <PhoneRegionSelect
+                      value={editor.linkedPersonDraft.phone_region ?? ""}
+                      onChange={(phoneRegion) =>
+                        editor.setLinkedPersonDraft((state) => ({
+                          ...state,
+                          phone_region: phoneRegion || null,
+                        }))
+                      }
+                    />
+                  </div>
                 </Field>
               </div>
 

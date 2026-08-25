@@ -49,9 +49,10 @@ nettverks- eller fil-I/O, logging, tenant-/entity-kobling eller sideeffekter. De
 callers ansvar i senere faser å levere eksplisitt og sporbar regionkontekst,
 bevare presentasjonsverdien og håndtere review, lagring og publisering.
 
-Fase 4C la ikke til schema, migrasjon, API, Editor-, Import-, matching-,
-repair- eller backfilladferd. Fase 4D legger bare til den additive persistensen
-som senere callers kan bruke; den kobler fortsatt ikke adapteren til writes.
+Fase 4C la ikke til schema eller callers. Fase 4D la bare til den additive
+persistensen. Fase 4E kobler ordinære interne Organization-, Person- og
+PHONE-`PersonContact`-writes til adapteren; Import, matching, repair og
+legacybackfill er fortsatt egne senere gater.
 
 ## Additiv persistens i fase 4D
 
@@ -78,6 +79,27 @@ Regionfeltene bruker også en modellvalidator mot libphonenumbers støttede
 regioner. Tom region lagres som `NULL`; nye tenants får ingen skjult region.
 Schema-reverse er testet så lenge alle nye felt er `NULL`, og blokkeres før
 feltdropp dersom region eller kanonisk identitet senere er lagret.
+
+## Intern write-kontrakt i fase 4E
+
+Editor-API-et tar et eksplisitt `phone_region`-kontekstfelt sammen med en ny
+eller endret rå telefon. `phone_region` returneres ikke som identitet; intern
+respons kan lese `phone_region_used`, mens canonical E.164-feltet ikke
+serialiseres. Tenantens nullable default returneres read-only slik at Editor
+kan forhåndsvelge den synlig. Backend bruker aldri tenantdefaulten implisitt.
+
+`crm.services.phone_writes.prepare_phone_write` er den felles write-grensen.
+Den bevarer trimmet presentasjonsverdi, lagrer E.164 og bare regionen adapteren
+faktisk brukte. Internasjonale `+`-numre ignorerer valgt region og lagrer
+region som `NULL`. `NEEDS_REGION`, ugyldige numre og extensions blir
+kontrollerte norske feltfeil; rå dependencyexceptions eksponeres ikke.
+
+Personens direkte kompatibilitetsfelt synkroniseres fortsatt med primær
+PHONE-`PersonContact`, og identiteten ligger bare på kontakten. Eksplisitt
+tømming fjerner den primære telefonkontakten; sekundære kontakter og alle
+publiseringsvalg berøres ikke. Serializerlaget normaliserer bare når selve
+råtelefonen opprettes eller faktisk endres. Et fullstendig Editor-payload med
+uendret legacytelefon kan derfor ikke gi incidental backfill.
 
 ## Verifikasjon og rollback
 

@@ -13,7 +13,8 @@ test("create organization and verify preview updates", async ({ page }) => {
   await page.getByLabel(/Navn/).fill("Ny Kulturaktør");
   await page.getByLabel("Org.nr").fill("987654321");
   await page.getByLabel("E-post").fill("kontakt@kultur.no");
-  await page.getByRole("textbox", { name: "Telefon" }).fill("+4798765432");
+  await page.getByRole("textbox", { name: "Telefon" }).fill("22 12 34 56");
+  await expect(page.getByLabel("Land/region for telefonnummer")).toHaveValue("NO");
   await page.getByLabel("Kommune(r)").fill("Bergen");
 
   const preview = page.locator(".panel.preview");
@@ -22,7 +23,15 @@ test("create organization and verify preview updates", async ({ page }) => {
   await expect(preview.getByText("kontakt@kultur.no")).toBeVisible();
   await expect(preview.getByText("Skjult")).toBeVisible();
 
+  const createRequest = page.waitForRequest(
+    (request) =>
+      request.method() === "POST" && request.url().endsWith("/api/tenants/1/organizations/"),
+  );
   await page.getByRole("button", { name: "Opprett aktør" }).click();
+  expect((await createRequest).postDataJSON()).toMatchObject({
+    phone: "22 12 34 56",
+    phone_region: "NO",
+  });
 
   await expect(page.getByLabel(/Navn/)).toHaveValue("Ny Kulturaktør");
   await expect(page.getByText(/Sist lagret/)).toBeVisible();
@@ -30,6 +39,7 @@ test("create organization and verify preview updates", async ({ page }) => {
 
   const organizationForm = page.locator(".panel.editor form").first();
   await organizationForm.getByRole("textbox", { name: "Telefon" }).fill("+4711111111");
+  await expect(organizationForm.getByLabel("Land/region for telefonnummer")).toHaveValue("");
   await page.getByRole("checkbox", { name: /Publiser telefon/ }).check();
   await page.getByRole("button", { name: "Lagre endringer" }).click();
 
