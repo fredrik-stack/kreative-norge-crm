@@ -2,8 +2,10 @@
 
 Telefonnormalisering er implementert som én ren intern domenegrense i
 `crm/services/phone_normalization.py`. Den presiserer fase 4C i
-[ADR-010](../decisions/ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md)
-uten å koble normaliseringen til modeller, API, Editor eller import.
+[ADR-010](../decisions/ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md).
+Fase 4D–4G har koblet samme grense til additiv persistens, API/Editor, Import,
+matching og kontrollert legacybackfill; fase 4H har teknisk verifisert hele
+kjeden i staging.
 
 ## Dependency og kontrakt
 
@@ -46,8 +48,9 @@ Stabile årsakskoder er:
 
 Adapteren har ingen Django-importer, modeller, settings, database-,
 nettverks- eller fil-I/O, logging, tenant-/entity-kobling eller sideeffekter. Det er derfor
-callers ansvar i senere faser å levere eksplisitt og sporbar regionkontekst,
-bevare presentasjonsverdien og håndtere review, lagring og publisering.
+callerlagets ansvar å levere eksplisitt og sporbar regionkontekst, bevare
+presentasjonsverdien og håndtere review, lagring og publisering. Disse
+calleransvarene er implementert i 4E–4G uten å gjøre adapteren uren.
 
 Fase 4C la ikke til schema eller callers. Fase 4D la bare til den additive
 persistensen. Fase 4E kobler ordinære interne Organization-, Person- og
@@ -138,9 +141,8 @@ og isolert reverse/forward. Fase 4E er verifisert med API- og synlig
 Editor-smoke for norsk, svensk, internasjonal, ugyldig og regionløs input,
 etterfulgt av full opprydding og identiske katalogfingerprints.
 
-Fase 4F har ingen migrasjon. Før 4G-backfill kan den rulles tilbake ved å
-reversere Import-callers og UI; eksisterende canonical felt fra ordinære
-4E-writes er fortsatt gyldige og trenger ingen datareversering.
+Fase 4F har ingen migrasjon. Import-callers og UI kan rulles tilbake uten å
+reversere gyldige canonical felt fra ordinære 4E-writes eller 4G-backfill.
 
 ## Kontrollert legacybackfill i fase 4G
 
@@ -160,3 +162,17 @@ Apply krever unik batch-ID og skriver et no-clobber rollbackmanifest med bare
 nødvendige ID-er og additive feltverdier til en operatøreid path utenfor Git.
 Rollback gjenoppretter bare feltene batchen faktisk endret og stopper ved
 post-batch drift. Se [operatørprosedyren](../operations/PHONE_BACKFILL.md).
+
+## Samlet stagingstate etter fase 4H
+
+Fase 4G satte eksplisitt `NO` på alle tre stagingtenantene og skrev 61
+additive endringer: 3 tenantregioner, 2 Organization-identiteter og 56 PHONE-
+`PersonContact`-identiteter. Råverdier og publiseringsstate beholdt eksakt
+samme fingerprints som før apply, og repetert dry-run er `0`.
+
+[Fase 4H-sluttevidensen](../status/STAGING_PHASE_4H_PHONE_TECHNICAL_VERIFICATION_2026-08-26.md)
+verifiserer schema/defaults, Editor, API, Import, cross-tenant, PUBLIC,
+backfillmanifest/isolert rollback, full testmatrise og post-change
+backup/restore. Restorekopien hadde samme migrasjon, regioner, tellinger,
+canonical state og fingerprints som live. Teknisk status er
+`PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE`.

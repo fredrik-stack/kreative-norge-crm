@@ -1,6 +1,6 @@
 # Import Architecture
 
-**Status:** Teknisk motor implementert; fase 4F telefonkontrakt implementert og avventer staginggate; større produkt- og UX-revisjon planlagt
+**Status:** Teknisk motor implementert; fase 4F-telefonkontrakten og samlet fase 4H-gate er teknisk stagingverifisert; større produkt- og UX-revisjon er planlagt og ikke startet
 
 **Sist verifisert:** 2026-08-26
 
@@ -71,8 +71,9 @@ aldri publisere data.
 Personmatching bruker samme navn og canonical E.164 som et sterkt
 `NAME_AND_PHONE`-signal når begge sider har canonical identitet. Samme telefon
 alene er aldri personidentitet, tvetydige treff auto-merges ikke, og matching er
-tenant-scopet. En kontrollert eksakt råverdi-fallback beholdes frem til fase 4G
-har gjennomført legacybackfill.
+tenant-scopet. En kontrollert eksakt råverdi-fallback beholdes for eventuelle
+legacyrader uten canonical identitet; 4G-backfill har normalisert alle
+deterministiske stagingkandidater og avslutter med dry-run `0`.
 
 ## Kontaktfelt i dagens import
 
