@@ -1,6 +1,6 @@
 # API
 
-**Status:** implementert grunn-API; 3E.2 public image projection/API shadow er `CLOSED / SHADOW VERIFIED`; 3E.3-targetschemaet er `CLOSED / ACTIVE` i staging; 3E.4-takedownaction er `CLOSED / ACTIVE` i staging med kode-/eksempelstandard fortsatt av; 3F legacy-/Import-kontrakten er `CLOSED / VERIFIED` med Import-gaten av i shared staging; fase 4E intern telefon-write-kontrakt er stagingverifisert; fase 4F Import-telefonkontrakt er implementert og avventer staginggate
+**Status:** implementert grunn-API; 3E.2 public image projection/API shadow er `CLOSED / SHADOW VERIFIED`; 3E.3-targetschemaet er `CLOSED / ACTIVE` i staging; 3E.4-takedownaction er `CLOSED / ACTIVE` i staging med kode-/eksempelstandard fortsatt av; 3F legacy-/Import-kontrakten er `CLOSED / VERIFIED` med Import-gaten av i shared staging; fase 4 API-/Editor-/Import-telefonkontrakt og kontrollert backfill er teknisk stagingverifisert og `READY_FOR_OWNER_SMOKE`
 
 API-et omfatter autentisering, tenants, taksonomi, aktører, personer, koblinger, kontaktkanaler, interne bildekandidathandlinger, public actors, importjobber og eksportjobber.
 

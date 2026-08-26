@@ -5,6 +5,11 @@ Denne operatørveien gjelder bare fase 4G etter
 Den setter eksplisitt region på den komplette, godkjente tenantsamlingen og
 backfiller bare de additive canonical-feltene fra migrasjon `0032`.
 
+**Stagingstatus 2026-08-26:** batch
+`phase4g-staging-20260825T235228Z` er anvendt og teknisk verifisert. Live
+dry-run er `0`; rollbackmanifestet beholdes restriktivt utenfor Git og er bare
+anvendt på isolert restorekopi. Se [4H-sluttevidensen](../status/STAGING_PHASE_4H_PHONE_TECHNICAL_VERIFICATION_2026-08-26.md).
+
 ## Sikkerhetskontrakt
 
 `backfill_phone_identity` er read-only uten `--apply`. Forward-kjøring krever:

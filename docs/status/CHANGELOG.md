@@ -2,6 +2,23 @@
 
 ## 2026-08-26
 
+### Fase 4 teknisk verifisert og klar for prosjekteiers smoke
+
+- gjennomført samlet 4H-gate på eksakt 4G-merge `d9b0589` for additivt schema/defaults, Editor, API, Import, matching, cross-tenant, PUBLIC og backfill-idempotens
+- verifisert synlig staging-UI med Playwright, fire gyldige internasjonale/nasjonale varianter, invalid, extension og separat clearing uten publiseringssideeffekt; alle testdata og midlertidig bruker ble slettet eksakt
+- kjørt åtte transaksjonelle importrader med `VALID`, `INVALID`, `NEEDS_REGION`, `KEEP`, region-snapshot, identisk retry og ingen automerge; tre testfiler ble slettet
+- beholdt rå-/publiseringsfingerprints eksakt, backfill-dry-run `0`, PUBLIC `122 = 1 asset + 121 fallback`, safety `READY` cursor 13, ni deliveryfiler og restarttellere `0`
+- kjørt full sluttmatrise med 560 backendtester, 31 frontendtester, produksjonsbuild, Django-check og ingen migrasjonsdrift
+- tatt post-4H-backup `kreative-norge-staging-20260826T061135Z`, fullverifisert repository/archive-data og verifisert `0032`, tellinger, regions-/canonical state, fingerprints, image og safety på isolert restorekopi
+- dokumentert [samlet 4H-evidens](STAGING_PHASE_4H_PHONE_TECHNICAL_VERIFICATION_2026-08-26.md); status er `PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE`, mens fase 5 og produksjon ikke er startet
+
+### Fase 4G kontrollert backfill anvendt og verifisert i staging
+
+- merget PR #64 som `d9b0589acee433034acb2706f204383361049a41` etter frozen-head-review uten funn og seks grønne PR-/main-CI-jobber
+- tatt og fullverifisert backup `kreative-norge-staging-20260825T234721Z`, samt bevist isolert apply/rollback mot ekte restorekopi før live write
+- anvendt batch `phase4g-staging-20260825T235228Z` med 61 additive endringer: 3 tenantregioner, 2 Organization-identiteter og 56 PHONE-kontaktidentiteter
+- bevart råtelefon og publiseringsfingerprints eksakt, kontrollert restriktivt no-clobber rollbackmanifest uten raw/new canonical payload og avsluttet med to identiske dry-runs på `0`
+
 ### Fase 4G kontrollert telefonbackfill implementert; staging apply gjenstår
 
 - lagt dry-run-first, tenant-scopet og idempotent `backfill_phone_identity` med eksplisitt `--apply`, eksakt tenantgate og aggregert personvernredigert output

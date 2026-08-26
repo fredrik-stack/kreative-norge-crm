@@ -86,8 +86,10 @@ Canonical E.164 og uppercase regionkodeform håndheves med databaseconstraints,
 mens modellvalidering kontrollerer regionen mot libphonenumber. Region kan ikke
 lagres uten normalisert verdi. PersonContact-identiteten er unik bare innen
 tenant + person + kontakttype; telefon er ikke globalt unik mellom personer
-eller organisasjoner. 4D endrer ikke eksisterende API-writes og utfører ingen
-incidental normalisering.
+eller organisasjoner. 4D-migrasjonen utførte ingen incidental normalisering.
+4G har senere satt eksplisitt `NO` på tre stagingtenants og kontrollert
+backfillet canonical identitet på 2 Organization- og 56 PHONE-kontaktrader;
+råverdi og publisering er uendret, og 4H-restorekopien bekrefter samme state.
 
 ## Additiv bildedomenemodell og planlagt bildearkitektur
 

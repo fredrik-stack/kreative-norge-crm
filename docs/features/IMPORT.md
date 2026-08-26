@@ -1,6 +1,6 @@
 # Feature: Import
 
-**Status:** implementert og under kvalitetssikring; fase 4F telefonkontrakt avventer staginggate
+**Status:** implementert og under kvalitetssikring; fase 4F-telefonkontrakten er teknisk stagingverifisert gjennom samlet fase 4H-gate
 
 Brukeren skal kunne laste opp kontaktdata, få radvis preview, se konflikter og forslag, redigere beslutninger og eksplisitt commite godkjente rader.
 

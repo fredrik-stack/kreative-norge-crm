@@ -4,7 +4,9 @@
 
 Godkjent av prosjekteier 2026-08-25 etter uavhengig frozen-head-review uten funn og merget til `main` med PR #56 som `e0c38162a7e0b0c8b90daf7387a1682e44370f33`.
 
-Telefonarkitekturen er ikke implementert. Fase 4A er beslutnings- og dokumentasjonsarbeid; fase 4B er neste separate, skrivebeskyttede gate og krever eget godkjent oppdrag før staginginventory starter.
+Beslutningen er implementert gjennom fase 4A–4H og teknisk stagingverifisert
+2026-08-26. Nåstatus er `PHASE 4 TECHNICALLY VERIFIED /
+READY_FOR_OWNER_SMOKE`; se [samlet 4H-evidens](../status/STAGING_PHASE_4H_PHONE_TECHNICAL_VERIFICATION_2026-08-26.md).
 
 **Beslutningsdato:** 2026-08-25
 
@@ -20,11 +22,11 @@ ADR-010 presiserer ADR-005 for telefonnummer. Det erstatter ikke ADR-005 og endr
 
 Tenant-isolasjonen fra ADR-001 og publiseringsskillet fra ADR-003 gjelder uendret.
 
-## Bakgrunn og faktisk mellomtilstand
+## Bakgrunn og mellomtilstand ved beslutningsdatoen
 
 Fase 3 og fase 3F er `CLOSED / VERIFIED`. Bildearkitekturen er ikke del av denne beslutningen.
 
-Aktiv kode har fortsatt en overgangsmodell for telefon:
+Ved beslutningsdatoen hadde aktiv kode følgende overgangsmodell for telefon:
 
 - `Person.phone` og `Organization.phone` er nullable tekstfelt uten egen kanonisk sammenligningsverdi.
 - `PersonContact` lagrer `type`, fri `value`, `is_primary` og global `is_public`, men ingen telefonspesifikk normalisert verdi.
@@ -249,7 +251,7 @@ Målet er å etablere en stabil og internasjonalt skalerbar telefonidentitet fø
 
 **Rollback:** Gå tilbake til siste verifiserte lese-/skrivevei, behold råverdier og additive data, og merk fase 4 som ikke lukket.
 
-Fase 4 kan først markeres `CLOSED / VERIFIED` etter separat implementasjon og stagingverifikasjon i 4B–4H.
+Fase 4 kan først markeres `CLOSED / VERIFIED` etter separat implementasjon og stagingverifikasjon i 4B–4H. De tekniske kriteriene ble verifisert 2026-08-26; prosjekteiers manuelle smoke gjenstår før eiergodkjent closure.
 
 ## Akseptansekriterier fra 4A til 4B
 
