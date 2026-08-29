@@ -1498,6 +1498,11 @@ class Person(models.Model):
             .values_list("value", flat=True)
         )
 
+    def get_public_phone_contacts(self):
+        return self.contacts.filter(type="PHONE", is_public=True).order_by(
+            "-is_primary", "id"
+        )
+
 class PersonContact(models.Model):
     CONTACT_TYPES = [
         ("EMAIL", "Email"),

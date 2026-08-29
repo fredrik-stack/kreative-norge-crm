@@ -1,6 +1,6 @@
 # Editor
 
-**Status:** implementert grunnløsning; fase 2-standarder for kontaktpublisering implementert; fase 4E synlig telefonregion/servernormalisering og fase 4F synlig importjobbregion er teknisk stagingverifisert gjennom fase 4H og `READY_FOR_OWNER_SMOKE`; fase 3D.1 offisiell bildekandidatflyt teknisk aktivert og visuelt godkjent i staging; fase 3D.2 med precision/zoom er gjennomført og merget til `main` med PR #33, fullverifisert lokalt, CI-grønn, historisk live Brave-verifisert og visuelt eiergodkjent; Brave er operativt deaktivert for ordinære Editor-sluttbrukere frem til sluttbrukeravtalegaten er dokumentert oppfylt
+**Status:** implementert grunnløsning; fase 2-standarder for kontaktpublisering implementert; fase 4E synlig telefonregion/servernormalisering og fase 4F synlig importjobbregion er teknisk stagingverifisert gjennom fase 4H og `READY_FOR_OWNER_SMOKE`; tre owner-smoke-funn i telefonlenker, intern aktørtelefon og effektiv PUBLIC-status er lokalt rettet og fullverifisert 2026-08-29, med stagingreverifikasjon gjenstående; fase 3D.1 offisiell bildekandidatflyt teknisk aktivert og visuelt godkjent i staging; fase 3D.2 med precision/zoom er gjennomført og merget til `main` med PR #33, fullverifisert lokalt, CI-grønn, historisk live Brave-verifisert og visuelt eiergodkjent; Brave er operativt deaktivert for ordinære Editor-sluttbrukere frem til sluttbrukeravtalegaten er dokumentert oppfylt
 
 React-editoren støtter tenantvalg, rollebasert tilgang, aktører, personer, relasjoner, kontaktkanaler, søk, taksonomifiltrering og import/eksport-side.
 
@@ -54,15 +54,17 @@ På personens redigeringsside kan redaktøren:
 - se hvilke kontakter som er primære
 - endre kontaktverdi
 - styre `is_primary`
-- styre `is_public` med tekstene `Vis e-post offentlig` og `Vis telefon offentlig`
+- styre `is_public` med teksten `Kan vises offentlig` og en presisering om at
+  kontaktkanalen bare vises på aktører der `Vis person offentlig` også er valgt
 
 Organization-, Person- og PHONE-kontaktskjemaene har et synlig
 land-/regionvalg. Tenantens nullable default forhåndsvelges når den finnes,
 men kan overstyres per telefon. `+`-numre trenger ikke region og tømmer valget
 i Editor. Nasjonale numre uten region og ugyldige numre blokkeres av backend
-med norsk feltfeil. Original skrivemåte beholdes i Editor/PUBLIC, mens canonical
-identitet holdes intern. Lagring av et annet felt normaliserer ikke en uendret
-legacytelefon.
+med norsk feltfeil. Original skrivemåte beholdes i Editor/PUBLIC. Klikkbare
+telefoner bruker et servergenerert `tel:`-mål fra canonical identitet; mangler
+denne, vises råverdien uten telefonlenke. Lagring av et annet felt normaliserer
+ikke en uendret legacytelefon.
 
 Import-/eksportsiden har et eget synlig regionvalg når importjobben opprettes.
 Tenantdefaulten forhåndsvelges, «ingen region» kan velges eksplisitt, og den
@@ -74,6 +76,12 @@ På aktørsiden skilles personpublisering fra kontaktpublisering:
 - `Vis person offentlig` / `publish_person` styrer om personen vises offentlig for aktøren
 - `PersonContact.is_public` styrer om e-post eller telefon vises i PUBLIC
 - aktørkortet i Editor viser intern kontaktinformasjon og merker kontaktkanaler som `Offentlig` eller `Intern`
+- Organization-telefonen vises på internt aktørkort og i oversiktsmodal også
+  når `publish_phone=False`; statusen merkes separat som `Offentlig` eller
+  `Kun intern`
+- hver aktør–person-kobling viser effektiv PUBLIC-status for alle fire
+  kombinasjoner av `publish_person` og offentlige/ikke-offentlige
+  kontaktkanaler, uten å koble eller omskrive de to flaggene
 
 Alle nye publiseringsvalg starter avslått:
 
@@ -82,7 +90,7 @@ Alle nye publiseringsvalg starter avslått:
 - ny person vises ikke offentlig som kontaktperson
 - kobling av en eksisterende person publiserer ikke personen
 
-Editor-tekstene skiller mellom å vise personen som kontaktperson på aktørsiden og å gjøre den konkrete e-postadressen eller telefonen offentlig. Eksisterende lagrede publiseringsvalg endres ikke av disse standardene.
+Editor-tekstene skiller mellom å vise personen som kontaktperson på aktørsiden og å gjøre den konkrete e-postadressen eller telefonen offentlig. Personen kan være offentlig uten kontaktkanaler, og en offentligmarkert kontaktkanal forblir skjult på aktører der personen er skjult. Eksisterende lagrede publiseringsvalg endres ikke av disse standardene.
 
 ## Planlagt kontaktopplevelse
 

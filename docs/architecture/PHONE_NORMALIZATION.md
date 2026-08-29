@@ -97,6 +97,15 @@ faktisk brukte. Internasjonale `+`-numre ignorerer valgt region og lagrer
 region som `NULL`. `NEEDS_REGION`, ugyldige numre og extensions blir
 kontrollerte norske feltfeil; rå dependencyexceptions eksponeres ikke.
 
+Den interne read-kontrakten bruker `phone_dial_uri` som avgrenset
+presentasjonsfelt. `crm.services.phone_writes.phone_dial_uri` aksepterer bare
+allerede lagret E.164-form og returnerer `tel:<E.164>`; den parser eller
+normaliserer aldri råverdien. Organization leser fra `phone_normalized`, PHONE-
+`PersonContact` fra `normalized_value`, og Person utleder målet fra primær
+PHONE-kontakt. Manglende canonical identitet gir `null`, slik at Editor kan
+vise råverdien uten klikkbar lenke. Dette endrer ingen write-, matching- eller
+publiseringssemantikk.
+
 Personens direkte kompatibilitetsfelt synkroniseres fortsatt med primær
 PHONE-`PersonContact`, og identiteten ligger bare på kontakten. Eksplisitt
 tømming fjerner den primære telefonkontakten; sekundære kontakter og alle

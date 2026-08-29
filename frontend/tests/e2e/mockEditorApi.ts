@@ -44,6 +44,7 @@ type Organization = {
   email: string | null;
   phone: string | null;
   phone_region_used: string | null;
+  phone_dial_uri: string | null;
   municipalities: string;
   note: string | null;
   description: string | null;
@@ -80,6 +81,7 @@ type Person = {
   email: string | null;
   phone: string | null;
   phone_region_used: string | null;
+  phone_dial_uri: string | null;
   municipality: string;
   note: string | null;
   website_url: string | null;
@@ -111,6 +113,7 @@ type PersonContact = {
   type: "EMAIL" | "PHONE";
   value: string;
   phone_region_used: string | null;
+  phone_dial_uri: string | null;
   is_primary: boolean;
   is_public: boolean;
   created_at: string;
@@ -127,6 +130,11 @@ type MockState = {
   organizationPeople: OrganizationPerson[];
   personContacts: PersonContact[];
 };
+
+function explicitDialUri(value: string | null | undefined): string | null {
+  const compact = (value ?? "").replace(/[\s().-]/g, "");
+  return compact.startsWith("+") ? `tel:${compact}` : null;
+}
 
 export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) {
   const now = "2026-01-01T00:00:00Z";
@@ -153,6 +161,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         email: "post@demo.no",
         phone: "+4712345678",
         phone_region_used: null,
+        phone_dial_uri: "tel:+4712345678",
         municipalities: "Oslo",
         note: null,
         description: "Demoaktør brukt i testoppsettet.",
@@ -191,6 +200,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
         email: "ada@example.com",
         phone: "+4799999999",
         phone_region_used: null,
+        phone_dial_uri: "tel:+4799999999",
         municipality: "Oslo",
         note: null,
         website_url: null,
@@ -356,6 +366,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
           (payload.phone ?? "").trim().startsWith("+")
             ? null
             : ((payload as { phone_region?: string | null }).phone_region ?? null),
+        phone_dial_uri: explicitDialUri(payload.phone),
         municipalities: payload.municipalities ?? "",
         note: payload.note ?? null,
         description: payload.description ?? null,
@@ -505,6 +516,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
           (payload.phone ?? "").trim().startsWith("+")
             ? null
             : ((payload as { phone_region?: string | null }).phone_region ?? null),
+        phone_dial_uri: explicitDialUri(payload.phone),
         municipality: payload.municipality ?? "",
         note: payload.note ?? null,
         website_url: payload.website_url ?? null,
@@ -536,6 +548,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
           value,
           phone_region_used:
             type === "PHONE" ? created.phone_region_used : null,
+          phone_dial_uri: type === "PHONE" ? created.phone_dial_uri : null,
           is_primary: true,
           is_public: false,
           created_at: now,
@@ -671,6 +684,7 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
           (payload.type === "PHONE" && !String(payload.value ?? "").trim().startsWith("+"))
             ? ((payload as { phone_region?: string | null }).phone_region ?? null)
             : null,
+        phone_dial_uri: payload.type === "PHONE" ? explicitDialUri(String(payload.value ?? "")) : null,
         is_primary: Boolean(payload.is_primary),
         is_public: Boolean(payload.is_public),
         created_at: now,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Field } from "../components/Field";
+import { PhoneLink } from "../components/PhoneLink";
 import { PhoneRegionSelect } from "../components/PhoneRegionSelect";
 import { useEditor } from "../context/EditorContext";
 import { filterSubcategoriesForCategory, sortedCategories as sortCategoriesByTaxonomy } from "../editorTaxonomy";
@@ -152,7 +153,9 @@ function PeopleOverviewPanel(props: {
                     )}
                   </td>
                   <td>{person.email ? <a href={`mailto:${person.email}`}>{person.email}</a> : "—"}</td>
-                  <td>{person.phone ? <a href={`tel:${person.phone}`}>{person.phone}</a> : "—"}</td>
+                  <td>
+                    <PhoneLink value={person.phone} dialUri={person.phone_dial_uri} />
+                  </td>
                   <td>{person.municipality || "—"}</td>
                   <td>
                     <div className="table-pill-stack">
@@ -272,7 +275,7 @@ function PersonOverviewModal(props: {
                   </div>
                   <div>
                     <span className="meta">Telefon</span>
-                    {person.phone ? <a href={`tel:${person.phone}`}>{person.phone}</a> : <strong>—</strong>}
+                    <PhoneLink value={person.phone} dialUri={person.phone_dial_uri} empty={<strong>—</strong>} />
                   </div>
                   <div>
                     <span className="meta">Primærlenke</span>
@@ -351,6 +354,13 @@ function PeopleEditorPanel(props: {
 }) {
   const { navigate, personId, invalidPersonRoute } = props;
   const editor = useEditor();
+  const selectedPersonLinks =
+    typeof editor.selectedPersonId === "number"
+      ? editor.organizationPeople.filter((link) => link.person === editor.selectedPersonId)
+      : [];
+  const publicPersonLinks = selectedPersonLinks.filter(
+    (link) => link.status === "ACTIVE" && link.publish_person,
+  ).length;
 
   return (
     <section className="panel people-editor">
@@ -469,6 +479,13 @@ function PeopleEditorPanel(props: {
                   {editor.personContactsLoading ? "Laster" : `${editor.personContacts.length} lagret`}
                 </span>
               </div>
+              {typeof editor.selectedPersonId === "number" ? (
+                <p className="muted publication-context-copy">
+                  Koblet til {selectedPersonLinks.length} aktør{selectedPersonLinks.length === 1 ? "" : "er"}: {publicPersonLinks}{" "}
+                  viser personen offentlig, {selectedPersonLinks.length - publicPersonLinks} skjuler personen. Den enkelte
+                  aktørkoblingen styrer om offentlige kontaktkanaler faktisk vises.
+                </p>
+              ) : null}
 
               <div className="contact-list">
                 {editor.personContacts.map((contact) => (
@@ -518,10 +535,12 @@ function PeopleEditorPanel(props: {
                           checked={contact.is_public}
                           onChange={(event) => editor.updateContact(contact.id, { is_public: event.target.checked })}
                         />
-                        <span>
-                          {contact.type === "EMAIL"
-                            ? "Gjør denne e-postadressen offentlig"
-                            : "Gjør dette telefonnummeret offentlig"}
+                        <span className="contact-public-copy">
+                          <strong>Kan vises offentlig</strong>
+                          <small>
+                            {contact.type === "EMAIL" ? "E-postadressen" : "Telefonnummeret"} vises bare på aktører der
+                            personen også er satt til «Vis person offentlig».
+                          </small>
                         </span>
                       </label>
                       <button
@@ -592,10 +611,12 @@ function PeopleEditorPanel(props: {
                     onChange={(e) => editor.setContactDraft((state) => ({ ...state, is_public: e.target.checked }))}
                     disabled={typeof editor.selectedPersonId !== "number"}
                   />
-                  <span>
-                    {editor.contactDraft.type === "EMAIL"
-                      ? "Gjør denne e-postadressen offentlig"
-                      : "Gjør dette telefonnummeret offentlig"}
+                  <span className="contact-public-copy">
+                    <strong>Kan vises offentlig</strong>
+                    <small>
+                      {editor.contactDraft.type === "EMAIL" ? "E-postadressen" : "Telefonnummeret"} vises bare på aktører
+                      der personen også er satt til «Vis person offentlig».
+                    </small>
                   </span>
                 </label>
                 <button
