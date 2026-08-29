@@ -4,9 +4,12 @@
 
 Godkjent av prosjekteier 2026-08-25 etter uavhengig frozen-head-review uten funn og merget til `main` med PR #56 som `e0c38162a7e0b0c8b90daf7387a1682e44370f33`.
 
-Beslutningen er implementert gjennom fase 4A–4H og teknisk stagingverifisert
-2026-08-26. Nåstatus er `PHASE 4 TECHNICALLY VERIFIED /
-READY_FOR_OWNER_SMOKE`; se [samlet 4H-evidens](../status/STAGING_PHASE_4H_PHONE_TECHNICAL_VERIFICATION_2026-08-26.md).
+Beslutningen er implementert gjennom fase 4A–4H innen avtalt fase-4-scope og
+teknisk stagingverifisert 2026-08-26. Etter to remediation-/polishrunder
+gjennomførte prosjekteier siste manuelle smoke og [godkjente resultatet
+2026-08-29](../status/PHASE_4_OWNER_APPROVAL_2026-08-29.md). Nåstatus er
+`PHASE 4 = CLOSED / VERIFIED`. ADR-010 presiserer fortsatt bare telefonsporet i
+ADR-005; full relasjonsspesifikk kontaktpublisering er ikke implementert.
 
 **Beslutningsdato:** 2026-08-25
 
@@ -251,7 +254,7 @@ Målet er å etablere en stabil og internasjonalt skalerbar telefonidentitet fø
 
 **Rollback:** Gå tilbake til siste verifiserte lese-/skrivevei, behold råverdier og additive data, og merk fase 4 som ikke lukket.
 
-Fase 4 kan først markeres `CLOSED / VERIFIED` etter separat implementasjon og stagingverifikasjon i 4B–4H. De tekniske kriteriene ble verifisert 2026-08-26; prosjekteiers manuelle smoke gjenstår før eiergodkjent closure.
+Fase 4 kunne først markeres `CLOSED / VERIFIED` etter separat implementasjon og stagingverifikasjon i 4B–4H. De tekniske kriteriene ble verifisert 2026-08-26. Etter første owner-smoke-remediation og andre owner-smoke UI-polish gjennomførte prosjekteier siste manuelle kontroll og godkjente leveransen 2026-08-29. ADR-010 er dermed gjennomført innen avtalt fase-4-scope.
 
 ## Akseptansekriterier fra 4A til 4B
 

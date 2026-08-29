@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-08-30
+
+### Fase 4 formelt lukket etter endelig owner-smoke
+
+- registrert at prosjekteier gjennomførte siste manuelle kontroll og godkjente
+  de tre gjenstående UI-punktene 2026-08-29; se
+  [owner-approval-notatet](PHASE_4_OWNER_APPROVAL_2026-08-29.md)
+- bekreftet at fase 4A–4H, samlet teknisk stagingverifikasjon, første
+  owner-smoke-remediation og andre owner-smoke UI-polish er gjennomført og
+  reverifisert
+- satt autoritativ status til `PHASE 4 = CLOSED / VERIFIED` og registrert at
+  ADR-010 er implementert innen avtalt fase-4-scope
+- bevart ADR-005 som delvis implementert: global `PersonContact.is_public`
+  sammen med aktørspesifikk `publish_person` er fortsatt en mellommodell;
+  relasjonsspesifikk kontaktpublisering og øvrig migrering kommer senere
+- satt fase 5 – produkt- og UX-design for Import 2.0 – som neste aktive
+  produktfase uten å starte planlegging eller implementering
+- ingen kode-, runtime-, data-, staging- eller produksjonsendring; deploy er
+  ikke relevant for denne dokumentasjons-close
+
 ## 2026-08-29
 
 ### Siste UI-polish etter andre owner-smoke teknisk stagingverifisert

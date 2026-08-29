@@ -192,9 +192,12 @@ samme fingerprints som før apply, og repetert dry-run er `0`.
 verifiserer schema/defaults, Editor, API, Import, cross-tenant, PUBLIC,
 backfillmanifest/isolert rollback, full testmatrise og post-change
 backup/restore. Restorekopien hadde samme migrasjon, regioner, tellinger,
-canonical state og fingerprints som live. Teknisk status er
-`PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE`.
+canonical state og fingerprints som live.
 
 [Siste owner-smoke UI-polish](../status/STAGING_PHASE_4_OWNER_SMOKE_UI_POLISH_2026-08-29.md)
 stagingverifiserer i tillegg det backend-avledede landkodehintet, uendret
 public shape og rå/canonical kontrakt uten persistente testdata.
+
+[Endelig owner-smoke](../status/PHASE_4_OWNER_APPROVAL_2026-08-29.md)
+godkjente de tre siste UI-punktene 2026-08-29. Status er
+`PHASE 4 = CLOSED / VERIFIED`.
