@@ -8,6 +8,7 @@ function contact(type: "EMAIL" | "PHONE", isPublic: boolean): PersonContact {
     value: type === "EMAIL" ? "person@example.com" : "070 123 45 67",
     phone_region_used: type === "PHONE" ? "SE" : null,
     phone_dial_uri: type === "PHONE" ? "tel:+46701234567" : null,
+    phone_country_calling_code_hint: type === "PHONE" ? "46" : null,
     is_primary: true,
     is_public: isPublic,
     created_at: "2026-08-29T00:00:00Z",

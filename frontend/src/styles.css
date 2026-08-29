@@ -1205,14 +1205,10 @@ select,
   margin: 0;
 }
 
-.editor-card-phone {
-  display: grid;
-  gap: 0.1rem;
-}
-
-.editor-card-phone a {
-  color: #0a6a4f;
-  width: fit-content;
+.phone-country-code-hint {
+  color: var(--muted);
+  font-size: 0.9em;
+  white-space: nowrap;
 }
 
 .editor-detail-grid {

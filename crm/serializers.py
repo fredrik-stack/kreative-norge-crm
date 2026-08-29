@@ -22,7 +22,12 @@ from .models import (
     ExportJob,
 )
 from .services.person_contacts import sync_person_fields_to_primary_contacts, sync_primary_contact_to_person
-from .services.phone_writes import PhoneWriteValidationError, phone_dial_uri, prepare_phone_write
+from .services.phone_writes import (
+    PhoneWriteValidationError,
+    phone_country_calling_code_hint,
+    phone_dial_uri,
+    prepare_phone_write,
+)
 
 
 def _phone_error(field_name: str, error: PhoneWriteValidationError):
@@ -118,6 +123,7 @@ class SubcategorySerializer(serializers.ModelSerializer):
 
 class OrganizationSerializer(serializers.ModelSerializer):
     phone_dial_uri = serializers.SerializerMethodField()
+    phone_country_calling_code_hint = serializers.SerializerMethodField()
     phone_region = serializers.CharField(
         write_only=True,
         required=False,
@@ -172,6 +178,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "phone_region",
             "phone_region_used",
             "phone_dial_uri",
+            "phone_country_calling_code_hint",
             "municipalities",
             "note",
             "description",
@@ -218,6 +225,12 @@ class OrganizationSerializer(serializers.ModelSerializer):
 
     def get_phone_dial_uri(self, obj) -> str | None:
         return phone_dial_uri(obj.phone_normalized)
+
+    def get_phone_country_calling_code_hint(self, obj) -> str | None:
+        return phone_country_calling_code_hint(
+            normalization_region=obj.phone_normalization_region,
+            default_region=obj.tenant.default_phone_region,
+        )
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -291,6 +304,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
 
 class PersonContactSerializer(serializers.ModelSerializer):
     phone_dial_uri = serializers.SerializerMethodField()
+    phone_country_calling_code_hint = serializers.SerializerMethodField()
     phone_region = serializers.CharField(
         write_only=True,
         required=False,
@@ -396,6 +410,7 @@ class PersonContactSerializer(serializers.ModelSerializer):
             "phone_region",
             "phone_region_used",
             "phone_dial_uri",
+            "phone_country_calling_code_hint",
             "is_primary",
             "is_public",
             "created_at",
@@ -406,6 +421,14 @@ class PersonContactSerializer(serializers.ModelSerializer):
         if obj.type != "PHONE":
             return None
         return phone_dial_uri(obj.normalized_value)
+
+    def get_phone_country_calling_code_hint(self, obj) -> str | None:
+        if obj.type != "PHONE":
+            return None
+        return phone_country_calling_code_hint(
+            normalization_region=obj.normalization_region,
+            default_region=obj.tenant.default_phone_region,
+        )
 
     def create(self, validated_data):
         with transaction.atomic():
@@ -447,6 +470,7 @@ class PersonForOrganizationSerializer(serializers.ModelSerializer):
 
 class PersonSerializer(serializers.ModelSerializer):
     phone_dial_uri = serializers.SerializerMethodField()
+    phone_country_calling_code_hint = serializers.SerializerMethodField()
     phone_region = serializers.CharField(
         write_only=True,
         required=False,
@@ -493,6 +517,7 @@ class PersonSerializer(serializers.ModelSerializer):
             "phone_region",
             "phone_region_used",
             "phone_dial_uri",
+            "phone_country_calling_code_hint",
             "website_url",
             "instagram_url",
             "tiktok_url",
@@ -576,6 +601,15 @@ class PersonSerializer(serializers.ModelSerializer):
         for contact in getattr(obj, "contacts", []).all():
             if contact.type == "PHONE" and contact.is_primary:
                 return phone_dial_uri(contact.normalized_value)
+        return None
+
+    def get_phone_country_calling_code_hint(self, obj) -> str | None:
+        for contact in getattr(obj, "contacts", []).all():
+            if contact.type == "PHONE" and contact.is_primary:
+                return phone_country_calling_code_hint(
+                    normalization_region=contact.normalization_region,
+                    default_region=obj.tenant.default_phone_region,
+                )
         return None
 
     def _get_effective_tenant_id(self):

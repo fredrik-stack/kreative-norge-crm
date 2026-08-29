@@ -13,6 +13,7 @@ function organization(overrides: Record<string, unknown>) {
     phone: "22 12 34 56",
     phone_region_used: "NO",
     phone_dial_uri: "tel:+4722123456",
+    phone_country_calling_code_hint: null,
     municipalities: "Oslo",
     note: null,
     description: "Owner-smoke testaktør",
@@ -54,6 +55,7 @@ function person(overrides: Record<string, unknown>) {
     phone: "070 123 45 67",
     phone_region_used: "SE",
     phone_dial_uri: "tel:+46701234567",
+    phone_country_calling_code_hint: "46",
     municipality: "Stockholm",
     note: null,
     website_url: null,
@@ -81,6 +83,7 @@ test("canonical dial targets, internal actor phones and effective PUBLIC state s
     value: "070 123 45 67",
     phone_region_used: "SE",
     phone_dial_uri: "tel:+46701234567",
+    phone_country_calling_code_hint: "46",
     is_primary: true,
     is_public: true,
     created_at: now,
@@ -93,6 +96,7 @@ test("canonical dial targets, internal actor phones and effective PUBLIC state s
     value: "900 00 002",
     phone_region_used: "NO",
     phone_dial_uri: "tel:+4790000002",
+    phone_country_calling_code_hint: null,
     is_primary: true,
     is_public: false,
     created_at: now,
@@ -131,15 +135,29 @@ test("canonical dial targets, internal actor phones and effective PUBLIC state s
   ];
   const state = await setupMockEditorApi(page, {
     organizations: [
-      organization({ active_people: nestedPeople }),
+      organization({
+        phone: "08-505 103 00",
+        phone_region_used: "SE",
+        phone_dial_uri: "tel:+46850510300",
+        phone_country_calling_code_hint: "46",
+        active_people: nestedPeople,
+      }),
       organization({
         id: 11,
         name: "Offentlig telefonaktør",
         phone: "23 45 67 89",
         phone_dial_uri: "tel:+4723456789",
+        phone_country_calling_code_hint: null,
         publish_phone: true,
       }),
-      organization({ id: 12, name: "Aktør uten telefon", phone: null, phone_region_used: null, phone_dial_uri: null }),
+      organization({
+        id: 12,
+        name: "Aktør uten telefon",
+        phone: null,
+        phone_region_used: null,
+        phone_dial_uri: null,
+        phone_country_calling_code_hint: null,
+      }),
     ],
     persons: [
       person({ contacts: [swedishPhone] }),
@@ -149,6 +167,7 @@ test("canonical dial targets, internal actor phones and effective PUBLIC state s
         phone: "900 00 002",
         phone_region_used: "NO",
         phone_dial_uri: "tel:+4790000002",
+        phone_country_calling_code_hint: null,
         contacts: [privatePhone],
       }),
     ],
@@ -166,10 +185,10 @@ test("canonical dial targets, internal actor phones and effective PUBLIC state s
   await page.goto("/people");
   await loginAsEditor(page);
 
-  const overviewPhone = page.getByRole("link", { name: "070 123 45 67" }).first();
+  const overviewPhone = page.getByRole("link", { name: "070 123 45 67 (+46)" }).first();
   await expect(overviewPhone).toHaveAttribute("href", "tel:+46701234567");
   await page.getByRole("button", { name: "Svensk Kontakt", exact: true }).click();
-  await expect(page.getByRole("dialog").getByRole("link", { name: "070 123 45 67" })).toHaveAttribute(
+  await expect(page.getByRole("dialog").getByRole("link", { name: "070 123 45 67 (+46)" })).toHaveAttribute(
     "href",
     "tel:+46701234567",
   );
@@ -184,18 +203,28 @@ test("canonical dial targets, internal actor phones and effective PUBLIC state s
 
   await page.getByRole("link", { name: /^Aktører/ }).click();
   const internalActor = page.locator("article.editor-card").filter({ hasText: "Svensk kontaktaktør" });
-  await expect(internalActor.getByText("Telefon · Kun intern")).toBeVisible();
-  await expect(internalActor.getByRole("link", { name: "22 12 34 56" })).toHaveAttribute("href", "tel:+4722123456");
+  await expect(internalActor.getByText("Telefon · Kun intern")).toHaveCount(0);
+  await expect(internalActor.getByText("08-505 103 00")).toHaveCount(0);
   const publicActor = page.locator("article.editor-card").filter({ hasText: "Offentlig telefonaktør" });
-  await expect(publicActor.getByText("Telefon · Offentlig")).toBeVisible();
-  await expect(publicActor.getByRole("link", { name: "23 45 67 89" })).toHaveAttribute("href", "tel:+4723456789");
+  await expect(publicActor.getByText("Telefon · Offentlig")).toHaveCount(0);
+  await expect(publicActor.getByText("23 45 67 89")).toHaveCount(0);
   await expect(page.locator("article.editor-card").filter({ hasText: "Aktør uten telefon" }).getByRole("link")).toHaveCount(0);
 
   await internalActor.getByRole("heading", { name: "Svensk kontaktaktør" }).click();
-  const actorDialog = page.getByRole("dialog");
+  let actorDialog = page.getByRole("dialog");
   await expect(actorDialog.getByText("Telefon · Kun intern")).toBeVisible();
-  await expect(actorDialog.getByRole("link", { name: "22 12 34 56" })).toHaveAttribute("href", "tel:+4722123456");
-  await expect(actorDialog.getByRole("link", { name: "070 123 45 67" })).toHaveAttribute("href", "tel:+46701234567");
+  await expect(actorDialog.getByRole("link", { name: "08-505 103 00 (+46)" })).toHaveAttribute("href", "tel:+46850510300");
+  await expect(actorDialog.getByRole("link", { name: "070 123 45 67 (+46)" })).toHaveAttribute("href", "tel:+46701234567");
+  await actorDialog.getByRole("button", { name: "Lukk" }).first().click();
+
+  await publicActor.getByRole("heading", { name: "Offentlig telefonaktør" }).click();
+  actorDialog = page.getByRole("dialog");
+  await expect(actorDialog.getByRole("link", { name: "23 45 67 89" })).toHaveAttribute("href", "tel:+4723456789");
+  await expect(actorDialog.getByText("(+47)")).toHaveCount(0);
+  await actorDialog.getByRole("button", { name: "Lukk" }).first().click();
+
+  await internalActor.getByRole("heading", { name: "Svensk kontaktaktør" }).click();
+  actorDialog = page.getByRole("dialog");
   await actorDialog.getByRole("button", { name: "Rediger" }).click();
 
   const swedishRow = page.locator(".link-row").filter({ hasText: "Svensk Kontakt" });
@@ -207,4 +236,11 @@ test("canonical dial targets, internal actor phones and effective PUBLIC state s
 
   const noPublicContactsRow = page.locator(".link-row").filter({ hasText: "Intern Kontakt" });
   await expect(noPublicContactsRow.getByText("Personen vises offentlig, men ingen kontaktkanaler er valgt offentlig.")).toBeVisible();
+
+  const editPersonButton = swedishRow.getByRole("button", { name: "Rediger", exact: true });
+  await expect(editPersonButton).toBeVisible();
+  await expect(swedishRow.getByRole("button", { name: "Rediger kontaktkanaler", exact: true })).toHaveCount(0);
+  await editPersonButton.click();
+  await expect(page).toHaveURL(/\/people\/20$/);
+  await expect(page.getByLabel("Fullt navn")).toHaveValue("Svensk Kontakt");
 });

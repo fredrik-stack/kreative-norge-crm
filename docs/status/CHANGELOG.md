@@ -2,6 +2,23 @@
 
 ## 2026-08-29
 
+### Siste UI-polish etter andre owner-smoke lokalt verifisert
+
+- fjernet Organization-telefon fra hovedkortene i aktøroversikten, men beholdt
+  den i oversiktsmodal, redigering og søk
+- lagt til backend-avledet read-only landkodehint for utenlandske nasjonale
+  telefonformater i interne Organization-, Person- og PHONE-
+  `PersonContact`-responser; frontend viser råverdi med hint og bruker fortsatt
+  canonical `tel:`-mål uten hardkodet landkart
+- endret koblingsknappen fra `Rediger kontaktkanaler` til `Rediger`
+- beholdt public API-shape, råverdier, canonical identitet og
+  publiseringssemantikk uendret; ingen schema- eller dataendring
+- verifisert lokalt med 570 backendtester, 41 frontendtester, 17
+  Playwright-tester, produksjonsbuild, begge produksjonsimages, Django-check og
+  ingen migrasjonsdrift; PR-/CI-/stagingverifikasjon gjenstår
+- status holdes eksakt på
+  `PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE`
+
 ### Tre owner-smoke-funn rettet og teknisk stagingreverifisert
 
 - beholdt svensk/nasjonal råtelefon som visning og lagt read-only servergenerert

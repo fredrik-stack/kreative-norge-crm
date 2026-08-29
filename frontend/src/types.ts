@@ -54,6 +54,7 @@ export type OrganizationPersonNested = {
       type: string;
       value: string;
       phone_dial_uri: string | null;
+      phone_country_calling_code_hint?: string | null;
       is_primary?: boolean;
     }>;
   };
@@ -68,6 +69,7 @@ export type Person = {
   phone: string | null;
   phone_region_used: string | null;
   phone_dial_uri: string | null;
+  phone_country_calling_code_hint: string | null;
   municipality: string;
   note: string | null;
   website_url: string | null;
@@ -100,6 +102,7 @@ export type PersonContact = {
   value: string;
   phone_region_used: string | null;
   phone_dial_uri: string | null;
+  phone_country_calling_code_hint: string | null;
   is_primary: boolean;
   is_public: boolean;
   created_at: string;
@@ -116,6 +119,7 @@ export type Organization = {
   phone: string | null;
   phone_region_used: string | null;
   phone_dial_uri: string | null;
+  phone_country_calling_code_hint: string | null;
   municipalities: string;
   note: string | null;
   description: string | null;
