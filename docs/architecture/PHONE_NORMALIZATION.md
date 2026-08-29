@@ -106,6 +106,15 @@ PHONE-kontakt. Manglende canonical identitet gir `null`, slik at Editor kan
 vise råverdien uten klikkbar lenke. Dette endrer ingen write-, matching- eller
 publiseringssemantikk.
 
+Det separate read-only feltet `phone_country_calling_code_hint` er kun et
+presentasjonshjelpemiddel for nasjonalt skrevne utenlandske numre. Backend
+utleder landkoden fra lagret normaliseringsregion og libphonenumbers-metadata
+når regionen er kjent og forskjellig fra tenantens defaultregion. Samme,
+manglende eller ukjent region gir `null`; frontend har ingen hardkodet
+region-/landkodetabell og undertrykker hintet når råverdien allerede starter
+med `+`. Råverdi, canonical identitet, matching, writes og publisering endres
+ikke, og public API får ikke feltet.
+
 Personens direkte kompatibilitetsfelt synkroniseres fortsatt med primær
 PHONE-`PersonContact`, og identiteten ligger bare på kontakten. Eksplisitt
 tømming fjerner den primære telefonkontakten; sekundære kontakter og alle

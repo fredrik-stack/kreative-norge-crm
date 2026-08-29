@@ -3,7 +3,7 @@ from django.urls import reverse
 
 from crm.models import Organization, OrganizationPerson, Person, PersonContact, Tenant
 from crm.serializers import OrganizationSerializer, PersonContactSerializer, PersonSerializer
-from crm.services.phone_writes import phone_dial_uri
+from crm.services.phone_writes import phone_country_calling_code_hint, phone_dial_uri
 
 
 class InternalPhoneDialContractTests(TestCase):
@@ -42,7 +42,13 @@ class InternalPhoneDialContractTests(TestCase):
 
         self.assertEqual(payload["phone"], "070 123 45 67")
         self.assertEqual(payload["phone_dial_uri"], "tel:+46701234567")
+        self.assertIsNone(payload["phone_country_calling_code_hint"])
         self.assertNotIn("phone_normalized", payload)
+
+        self.tenant.default_phone_region = "NO"
+        self.tenant.save(update_fields=["default_phone_region"])
+        payload = OrganizationSerializer(self.organization).data
+        self.assertEqual(payload["phone_country_calling_code_hint"], "46")
 
     def test_person_uses_authoritative_primary_phone_contact_for_dial_uri(self):
         PersonContact.objects.create(
@@ -59,12 +65,14 @@ class InternalPhoneDialContractTests(TestCase):
 
         self.assertEqual(payload["phone"], "070 123 45 67")
         self.assertEqual(payload["phone_dial_uri"], "tel:+46701234567")
+        self.assertIsNone(payload["phone_country_calling_code_hint"])
         self.assertNotIn("normalized_value", payload)
 
     def test_person_contact_returns_dial_uri_only_for_canonical_phone(self):
         payload = PersonContactSerializer(self.primary_phone).data
         self.assertEqual(payload["value"], "070 123 45 67")
         self.assertEqual(payload["phone_dial_uri"], "tel:+46701234567")
+        self.assertIsNone(payload["phone_country_calling_code_hint"])
         self.assertNotIn("normalized_value", payload)
 
         self.primary_phone.normalized_value = None
@@ -73,6 +81,64 @@ class InternalPhoneDialContractTests(TestCase):
         payload = PersonContactSerializer(self.primary_phone).data
         self.assertEqual(payload["value"], "070 123 45 67")
         self.assertIsNone(payload["phone_dial_uri"])
+        self.assertIsNone(payload["phone_country_calling_code_hint"])
+
+    def test_foreign_country_calling_code_hint_uses_phonenumbers(self):
+        self.assertEqual(
+            phone_country_calling_code_hint(
+                normalization_region="SE",
+                default_region="NO",
+            ),
+            "46",
+        )
+        self.assertEqual(
+            phone_country_calling_code_hint(
+                normalization_region="DK",
+                default_region="NO",
+            ),
+            "45",
+        )
+        self.assertIsNone(
+            phone_country_calling_code_hint(
+                normalization_region="NO",
+                default_region="NO",
+            )
+        )
+        self.assertIsNone(
+            phone_country_calling_code_hint(
+                normalization_region=None,
+                default_region="NO",
+            )
+        )
+        self.assertIsNone(
+            phone_country_calling_code_hint(
+                normalization_region="SE",
+                default_region=None,
+            )
+        )
+        self.assertIsNone(
+            phone_country_calling_code_hint(
+                normalization_region="ZZ",
+                default_region="NO",
+            )
+        )
+
+    def test_internal_serializers_expose_foreign_hint_without_public_contract_change(self):
+        self.tenant.default_phone_region = "NO"
+        self.tenant.save(update_fields=["default_phone_region"])
+
+        self.assertEqual(
+            OrganizationSerializer(self.organization).data["phone_country_calling_code_hint"],
+            "46",
+        )
+        self.assertEqual(
+            PersonSerializer(self.person).data["phone_country_calling_code_hint"],
+            "46",
+        )
+        self.assertEqual(
+            PersonContactSerializer(self.primary_phone).data["phone_country_calling_code_hint"],
+            "46",
+        )
 
     def test_norwegian_and_explicit_international_canonical_targets_are_preserved(self):
         self.assertEqual(phone_dial_uri("+4722123456"), "tel:+4722123456")

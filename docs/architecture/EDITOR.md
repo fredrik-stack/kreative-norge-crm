@@ -1,6 +1,6 @@
 # Editor
 
-**Status:** implementert grunnløsning; fase 2-standarder for kontaktpublisering implementert; fase 4E synlig telefonregion/servernormalisering og fase 4F synlig importjobbregion er teknisk stagingverifisert gjennom fase 4H og `READY_FOR_OWNER_SMOKE`; tre owner-smoke-funn i telefonlenker, intern aktørtelefon og effektiv PUBLIC-status er rettet og teknisk stagingreverifisert 2026-08-29, mens andre owner-smoke gjenstår; fase 3D.1 offisiell bildekandidatflyt teknisk aktivert og visuelt godkjent i staging; fase 3D.2 med precision/zoom er gjennomført og merget til `main` med PR #33, fullverifisert lokalt, CI-grønn, historisk live Brave-verifisert og visuelt eiergodkjent; Brave er operativt deaktivert for ordinære Editor-sluttbrukere frem til sluttbrukeravtalegaten er dokumentert oppfylt
+**Status:** implementert grunnløsning; fase 2-standarder for kontaktpublisering implementert; fase 4E synlig telefonregion/servernormalisering og fase 4F synlig importjobbregion er teknisk stagingverifisert gjennom fase 4H og `READY_FOR_OWNER_SMOKE`; tre owner-smoke-funn i telefonlenker, intern aktørtelefon og effektiv PUBLIC-status er rettet og teknisk stagingreverifisert 2026-08-29; siste UI-polish etter andre owner-smoke er lokalt verifisert og avventer staging; fase 3D.1 offisiell bildekandidatflyt teknisk aktivert og visuelt godkjent i staging; fase 3D.2 med precision/zoom er gjennomført og merget til `main` med PR #33, fullverifisert lokalt, CI-grønn, historisk live Brave-verifisert og visuelt eiergodkjent; Brave er operativt deaktivert for ordinære Editor-sluttbrukere frem til sluttbrukeravtalegaten er dokumentert oppfylt
 
 React-editoren støtter tenantvalg, rollebasert tilgang, aktører, personer, relasjoner, kontaktkanaler, søk, taksonomifiltrering og import/eksport-side.
 
@@ -75,10 +75,16 @@ På aktørsiden skilles personpublisering fra kontaktpublisering:
 
 - `Vis person offentlig` / `publish_person` styrer om personen vises offentlig for aktøren
 - `PersonContact.is_public` styrer om e-post eller telefon vises i PUBLIC
-- aktørkortet i Editor viser intern kontaktinformasjon og merker kontaktkanaler som `Offentlig` eller `Intern`
-- Organization-telefonen vises på internt aktørkort og i oversiktsmodal også
-  når `publish_phone=False`; statusen merkes separat som `Offentlig` eller
+- aktøroversikten holder hovedkortene kompakte og viser ikke Organization-
+  telefon; telefonen finnes fortsatt i oversiktsmodal, redigering og søk
+- Organization-telefonen vises i oversiktsmodal også når
+  `publish_phone=False`; statusen merkes separat som `Offentlig` eller
   `Kun intern`
+- utenlandske telefoner skrevet i nasjonalt format kan vise et dempet,
+  backend-avledet landkodehint etter råverdien, for eksempel
+  `070 123 45 67 (+46)`; eksplisitte `+`-verdier får ikke dobbelt hint, og
+  dialmålet er fortsatt canonical E.164
+- knappen fra en aktør–person-kobling til personredigeringen heter `Rediger`
 - hver aktør–person-kobling viser effektiv PUBLIC-status for alle fire
   kombinasjoner av `publish_person` og offentlige/ikke-offentlige
   kontaktkanaler, uten å koble eller omskrive de to flaggene

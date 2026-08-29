@@ -217,13 +217,13 @@ Host/systemd er valgt execution placement for off-serverankeret; ledger og write
 - database- og assetrestore, staging, takedown, fallback og API-overgang er verifisert uten endret 3E-state
 - beholde legacyfelt og aliaser gjennom stabiliseringsperioden; fysisk opprydding får egne senere gater
 
-Fase 3 er avsluttet og etablerer bare bildekontrakten som senere Import 2.0 skal bruke. Fase 4 etablerer internasjonal telefonidentitet før full Import 2.0. Produkt- og UX-design for Import 2.0 ligger deretter i fase 5, og full implementering ligger i fase 7. Fase 4A–4H er gjennomført og [samlet teknisk stagingverifisert](STAGING_PHASE_4H_PHONE_TECHNICAL_VERIFICATION_2026-08-26.md). Første owner-smoke fant tre avgrensede presentasjons-/Editor-UX-feil; alle tre er [rettet og teknisk stagingreverifisert](STAGING_PHASE_4_OWNER_SMOKE_REMEDIATION_2026-08-29.md) 2026-08-29 uten schema- eller publiseringsendring. Andre owner-smoke gjenstår. Status holdes på `PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE`; fase 5 er ikke startet.
+Fase 3 er avsluttet og etablerer bare bildekontrakten som senere Import 2.0 skal bruke. Fase 4 etablerer internasjonal telefonidentitet før full Import 2.0. Produkt- og UX-design for Import 2.0 ligger deretter i fase 5, og full implementering ligger i fase 7. Fase 4A–4H er gjennomført og [samlet teknisk stagingverifisert](STAGING_PHASE_4H_PHONE_TECHNICAL_VERIFICATION_2026-08-26.md). Første owner-smoke fant tre avgrensede presentasjons-/Editor-UX-feil; alle tre er [rettet og teknisk stagingreverifisert](STAGING_PHASE_4_OWNER_SMOKE_REMEDIATION_2026-08-29.md) 2026-08-29 uten schema- eller publiseringsendring. Andre owner-smoke ga tre siste UI-polishpunkter; de er implementert og lokalt verifisert uten schema-, data- eller publiseringsendring, mens PR/CI/staging gjenstår. Status holdes på `PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE`; fase 5 er ikke startet.
 
 Leveransevise akseptansekriterier, testkrav, rollback og de tverrgående ferdigkriteriene for aktivt CRM-bilde, privat original, renditions, approval, locking, fallback, API-kompatibilitet, Open Graph, import, takedown, backup/restore og legacyutfasing finnes i [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md#implementeringsleveranser-og-akseptansekriterier).
 
 ## Fase 4 – International phone identity foundation
 
-**Status:** `PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE`. Alle 4A–4H-gater er gjennomført. Tre funn fra første owner-smoke er rettet og teknisk stagingreverifisert 2026-08-29; en kort andre owner-smoke er gjenstående fase-4-handoff.
+**Status:** `PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE`. Alle 4A–4H-gater er gjennomført. Tre funn fra første owner-smoke er rettet og teknisk stagingreverifisert 2026-08-29. Tre UI-polishpunkter fra andre owner-smoke er lokalt verifisert og avventer PR/CI/staging.
 
 **Mål:** etablere stabil og internasjonalt skalerbar telefonidentitet før full Import 2.0-implementering.
 
@@ -253,12 +253,13 @@ Godkjent målretning:
 Extensions, full Import 2.0-UX, generell persondeduplisering, automatisk person-merge, `OrganizationContact`, fysisk fjerning av `Person.phone`, SMS/WhatsApp og endringer i fase 3-bildearkitekturen er eksplisitt utenfor fase 4.
 
 De tekniske ferdigkriteriene for 4B–4H er oppfylt. Owner-smoke-rettingen bevarer
-rå telefon som visning, bruker canonical E.164 som dialmål, viser intern
-Organization-telefon uavhengig av publiseringsflagget og forklarer effektiv
-PUBLIC-status uten å koble flaggene. Status holdes på
-`PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE` til prosjekteiers andre
-korte Editor-smoke er gjennomført. Denne leveransen
-starter ikke fase 5 eller produksjonssetting.
+rå telefon som visning, bruker canonical E.164 som dialmål og forklarer
+effektiv PUBLIC-status uten å koble flaggene. Siste UI-polish holder
+aktøroversiktens hovedkort kompakte, viser backend-avledet landkodehint i
+interne read-only-visninger og forkorter personlenkens knappetekst til
+`Rediger`. Status holdes på
+`PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE`; leveransen starter ikke
+fase 5 eller produksjonssetting.
 
 ## Fase 5 – Produkt- og UX-design for Import 2.0
 

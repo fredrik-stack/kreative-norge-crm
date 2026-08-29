@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+import phonenumbers
+
 from crm.services.phone_normalization import (
     PhoneNormalizationReason,
     PhoneNormalizationStatus,
@@ -37,6 +39,20 @@ def phone_dial_uri(normalized_value: str | None) -> str | None:
     if not normalized_value or not _E164_DIAL_VALUE.fullmatch(normalized_value):
         return None
     return f"tel:{normalized_value}"
+
+
+def phone_country_calling_code_hint(
+    *,
+    normalization_region: str | None,
+    default_region: str | None,
+) -> str | None:
+    """Return a display-only calling code for a foreign national number."""
+    normalized_region = (normalization_region or "").strip().upper()
+    normalized_default = (default_region or "").strip().upper()
+    if not normalized_region or not normalized_default or normalized_region == normalized_default:
+        return None
+    calling_code = phonenumbers.country_code_for_region(normalized_region)
+    return str(calling_code) if calling_code else None
 
 
 def phone_error_message(

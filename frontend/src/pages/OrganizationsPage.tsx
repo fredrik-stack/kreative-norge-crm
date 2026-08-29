@@ -167,16 +167,6 @@ function OrganizationOverviewPanel(props: {
                   <span key={pill.key} className={`mini-pill ${pill.kind}`}>{pill.label}</span>
                 ))}
               </div>
-              {organization.phone ? (
-                <div className="editor-card-phone" onClick={(event) => event.stopPropagation()}>
-                  <span className="meta">Telefon · {organization.publish_phone ? "Offentlig" : "Kun intern"}</span>
-                  <PhoneLink
-                    value={organization.phone}
-                    dialUri={organization.phone_dial_uri}
-                    onClick={(event) => event.stopPropagation()}
-                  />
-                </div>
-              ) : null}
               <div className="editor-card-actions">
                 <span className={`save-pill ${organization.is_published ? "saved" : "idle"}`}>
                   {organization.is_published ? "Publisert" : "Kun intern"}
@@ -297,6 +287,7 @@ function OrganizationOverviewModal(props: {
                 <PhoneLink
                   value={organization.phone}
                   dialUri={organization.phone_dial_uri}
+                  countryCallingCodeHint={organization.phone_country_calling_code_hint}
                   empty={<strong>—</strong>}
                 />
               </div>
@@ -346,7 +337,11 @@ function OrganizationOverviewModal(props: {
                                 {contact.type === "EMAIL" ? (
                                   <a href={`mailto:${contact.value}`}>{contact.value}</a>
                                 ) : (
-                                  <PhoneLink value={contact.value} dialUri={contact.phone_dial_uri} />
+                                  <PhoneLink
+                                    value={contact.value}
+                                    dialUri={contact.phone_dial_uri}
+                                    countryCallingCodeHint={contact.phone_country_calling_code_hint}
+                                  />
                                 )}
                                 <span className="meta">{contact.is_public ? "Offentlig" : "Intern"}</span>
                               </span>
@@ -2137,7 +2132,7 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
                         navigate(`/people/${link.person}`);
                       }}
                     >
-                      Rediger kontaktkanaler
+                      Rediger
                     </button>
 
                     <button
@@ -2497,7 +2492,7 @@ function getEditorVisibleContacts(
 
   const fallbackContacts = [
     ...(person?.email
-      ? [{ type: "EMAIL" as const, value: person.email, phone_dial_uri: null, is_primary: true }]
+      ? [{ type: "EMAIL" as const, value: person.email, phone_dial_uri: null, phone_country_calling_code_hint: null, is_primary: true }]
       : []),
     ...(person?.phone
       ? [
@@ -2505,6 +2500,7 @@ function getEditorVisibleContacts(
             type: "PHONE" as const,
             value: person.phone,
             phone_dial_uri: person.phone_dial_uri,
+            phone_country_calling_code_hint: person.phone_country_calling_code_hint,
             is_primary: true,
           },
         ]
@@ -2513,6 +2509,7 @@ function getEditorVisibleContacts(
       type: contact.type,
       value: contact.value,
       phone_dial_uri: contact.phone_dial_uri,
+      phone_country_calling_code_hint: contact.phone_country_calling_code_hint,
       is_primary: contact.is_primary,
     }))),
   ];
@@ -2525,6 +2522,7 @@ function getEditorVisibleContacts(
       value: contact.value,
       phone_region_used: null,
       phone_dial_uri: contact.phone_dial_uri,
+      phone_country_calling_code_hint: contact.phone_country_calling_code_hint ?? null,
       is_primary: Boolean(contact.is_primary),
       is_public: Boolean("is_public" in contact && contact.is_public),
       created_at: "",

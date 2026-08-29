@@ -154,7 +154,11 @@ function PeopleOverviewPanel(props: {
                   </td>
                   <td>{person.email ? <a href={`mailto:${person.email}`}>{person.email}</a> : "—"}</td>
                   <td>
-                    <PhoneLink value={person.phone} dialUri={person.phone_dial_uri} />
+                    <PhoneLink
+                      value={person.phone}
+                      dialUri={person.phone_dial_uri}
+                      countryCallingCodeHint={person.phone_country_calling_code_hint}
+                    />
                   </td>
                   <td>{person.municipality || "—"}</td>
                   <td>
@@ -275,7 +279,12 @@ function PersonOverviewModal(props: {
                   </div>
                   <div>
                     <span className="meta">Telefon</span>
-                    <PhoneLink value={person.phone} dialUri={person.phone_dial_uri} empty={<strong>—</strong>} />
+                    <PhoneLink
+                      value={person.phone}
+                      dialUri={person.phone_dial_uri}
+                      countryCallingCodeHint={person.phone_country_calling_code_hint}
+                      empty={<strong>—</strong>}
+                    />
                   </div>
                   <div>
                     <span className="meta">Primærlenke</span>

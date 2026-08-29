@@ -235,7 +235,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = (
-            Organization.objects.all()
+            Organization.objects.select_related("tenant")
             .order_by("name")
             .prefetch_related("org_people__person__contacts", "tags", "subcategories__category")
         )
@@ -577,7 +577,7 @@ class PersonViewSet(viewsets.ModelViewSet):
     serializer_class = PersonSerializer
 
     def get_queryset(self):
-        qs = Person.objects.all().order_by("full_name").prefetch_related("contacts", "tags", "subcategories__category")
+        qs = Person.objects.select_related("tenant").order_by("full_name").prefetch_related("contacts", "tags", "subcategories__category")
         tenant_id = self.kwargs.get("tenant_id")
         if tenant_id is not None:
             qs = qs.filter(tenant_id=tenant_id)
@@ -615,7 +615,7 @@ class PersonContactViewSet(viewsets.ModelViewSet):
     serializer_class = PersonContactSerializer
 
     def get_queryset(self):
-        qs = PersonContact.objects.all().order_by("-is_primary", "type", "value")
+        qs = PersonContact.objects.select_related("tenant").order_by("-is_primary", "type", "value")
         tenant_id = self.kwargs.get("tenant_id")
         if tenant_id is not None:
             qs = qs.filter(tenant_id=tenant_id)
