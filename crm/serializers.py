@@ -22,7 +22,7 @@ from .models import (
     ExportJob,
 )
 from .services.person_contacts import sync_person_fields_to_primary_contacts, sync_primary_contact_to_person
-from .services.phone_writes import PhoneWriteValidationError, prepare_phone_write
+from .services.phone_writes import PhoneWriteValidationError, phone_dial_uri, prepare_phone_write
 
 
 def _phone_error(field_name: str, error: PhoneWriteValidationError):
@@ -117,6 +117,7 @@ class SubcategorySerializer(serializers.ModelSerializer):
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
+    phone_dial_uri = serializers.SerializerMethodField()
     phone_region = serializers.CharField(
         write_only=True,
         required=False,
@@ -170,6 +171,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "phone",
             "phone_region",
             "phone_region_used",
+            "phone_dial_uri",
             "municipalities",
             "note",
             "description",
@@ -213,6 +215,9 @@ class OrganizationSerializer(serializers.ModelSerializer):
 
     def get_image_asset_feature_enabled(self, obj):
         return settings.IMAGE_ASSET_FEATURE_ENABLED
+
+    def get_phone_dial_uri(self, obj) -> str | None:
+        return phone_dial_uri(obj.phone_normalized)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -285,6 +290,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
         return obj.get_preview_image_url()
 
 class PersonContactSerializer(serializers.ModelSerializer):
+    phone_dial_uri = serializers.SerializerMethodField()
     phone_region = serializers.CharField(
         write_only=True,
         required=False,
@@ -389,11 +395,17 @@ class PersonContactSerializer(serializers.ModelSerializer):
             "value",
             "phone_region",
             "phone_region_used",
+            "phone_dial_uri",
             "is_primary",
             "is_public",
             "created_at",
         ]
         read_only_fields = ["tenant", "created_at"]
+
+    def get_phone_dial_uri(self, obj) -> str | None:
+        if obj.type != "PHONE":
+            return None
+        return phone_dial_uri(obj.normalized_value)
 
     def create(self, validated_data):
         with transaction.atomic():
@@ -409,9 +421,16 @@ class PersonContactSerializer(serializers.ModelSerializer):
 
 
 class PublicPersonContactSerializer(serializers.ModelSerializer):
+    phone_dial_uri = serializers.SerializerMethodField()
+
     class Meta:
         model = PersonContact
-        fields = ["id", "type", "value", "is_primary"]
+        fields = ["id", "type", "value", "phone_dial_uri", "is_primary"]
+
+    def get_phone_dial_uri(self, obj) -> str | None:
+        if obj.type != "PHONE":
+            return None
+        return phone_dial_uri(obj.normalized_value)
 
 
 class PersonForOrganizationSerializer(serializers.ModelSerializer):
@@ -427,6 +446,7 @@ class PersonForOrganizationSerializer(serializers.ModelSerializer):
 
 
 class PersonSerializer(serializers.ModelSerializer):
+    phone_dial_uri = serializers.SerializerMethodField()
     phone_region = serializers.CharField(
         write_only=True,
         required=False,
@@ -472,6 +492,7 @@ class PersonSerializer(serializers.ModelSerializer):
             "phone",
             "phone_region",
             "phone_region_used",
+            "phone_dial_uri",
             "website_url",
             "instagram_url",
             "tiktok_url",
@@ -549,6 +570,12 @@ class PersonSerializer(serializers.ModelSerializer):
         for contact in getattr(obj, "contacts", []).all():
             if contact.type == "PHONE" and contact.is_primary:
                 return contact.normalization_region
+        return None
+
+    def get_phone_dial_uri(self, obj) -> str | None:
+        for contact in getattr(obj, "contacts", []).all():
+            if contact.type == "PHONE" and contact.is_primary:
+                return phone_dial_uri(contact.normalized_value)
         return None
 
     def _get_effective_tenant_id(self):

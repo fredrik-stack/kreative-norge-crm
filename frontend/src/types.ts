@@ -53,6 +53,7 @@ export type OrganizationPersonNested = {
       id?: number;
       type: string;
       value: string;
+      phone_dial_uri: string | null;
       is_primary?: boolean;
     }>;
   };
@@ -66,6 +67,7 @@ export type Person = {
   email: string | null;
   phone: string | null;
   phone_region_used: string | null;
+  phone_dial_uri: string | null;
   municipality: string;
   note: string | null;
   website_url: string | null;
@@ -97,6 +99,7 @@ export type PersonContact = {
   type: "EMAIL" | "PHONE";
   value: string;
   phone_region_used: string | null;
+  phone_dial_uri: string | null;
   is_primary: boolean;
   is_public: boolean;
   created_at: string;
@@ -112,6 +115,7 @@ export type Organization = {
   email: string | null;
   phone: string | null;
   phone_region_used: string | null;
+  phone_dial_uri: string | null;
   municipalities: string;
   note: string | null;
   description: string | null;

@@ -217,13 +217,13 @@ Host/systemd er valgt execution placement for off-serverankeret; ledger og write
 - database- og assetrestore, staging, takedown, fallback og API-overgang er verifisert uten endret 3E-state
 - beholde legacyfelt og aliaser gjennom stabiliseringsperioden; fysisk opprydding får egne senere gater
 
-Fase 3 er avsluttet og etablerer bare bildekontrakten som senere Import 2.0 skal bruke. Fase 4 etablerer internasjonal telefonidentitet før full Import 2.0. Produkt- og UX-design for Import 2.0 ligger deretter i fase 5, og full implementering ligger i fase 7. Fase 4A–4H er gjennomført og [samlet teknisk stagingverifisert](STAGING_PHASE_4H_PHONE_TECHNICAL_VERIFICATION_2026-08-26.md). Status er `PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE`; prosjekteiers korte manuelle smoke gjenstår, og fase 5 er ikke startet.
+Fase 3 er avsluttet og etablerer bare bildekontrakten som senere Import 2.0 skal bruke. Fase 4 etablerer internasjonal telefonidentitet før full Import 2.0. Produkt- og UX-design for Import 2.0 ligger deretter i fase 5, og full implementering ligger i fase 7. Fase 4A–4H er gjennomført og [samlet teknisk stagingverifisert](STAGING_PHASE_4H_PHONE_TECHNICAL_VERIFICATION_2026-08-26.md). Første owner-smoke fant tre avgrensede presentasjons-/Editor-UX-feil; rettingen er implementert og fullverifisert lokalt 2026-08-29 uten schema- eller publiseringsendring, mens stagingreverifikasjon og andre owner-smoke gjenstår. Status holdes på `PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE`; fase 5 er ikke startet.
 
 Leveransevise akseptansekriterier, testkrav, rollback og de tverrgående ferdigkriteriene for aktivt CRM-bilde, privat original, renditions, approval, locking, fallback, API-kompatibilitet, Open Graph, import, takedown, backup/restore og legacyutfasing finnes i [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md#implementeringsleveranser-og-akseptansekriterier).
 
 ## Fase 4 – International phone identity foundation
 
-**Status:** `PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE` 2026-08-26. Alle 4A–4H-gater er gjennomført; prosjekteiers manuelle smoke er eneste gjenstående fase-4-handoff.
+**Status:** `PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE`. Alle 4A–4H-gater er gjennomført. Tre funn fra første owner-smoke er rettet lokalt 2026-08-29; stagingreverifikasjon og en kort andre owner-smoke er gjenstående fase-4-handoff.
 
 **Mål:** etablere stabil og internasjonalt skalerbar telefonidentitet før full Import 2.0-implementering.
 
@@ -252,7 +252,13 @@ Godkjent målretning:
 
 Extensions, full Import 2.0-UX, generell persondeduplisering, automatisk person-merge, `OrganizationContact`, fysisk fjerning av `Person.phone`, SMS/WhatsApp og endringer i fase 3-bildearkitekturen er eksplisitt utenfor fase 4.
 
-De tekniske ferdigkriteriene for 4B–4H er oppfylt. Status holdes på `PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE` til prosjekteier har gjennomført den korte manuelle Editor-smoken. Denne leveransen starter ikke fase 5 eller produksjonssetting.
+De tekniske ferdigkriteriene for 4B–4H er oppfylt. Owner-smoke-rettingen bevarer
+rå telefon som visning, bruker canonical E.164 som dialmål, viser intern
+Organization-telefon uavhengig av publiseringsflagget og forklarer effektiv
+PUBLIC-status uten å koble flaggene. Status holdes på
+`PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE` til stagingreverifikasjon
+og prosjekteiers andre korte Editor-smoke er gjennomført. Denne leveransen
+starter ikke fase 5 eller produksjonssetting.
 
 ## Fase 5 – Produkt- og UX-design for Import 2.0
 

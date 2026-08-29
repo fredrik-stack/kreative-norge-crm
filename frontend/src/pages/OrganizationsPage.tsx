@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
 import { Field } from "../components/Field";
+import { PhoneLink } from "../components/PhoneLink";
 import { PhoneRegionSelect } from "../components/PhoneRegionSelect";
 import { useEditor } from "../context/EditorContext";
+import { describeEffectivePublication } from "../editorPublication";
 import { filterSubcategoriesForCategory, sortedCategories as sortCategoriesByTaxonomy } from "../editorTaxonomy";
 import { saveLabel } from "../editor-utils";
 import { useRouteSyncedSelection } from "../hooks/useRouteSyncedSelection";
@@ -25,6 +27,7 @@ import type {
   OrganizationImageCandidate,
   OrganizationImageSearchContext,
   OrganizationImageState,
+  PersonContact,
   ProcessedOrganizationImage,
 } from "../types";
 
@@ -164,6 +167,16 @@ function OrganizationOverviewPanel(props: {
                   <span key={pill.key} className={`mini-pill ${pill.kind}`}>{pill.label}</span>
                 ))}
               </div>
+              {organization.phone ? (
+                <div className="editor-card-phone" onClick={(event) => event.stopPropagation()}>
+                  <span className="meta">Telefon · {organization.publish_phone ? "Offentlig" : "Kun intern"}</span>
+                  <PhoneLink
+                    value={organization.phone}
+                    dialUri={organization.phone_dial_uri}
+                    onClick={(event) => event.stopPropagation()}
+                  />
+                </div>
+              ) : null}
               <div className="editor-card-actions">
                 <span className={`save-pill ${organization.is_published ? "saved" : "idle"}`}>
                   {organization.is_published ? "Publisert" : "Kun intern"}
@@ -214,7 +227,7 @@ function OrganizationOverviewModal(props: {
   const editor = useEditor();
   const externalLinks = getOrganizationLinkRows(organization);
   const contactsByPersonId = useMemo(() => {
-    const grouped = new Map<number, Array<{ id?: number; type: string; value: string; is_primary?: boolean; is_public?: boolean }>>();
+    const grouped = new Map<number, PersonContact[]>();
     for (const person of editor.persons) {
       for (const contact of person.contacts ?? []) {
         const current = grouped.get(person.id) ?? [];
@@ -280,6 +293,14 @@ function OrganizationOverviewModal(props: {
                 {organization.email ? <a href={`mailto:${organization.email}`}>{organization.email}</a> : <strong>—</strong>}
               </div>
               <div>
+                <span className="meta">Telefon · {organization.publish_phone ? "Offentlig" : "Kun intern"}</span>
+                <PhoneLink
+                  value={organization.phone}
+                  dialUri={organization.phone_dial_uri}
+                  empty={<strong>—</strong>}
+                />
+              </div>
+              <div>
                 <span className="meta">Org.nr</span>
                 <strong>{organization.org_number || "—"}</strong>
               </div>
@@ -322,9 +343,11 @@ function OrganizationOverviewModal(props: {
                           <div className="editor-inline-links">
                             {visibleContacts.map((contact, index) => (
                               <span key={`${link.id}-${contact.type}-${index}-${contact.value}`} className="editor-contact-chip">
-                                <a href={contact.type === "EMAIL" ? `mailto:${contact.value}` : `tel:${contact.value}`}>
-                                  {contact.value}
-                                </a>
+                                {contact.type === "EMAIL" ? (
+                                  <a href={`mailto:${contact.value}`}>{contact.value}</a>
+                                ) : (
+                                  <PhoneLink value={contact.value} dialUri={contact.phone_dial_uri} />
+                                )}
                                 <span className="meta">{contact.is_public ? "Offentlig" : "Intern"}</span>
                               </span>
                             ))}
@@ -2071,11 +2094,19 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
           <div className="link-list">
             {editor.selectedOrganizationLinks.map((link) => {
               const person = editor.personsById.get(link.person);
+              const effectivePublication = describeEffectivePublication({
+                linkStatus: link.status,
+                publishPerson: link.publish_person,
+                contacts: getPersonContacts(person, editor.personContacts),
+              });
               return (
                 <div key={link.id} className="link-row">
                   <div>
                     <div className="link-person">{person?.full_name ?? `Person #${link.person}`}</div>
                     <div className="meta">{person?.municipality || "Ingen kommune"} · ID {link.person}</div>
+                    <div className={`publication-status ${effectivePublication.tone}`}>
+                      {effectivePublication.message}
+                    </div>
                   </div>
 
                   <div className="link-controls">
@@ -2106,7 +2137,7 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
                         navigate(`/people/${link.person}`);
                       }}
                     >
-                      Rediger
+                      Rediger kontaktkanaler
                     </button>
 
                     <button
@@ -2453,7 +2484,7 @@ function getOverviewPills(organization: {
 function getEditorVisibleContacts(
   link: NonNullable<ReturnType<typeof useEditor>["organizations"][number]["active_people"]>[number],
   personsById: ReturnType<typeof useEditor>["personsById"],
-  contactsByPersonId: Map<number, Array<{ id?: number; type: string; value: string; is_primary?: boolean; is_public?: boolean }>>,
+  contactsByPersonId: Map<number, PersonContact[]>,
 ) {
   const personId = link.person?.id;
   if (!personId) return [];
@@ -2465,18 +2496,52 @@ function getEditorVisibleContacts(
   if (explicitContacts.length > 0) return explicitContacts;
 
   const fallbackContacts = [
-    ...(person?.email ? [{ type: "EMAIL", value: person.email }] : []),
-    ...(person?.phone ? [{ type: "PHONE", value: person.phone }] : []),
+    ...(person?.email
+      ? [{ type: "EMAIL" as const, value: person.email, phone_dial_uri: null, is_primary: true }]
+      : []),
+    ...(person?.phone
+      ? [
+          {
+            type: "PHONE" as const,
+            value: person.phone,
+            phone_dial_uri: person.phone_dial_uri,
+            is_primary: true,
+          },
+        ]
+      : []),
     ...((link.person?.public_contacts ?? []).map((contact) => ({
       type: contact.type,
       value: contact.value,
+      phone_dial_uri: contact.phone_dial_uri,
       is_primary: contact.is_primary,
     }))),
   ];
-  const unique = new Map<string, { type: string; value: string; is_primary?: boolean; is_public?: boolean }>();
+  const unique = new Map<string, PersonContact>();
   for (const contact of fallbackContacts) {
     if (!contact.value) continue;
-    unique.set(`${contact.type}-${contact.value}`, contact);
+    unique.set(`${contact.type}-${contact.value}`, {
+      id: 0,
+      type: contact.type as "EMAIL" | "PHONE",
+      value: contact.value,
+      phone_region_used: null,
+      phone_dial_uri: contact.phone_dial_uri,
+      is_primary: Boolean(contact.is_primary),
+      is_public: Boolean("is_public" in contact && contact.is_public),
+      created_at: "",
+    });
+  }
+  return [...unique.values()];
+}
+
+function getPersonContacts(
+  person: ReturnType<typeof useEditor>["persons"][number] | undefined,
+  loadedContacts: PersonContact[],
+): PersonContact[] {
+  if (!person) return [];
+  const unique = new Map<number, PersonContact>();
+  for (const contact of person.contacts ?? []) unique.set(contact.id, contact);
+  for (const contact of loadedContacts) {
+    if (contact.person === person.id) unique.set(contact.id, contact);
   }
   return [...unique.values()];
 }

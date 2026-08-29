@@ -2,7 +2,7 @@
 
 **Status:** Implementert grunnløsning; kontaktregel og fase 2-stabilisering implementert; standalone public image serving er `ACTIVE` i staging; 3E.2 projection/API-shadow er `CLOSED / SHADOW VERIFIED`; 3E.3 PUBLIC/head-kobling er `CLOSED / ACTIVE` i staging; 3F endrer ikke public projection eller serving
 
-**Sist verifisert:** 2026-08-24
+**Sist verifisert:** 2026-08-29 lokalt; stagingreverifikasjon for owner-smoke-rettingen gjenstår
 
 **Verifisert mot:** public-ruter, `PublicActorViewSet`, public serializer, modeller, public HTML-template, importtjenester, React-editor og regresjonstester.
 
@@ -44,6 +44,12 @@ Implementert mellomregel fra 2026-07-25:
 - PUBLIC HTML og PUBLIC API bruker samme regel: bare aktive koblinger med `publish_person=True`, og bare kontaktkanaler med `is_public=True`.
 - En offentlig person kan vises uten offentlig e-post eller telefon.
 - `Person.title` vises i public API og PUBLIC HTML når feltet har en verdi, og utelates rent når det er tomt.
+- PUBLIC HTML viser telefonens lagrede råverdi, men bruker lagret canonical E.164
+  i `tel:`-målet. Manglende canonical identitet gir rå, ikke-klikkbar tekst.
+  Public API-kontrakten er uendret og eksponerer ikke `phone_dial_uri`.
+- Valg av dialmål er presentasjon og endrer aldri `publish_person`,
+  `PersonContact.is_public`, `Organization.publish_phone` eller andre
+  publiseringsregler.
 
 ## Rettet feilområde: kontaktpersoners e-post
 

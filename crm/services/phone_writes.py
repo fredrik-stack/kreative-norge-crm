@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from crm.services.phone_normalization import (
@@ -26,6 +27,16 @@ class PhoneWriteValidationError(ValueError):
         self.status = status
         self.reason_code = reason_code
         super().__init__(phone_error_message(status=status, reason_code=reason_code))
+
+
+_E164_DIAL_VALUE = re.compile(r"^\+[1-9][0-9]{1,14}$")
+
+
+def phone_dial_uri(normalized_value: str | None) -> str | None:
+    """Build a safe dial URI only from an already stored canonical identity."""
+    if not normalized_value or not _E164_DIAL_VALUE.fullmatch(normalized_value):
+        return None
+    return f"tel:{normalized_value}"
 
 
 def phone_error_message(

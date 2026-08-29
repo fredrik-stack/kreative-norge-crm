@@ -513,14 +513,18 @@
                 {% endif %}
                 <div class="person-municipality">{{ link.person.municipality|default:"Ingen kommune registrert" }}</div>
 
-                {% with public_emails=link.person.get_public_emails public_phones=link.person.get_public_phones %}
+                {% with public_emails=link.person.get_public_emails public_phones=link.person.get_public_phone_contacts %}
                   {% if public_emails or public_phones %}
                     <div class="contacts">
                       {% for value in public_emails %}
                         <a class="contact-link email" href="mailto:{{ value }}">{{ value }}</a>
                       {% endfor %}
-                      {% for value in public_phones %}
-                        <a class="contact-link" href="tel:{{ value }}">{{ value }}</a>
+                      {% for contact in public_phones %}
+                        {% if contact.normalized_value %}
+                          <a class="contact-link" href="tel:{{ contact.normalized_value }}">{{ contact.value }}</a>
+                        {% else %}
+                          <span class="contact-link">{{ contact.value }}</span>
+                        {% endif %}
                       {% endfor %}
                     </div>
                   {% else %}

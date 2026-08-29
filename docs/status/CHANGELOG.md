@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-08-29
+
+### Tre owner-smoke-funn rettet lokalt; stagingreverifikasjon gjenstår
+
+- beholdt svensk/nasjonal råtelefon som visning og lagt read-only servergenerert
+  `phone_dial_uri` fra lagret canonical E.164 for Organization, Person og PHONE-
+  `PersonContact`; manglende canonical identitet gir ikke-klikkbar råtekst
+- vist Organization-telefon på interne aktørkort og i oversiktsmodal uavhengig
+  av `publish_phone`, med offentlig status som separat merking
+- forklart alle effektive kombinasjoner av `publish_person` og
+  `PersonContact.is_public` i aktørredigeringen og presisert «Kan vises
+  offentlig» i personredigeringen uten å koble eller endre flaggene
+- beholdt public API-shape og publiseringssemantikk; PUBLIC HTML bruker canonical
+  dialmål når det finnes og rå synlig tekst
+- verifisert lokalt med 568 backendtester, 38 frontendtester, 17 Playwright-
+  tester, produksjonsbuild, Django-check og ingen migrasjonsdrift; staging og
+  andre owner-smoke gjenstår, så status er fortsatt
+  `PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE`
+
 ## 2026-08-26
 
 ### Fase 4 teknisk verifisert og klar for prosjekteiers smoke

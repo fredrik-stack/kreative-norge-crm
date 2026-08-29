@@ -910,6 +910,20 @@ select,
   font-size: 0.82rem;
 }
 
+.contact-public-copy {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.contact-public-copy small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.publication-context-copy {
+  margin: 0;
+}
+
 .link-list {
   display: grid;
   gap: 0.5rem;
@@ -1191,6 +1205,16 @@ select,
   margin: 0;
 }
 
+.editor-card-phone {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.editor-card-phone a {
+  color: #0a6a4f;
+  width: fit-content;
+}
+
 .editor-detail-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -1246,6 +1270,30 @@ select,
 .editor-contact-list {
   display: grid;
   gap: 0.65rem;
+}
+
+.publication-status {
+  max-width: 720px;
+  margin-top: 0.35rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 9px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.publication-status.hidden {
+  color: var(--muted);
+  background: rgba(91, 105, 96, 0.08);
+}
+
+.publication-status.warning {
+  color: #7c4a13;
+  background: rgba(200, 107, 29, 0.12);
+}
+
+.publication-status.public {
+  color: #0a6a4f;
+  background: rgba(12, 122, 91, 0.1);
 }
 
 .overview-table-wrap {
