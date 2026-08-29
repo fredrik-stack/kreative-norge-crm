@@ -217,13 +217,13 @@ Host/systemd er valgt execution placement for off-serverankeret; ledger og write
 - database- og assetrestore, staging, takedown, fallback og API-overgang er verifisert uten endret 3E-state
 - beholde legacyfelt og aliaser gjennom stabiliseringsperioden; fysisk opprydding får egne senere gater
 
-Fase 3 er avsluttet og etablerer bare bildekontrakten som senere Import 2.0 skal bruke. Fase 4 etablerer internasjonal telefonidentitet før full Import 2.0. Produkt- og UX-design for Import 2.0 ligger deretter i fase 5, og full implementering ligger i fase 7. Fase 4A–4H er gjennomført og [samlet teknisk stagingverifisert](STAGING_PHASE_4H_PHONE_TECHNICAL_VERIFICATION_2026-08-26.md). Første owner-smoke fant tre avgrensede presentasjons-/Editor-UX-feil; alle tre er [rettet og teknisk stagingreverifisert](STAGING_PHASE_4_OWNER_SMOKE_REMEDIATION_2026-08-29.md) 2026-08-29 uten schema- eller publiseringsendring. Tre siste UI-polishpunkter fra andre owner-smoke er også [implementert og teknisk stagingreverifisert](STAGING_PHASE_4_OWNER_SMOKE_UI_POLISH_2026-08-29.md) uten schema-, data- eller publiseringsendring. Status holdes på `PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE`; fase 5 er ikke startet.
+Fase 3 er avsluttet og etablerer bare bildekontrakten som senere Import 2.0 skal bruke. Fase 4 etablerer internasjonal telefonidentitet før full Import 2.0. Produkt- og UX-design for Import 2.0 ligger deretter i fase 5, og full implementering ligger i fase 7. Fase 4A–4H er gjennomført og [samlet teknisk stagingverifisert](STAGING_PHASE_4H_PHONE_TECHNICAL_VERIFICATION_2026-08-26.md). Første owner-smoke fant tre avgrensede presentasjons-/Editor-UX-feil; alle tre er [rettet og teknisk stagingreverifisert](STAGING_PHASE_4_OWNER_SMOKE_REMEDIATION_2026-08-29.md) 2026-08-29 uten schema- eller publiseringsendring. Tre siste UI-polishpunkter fra andre owner-smoke er også [implementert og teknisk stagingreverifisert](STAGING_PHASE_4_OWNER_SMOKE_UI_POLISH_2026-08-29.md) uten schema-, data- eller publiseringsendring. Prosjekteier [godkjente siste manuelle kontroll 2026-08-29](PHASE_4_OWNER_APPROVAL_2026-08-29.md). `PHASE 4 = CLOSED / VERIFIED`; fase 5 er neste aktive produktfase, men er ikke startet.
 
 Leveransevise akseptansekriterier, testkrav, rollback og de tverrgående ferdigkriteriene for aktivt CRM-bilde, privat original, renditions, approval, locking, fallback, API-kompatibilitet, Open Graph, import, takedown, backup/restore og legacyutfasing finnes i [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md#implementeringsleveranser-og-akseptansekriterier).
 
 ## Fase 4 – International phone identity foundation
 
-**Status:** `PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE`. Alle 4A–4H-gater er gjennomført. Tre funn fra første owner-smoke og tre siste UI-polishpunkter fra andre owner-smoke er rettet og teknisk stagingreverifisert 2026-08-29. En siste kort eierkontroll av UI-polishen gjenstår.
+**Status:** `PHASE 4 = CLOSED / VERIFIED`. Alle 4A–4H-gater er gjennomført. Tre funn fra første owner-smoke og tre UI-polishpunkter fra andre owner-smoke er rettet og teknisk stagingreverifisert. Prosjekteier gjennomførte siste manuelle kontroll og godkjente resultatet 2026-08-29.
 
 **Mål:** etablere stabil og internasjonalt skalerbar telefonidentitet før full Import 2.0-implementering.
 
@@ -257,13 +257,14 @@ rå telefon som visning, bruker canonical E.164 som dialmål og forklarer
 effektiv PUBLIC-status uten å koble flaggene. Siste UI-polish holder
 aktøroversiktens hovedkort kompakte, viser backend-avledet landkodehint i
 interne read-only-visninger og forkorter personlenkens knappetekst til
-`Rediger`. Status holdes på
-`PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE`; leveransen starter ikke
-fase 5 eller produksjonssetting.
+`Rediger`. [Endelig manuell owner-smoke](PHASE_4_OWNER_APPROVAL_2026-08-29.md)
+godkjente alle tre punktene 2026-08-29. ADR-010 er implementert innen avtalt
+fase-4-scope, og status er `PHASE 4 = CLOSED / VERIFIED`. Ingen
+produksjonssetting ble utført.
 
 ## Fase 5 – Produkt- og UX-design for Import 2.0
 
-**Status:** Planlagt etter godkjent telefonarkitektur; ingen større Import 2.0-kodeendring starter før produkt- og UX-planen er godkjent.
+**Status:** Neste aktive produktfase, ikke startet. Ingen større Import 2.0-kodeendring starter før produkt- og UX-planen er godkjent.
 
 Den eksisterende importmotoren skal kartlegges og gjenbrukes der den er solid, men dagens brukeropplevelse skal ikke begrense det nye konseptet.
 
