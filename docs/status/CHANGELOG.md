@@ -2,7 +2,7 @@
 
 ## 2026-08-29
 
-### Tre owner-smoke-funn rettet lokalt; stagingreverifikasjon gjenstår
+### Tre owner-smoke-funn rettet og teknisk stagingreverifisert
 
 - beholdt svensk/nasjonal råtelefon som visning og lagt read-only servergenerert
   `phone_dial_uri` fra lagret canonical E.164 for Organization, Person og PHONE-
@@ -14,9 +14,13 @@
   offentlig» i personredigeringen uten å koble eller endre flaggene
 - beholdt public API-shape og publiseringssemantikk; PUBLIC HTML bruker canonical
   dialmål når det finnes og rå synlig tekst
-- verifisert lokalt med 568 backendtester, 38 frontendtester, 17 Playwright-
-  tester, produksjonsbuild, Django-check og ingen migrasjonsdrift; staging og
-  andre owner-smoke gjenstår, så status er fortsatt
+- verifisert lokalt og i grønn PR-/main-CI med 568 backendtester, 38
+  frontendtester, 17 Playwright-tester, produksjonsbuild, Django-check og ingen
+  migrasjonsdrift
+- deployet eksakt merge `589b86f`, verifisert svensk/norsk raw/canonical,
+  uendret publiseringsfingerprint, PUBLIC, bundlehash og image/safety uten
+  persistente testdata; se [stagingevidensen](STAGING_PHASE_4_OWNER_SMOKE_REMEDIATION_2026-08-29.md)
+- andre owner-smoke gjenstår, så status er fortsatt
   `PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE`
 
 ## 2026-08-26

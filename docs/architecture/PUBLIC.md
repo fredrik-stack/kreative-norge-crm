@@ -2,7 +2,7 @@
 
 **Status:** Implementert grunnløsning; kontaktregel og fase 2-stabilisering implementert; standalone public image serving er `ACTIVE` i staging; 3E.2 projection/API-shadow er `CLOSED / SHADOW VERIFIED`; 3E.3 PUBLIC/head-kobling er `CLOSED / ACTIVE` i staging; 3F endrer ikke public projection eller serving
 
-**Sist verifisert:** 2026-08-29 lokalt; stagingreverifikasjon for owner-smoke-rettingen gjenstår
+**Sist verifisert:** 2026-08-29 i staging mot owner-smoke-rettingen
 
 **Verifisert mot:** public-ruter, `PublicActorViewSet`, public serializer, modeller, public HTML-template, importtjenester, React-editor og regresjonstester.
 
