@@ -2,7 +2,7 @@
 
 ## 2026-08-29
 
-### Siste UI-polish etter andre owner-smoke lokalt verifisert
+### Siste UI-polish etter andre owner-smoke teknisk stagingverifisert
 
 - fjernet Organization-telefon fra hovedkortene i aktøroversikten, men beholdt
   den i oversiktsmodal, redigering og søk
@@ -15,7 +15,11 @@
   publiseringssemantikk uendret; ingen schema- eller dataendring
 - verifisert lokalt med 570 backendtester, 41 frontendtester, 17
   Playwright-tester, produksjonsbuild, begge produksjonsimages, Django-check og
-  ingen migrasjonsdrift; PR-/CI-/stagingverifikasjon gjenstår
+  ingen migrasjonsdrift; PR- og main-CI er 6/6 grønne
+- deployet eksakt merge `c502701`, verifisert rollback-transaksjon,
+  uendret publiseringsfingerprint, public API-shape, byteeksakt frontendbundle,
+  PUBLIC projection og safety `READY` uten persistente testdata; se
+  [stagingevidensen](STAGING_PHASE_4_OWNER_SMOKE_UI_POLISH_2026-08-29.md)
 - status holdes eksakt på
   `PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE`
 

@@ -194,3 +194,7 @@ backfillmanifest/isolert rollback, full testmatrise og post-change
 backup/restore. Restorekopien hadde samme migrasjon, regioner, tellinger,
 canonical state og fingerprints som live. Teknisk status er
 `PHASE 4 TECHNICALLY VERIFIED / READY_FOR_OWNER_SMOKE`.
+
+[Siste owner-smoke UI-polish](../status/STAGING_PHASE_4_OWNER_SMOKE_UI_POLISH_2026-08-29.md)
+stagingverifiserer i tillegg det backend-avledede landkodehintet, uendret
+public shape og rå/canonical kontrakt uten persistente testdata.
