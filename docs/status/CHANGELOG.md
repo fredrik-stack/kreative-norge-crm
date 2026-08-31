@@ -9,8 +9,15 @@
   som `Godkjent målarkitektur – ikke implementert`
 - valgt global provider-nøytral Place, separate providerreferanser og
   kildebelagte koordinater uten Google som canonical stedssannhet
+- valgt kontrollert selvbetjent normalflyt der autoriserte tenantbrukere og
+  importreviewere kan opprette source-backed eller brukerbekreftet canonical
+  Place uten obligatorisk plattform-superadmin; global merge, redirect,
+  deaktivering og registerkonflikt forblir separat plattformforvaltning
+- fastsatt at OrganizationPlace gjelder canonical aktør på tvers av assignments,
+  at publication er eksplisitt capabilitykontrollert, og at kart eligibility
+  følger data-/koordinat-/kartgater uten plattform-superadmin som rollekrav
 - valgt typed OrganizationPlace og strukturert PersonPlace; PersonPlace har
-  ingen Google-, koordinat-, markør- eller kartscope
+  ingen Google-persondata-, koordinat-, markør- eller kartscope
 - fastsatt 16 eksplisitte Musikkontoret-region-/territoriemappings samt separat
   utenlandsk/uavklart fallback, med versjonerte forklarbare forslag som aldri
   oppretter assignment eller gir autorisasjon
@@ -22,6 +29,12 @@
 - kontrollert offisielle Google-, Kartverket/Geonorge- og SSB Klass-kilder
   2026-08-31; registrert Google EØS-/Places-begrensninger og Kartverkets CC BY
   4.0 som reverifiserbare provider-/lisensporter
+- skilt varige koordinater fra tidsbegrensede rå providerkoordinater og krevd
+  restore-sikker backup/purge/reconciliation slik at utløpt data aldri kan
+  reaktiveres; backupkonsekvensen er markert som konservativ slutning
+- lagt separat Google Customer Application-vilkårsgate med gjeldende End User
+  Additional Terms- og Privacy-lenker, uavhengig av privacy, consent og
+  attribusjon
 - oppdatert roadmap slik at fase 5D er neste produktarbeid etter merge: Import
   2.0-informasjonsarkitektur, wireframes, prototype, stedskontroll,
   tenantforslag og actor-only kartbrukerreise

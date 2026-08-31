@@ -34,15 +34,29 @@ med separate `PlaceProviderReference`- og `PlaceCoordinate`-livssykluser.
 legacy/proveniens og revision/review. Privacy, publication og SharingDomain-
 scope ligger på canonical objekt og relasjon, ikke på Place.
 
-Ett Place kan bevare flere historiske eller foreslåtte koordinatrader, men har
-maksimalt én aktivt godkjent kartkoordinat om gangen. Bytte er atomisk og
-auditert; uten entydig aktiv koordinat projiseres ingen markør.
+Autorisert tenantbruker/importreviewer kan gjennom en kontrollert server-side
+tjeneste velge eksisterende eller opprette source-backed eller brukerbekreftet
+canonical Place uten obligatorisk plattform-superadmin-review. Duplicate-/
+similarity-kontroll, proveniens, audit og stale-kontroll er påkrevd; globale
+merge-, redirect-, deaktiverings- og registerkonflikter forblir
+plattformforvaltning. OrganizationPlace peker på canonical Organization og
+kopieres ikke per tenantassignment.
+
+Ett Place kan bevare flere historiske eller foreslåtte koordinatrader når
+kilde-/providerretensjonen tillater det, men har maksimalt én aktivt godkjent
+kartkoordinat om gangen. Bytte er atomisk og auditert; uten entydig aktiv
+koordinat projiseres ingen markør. Varige, lovlig retinerbare koordinater kan
+følge standardbackupen. Tidsbegrensede rå providerkoordinater krever separat
+backup-/purge-/restorekontrakt og kan aldri reaktiveres gjennom restore.
 
 `OrganizationPlace` kan senere være eksplisitt offentlig og inngå i actor-only
 kart. `PersonPlace` er strukturert data for profil, matching, filtrering og
-tenantforslag, men kan ikke utløse providerkall eller inngå i koordinat-,
-markør- eller kartprojection. Versjonerte `GeographicTenantRuleSet` produserer
-bare forklarte forslag og kan aldri opprette assignment eller gi autorisasjon.
+tenantforslag, men kan ikke utløse skjulte providerkall eller inngå i koordinat-,
+markør- eller kartprojection. Eksplisitt Place-oppslag bruker bare stedsverdi og
+geografisk kontekst, aldri personidentitet eller annen CRM-kontekst. Versjonerte
+`GeographicTenantRuleSet` bruker bare systemvaliderte administrative koder,
+produserer forklarte forslag og kan aldri opprette assignment eller gi
+autorisasjon.
 
 Dagens `Organization.municipalities` og `Person.municipality` består som
 implementert friteksttilstand gjennom en additiv shadow-/reviewovergang. Ingen

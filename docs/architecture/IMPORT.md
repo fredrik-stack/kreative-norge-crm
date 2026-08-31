@@ -54,12 +54,15 @@ entity type/source-ID, originalverdi, land, region/fylke, kommune,
 locality/by/tettsted, stedstype, primær/offentlig status, proveniens og
 reviewstatus.
 
-Rå tekst skal behandles før commit som kandidat → kontrollert offentlig
-kode-/provideroppslag ved behov → tvetydighetsreview → bekreftet Place → typed
-OrganizationPlace eller PersonPlace → eventuelt rådgivende tenantforslag.
-Stedsdelen av commit kjører aldri Google-søk, geokoding, kartlasting eller
-providerhenting og oppretter aldri publication eller assignment automatisk.
-PersonPlace får aldri kart- eller Google-scope.
+Unike rå stedsverdier skal kunne løses samlet før commit som kandidat →
+kontrollert offentlig kode-/provideroppslag ved behov → duplicate-/similarity-
+kontroll → source-backed eller manuelt brukerbekreftet Place, med review bare
+ved reell tvetydighet → typed OrganizationPlace eller PersonPlace → eventuelt
+rådgivende tenantforslag. Importrevieweren kan løse normalflyten uten
+plattform-superadmin; bare globale registerkonflikter eskaleres. Stedsdelen av
+commit kjører aldri Google-søk, geokoding, kartlasting eller providerhenting og
+oppretter aldri publication eller assignment automatisk. PersonPlace får aldri
+kart- eller Google-persondatascope.
 
 Dette er målarkitektur. Dagens import bruker fortsatt fritekstfeltene
 `organization_municipalities` og `person_municipality`; ingen `STEDER`-flyt,

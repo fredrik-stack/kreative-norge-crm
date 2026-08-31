@@ -49,9 +49,13 @@ men er ikke implementert; personer skal aldri få PUBLIC-kartpunkter.
 
 PUBLIC-kartet blir et supplement til en fullverdig liste. En markør krever
 publisert canonical Organization, eksplisitt offentlig OrganizationPlace,
-verifisert Place, gyldig godkjent koordinat, aktiv kartgate og oppfylt
-juridisk/providergate. Én Organization med flere assignments dupliseres ikke;
-markøren representerer OrganizationPlace, ikke tenant.
+tilstrekkelig source-backed/system- eller brukerbekreftet Place, gyldig godkjent
+koordinat, aktiv kartgate og oppfylt juridisk/providergate. Tvetydige Places får
+ingen markør. En autorisert tenantbruker kan publisere OrganizationPlace med
+gyldig agreement, membership, assignment, edit-/publication-capability og
+server-/stale-kontroll; plattform-superadmin er ikke et kartkrav. Én Organization
+med flere assignments dupliseres ikke; markøren representerer canonical
+OrganizationPlace, ikke tenant.
 
 Assignments, overlays, internal tags, personer og private data eksponeres ikke.
 Organizations uten koordinat forblir i listen. Kartet bruker samme canonical ID
@@ -60,8 +64,12 @@ image state.
 
 Google-komponenten skal kunne vente til uttrykkelig brukerhandling eller en
 senere juridisk godkjent consentmekanisme. Manglende key, script, samtykke,
-kvote eller provider gir listefallback uten datawrite. Google er ikke canonical
-stedssannhet, og dagens PUBLIC har ingen kartfunksjon.
+kvote, provider, restore-reconciliation eller Customer Application-vilkår gir
+listefallback uten datawrite. Google er ikke canonical stedssannhet, og dagens
+PUBLIC har ingen kartfunksjon. Den separate vilkårsgaten skal opplyse om Google
+Maps og lenke til gjeldende Google Maps End User Additional Terms og Google
+Privacy Policy; den er ikke det samme som personvernerklæring, consent,
+brukerhandling eller attribusjon.
 
 ## Publiseringsregler
 

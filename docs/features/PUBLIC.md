@@ -37,7 +37,12 @@ nytt `publish_email`-flagg; telefon beholder eget publiseringsvalg. Structured
 places og actor-only maps følger nå den godkjente
 [ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md),
 men er ikke implementert. PUBLIC-kartet gjelder bare Organizations med
-eksplisitt offentlig OrganizationPlace og gyldig godkjent koordinat. Personer
-får aldri kartpunkter, Organizations uten koordinat forblir i listen, og Google
-skal kunne være deaktivert uten at PUBLIC-listen eller aktørsidene slutter å
-fungere.
+eksplisitt offentlig OrganizationPlace, tilstrekkelig source-backed/system- eller
+brukerbekreftet Place og gyldig godkjent koordinat. Autoriserte tenantbrukere kan
+publisere relasjonen med riktig capability; plattform-superadmin er ikke et
+kartkrav, og OrganizationPlace kopieres ikke per assignment. Tvetydige Places og
+personer får aldri kartpunkter, Organizations uten koordinat forblir i listen,
+og Google skal kunne være deaktivert uten at PUBLIC-listen eller aktørsidene
+slutter å fungere. Google krever i tillegg en separat, juridisk godkjent Customer
+Application-vilkårsgate med gjeldende End User Additional Terms- og
+Privacy-lenker.

@@ -230,7 +230,7 @@ Deretter skal Import 2.0 gjennom en egen produkt- og UX-designfase før større 
 
 ### 5. Sharing domain, steder og actor-only kart – godkjent mål, ikke implementert
 
-Fase 5A har levert [PII-fritt read-only impactgrunnlag](PHASE_5_SHARING_DOMAIN_IMPACT_2026-08-30.md). [ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md) velger direkte canonicalisering med additive SharingDomain- og assignmentporter, private overlays, shared editorial tags, agreement/capabilities, én PUBLIC-identitet og image-home uten reassosiering. [ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md) velger global provider-nøytral Place, typed OrganizationPlace og PersonPlace, versjonerte rådgivende tenantregler, additiv legacyovergang og actor-only kart med Google som valgfri adapter. PersonPlace har ingen koordinat-, Google-, markør- eller kartfunksjon. MUSIKKONTORET AS er besluttet juridisk behandlingsansvarlig for CRM-behandlingen og det felles SharingDomainet; Fredrik Forssman er produkteier, faglig ansvarlig og operativ kontaktperson, ikke juridisk behandlingsansvarlig. Ingen av de to målarkitekturene er runtimeimplementert; `Organization`, `Person`, relasjoner, tags, import, steder og bilder bruker fortsatt dagens direkte tenant-/legacykontrakter.
+Fase 5A har levert [PII-fritt read-only impactgrunnlag](PHASE_5_SHARING_DOMAIN_IMPACT_2026-08-30.md). [ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md) velger direkte canonicalisering med additive SharingDomain- og assignmentporter, private overlays, shared editorial tags, agreement/capabilities, én PUBLIC-identitet og image-home uten reassosiering. [ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md) velger global provider-nøytral Place med kontrollert selvbetjent canonical opprettelse, typed OrganizationPlace på tvers av assignments, PersonPlace uten kart, versjonerte rådgivende tenantregler, additiv legacyovergang og actor-only kart med Google som valgfri adapter. Tidsbegrensede Google-koordinater krever restore-sikker livssyklus, og relevante Google-flater krever separate Customer Application-vilkår; ingen av delene er implementert. MUSIKKONTORET AS er besluttet juridisk behandlingsansvarlig for CRM-behandlingen og det felles SharingDomainet; Fredrik Forssman er produkteier, faglig ansvarlig og operativ kontaktperson, ikke juridisk behandlingsansvarlig. Ingen av de to målarkitekturene er runtimeimplementert; `Organization`, `Person`, relasjoner, tags, import, steder og bilder bruker fortsatt dagens direkte tenant-/legacykontrakter.
 
 Detaljert faseinndeling, AI-prinsipp og senere produktområder finnes i [ROADMAP.md](ROADMAP.md).
 
@@ -347,7 +347,8 @@ Sikker automatisk staging-deploy er planlagt utenfor produktfasene og blokkerer 
 - persistent import storage, backup/restore, retensjon og database–fil-konsistens før Import 2.0-aktivering
 - implementering av ADR-012 for provider-nøytral Place, PersonPlace,
   OrganizationPlace, geografiske tenantforslag og actor-only maps, inkludert
-  provider-/personvernportene
+  restore-sikker providerdata, Customer Application-vilkår og øvrige
+  provider-/personvernporter
 - mapping/policy og redaksjonell review av tenantbundne legacytags før de kan bli shared editorial eller private internal tags
 
 ## Dokumentasjonsstatus

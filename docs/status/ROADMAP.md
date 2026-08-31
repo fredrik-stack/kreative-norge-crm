@@ -277,7 +277,7 @@ Fase 5 følger denne rekkefølgen:
 
 1. **5A – Produktretning og read-only impact inventory (`FULLFØRT` som planleggingsgrunnlag):** eksisterende import-/mappingmotor, tenant-eierskap, dataomfang, tilgang, PUBLIC, bilder og storage er kartlagt uten writes. Kort PII-fri evidens finnes i [Phase 5 sharing-domain impact](PHASE_5_SHARING_DOMAIN_IMPACT_2026-08-30.md).
 2. **5B – ADR-011 sharing domain og canonical identity (`MERGET MÅLARKITEKTUR`):** direkte canonicalisering, assignments, overlays, agreement/capabilities, PUBLIC-authoritet, image-home og additiv migrering er besluttet. Ingen kode, schema, data eller runtime er implementert.
-3. **5C – ADR-012 places, geography og actor-only maps (denne dokumentasjonsleveransen):** provider-nøytral Place, OrganizationPlace, strukturert PersonPlace uten kart, versjonerte geografiske tenantforslag, additiv legacyovergang og actor-only kart i Editor/PUBLIC er besluttet som målarkitektur. Google er valgfri adapter, ikke canonical stedssannhet. Ingen runtime er implementert.
+3. **5C – ADR-012 places, geography og actor-only maps (denne dokumentasjonsleveransen):** provider-nøytral Place, kontrollert selvbetjent canonical Place-opprettelse, OrganizationPlace på tvers av assignments, strukturert PersonPlace uten kart, versjonerte geografiske tenantforslag, additiv legacyovergang og actor-only kart i Editor/PUBLIC er besluttet som målarkitektur. Google er valgfri adapter, ikke canonical stedssannhet; rå Google-koordinater krever restore-sikker livssyklus og relevante Google-flater krever en separat Customer Application-vilkårsgate. Ingen runtime er implementert.
 4. **5D – Import 2.0 informasjonsarkitektur, wireframes og klikkbar prototype (neste produktarbeid etter 5C-merge):** brukerreise, review-/konfliktflyt, stedskontroll og tenantforslag, actor-only kartbrukerreise, kvalitetsmål, framdrift, gamification og brukertestgrunnlag.
 5. **5E – Godkjent implementerings- og testplan:** små leveranser, akseptansekriterier, migrering, featuregates, staging, rollback og ferdigdefinisjon før større kodeendringer.
 
@@ -286,8 +286,12 @@ Avhengigheter for senere implementering:
 - shared identity og assignments må etableres før full Import 2.0
 - structured places og actor-only maps kan først implementeres etter den
   godkjente ADR-012-rekkefølgen; maps gjelder bare Organizations
-- PersonPlace er strukturert data uten Google-, koordinat-, markør- eller
-  kartscope
+- tidsbegrenset providerdata krever godkjent lagrings-, backup-, purge- og
+  restore-reconciliation-kontrakt, og Google-consumers krever godkjente
+  Customer Application-vilkår før aktivering
+- PersonPlace er strukturert data uten Google-persondata-, koordinat-, markør-
+  eller kartscope; eksplisitt Place-oppslag kan bare bruke stedsverdi og
+  geografisk kontekst
 - contact-/relationship-målarkitekturen må være klar før full Import 2.0
 - persistent import storage, backup/restore og retensjon må være aktiv før Import 2.0 kan aktiveres
 - browser-aktiv Codex er en hard gate før Import 2.0- og kart-UI implementeres

@@ -37,9 +37,12 @@ kartprojeksjon i aktiv kode.
   [ADR-009](ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md):
   kart kan lese den godkjente Organization-bildeprojeksjonen eller
   systemfallback, men oppretter, flytter eller endrer ingen image state.
-- [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md): senere
-  stedstabeller og audit inngår i databasebackup og restore. ADR-012 oppretter
-  ingen ny filstorage.
+- [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md): varige
+  Place-/relasjonsdata, regler, proveniens, audit og koordinater som lovlig kan
+  følge ordinær retensjon, inngår i databasebackup og restore. Tidsbegrensede
+  rå providerkoordinater får ikke automatisk følge PostgreSQL-/Borg-/Storage
+  Box-/Cloud Backup-kjeden; de krever den separate restore-sikre kontrakten i
+  dette ADR-et. ADR-012 oppretter ingen ny filstorage.
 - [ADR-010](ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md): telefon
   og sted er separate matchsignaler. Ingen av dem er alene personidentitet eller
   automatisk mergegrunnlag.
@@ -142,6 +145,13 @@ kartprojeksjon. PersonPlace er strukturert data, men har aldri kartscope.
 **Providerdata** er data hvis bruk, lagring, attribusjon eller levetid styres av
 en ekstern avtale. Providerdata er ikke automatisk plattformens stedssannhet.
 
+**Varig koordinat** er kildebelagt koordinatdata som etter kontroll av kilde,
+lisens, bruk, policy og attribusjon kan følge ordinær databasebackup og restore.
+
+**Tidsbegrenset rå providerkoordinat** er latitude/longitude eller en avledet
+representasjon som kan rekonstruere dem, og som etter providerpolicy må slettes
+eller ikke kan følge ordinær langtidsretensjon.
+
 ## 8. Global provider-nøytral Place
 
 Place er felles geografisk referansedata på plattformnivå og skal kunne
@@ -156,7 +166,10 @@ representere:
 - opprettelses-, kontroll- og verifiseringsstatus
 
 Place kan eksistere uten koordinat, providerreferanse eller Google-data. Et
-manuelt opprettet sted kan senere verifiseres uten å bytte intern identitet.
+source-backed/systembekreftet eller kontrollert brukerbekreftet Place er
+canonical når servervalideringen er fullført; det er ikke et tenantprivat utkast
+som venter på plattformgodkjenning. Senere kildeverifisering endrer ikke den
+interne identiteten.
 
 Place skal ikke:
 
@@ -171,15 +184,64 @@ Providerens ID-semantikk inngår i identiteten. For eksempel må Kartverkets
 stednummer, stedsnavnnummer og skrivemåte-ID ikke behandles som samme ID-type.
 Offentlige administrative koder lagres som tekst slik at ledende null bevares.
 
-Fordi Place kan gjenbrukes på tvers av SharingDomains, er canonical
-Place-forvaltning en plattformcapability, ikke en vanlig tenantrettighet.
-Tenantbrukere kan velge eksisterende Places og forvalte OrganizationPlace eller
-PersonPlace innen eget autorisert objektscope, men kan ikke direkte endre,
-verifisere, merge eller deaktivere delt Place, providerreferanse eller aktivt
-kartpunkt for andre domener. Slike globale endringer krever eksplisitt
-plattformcapability, revision-/stale-kontroll og audit. Et referert Place slettes
-ikke destruktivt; merge eller deaktivering skal bevare relasjoner, proveniens og
-historikk. Eksakt rolle- og tjenestenavn avgjøres i implementeringen.
+En autorisert tenantbruker eller importreviewer med relevant create-/edit-
+capability kan gjennom én kontrollert server-side tjeneste:
+
+- søke etter og velge et eksisterende Place
+- bekrefte en entydig source-backed kandidat, slik at tjenesten oppretter eller
+  gjenbruker canonical Place umiddelbart etter duplicate-/similarity-kontroll
+- velge `Opprett nytt sted manuelt` når ingen klar kilde finnes; navn, land,
+  region/fylke, kommune, type, original råtekst og kilde/begrunnelse kreves i den
+  utstrekning de er relevante og kjente
+- knytte resultatet til canonical Organization eller Person og lagre den typed
+  relasjonen i samme arbeidsflyt
+- eksplisitt gjøre OrganizationPlace offentlig i samme arbeidsflyt når separat
+  publication-capability og alle øvrige porter er oppfylt
+
+Dette gjelder Editor, senere Import 2.0, Organization create/update og
+PersonPlace. Et offentlig OrganizationPlace blir map-eligible først når et
+lovlig, gyldig kartpunkt og alle kart-/providerporter også er grønne.
+
+Duplicate-/similarity-kontrollen sammenligner minst normalisert navn, land,
+region/fylke, kommune, stedstype, offentlige kilde-ID-er, alternative
+skrivemåter og redirect-/tombstonehistorikk. Eksakt score og terskler avgjøres i
+implementeringen.
+
+Normal Place-opprettelse krever ikke plattform-superadmin, obligatorisk ekstra
+menneskelig godkjenning eller et eget workflow-subsystem. Den kontrollerte
+tjenesten kjører duplicate-/similarity-, autorisasjons-, revision-/stale- og
+servervalidering før write og registrerer proveniens og audit. Et manuelt sted
+som passerer denne valideringen blir et gjenbrukbart, canonical,
+brukerbekreftet Place og kan brukes tekstlig og i offentlig typed relasjon;
+koordinat-, kart- og tenantregelkrav vurderes separat. Tjenesten gjør aldri en
+automatisk merge av to eksisterende Places.
+
+Verifisering er datakvalitetsstatus, ikke en plattformrolle. Konseptuelle
+utfall er source-backed/systembekreftet, brukerbekreftet,
+tvetydig/review-required, avvist, deaktivert og redirected/merged; eksakte enum-
+navn avgjøres i implementeringen. Bare reell tvetydighet eller konflikt går til
+review. Uavklarte/tvetydige kandidater kan bevare råtekst og proveniens, men kan
+ikke publiseres, få kartmarkør, drive GeographicTenantRuleSet, brukes som
+verifisert match eller skjult mutere global Place.
+
+En tvetydig kandidat kan forbli eksplisitt knyttet til sin ImportJob-/
+reviewkandidat. Importrevieweren løser den ved å velge et eksisterende Place
+eller oppgi tilstrekkelig geografisk kontekst; ingen canonical Place- eller
+relasjonswrite skjer før utfallet er entydig.
+
+En vanlig tenantbruker kan ikke vilkårlig endre en eksisterende global Place,
+providerreferanse, administrativ sannhet eller aktivt kartpunkt. Brukeren kan
+legge til, fjerne eller endre eget autoriserte objekts
+OrganizationPlace/PersonPlace, velge eller opprette Place gjennom tjenesten,
+publisere OrganizationPlace med separat publication-capability og sende inn en
+global rettelse. Plattformcapability er forbeholdt merge, redirect/tombstone,
+deaktivering av referert Place, endring av kilde-ID, administrativt hierarki
+eller global koordinat som påvirker eksisterende referanser, multi-domain-/
+massekonflikter og provideropprydding.
+Slike globale handlinger krever revision-/stale-kontroll og audit. Et referert
+Place slettes ikke destruktivt; merge eller deaktivering bevarer relasjoner,
+proveniens og historikk. Eksakte rolle- og tjenestenavn avgjøres i
+implementeringen.
 
 ## 9. Norsk stedssannhet og offentlige koder
 
@@ -194,6 +256,11 @@ For norske steder er målretningen:
 - endringer og korrespondanser mellom historiske og nye koder skal kunne spores
 - Kartverkets representasjonspunkt kan brukes som PlaceCoordinate når
   gjeldende lisens og den konkrete bruken tillater det
+
+Et entydig treff i en kontrollert Kartverket-/SSB-kilde kan bekreftes i
+normalflyten og opprettes eller gjenbrukes uten separat plattformreview. Kilde,
+ID-namespace, ekstern ID, kildeversjon, gyldighet og tilgjengelig administrativ
+kontekst bevares.
 
 Ikke alle norske Places trenger både Kartverket- og SSB-identitet. Et tettsted
 kan ha SSR-identitet uten egen kommunekode, mens et administrativt område kan
@@ -245,7 +312,8 @@ PlaceCoordinate er separat kildebelagt data og skal minst støtte:
 Latitude valideres i intervallet -90 til 90 og longitude i -180 til 180.
 Koordinater kan erstattes, utløpe eller deaktiveres uten at Place slettes.
 Ingen koordinat er påkrevd for Place, OrganizationPlace eller PersonPlace.
-Et Place kan ha flere historiske, foreslåtte eller avviste koordinatrader, men
+Et Place kan ha flere historiske, foreslåtte eller avviste koordinatrader når
+kildens lisens, providerpolicy og retensjon tillater at råverdiene bevares. Det
 kan til enhver tid ha maksimalt én aktivt godkjent kartkoordinat. Bytte av aktivt
 kartpunkt skal deaktivere gammel og aktivere ny rad atomisk med revision-/stale-
 kontroll og audit. Uten en slik entydig aktiv rad får Place ingen markør.
@@ -268,6 +336,59 @@ lovlig, ikke-rekonstruerbar tombstone-/auditmetadata som provider, status,
 slettetidspunkt, årsak og kontrollert policyversjon kan bestå. En utløpt
 Google-koordinat blir umiddelbart ubrukelig som kartpunkt mens kontrollert purge
 fullføres.
+
+Varige open-data-koordinater kan følge ADR-008s ordinære PostgreSQL-, Borg-,
+Storage Box-, Cloud Backup- og restorekjede når kilde, lisens, konkret bruk,
+policy og attribusjon tillater samme retensjon. Dette gjelder ikke automatisk
+Google-derived latitude/longitude eller annen tidsbegrenset rå providerdata.
+
+Følgende er en bindende restore-sikker invariant: tidsbegrenset rå providerdata
+kan ikke overleve tillatt levetid gjennom live database/cache, replika, kø,
+eksport, logg, `pg_dump`, Borg-arkiv, Storage Box-snapshot, Cloud Backup eller
+annen kopi, og kan aldri bli lesbar eller aktiv igjen etter restore. En
+rekonstruerbar avrunding, geohash eller encoding behandles som rå koordinat.
+
+Senere implementering skal velge og bevise én providerkompatibel strategi før
+slike writes aktiveres, for eksempel:
+
+- separat kortlivet storage som er bevist ekskludert fra alle langsiktige
+  backup-, snapshot-, replika-, eksport- og logglag
+- en særskilt backup-/purgekjede som håndhever hvert datapunkts samme
+  providerfrist i alle kopier
+- en juridisk og teknisk dokumentert ekvivalent løsning
+
+At slettefristen må gjelde backup og restore er en konservativ arkitektur-/
+compliance-slutning for å gjøre Googles uttrykkelige slettekrav reelt. De
+kontrollerte Google-vilkårene omtaler ikke katastrofebackup, Borg, Storage Box,
+Cloud Backup eller restore eksplisitt. Endelig løsning krever derfor juridisk og
+kontraktsmessig kontroll; vanlig PostgreSQL-lagring med ADR-008s
+langtidsretensjon er ikke godkjent som standard for disse rådataene.
+
+Etter enhver restore skal en provider-policy-reconciliation være grønn før
+provider-, koordinat- eller kartlesing/-skriving kan aktiveres. Reconciliation
+skal minst:
+
+1. identifisere provider, kilde, kontrollert policyversjon, `verified_at`,
+   `expires_at` og eventuelle providerreferanser
+2. deaktivere rådata før de kan leses eller projiseres
+3. purge data som er utløpt, skulle vært slettet, mangler kilde, har ukjent
+   policy, har utløpt referanse eller ikke lenger er lovlig
+4. bare bevare lovlig, ikke-rekonstruerbar tombstone-/auditmetadata uten rå
+   koordinater
+5. logge resultat, policy og frist uten latitude/longitude
+
+Google-koordinatlesing og -skriving feiler lukket når juridisk/providerbruk ikke
+er godkjent, vilkårene ikke er ferskt kontrollert, policy eller kilde er ukjent,
+sletting ikke kan håndheves, purge ikke er operativ, backup-/retensjonskontrakten
+ikke er godkjent eller restore-reconciliation ikke er grønn. Providerpålagt
+disable/purge kjører uavhengig av map-, provider- og øvrige featuregater,
+rollback og om kartet er aktivt.
+
+Utløp eller purge av en Google-koordinat sletter ikke Place,
+PlaceProviderReference som fortsatt er lovlig, OrganizationPlace, PersonPlace,
+GeographicTenantRuleSet, publication, proveniens eller ikke-rekonstruerbar
+tombstone/audit. En lovlig Google Place ID følger sin separate
+reverifiseringspolicy og slettes ikke bare fordi en koordinat utløper.
 
 Utløpt eller utilgjengelig koordinat fjerner bare markøren. Aktøren forblir i
 liste, søk og tekstlig stedspresentasjon. Vanlig sidevisning og import-commit
@@ -301,6 +422,14 @@ bindende:
 - tenantassignment og OrganizationPlace er separate relasjoner
 - geografi kan foreslå tenant, men kan aldri tildele tenant eller autorisere
 
+OrganizationPlace tilhører canonical Organization og gjelder på tvers av alle
+dens tenantassignments; det opprettes ingen relasjons- eller markørkopi per
+tenant. Publication ligger på OrganizationPlace, aldri på Place. En autorisert
+tenantbruker kan gjøre relasjonen offentlig uten plattformgodkjenning når
+brukeren er aktiv, agreement, membership og assignment er gyldige, edit- og
+publication-capability er oppfylt, og servervalidering samt revision-/stale-
+kontroll er grønn. Publisering er alltid eksplisitt og auditert.
+
 MVP-kartpunktet er normalt kommune, by, tettsted eller annet godkjent
 representasjonspunkt. Eksakt gateadresse er ikke et generelt krav, og privat
 hjemmeadresse skal ikke registreres.
@@ -322,6 +451,12 @@ tenantforslag. Den skal ikke:
 - sende personnavn, e-post, telefon, aktørrelasjon, notater eller private tags
   til Google
 
+En autorisert bruker kan velge eksisterende eller opprette source-backed eller
+brukerbekreftet Place gjennom samme kontrollerte normalflyt før PersonPlace
+lagres. Et eksplisitt Place-oppslag kan bare bruke den oppgitte stedsverdien og
+nødvendig geografisk kontekst; personidentitet eller annen CRM-kontekst sendes
+aldri til en sted-/kartprovider. Opprettelsen gir fortsatt ingen personkartrett.
+
 Hvis samme Place også brukes av en Organization og har koordinat, gir det ingen
 kartrettighet for personen. Shared Place-coordinate skal aldri projiseres via
 PersonPlace.
@@ -336,6 +471,11 @@ GeographicTenantRuleSet tilhører nøyaktig ett SharingDomain og skal ha versjon
 status, gyldighetsperiode og auditerbar endringshistorikk. Reglene bruker egne
 land-, klassifikasjons-, region-, kommune- eller territoriekoder og produserer
 ett eller flere forklarte tenantforslag.
+
+Bare systemvaliderte administrative koder kan drive automatisk
+GeographicTenantRuleSet. Et manuelt brukerbekreftet Place uten slike koder kan
+lagres, gjenbrukes, knyttes, vises tekstlig og publiseres gjennom en typed
+relasjon, men gir ikke automatisk geografisk tenantforslag.
 
 Første Musikkontoret-regelsett er:
 
@@ -392,9 +532,9 @@ overgangen. Migreringen følger disse prinsippene:
 3. Schema- og datamigrasjoner utfører ingen eksterne API-kall.
 4. Deterministisk splitting produserer kandidater, ikke sannhet.
 5. Entydige treff mot kontrollerte offentlige koder kan få egen kontrollert
-   backfill; tvetydige treff får reviewstatus.
+   backfill; bare reelt uavklarte eller tvetydige treff får reviewstatus.
 6. Ingen OrganizationPlace blir offentlig som migreringsbivirkning.
-7. Ingen PersonPlace får koordinat-, Google- eller kartscope.
+7. Ingen PersonPlace får koordinat-, Google-persondata- eller kartscope.
 8. Legacy og strukturert projection sammenlignes i shadow mode.
 9. PUBLIC fortsetter på legacyfelt til additive API-felt, consumer og staging
    er verifisert.
@@ -403,6 +543,10 @@ overgangen. Migreringen følger disse prinsippene:
 Tvetydighetsreview skal minst dekke like stedsnavn i flere områder, flere steder
 i én streng, historiske kommune-/fylkesnavn, utenlandsk sted uten landkode og
 tekst som beskriver et område fremfor ett sted.
+
+En uavklart/tvetydig kandidat kan aldri bli public- eller map-eligible, drive en
+tenantregel eller brukes som verifisert match. Den kan heller ikke utløse skjult
+providerbruk eller global Place-mutasjon.
 
 ## 16. Import 2.0-grense
 
@@ -422,15 +566,21 @@ Planlagt pre-commit-flyt er:
 rå tekst
 → normalisert kandidat
 → kontrollert offentlig kode-/provideroppslag ved behov
-→ tvetydighetsreview
-→ bekreftet Place
+→ duplicate-/similarity-kontroll
+→ tvetydighetsreview bare ved reell konflikt/uavklart kandidat
+→ eksisterende, source-backed eller brukerbekreftet Place
 → OrganizationPlace eller PersonPlace
 → eventuelt rådgivende tenantforslag
 → eksplisitt commit
 ```
 
-Like stedsverdier i samme jobb bør senere kunne løses samlet. Dette er fase
-5D/7-UX og ikke en runtimebeslutning her.
+Like stedsverdier i samme jobb skal senere kunne løses samlet. Importrevieweren
+kan i normalflyten velge eksisterende Place, bekrefte en entydig offentlig
+kildekandidat eller opprette et manuelt brukerbekreftet Place uten
+plattform-superadmin. Place-opprettelse er en eksplisitt pre-commit-beslutning;
+bare globale registerkonflikter, multi-domain-konflikter og forvaltningshandlinger
+eskaleres til plattformcapability. Dette er fase 5D/7-UX og ikke implementert
+runtime her.
 
 Stedsdelen av import-commit skal aldri kjøre Google-søk, geokoding, kartlasting
 eller providerhenting. Den skal aldri gjøre et sted offentlig eller opprette
@@ -445,6 +595,13 @@ Editor får senere en Organization-only kartarbeidsflate. Vanlig tenantbruker
 kan bare se canonical Organizations med aktiv assignment til brukerens aktive
 tenant og øvrige gyldige capabilities. Plattform-superadmin kan filtrere flere
 tenants innen samme eksakte SharingDomain.
+
+Den vanlige stedflyten er søk → velg eller opprett Place gjennom den
+kontrollerte server-side tjenesten → knytt til canonical aktør/person → lagre
+typed relasjon → eventuelt publiser OrganizationPlace med separat capability.
+`Opprett nytt sted manuelt` er tilgjengelig når ingen klar kildekandidat finnes.
+En bruker som mener eksisterende global Place er feil, sender inn en rettelse;
+brukeren får ikke vilkårlig global edit-rett.
 
 Kart og resultatliste skal være synkronisert og kunne filtrere på:
 
@@ -471,13 +628,16 @@ PUBLIC får senere en Organization-only kartvisning. En markør krever samtidig:
 
 - publisert canonical Organization med entydig PUBLIC-identitet etter ADR-011
 - eksplisitt offentlig OrganizationPlace
-- tilstrekkelig verifisert Place
+- tilstrekkelig source-backed/system- eller brukerbekreftet Place etter
+  datakvalitetsstatus; aldri tvetydig/review-required
 - gyldig, godkjent og ikke utløpt PlaceCoordinate
 - aktiv PUBLIC-kartfeature og oppfylt juridisk/providergate
 
 Én canonical Organization med tre assignments og ett OrganizationPlace gir én
 markør. Tre reelle offentlige OrganizationPlaces kan gi tre markører.
 Markøren representerer Organization–Place, aldri tenantassignment.
+Map eligibility følger data-, publication-, provider- og featuregatene og krever
+ikke plattform-superadmin.
 
 Assignments, private overlays og internal tags eksponeres ikke. Personer får
 aldri kartpunkt. Organizations uten gyldig koordinat forblir i den offentlige
@@ -523,7 +683,9 @@ data, ikke fra en kopiert Google-respons.
 
 Google kan etter en egen godkjent gate brukes til autocomplete/stedssøk,
 særlig for utenlandske steder, en providerreferanse eller et tidsbegrenset
-koordinatoppslag. Google skal ikke:
+koordinatoppslag. Et slikt Place-oppslag mottar bare eksplisitt stedsverdi og
+nødvendig geografisk kontekst, aldri personidentitet eller øvrige private
+CRM-data. Google skal ikke:
 
 - eie Place eller fylle en varig kopi av Google Places
 - bestemme tenant eller være nødvendig for vanlig stedredigering
@@ -536,6 +698,14 @@ koordinatoppslag. Google skal ikke:
 
 All Google-funksjonalitet kan deaktiveres uten at Place, OrganizationPlace,
 PersonPlace, tenantforslag, importreview eller lister slutter å fungere.
+Google-coordinate persistence er en separat default-off gate og kan ikke
+aktiveres før juridisk/providerbruk, lagringsplassering, backup/retensjon,
+featuregate-uavhengig purge, restore-reconciliation, audit og stagingevidens er
+godkjent. En kart- eller lookup-gate gir aldri i seg selv rett til å lagre rå
+Google-koordinater.
+
+Editor, PUBLIC og enhver framtidig Google-consumer omfattes dessuten av den
+separate Customer Application-vilkårsgaten i punkt 22 før aktivering.
 
 ## 21. Nøkler, sikkerhet, kostnad og observability
 
@@ -557,6 +727,15 @@ restriksjoner. Servercredentials ligger aldri i frontendbuild, API-respons eller
 Git. Logger sanitiseres, providerquery inneholder ingen PII, featuregater er
 fail-closed, og bruk/kostnad observeres aggregert. Budsjettvarsler alene
 stopper ikke forbruk; kvoter og kontrollert avslag må testes.
+
+Place-select/create, typed relasjon, publication, koordinatvalg og globale
+forvaltningshandlinger autoriseres server-side, auditeres og bruker revision-/
+stale-kontroll etter handlingens capability. Observability for tidsbegrenset
+providerdata skal vise policyversjon, kommende frister, purge-lag/-feil og
+restore-reconciliation-status uten rå koordinater. Ukjent policy, overskredet
+frist, mislykket purge eller ikke-grønn reconciliation blokkerer relevante
+providerdata read/write og kartprojection. Purgejobben er uavhengig av
+featuregater og må fortsette når lookup eller kart er slått av.
 
 Denne leveransen oppretter ikke prosjekt, API-er eller nøkler.
 
@@ -583,6 +762,27 @@ juridisk godkjent consent-management-løsning. Dette er en dataminimerende
 arkitekturbeslutning, ikke en påstand om at ett klikk alene oppfyller alle
 rettslige krav. Liste, søk og aktørsider fungerer før lasting.
 
+Google Maps Platforms gjeldende EØS-vilkår krever i tillegg at brukervilkårene
+til hver relevant Customer Application:
+
+- opplyser om at applikasjonen inneholder Google Maps-funksjoner og -innhold
+- sier at bruken er underlagt den til enhver tid gjeldende
+  [Google Maps End User Additional Terms of Service](https://maps.google.com/help/terms_maps/)
+  og [Google Privacy Policy](https://policies.google.com/privacy)
+- støttes av egnet håndheving, inkludert suspensjon eller avslutning av tilgang
+  til Google Maps-innhold/-funksjoner når sluttbrukeren ikke følger de relevante
+  vilkårene
+
+Dette er en selvstendig produksjonsgate, separat fra CRM-ets
+personvernerklæring, cookie-/consentvurdering, `Vis interaktivt kart`, Google-
+attribusjon, Kartverket-attribusjon, controller-controller-vilkårene og avtalen
+for delte CRM-data. Juridisk kontroll skal fastsette endelig ordlyd,
+versjonering, lenkeplassering, tilgang før eller ved bruk og eventuell
+akseptmekanisme for Editor, PUBLIC og framtidige consumers. Gaten reverifiseres
+ved implementeringsstart, stagingaktivering, produksjonsaktivering og vesentlig
+providerendring. Uavklart eller foreldet vilkårsgate blokkerer Google-funksjonen;
+endret URL eller navn påvirker aldri Place-identiteten.
+
 Google Maps-attribusjon og eventuelle tredjepartsattributter skal forbli synlige
 og uendrede. Nye integrasjoner skal følge den da gjeldende `Google Maps`-
 attribusjonen. Kartverket krediteres etter gjeldende CC BY 4.0-vilkår. Dynamisk
@@ -593,7 +793,9 @@ må kunne vise den til enhver tid påkrevde runtimeattribusjonen.
 
 Editor og PUBLIC fungerer uten Google. Ved manglende nøkkel, avslått gate,
 providerfeil, timeout, kvote, blokkert JavaScript, manglende godkjent
-brukerhandling/consent, utløpt koordinat eller utilgjengelig kartscript skal:
+brukerhandling/consent, uavklart Customer Application-vilkår, ikke-grønn
+restore-reconciliation, ukjent providerpolicy, utløpt koordinat eller
+utilgjengelig kartscript skal:
 
 - listevisning bestå
 - ikke-provideravhengig søk og filtre bestå
@@ -614,16 +816,26 @@ Senere implementering skal ha separate, default-off gater for minst:
 - legacy/structured shadow projection
 - geographic tenant suggestions
 - provider lookup
+- provider-coordinate persistence
 - Editor actor map
 - PUBLIC actor map
 
 Eksakte settingsnavn avgjøres senere. En frontendkomponent aktiverer aldri
 automatisk read/write eller providerbruk.
 
+Structured Place write-gaten omfatter den kontrollerte create-/reuse-tjenesten,
+men gir ingen frontend eller tenantrolle skjult rett til global mutasjon.
+Provider-coordinate persistence forblir avslått inntil den separate backup-/
+retensjons-/purge-/restorekontrakten er grønn. Providerpålagt disable, purge og
+restore-reconciliation er sikkerhetskontroller, ikke av/på-funksjoner, og kan
+aldri stoppes av featureflag, rollback eller deaktivert kart.
+
 PUBLIC actor map kan ikke aktiveres før ADR-011s canonical PUBLIC-projection er
 klar, offentlige OrganizationPlaces er kontrollert, provider-/personvernvilkår
-er reverifisert, listefallbacken er bevist og credentials/kvoter er sikkert
-konfigurert.
+og Customer Application-vilkår er reverifisert, restore-reconciliation er
+grønn, listefallbacken er bevist og credentials/kvoter er sikkert konfigurert.
+Tilsvarende vilkårsgate gjelder Editor eller enhver framtidig consumer som
+eksponerer Google Maps-funksjoner eller -innhold.
 
 Shadow skal være read-only, sammenligne legacy og strukturert projection med
 forklarte avvik og aldri opprette Place, relasjon, publication, coordinate eller
@@ -645,6 +857,13 @@ kontrollert kartprojection ikke kan håndteres pålitelig.
 
 Avvist fordi offentlig geografi kan gjenbrukes trygt. Privat scope ligger på
 canonical CRM-objekt og typed relasjon; dupliserte Place-rader ville skape drift.
+
+### Obligatorisk plattformreview for normal Place-opprettelse
+
+Avvist fordi det gjør vanlig aktør-, person- og importarbeid avhengig av en
+sentral flaskehals. Kontrollert servervalidering, duplicate-/similarity-kontroll,
+proveniens og audit dekker normal source-backed og brukerbekreftet opprettelse;
+plattformforvaltning reserveres for globale konflikter og registerendringer.
 
 ### Generisk polymorf stedskobling
 
@@ -692,6 +911,8 @@ datamigrasjon.
 Positive konsekvenser:
 
 - stabil intern stedssannhet uavhengig av Google
+- selvbetjent, kontrollert Place-normalflyt uten plattform-superadmin som
+  obligatorisk mellomledd
 - norsk kode-/navnehistorikk kan spores og oppdateres kontrollert
 - flere steder per Organization og Person uten å blande semantikk
 - eksplisitt publication og klar PersonPlace-no-map-invariant
@@ -702,12 +923,16 @@ Positive konsekvenser:
 Kostnader og ulemper:
 
 - flere modeller, constraints, adapters og kildeversjoner må forvaltes
+- duplicate-/similarity-kontroll og global konfliktforvaltning må hindre at
+  selvbetjening fragmenterer canonical Place
 - tvetydige legacyverdier krever redaksjonelt review
 - offentlige kodeendringer og providerreferanser krever livssyklusarbeid
 - Google Places kan være juridisk uegnet for deler av foreslått søk og kan ikke
   planlegges som obligatorisk funksjon
 - kart krever egne privacy-, attribusjons-, sikkerhets-, kostnads- og
   tilgjengelighetsgater
+- tidsbegrenset providerdata krever en separat backup-/purge-/restorekontrakt
+  og kan ikke uten videre ligge i den aktive standardbackupen
 - actor-only map må vente på ADR-011s canonical PUBLIC- og assignmentgrunnmur
 
 ## 28. Migreringsrekkefølge
@@ -715,30 +940,66 @@ Kostnader og ulemper:
 Senere implementering skal være additiv og følge denne rekkefølgen:
 
 1. Place og offisielle source/providerreferanser.
-2. OrganizationPlace og PersonPlace som nullable/additive relasjoner.
-3. Legacy raw-text snapshot/proveniens.
-4. Read-only legacy inventory og kandidatparser.
-5. Kontrollert norsk code/source matching uten eksterne writes.
-6. Shadow projection mellom legacytekst og structured places.
-7. Review av tvetydige aktør- og personsteder.
-8. GeographicTenantRuleSet og shadow suggestions.
-9. Structured write path i Editor.
-10. Additive API-felt.
-11. PUBLIC structured-place shadow.
-12. PlaceCoordinate/provider lifecycle.
-13. Editor actor-map projection.
-14. Editor actor-only map.
-15. PUBLIC actor-map projection.
-16. PUBLIC actor-only map etter juridisk/provider gate.
-17. Import 2.0 STEDER-kontrakt.
-18. Legacy write deprecation.
-19. Fysisk cleanup bare i separat senere gate.
+2. Kontrollert server-side search/select/create/reuse med duplicate-/similarity-
+   kontroll, proveniens, audit og avgrenset global forvaltning.
+3. OrganizationPlace og PersonPlace som nullable/additive relasjoner.
+4. Legacy raw-text snapshot/proveniens.
+5. Read-only legacy inventory og kandidatparser.
+6. Kontrollert norsk code/source matching uten eksterne writes.
+7. Shadow projection mellom legacytekst og structured places.
+8. Review av bare tvetydige aktør- og personsteder.
+9. GeographicTenantRuleSet og shadow suggestions.
+10. Structured write path i Editor, inkludert eksplisitt publication.
+11. Additive API-felt.
+12. PUBLIC structured-place shadow.
+13. Varig PlaceCoordinate-livssyklus for lovlig retinerbare kilder.
+14. Separat default-off provider-coordinate persistence med bevist lagrings-,
+    backup-, purge- og restore-reconciliation-kontrakt.
+15. Editor actor-map projection.
+16. Editor actor-only map etter relevante juridiske/provider-/vilkårsgater.
+17. PUBLIC actor-map projection.
+18. PUBLIC actor-only map etter juridiske/provider-/vilkårsgater.
+19. Import 2.0 STEDER-kontrakt.
+20. Legacy write deprecation.
+21. Fysisk cleanup bare i separat senere gate.
 
 Hver leveranse krever egen featuregate, akseptansekriterier, negative tester,
 stagingbevis og rollback. Ingen leveranse kan ha skjulte public-, assignment-
-eller providerwrites.
+eller providerwrites. Global merge/redirect/deaktivering og provideropprydding
+forblir separate forvaltningshandlinger og er ikke del av normal Place-create.
 
 ## 29. Testkrav
+
+### Place-normalflyt og global forvaltning
+
+- autorisert tenantbruker kan velge eksisterende Place
+- autorisert tenantbruker/importreviewer kan opprette source-backed canonical
+  Place uten plattform-superadmin
+- entydig offentlig kilde kan bekreftes og opprettes/gjenbrukes i normalflyten
+- autorisert bruker kan opprette manuelt, brukerbekreftet canonical Place med
+  påkrevd kontekst og uten ekstra plattformreview
+- duplicate-/similarity-kontroll kjører før hver ny opprettelse og gjenbruker
+  eksisterende Place når identiteten allerede finnes
+- OrganizationPlace knytter canonical Organization og gjelder på tvers av alle
+  assignments uten Place-, relasjons- eller markørkopi per tenant
+- autorisert bruker kan eksplisitt gjøre OrganizationPlace offentlig når aktiv
+  bruker, agreement, membership, assignment, edit-/publication-capability,
+  servervalidering og stale-kontroll er grønne
+- kart eligibility krever gyldig datakvalitetsstatus og koordinat, ikke
+  plattform-superadmin
+- tvetydig/review-required Place er aldri public-, map- eller
+  tenant-rule-eligible og brukes ikke som verifisert match
+- brukerbekreftet Place uten systemvaliderte administrative koder kan knyttes,
+  vises og publiseres, men driver ikke GeographicTenantRuleSet
+- vanlig bruker kan endre eget autoriserte objekts typed relasjon og sende inn
+  rettelse, men ikke vilkårlig mutere eksisterende global Place
+- plattformcapability kan merge, redirecte/tombstone og deaktivere referert Place
+  samt håndtere globale kilde-, hierarki-, koordinat- og providerkonflikter med
+  audit og revision-/stale-kontroll
+- råtekst, kilde, basis, versjon, gyldighet og relevant administrativ kontekst
+  bevares som proveniens
+- alle writes er server-side autoriserte og auditert; frontend utløser ingen
+  skjult global mutasjon eller automatisk merge
 
 ### Modell og migrering
 
@@ -747,9 +1008,9 @@ eller providerwrites.
 - kilde-/ID-namespace, source-ID og providerreference-constraints
 - OrganizationPlace- og PersonPlace-scope mot canonical objekt og eksakt
   SharingDomain-kontekst
-- tenantbruker kan ikke mutere, merge, verifisere eller deaktivere global Place,
-  providerreferanse eller aktivt kartpunkt på tvers av SharingDomains
-- plattformstyrt Place-endring har capability-, revision-/stale- og auditkrav,
+- tenantbruker kan ikke mutere, merge eller deaktivere eksisterende global
+  Place, providerreferanse eller aktivt kartpunkt på tvers av SharingDomains
+- globale forvaltningsendringer har capability-, revision-/stale- og auditkrav,
   og referert Place kan ikke slettes destruktivt
 - maksimalt ett aktivt primærsted per Organization og per Person dersom
   produktkontrakten bruker primær PersonPlace
@@ -768,13 +1029,17 @@ eller providerwrites.
   ikke-geografisk
 - flere steder gir flere dedupliserte forslag og overlap er tillatt
 - forslag skaper aldri assignment eller autorisasjon
+- bare systemvaliderte administrative koder kan utløse geografisk forslag
 - feil SharingDomain avvises
 - gammel og ny regelsettversjon spores og forklares
 
 ### Personer
 
 - PersonPlace kan opprettes uten koordinat
-- PersonPlace utløser ingen Google-/providerkall
+- bruker kan velge eller kontrollert opprette canonical Place før PersonPlace
+  lagres, uten plattform-superadmin
+- PersonPlace-lagring utløser ingen skjulte Google-/providerkall; eksplisitt
+  Place-oppslag bruker bare stedsverdi og geografisk kontekst
 - Person finnes aldri i Editor- eller PUBLIC-kartprojection
 - persondata sendes aldri til provider
 - delt Place-coordinate projiseres ikke via PersonPlace
@@ -794,7 +1059,8 @@ eller providerwrites.
 ### PUBLIC actor map
 
 - bare publisert canonical Organization, offentlig OrganizationPlace,
-  verifisert Place og gyldig koordinat
+  tilstrekkelig source-backed/system- eller brukerbekreftet Place og gyldig
+  koordinat; aldri tvetydig/review-required Place
 - ingen personmarkører, assignments, overlays eller internal tags
 - canonical aktør returneres én gang per OrganizationPlace
 - aktør uten markør forblir i listen
@@ -808,11 +1074,40 @@ eller providerwrites.
 - utløpt/foreldet providerreference og koordinat
 - providerpålagt purge fjerner rå Google-latitude/longitude ved utløp og
   beholder bare lovlig, ikke-rekonstruerbar tombstone-/auditmetadata
+- tidsbegrenset rå providerdata finnes ikke etter sin frist i database/cache,
+  replika, eksport, kø, logg, `pg_dump`, Borg, Storage Box-snapshot, Cloud Backup
+  eller annen kontrollert kopi
+- tidsbegrenset rå providerkoordinat er utenfor ordinær langtidsbackup med
+  mindre en separat godkjent kjede håndhever samme utløp i hver kortlivet kopi
+- backup-/purge-/restore-gaten er grønn før første Google-coordinate write
+- restore av eldre backup deaktiverer rå providerdata før lesing og kan ikke
+  reaktivere utløpt, skulle-ha-vært-slettet, manglende-kilde-, ukjent-policy-,
+  utløpt-referanse- eller nylig ulovlig data
+- restore-reconciliation er idempotent og race-sikker, identifiserer policy og
+  frist, disable-er før purge og må være grønn før provider-/coordinate-/map-
+  lesing eller skriving
+- feature-off, rollback og deaktivert kart stopper aldri providerpålagt purge
+- varig, lovlig Kartverket-koordinat overlever ordinær backup/restore, mens
+  sletting av Google-koordinat bevarer Place, typed relasjoner, publication,
+  regler, lovlig Place ID og ikke-rekonstruerbar audit
+- aktiv Google-basert markør forsvinner ved utløp/purge, mens aktøren består i
+  liste, søk og tekstlig stedspresentasjon
+- tombstone, audit og logger kan ikke rekonstruere rå koordinat
+- ukjent/foreldet providerpolicy, uløst backupkontrakt, mislykket purge eller
+  ikke-grønn restore-reconciliation blokkerer Google-coordinate read/write
 - Places-koordinat får providerstyrt utløp og brukes aldri til tenantregel eller
   punkt-i-polygon
 - sanitert logging og ingen PII i query eller logg
 - default-off gates og separate Editor/PUBLIC/servercredentials
 - korrekt Google Maps-/tredjeparts- og Kartverket-attribusjon
+- Editor, PUBLIC og framtidige Google-consumers har tilgjengelige, juridisk
+  godkjente Customer Application-vilkår som opplyser om Google Maps og lenker til
+  gjeldende End User Additional Terms og Google Privacy Policy
+- Customer Application-vilkår, personvernerklæring, consent/brukerhandling og
+  attribusjon testes som separate porter; uavklart vilkårsgate blokkerer
+  aktivering
+- nødvendig suspensjon/avslutning av tilgang til Google-funksjoner ved
+  vilkårsbrudd kan håndheves etter juridisk godkjent kontrakt
 
 ### API og frontend
 
@@ -820,6 +1115,10 @@ eller providerwrites.
 - OpenAPI-kontrakt og dataminimerte map projections
 - fullverdig keyboard-/listefallback
 - Playwright-reiser for actor-only kart/listesynkronisering
+- Editor-reise for søk, eksisterende valg, source-backed opprettelse, `Opprett
+  nytt sted manuelt`, typed kobling og capabilitykontrollert publication
+- Import-review løser normale unike stedsverdier uten plattform-superadmin,
+  eskalerer bare globale konflikter og gjør ingen providerkall under commit
 - eksplisitt test som beviser at personer aldri vises på kart
 - browser-aktiv Codex ved senere UI-leveranse
 
@@ -831,16 +1130,35 @@ Hver relevant senere leveranse skal dokumentere:
 - schema-/backfilltellinger og legacyfingerprints
 - shadow parity med forklarte avvik
 - reviewresultat for tvetydige steder
+- search/select, source-backed opprettelse og manuelt brukerbekreftet Place uten
+  plattform-superadmin, inkludert duplicate-/similarity-kontroll
+- canonical OrganizationPlace uten tenantkopier, capabilitykontrollert
+  publication og tvetydige kandidater som feiler lukket for public/map/rules
+- Import-review av normale unike stedsverdier uten plattform-superadmin og
+  eskalering bare av globale registerkonflikter
 - alle regelsettutfall og ingen assignmentwrite
 - actor-only projections uten PII/private overlays
 - provider outage, feil key/origin, kvote og listefallback
 - PUBLIC-kartets brukerhandling/consentmekanisme
+- separate, juridisk godkjente Customer Application-vilkår for alle aktive
+  Google-consumers, med gjeldende End User Additional Terms- og Privacy-lenker
+- default-off Google-coordinate persistence, operativ featuregate-uavhengig
+  purge og grønn policy-reconciliation før provider-/coordinate-/map-read/write
+- syntetisk bevis for at tidsbegrenset rå providerdata ikke overlever fristen i
+  PostgreSQL/cache, Borg, Storage Box-snapshot, Cloud Backup, replika, eksport
+  eller logg, og ikke reaktiveres ved full restore
 - uendrede PUBLIC image-/safetyinvarianter
 - sanitert provider-/applogg uten PII
 - backup/restore og prøvd rollback
 
 PUBLIC-kart krever i tillegg ferdig canonical PUBLIC-projection fra ADR-011 og
-juridisk/providergodkjenning. Ingen staginggate bestilles av dette ADR-et.
+juridisk/provider-/Customer Application-vilkårsgodkjenning. Ingen staginggate
+bestilles av dette ADR-et.
+
+Produksjonsaktivering av enhver Google-flate er blokkert til de relevante
+stagingbevisene er grønne, providerregler og Customer Application-vilkår er
+ferskt reverifisert og juridisk godkjent, backup-/purge-/restorekontrakten er
+operativ og restore-reconciliation er grønn.
 
 ## 31. Rollback
 
@@ -860,6 +1178,12 @@ PUBLIC-kartaktivering kan kartgaten slås av mens liste og legacy/strukturert
 tekstvisning består. Ingen canonical Organization eller OrganizationPlace
 slettes. Providerfeil krever aldri datamigrasjon for å deaktivere kartet.
 
+Rollback, feature-off eller restore kan aldri sette providerpålagt disable/purge
+ut av drift. Et eldre snapshot behandles som ukjent/ikke-godkjent
+providerdatatilstand til reconciliation har deaktivert før lesing, kontrollert
+policy/frister og purget alt som ikke fortsatt er lovlig. Bare varig data og
+lovlig ikke-rekonstruerbar tombstone/audit kan deretter åpnes for bruk.
+
 Fysisk legacycleanup er en egen forward-only-beslutning med backup og separat
 rollbackplan.
 
@@ -869,10 +1193,18 @@ Før berørte funksjoner kan implementeres eller aktiveres må følgende avklare
 
 - konkret Google Maps-/Places-bruk under da gjeldende EØS-vilkår og faktisk
   billing account/prosjekt
+- hvilke EØS-/andre Maps-vilkår som gjelder for faktisk faktureringsadresse,
+  prosjekt og integrasjonstilstand
 - om foreslått Places-søk faller innen en tillatt bruk; inntil da er det
   blokkert, valgfritt og erstattbart
 - gjeldende caching, retention, Place ID-reverifisering, koordinatbruk og
   attribusjon per aktiv Google-tjeneste
+- godkjent lagrings-, backup-, purge- og restore-reconciliation-kontrakt som
+  håndhever tidsbegrenset providerdata i alle kopier; katastrofebackupkonsekvensen
+  er en konservativ slutning som krever juridisk/kontraktsmessig kontroll
+- juridisk godkjent ordlyd, versjonering, plassering, tilgjengelighet og
+  håndheving for Customer Application-vilkår i Editor, PUBLIC og framtidige
+  Google-consumers, med gjeldende End User Additional Terms- og Privacy-lenker
 - gjeldende SSR API-/ID-semantikk, Kartverket-lisens og attribusjon for planlagt
   uttrekksvolum
 - gjeldende SSB Klass-versjoner, korrespondanser og valgt Svalbard-kildenamespace
@@ -883,6 +1215,10 @@ Før berørte funksjoner kan implementeres eller aktiveres må følgende avklare
 - dokumentasjon av behandlingsgrunnlag, formål, rettigheter og interne
   ansvars-/arbeidsrutiner
 - sikker key-/project-/quota-/budget-konfigurasjon
+
+Providerregler og Customer Application-vilkår skal reverifiseres ved
+implementeringsstart, stagingaktivering, produksjonsaktivering og vesentlig
+providerendring.
 
 Browser-aktiv Codex er i tillegg en hard produkt-/implementeringsgate før kart-
 eller Import 2.0-UI bygges.
@@ -896,12 +1232,19 @@ ADR-012 er varig besluttet når:
 - ADR-indeks, roadmap, prosjektstatus og relevante arkitekturdokumenter peker til
   samme beslutning
 - offisielle kilder og kontrolldato er registrert
+- selvbetjent Place-normalflyt og avgrenset global plattformforvaltning er
+  entydig beskrevet i ADR-et og nødvendige korte kryssreferanser
+- restore-sikker providerdata- og Customer Application-vilkårsgate er entydig
+  beskrevet uten å framstille backupslutningen som et uttrykkelig Google-krav
 - ingen dokumentasjon omtaler Place, tenantregler eller kart som implementert
 
 Målarkitekturen er først implementert når alle relevante trinn i den additive
 migreringsrekkefølgen er gjennomført med egne godkjenninger, negative tester,
-stagingbevis og rollback; legacycleanup er separat. Godkjent ADR betyr ikke
-runtimeaktivering.
+stagingbevis og rollback, autoriserte tenantbrukere/importreviewere kan bruke den
+kontrollerte Place-normalflyten uten plattformflaskehals, providerdata kan ikke
+reaktiveres gjennom restore, og relevante Customer Application-vilkår er
+juridisk godkjent og tilgjengelige. Legacycleanup er separat. Godkjent ADR betyr
+ikke runtimeaktivering.
 
 ## 34. Offisielle eksterne kilder med kontroll-/hentedato
 
@@ -920,17 +1263,24 @@ reverifiseres ved implementeringsstart og på nytt før produksjonsaktivering.
   Place ID kan lagres, kan endres/bli foreldet og har nå en anbefalt
   reverifiseringspraksis.
 - [Places API policies and attribution](https://developers.google.com/maps/documentation/places/web-service/policies):
-  caching-unntak, Google Maps-attribusjon og skille mellom Google- og eget
-  innhold.
+  caching-unntak, offentlig tilgjengelige bruker-/personvernvilkår, Google
+  Maps-attribusjon og skille mellom Google- og eget innhold.
 - [Google Maps Platform EEA Terms of Service](https://cloud.google.com/terms/maps-platform/eea):
   gjeldende EØS-regime, no-scraping/no-caching-unntak, personvern,
-  controller-controller-vilkår og forbud mot Places-koordinater i
-  punkt-i-polygon. Siden viste siste endring 2026-08-26 ved kontrollen.
+  controller-controller-vilkår, Customer Application-vilkår med End User
+  Additional Terms-/Privacy-lenker, håndheving og forbud mot Places-koordinater
+  i punkt-i-polygon. Siden viste siste endring 2026-08-26 ved kontrollen.
 - [EEA Service Specific Terms](https://cloud.google.com/terms/maps-platform/eea/maps-service-terms):
   Places-bruk med kart og gjeldende midlertidig koordinatcache. Siden viste siste
   endring 2026-06-10 ved kontrollen.
 - [Places API permitted uses for EEA customers](https://cloud.google.com/terms/maps-platform/eea-places-api-permitted-uses):
   uttømmende brukstyper som krever konkret juridisk vurdering for CRM-et.
+- [Google Maps End User Additional Terms of Service](https://maps.google.com/help/terms_maps/):
+  den gjeldende sluttbrukerlenken som Customer Application-vilkårene skal vise;
+  siden viste siste endring 2026-01-27 ved kontrollen.
+- [Google Privacy Policy](https://policies.google.com/privacy): gjeldende
+  personvernlenke som Customer Application-vilkårene skal vise; siden var
+  gjeldende fra 2026-05-26 ved kontrollen.
 - [Google Maps Platform API security guidance](https://developers.google.com/maps/api-security-best-practices):
   separate og restriktede browser-/serverkeys, API-allowlist og sikker lagring.
 - [Manage Google Maps Platform costs](https://developers.google.com/maps/billing-and-pricing/manage-costs):
@@ -938,6 +1288,11 @@ reverifiseres ved implementeringsstart og på nytt før produksjonsaktivering.
 - [Google Controller-Controller Data Protection Terms](https://business.safety.google/controllerterms/):
   inkorporert behandlingsrollegrunnlag som må kontrolleres juridisk ved konkret
   aktivering.
+
+Ingen av de kontrollerte Google-kildene beskriver katastrofebackup eller restore
+som et særskilt unntak fra slettefristen. Restore-sikkerheten i dette ADR-et er
+derfor en konservativ arkitektur-/compliance-slutning, ikke et sitat eller et
+uttrykkelig Google-krav om Borg, Storage Box eller Cloud Backup.
 
 ### Kartverket og Geonorge
 

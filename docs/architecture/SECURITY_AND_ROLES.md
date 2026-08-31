@@ -62,24 +62,38 @@ canonical objektets autoriserte SharingDomain-/assignmentkontekst. Geografiske
 tenantforslag er rådgivende og kan aldri gi membership, capability, assignment
 eller autorisasjon.
 
-Canonical Place, providerreferanser og aktive kartpunkter forvaltes gjennom en
-egen plattformcapability med revision-/stale-kontroll og audit. En tenantbruker
-kan velge Place og endre typed stedskobling innen eget objektscope, men kan ikke
-mutere eller deaktivere global geografisk sannhet på tvers av SharingDomains.
+En autorisert tenantbruker/importreviewer kan gjennom en kontrollert server-side
+tjeneste velge eksisterende eller opprette source-backed/brukerbekreftet
+canonical Place, knytte det til eget autoriserte canonical objekt og eksplisitt
+publisere OrganizationPlace med separat capability. Normalflyten krever ikke
+plattform-superadmin, men håndhever duplicate-/similarity-, revision-/stale- og
+auditkrav. Vanlig bruker kan ikke vilkårlig mutere eksisterende global sannhet;
+merge, redirect/tombstone, deaktivering av referert Place og globale kilde-,
+hierarki-, koordinat-, provider- eller multi-domain-konflikter krever
+plattformcapability.
 
 Editor- og PUBLIC-kart bruker separate read-only, dataminimerte actor-
 projections. Personer, kontakter, private notater, andre tenanters overlays og
 internal tags, private bildeoriginaler, credentials og audit-/agreementdetaljer
 er forbudt i kartpayload og i sted-/kartproviderquery. PersonPlace har aldri eget
-Google-, koordinat-, markør- eller kartproviderscope og utløser ingen
-sted-/kartproviderquery med persondata. Dette hindrer ikke at den provider-
-nøytrale Place-raden har lovlig Kartverket-/SSB-proveniens, og endrer ikke den
-separate, eksplisitte og eksisterende providerkontrakten for bildekandidatsøk.
+koordinat-, markør- eller kartproviderscope og utløser ingen
+sted-/kartproviderquery med persondata. Et eksplisitt Place-oppslag før kobling
+kan bare bruke stedsverdi og nødvendig geografisk kontekst. Dette hindrer ikke
+at den provider-nøytrale Place-raden har lovlig Kartverket-/SSB-proveniens, og
+endrer ikke den separate, eksplisitte og eksisterende providerkontrakten for
+bildekandidatsøk.
 
 En senere Google-aktivering krever separate, minst privilegerte Editor/PUBLIC-
 browserkeys og eventuell servercredential, origin-/IP- og API-restriksjoner,
 miljøisolasjon, kvoter, sanitert logging og default-off gates. Ingen key eller
 Google-konfigurasjon finnes i dagens runtime.
+
+Google-coordinate persistence krever en separat default-off lagrings-, backup-,
+purge- og restore-reconciliation-gate; providerpålagt purge kan aldri stoppes av
+featureflag eller rollback. Relevante Editor-/PUBLIC-/framtidige Google-flater
+krever dessuten juridisk godkjente Customer Application-vilkår med gjeldende
+Google Maps End User Additional Terms- og Privacy-lenker. Dette er separate
+porter fra personvernerklæring, consent/brukerhandling og attribusjon.
 
 ## Godkjent planlagt bilderollematrise
 
