@@ -2,6 +2,29 @@
 
 **Status:** første kodebaserte oversikt
 
+## Implementert tenantmodell og godkjent målarkitektur
+
+Aktiv kode bruker fortsatt direkte tenant-eierskap: `Organization`, `Person`,
+`OrganizationPerson`, `PersonContact`, `Tag`, import og bildeobjekter peker på én
+`Tenant`, flere relasjoner bruker `CASCADE`, og det finnes ingen
+`SharingDomain`- eller assignmentmodeller. Dette er dagens implementerte modell.
+
+[ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md)
+er godkjent målarkitektur, men **ikke implementert**. Målmodellen beholder
+eksisterende Organization-/Person-PK-er som canonical identitet innen ett
+eksplisitt SharingDomain og legger tenantassignments additivt til. Canonical core
+har ingen redaksjonell home tenant; tenantprivate notater, internal tags,
+arbeidsstatus og lokale vurderinger flyttes til overlays. Dagens direkte tenant-
+felt beholdes som legacy/home-scope gjennom en kontrollert overgang.
+
+Før multiassignment kan aktiveres, må tenant deletion/`CASCADE` herdes slik at
+et canonical objekt med andre assignments aldri slettes. Shared editorial tags
+og private internal tags skal være separate; dagens tenantbundne `Tag`-rader
+klassifiseres ikke automatisk. Hver canonical Organization skal ha nøyaktig én
+aktiv image-home-assignment i samme SharingDomain. Den bestemmer bare framtidige
+private image writes; opprettelse og transfer skal aldri reassosiere historiske
+assets, selections, releases eller ledgerstate.
+
 ## CRM-kjerne
 
 - `Tenant`

@@ -12,10 +12,20 @@ Godkjent som målarkitektur. Delvis implementert som mellomleveranse; langsiktig
 
 Denne beslutningen presiserer og viderefører:
 
-- `ADR-001`: all kontaktdata og alle arbeidsflyter skal være tenant-isolerte
+- `ADR-001`: dagens kontaktdata og arbeidsflyter er tenant-isolerte; framtidig
+  canonical contact-scope presiseres av ADR-011
 - `ADR-002`: `PersonContact` skal brukes for flere kontaktkanaler per person
 - `ADR-003`: intern informasjon skal være adskilt fra eksplisitt offentlig informasjon
 - `ADR-004`: kontaktendringer gjennom import skal gå gjennom preview, review og eksplisitt commit
+
+**Målarkitekturpresisering 2026-08-31:**
+[ADR-011](ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md)
+erstatter den uavgrensede langsiktige formuleringen om at all kontaktdata er
+tenant-isolert. Dagens kontaktmodell er fortsatt tenant-scopet. I målarkitekturen
+skal PersonContact følge canonical Person innen eksakt SharingDomain, mens
+tilgang, operativ import/eksport, private kontakt-/samtykkenotater og øvrige
+overlays fortsatt er tenant-scopet. ADR-005s relasjonsspesifikke publication og
+privacy-by-default gjelder uendret.
 
 ADR-005 erstatter den langsiktige bruken av direkte `Person.email` og `Person.phone` som selvstendige kontaktkilder, og erstatter global kontaktpublisering via `PersonContact.is_public` med publisering per aktør–person-kobling.
 

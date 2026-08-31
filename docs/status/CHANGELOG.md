@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-08-31
+
+### Fase 5B: ADR-011 sharing-domain-målarkitektur formalisert
+
+- lagret [ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md)
+  som `Godkjent målarkitektur – ikke implementert`
+- valgt direkte canonicalisering med bevarte Organization-/Person-PK-er,
+  additive SharingDomain-/assignmentporter, private overlays, versjonert
+  agreement/capabilities og én canonical PUBLIC-identitet
+- skilt shared editorial tags fra tenantprivate internal tags og fastslått at
+  dagens tenanttags krever mapping eller redaksjonell review
+- definert nøyaktig én aktiv image-home-assignment per canonical Organization,
+  eksplisitt atomisk valg ved multiassignment, fail-closed private writes og
+  separat auditert transfer uten reassosiering av historisk image state
+- beholdt ADR-005/010-kontraktene for personkontakt og telefon, og lagt
+  structured places/actor-only maps til senere ADR-012 uten Google-/kartscope
+  for personer
+- dokumentert [PII-fritt fase 5A-impactgrunnlag](PHASE_5_SHARING_DOMAIN_IMPACT_2026-08-30.md),
+  inkludert 53 ImportJob-filreferanser og 0 tilgjengelige kildefiler
+- registrert MUSIKKONTORET AS som juridisk behandlingsansvarlig for
+  CRM-behandlingen og det felles SharingDomainet, med Fredrik Forssman som
+  produkteier, faglig ansvarlig og operativ kontaktperson
+- avgrenset gjenværende agreement/legal-port til endelig avtaleordlyd og
+  versjonering, personvernerklæring, dokumentert behandlingsgrunnlag/formål/
+  rettigheter/interne rutiner og juridisk kontroll før produksjonsaktivering
+- gjort persistent import storage, deletion-hardening, global rollefallback og
+  browser-aktiv UI til eksplisitte framtidige porter
+- oppdatert roadmap til 5A–5E og korrigert ADR-010s indeksstatus til
+  `CLOSED / VERIFIED`
+- presisert ADR-001, ADR-005 og ADR-010 slik at dagens tenantisolerte
+  implementasjon skilles fra ADR-011s framtidige, eksakt domain-scopede core,
+  contacts og privacy-minimerte matching
+- ingen kode, modeller, migrasjoner, tester, runtime, staging eller deploy er
+  endret
+
 ## 2026-08-30
 
 ### Fase 4 formelt lukket etter endelig owner-smoke
