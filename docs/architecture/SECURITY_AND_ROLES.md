@@ -70,10 +70,11 @@ mutere eller deaktivere global geografisk sannhet på tvers av SharingDomains.
 Editor- og PUBLIC-kart bruker separate read-only, dataminimerte actor-
 projections. Personer, kontakter, private notater, andre tenanters overlays og
 internal tags, private bildeoriginaler, credentials og audit-/agreementdetaljer
-er forbudt i kartpayload og providerquery. PersonPlace har aldri eget Google-,
-koordinat-, markør- eller kartproviderscope og utløser ingen providerquery med
-persondata. Dette hindrer ikke at den provider-nøytrale Place-raden har lovlig
-Kartverket-/SSB-proveniens.
+er forbudt i kartpayload og i sted-/kartproviderquery. PersonPlace har aldri eget
+Google-, koordinat-, markør- eller kartproviderscope og utløser ingen
+sted-/kartproviderquery med persondata. Dette hindrer ikke at den provider-
+nøytrale Place-raden har lovlig Kartverket-/SSB-proveniens, og endrer ikke den
+separate, eksplisitte og eksisterende providerkontrakten for bildekandidatsøk.
 
 En senere Google-aktivering krever separate, minst privilegerte Editor/PUBLIC-
 browserkeys og eventuell servercredential, origin-/IP- og API-restriksjoner,

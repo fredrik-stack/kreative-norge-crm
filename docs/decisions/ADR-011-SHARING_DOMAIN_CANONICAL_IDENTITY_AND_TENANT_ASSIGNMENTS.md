@@ -373,8 +373,8 @@ beholder eget eksplisitt publish-valg. Personkontakt følger senere ADR-005s
 relasjonsspesifikke kontrakt.
 
 PUBLIC bruker bare shared editorial tags og aldri private overlays. Structured
-places og Google Maps avgjøres senere i ADR-012. Personer får aldri egne
-PUBLIC-kartpunkter.
+places og actor-only Google Maps følger den senere godkjente ADR-012, men er
+ikke implementert. Personer får aldri egne PUBLIC-kartpunkter.
 
 ### 11. Image-home uten reassosiering
 
@@ -438,9 +438,10 @@ kunne brukes til profil, matching og tenantforslag. Personer skal ikke ha
 koordinater som krav, sendes til Google for kartformål eller få kartmarkører,
 kartendepunkter eller PUBLIC-kartprojeksjon.
 
-ADR-012 skal beslutte felt, relasjoner, providerreferanser, geografiske
-tenantregler, koordinater og actor-only kart. Ingen structured place- eller
-kartimplementasjon kan starte før ADR-012 er godkjent.
+ADR-012 beslutter felt, relasjoner, providerreferanser, geografiske
+tenantregler, koordinater og actor-only kart. Dokumentasjonsporten er oppfylt;
+ingen structured place- eller kartimplementasjon kan starte før den relevante
+implementeringsporten er godkjent.
 
 ### 14. Importgrense
 
@@ -566,7 +567,8 @@ avhengighetene:
 - Image-home-opprettelse, legacybackfill, single-/multiassignment-valg,
   fail-closed validering og kontrollert transfer må være implementert og
   verifisert før `Organization.tenant` mister semantisk betydning.
-- ADR-012 må godkjennes før structured places eller maps bygges.
+- ADR-012 er godkjent; dens trinnvise implementeringsporter må oppfylles før
+  structured places eller maps bygges.
 - Contact-/relationship-målarkitekturen må være klar før full Import 2.0.
 - Persistent import storage må være aktiv og restore-verifisert før Import 2.0.
 - Browser-aktiv Codex er ikke nødvendig for ADR/backendgrunnmur, men er en hard
@@ -760,7 +762,8 @@ Følgende må fortsatt avklares utenfor denne ADR-leveransen:
   ansvars-/arbeidsrutiner
 - juridisk kontroll før delte persondata aktiveres i produksjon
 - redaksjonell mapping/policy for legacytags
-- separat ADR-012 for structured places og actor-only maps
+- implementering av den godkjente ADR-012 for structured places og actor-only
+  maps
 - persistent import storage, backup/restore, retensjon og konsistens mot ADR-008
 - browser-aktiv Codex før senere Import 2.0- og kart-UI
 
