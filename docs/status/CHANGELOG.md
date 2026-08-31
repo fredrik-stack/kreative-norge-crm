@@ -22,6 +22,9 @@
   rollefallback og browser-aktiv UI til eksplisitte framtidige porter
 - oppdatert roadmap til 5A–5E og korrigert ADR-010s indeksstatus til
   `CLOSED / VERIFIED`
+- presisert ADR-001, ADR-005 og ADR-010 slik at dagens tenantisolerte
+  implementasjon skilles fra ADR-011s framtidige, eksakt domain-scopede core,
+  contacts og privacy-minimerte matching
 - ingen kode, modeller, migrasjoner, tester, runtime, staging eller deploy er
   endret
 

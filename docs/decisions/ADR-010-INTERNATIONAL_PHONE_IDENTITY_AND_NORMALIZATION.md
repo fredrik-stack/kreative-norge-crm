@@ -23,7 +23,17 @@ Denne beslutningen presiserer og viderefører:
 
 ADR-010 presiserer ADR-005 for telefonnummer. Det erstatter ikke ADR-005 og endrer ikke skillet mellom intern kontakt, primærkontakt og offentlig publisering.
 
-Tenant-isolasjonen fra ADR-001 og publiseringsskillet fra ADR-003 gjelder uendret.
+Dagens implementerte tenantisolasjon fra ADR-001 gjelder til ADR-011s separate
+gater eventuelt aktiveres. Publiseringsskillet fra ADR-003 gjelder uendret.
+
+**Målarkitekturpresisering 2026-08-31:**
+[ADR-011](ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md)
+er godkjent, men ikke implementert. Dagens telefonlagring og matching forblir
+tenant-scopet. I målarkitekturen betyr ADR-010s cross-tenant-forbud at lesing,
+matching og skriving utenfor eksakt SharingDomain, eller uten gyldig agreement,
+membership og capability, skal avvises. Privacy-minimert matching mellom
+tenants i samme eksakte SharingDomain er tillatt etter ADR-011s porter. E.164 er
+fortsatt bare et sterkt signal, aldri personidentitet eller automatisk merge.
 
 ## Bakgrunn og mellomtilstand ved beslutningsdatoen
 
@@ -181,7 +191,8 @@ Kanonisk E.164 gjør kobling og matching enklere og øker samtidig risikoen for 
 - ikke logge rå eller kanoniske telefonverdier unødvendig
 - bevare originalverdi og migreringsspor
 - skille normalisering fra publisering
-- avvise cross-tenant lesing, matching og skriving
+- avvise lesing, matching og skriving utenfor autorisert scope; dagens scope er
+  tenant, mens et senere aktivert ADR-011-scope kan være eksakt SharingDomain
 - stoppe eller sende til review ved utilstrekkelig kontekst
 
 Behandlingsgrunnlag, tilgangsroller og retensjon fra ADR-005 må avklares før de leveransene som faktisk lagrer nye migrerings- eller reviewartefakter.
