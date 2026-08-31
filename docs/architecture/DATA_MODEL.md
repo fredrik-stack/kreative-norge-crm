@@ -20,9 +20,10 @@ felt beholdes som legacy/home-scope gjennom en kontrollert overgang.
 Før multiassignment kan aktiveres, må tenant deletion/`CASCADE` herdes slik at
 et canonical objekt med andre assignments aldri slettes. Shared editorial tags
 og private internal tags skal være separate; dagens tenantbundne `Tag`-rader
-klassifiseres ikke automatisk. Image-home bestemmer bare framtidige private
-image writes, mens historiske assets, selections, releases og ledgerstate aldri
-reassosieres.
+klassifiseres ikke automatisk. Hver canonical Organization skal ha nøyaktig én
+aktiv image-home-assignment i samme SharingDomain. Den bestemmer bare framtidige
+private image writes; opprettelse og transfer skal aldri reassosiere historiske
+assets, selections, releases eller ledgerstate.
 
 ## CRM-kjerne
 

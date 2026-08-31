@@ -42,7 +42,7 @@ tenant-/image-home-sikker, og commit gjør fortsatt ingen søk, fetch,
 bildeprocessing eller automatisk publication.
 
 Fase 5As stagingkartlegging fant 53 ImportJob-filreferanser og 0 tilgjengelige
-kildfiler i default storage. Originalpakke, rapporter, proveniens, persistent
+kildefiler i default storage. Originalpakke, rapporter, proveniens, persistent
 storage, backup/restore, retensjon og database–fil-konsistens er derfor en hard
 framtidig gate før Import 2.0 kan aktiveres. Gaten er ikke løst av ADR-011.
 

@@ -11,8 +11,9 @@
   agreement/capabilities og én canonical PUBLIC-identitet
 - skilt shared editorial tags fra tenantprivate internal tags og fastslått at
   dagens tenanttags krever mapping eller redaksjonell review
-- definert image-home som framtidig private-write-scope uten reassosiering av
-  historiske assets, selections, releases, ledger, takedown eller snapshots
+- definert nøyaktig én aktiv image-home-assignment per canonical Organization,
+  eksplisitt atomisk valg ved multiassignment, fail-closed private writes og
+  separat auditert transfer uten reassosiering av historisk image state
 - beholdt ADR-005/010-kontraktene for personkontakt og telefon, og lagt
   structured places/actor-only maps til senere ADR-012 uten Google-/kartscope
   for personer

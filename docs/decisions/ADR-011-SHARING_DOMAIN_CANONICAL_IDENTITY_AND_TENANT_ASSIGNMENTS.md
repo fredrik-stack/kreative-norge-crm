@@ -142,8 +142,11 @@ skal serialiseres til andre tenants eller PUBLIC.
 SharingDomain. **Internal tag** beskriver tenantlokal workflow eller vurdering
 og ligger i privat overlay.
 
-**Image-home-assignment** er den ene assignmenten hvis historiske tenant-scope
-autoriserer private image writes. Begrepet krever ikke et separat assetdomene.
+**Image-home-assignment** er den ene aktive assignmenten som autoriserer
+framtidige private image writes for en canonical Organization. Hver canonical
+Organization skal til enhver tid ha nøyaktig én slik assignment, og den må
+peke til samme Organization og samme SharingDomain. Begrepet etablerer ikke et
+separat eller shared assetdomene.
 
 **Gjeldende acceptance** er en ikke-tilbakekalt aksept av den agreementversjonen
 som gjelder for domain på handlingstidspunktet.
@@ -333,6 +336,7 @@ Konseptuelle capabilitygrenser omfatter minst:
 - publish/unpublish canonical aktør
 - lese/skrive eget privat overlay
 - utføre private image writes i image-home-scope
+- overføre image home gjennom en separat capability
 
 Endelige navn kan tilpasses repoets capabilitystandard uten å svekke denne
 semantikken.
@@ -370,8 +374,22 @@ PUBLIC-kartpunkter.
 
 ### 11. Image-home uten reassosiering
 
-Hver canonical Organization med image state har nøyaktig én eksplisitt
-image-home-assignment. Legacytenantens assignment blir image home ved backfill.
+Hver canonical Organization skal til enhver tid ha nøyaktig én aktiv,
+eksplisitt image-home-assignment. Image home må være en aktiv assignment til
+samme Organization og samme SharingDomain. Private image writes skal feile
+lukket dersom en gyldig image home mangler.
+
+Image home etableres slik:
+
+- Ved backfill blir assignmenten fra legacytenanten image home.
+- Ved opprettelse av en ny Organization med én assignment blir denne
+  assignmenten automatisk image home.
+- Når plattform-superadmin oppretter en ny Organization med flere assignments,
+  skal image home velges eksplisitt som del av samme typed og atomiske
+  opprettelsesbeslutning. Den operative/aktive opprettelsestenanten kan være
+  forhåndsvalgt i UI, men serveren skal kreve et eksplisitt og gyldig
+  image-home-valg ved multiassignment.
+- Opprettelse av en senere assignment endrer aldri image home automatisk.
 
 Følgende beholder alltid historisk tenant-scope og immutable identitet:
 
@@ -387,10 +405,13 @@ eller brukere med eksisterende image-write-capability i image-home-tenanten kan
 utføre private image writes. Andre tenants får ikke private originaler,
 approvalhistorikk, proveniens eller private credentials.
 
-Image-home-assignment kan ikke fjernes mens relevant image state finnes uten en
-separat kontrollert transfer. En slik framtidig transfer kan endre hvem som får
-nye private writes, men skal aldri reassosiere gamle assets, selections,
-releases, ledgerstate eller snapshots. Fullt shared asset-scope er utsatt.
+Image-home-assignment kan ikke fjernes eller deaktiveres slik at Organization
+står uten nøyaktig én gyldig image home. Overføring av image home er en separat,
+atomisk, capabilitykontrollert og auditert handling. En transfer endrer bare
+framtidig private-write-scope og skal aldri reassosiere eller omskrive
+historiske assets, originals, rendition sets, renditions, selections, review
+events, releases, public keys, ledgerstate, deny/takedown eller snapshots.
+Fullt shared asset-scope er eksplisitt utsatt.
 
 ### 12. Personer, OrganizationPerson og PersonContact
 
@@ -452,7 +473,7 @@ Før Import 2.0 kan aktiveres, må en separat beslutning og implementering dekke
 Denne gaten er ikke løst av ADR-011. Den skal senere avklares mot
 [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) og faktisk
 stagingdrift. Fase 5A fant 53 ImportJob-filreferanser, men ingen tilgjengelige
-kildfiler i default storage, og én feilrapportreferanse uten tilgjengelig fil.
+kildefiler i default storage, og én feilrapportreferanse uten tilgjengelig fil.
 
 ## Arkitekturinvarianter
 
@@ -471,10 +492,15 @@ Følgende må være sanne i alle implementeringsetapper:
 10. Organization.email følger aktørens PUBLIC-state; personlig e-post gjør ikke.
 11. Telefon er ikke personidentitet og blir ikke globalt unik.
 12. PUBLIC bruker bare shared editorial tags, aldri internal tags eller overlays.
-13. Historisk image state, releases og ledger reassosieres aldri.
-14. Image-home styrer framtidige private writes, ikke historisk eierskap.
-15. Importmatching, assignment og publication er separate, eksplisitte handlinger.
-16. Defaults for alle nye shared read/write-gater er avslått til verifisert.
+13. Historisk image state, releases og ledger reassosieres eller omskrives aldri.
+14. Hver canonical Organization har nøyaktig én aktiv image-home-assignment til
+    samme Organization og SharingDomain; manglende eller ugyldig home avviser
+    private image writes.
+15. Image-home-transfer er separat, atomisk, capabilitykontrollert og auditert,
+    og endrer bare framtidig private-write-scope.
+16. En senere assignment endrer aldri image home automatisk.
+17. Importmatching, assignment og publication er separate, eksplisitte handlinger.
+18. Defaults for alle nye shared read/write-gater er avslått til verifisert.
 
 ## Migreringsstrategi
 
@@ -533,8 +559,9 @@ avhengighetene:
 - De gjenværende juridiske/personvernmessige portene for avtale,
   personvernerklæring, behandlingsgrunnlag og juridisk kontroll må være
   godkjent før delte persondata aktiveres i produksjon.
-- Image-home må være implementert og verifisert før `Organization.tenant` mister
-  semantisk betydning.
+- Image-home-opprettelse, legacybackfill, single-/multiassignment-valg,
+  fail-closed validering og kontrollert transfer må være implementert og
+  verifisert før `Organization.tenant` mister semantisk betydning.
 - ADR-012 må godkjennes før structured places eller maps bygges.
 - Contact-/relationship-målarkitekturen må være klar før full Import 2.0.
 - Persistent import storage må være aktiv og restore-verifisert før Import 2.0.
@@ -558,8 +585,19 @@ Hver relevant leveranse skal minst dekke:
 - Organization.email på publisert aktør og separat phone toggle
 - relasjonsspesifikk person-/kontaktpublication etter ADR-005
 - samme E.164 på flere personer uten automatisk merge
-- image-home-write-scope, manglende private credentials i andre tenants og
-  uendret historisk asset/selection/release/ledger-identitet
+- legacybackfill gir nøyaktig én image home fra korrekt legacyassignment
+- ny Organization med én assignment får denne assignmenten som image home
+- ny Organization med flere assignments krever et eksplisitt, typed og atomisk
+  image-home-valg; UI-forvalg alene er ikke gyldig serverbeslutning
+- image home er en aktiv assignment til samme Organization og SharingDomain
+- en ny senere assignment endrer ikke image home
+- private image writes uten gyldig image home avvises server-side
+- image-home-transfer er atomisk, capabilitykontrollert og auditert og endrer
+  bare framtidig private-write-scope
+- historisk asset-, original-, rendition-, selection-, review-, release-,
+  public-key-, ledger-, deny-/takedown- og snapshotidentitet forblir byte- og
+  scopeuendret ved opprettelse eller transfer
+- manglende private credentials i andre tenants og uendret PUBLIC-projeksjon
 - featureflagg av/på, shadow-samsvar, rollback og ingen skjult write
 - backup/restore og database–fil-konsistens før Import 2.0-aktivering
 
@@ -577,7 +615,9 @@ Staging skal aktiveres trinnvis med eksakt commit og dokumentert pre-/poststate:
 5. agreement/capabilities med negative domain- og rolletester
 6. overlays og canonical writer med revision-/auditbevis
 7. canonical PUBLIC shadow, additiv API-identitet og kontrollert cutover
-8. image-home bridge med uendret release-/ledgerhistorikk
+8. image-home bridge med legacybackfill, single-/multiassignment-opprettelse,
+   fail-closed ugyldig/manglende home, kontrollert transfer og byte-/scopeuendret
+   historisk image-, release- og ledgeridentitet
 9. contacts/relations etter ADR-005 og places etter ADR-012
 10. Import 2.0 først etter persistent-storage-, backup-/restore- og UI-gatene
 
@@ -602,6 +642,13 @@ ADR-et lover ikke destruktiv reverse migration etter at assignments,
 agreementacceptance, canonical merges eller overlays er tatt i bruk. Gamle image
 releases, keys, events, snapshots og ledgerstate skal aldri omskrives eller
 reassosieres som rollback.
+
+Etter at image home er etablert eller overført, kan rollback slå av nye private
+image writes eller rulle lesestien tilbake, men den kan ikke automatisk velge
+legacytenant, operativ tenant eller nyeste assignment som home. Rollback skal
+bevare nøyaktig én aktiv image-home-assignment, transferaudit og all historisk
+image-/release-/ledgeridentitet byte- og scopeuendret. En feil home rettes
+framover gjennom den samme separate, atomiske og auditerte transferhandlingen.
 
 ## Alternativer vurdert
 

@@ -90,8 +90,9 @@ Det trengs ingen permanent canonical hubmodell for det observerte datasettet.
   tenantoverlays.
 - `Organization.email` er offisiell shared aktøre-post og følger canonical
   aktørs PUBLIC-state. Personlig e-post skal ikke ligge i dette feltet.
-- Canonical core har ingen redaksjonell home tenant. Image-home er bare en smal
-  historisk sikkerhetsbro for private image writes.
+- Canonical core har ingen redaksjonell home tenant. Hver canonical Organization
+  har nøyaktig én aktiv image-home-assignment; den er bare framtidig
+  private-write-scope og reassosierer aldri historisk image state.
 - MUSIKKONTORET AS er juridisk behandlingsansvarlig for CRM-behandlingen og det
   felles SharingDomainet. Fredrik Forssman er produkteier, faglig ansvarlig og
   operativ kontaktperson, ikke juridisk behandlingsansvarlig.
