@@ -116,7 +116,9 @@ Denne beslutningen:
   automatisk publication
 - innfører ikke en permanent canonical hubmodell eller en parallell
   sannhetsmodell for aliaser
-- avklarer ikke juridisk tekst, behandlingsansvarlig eller gyldig avtaleprosess
+- utformer ikke endelig avtaletekst, personvernerklæring, behandlingsgrunnlag,
+  interne ansvars-/arbeidsrutiner eller juridisk produksjonskontroll;
+  behandlingsansvarlig er besluttet som MUSIKKONTORET AS
 
 ## Begreper
 
@@ -292,10 +294,19 @@ Målmodellen har konseptene `SharingAgreement` og
   skjult grace for shared funksjoner.
 - Manglende, utgått eller tilbakekalt acceptance feiler lukket.
 
-Juridisk tekst, behandlingsansvar, avtaleeier og gyldig prosess er en ekstern
-juridisk/personvernmessig gate. Fredrik Forssman er produkteier/operativt
-ansvarlig, men skal ikke av den grunn registreres som juridisk
-behandlingsansvarlig.
+MUSIKKONTORET AS er juridisk behandlingsansvarlig for CRM-behandlingen og det
+felles SharingDomainet. Dette er en godkjent beslutning, ikke en åpen ekstern
+gate. Fredrik Forssman er produkteier, faglig ansvarlig og operativ
+kontaktperson, ikke juridisk behandlingsansvarlig.
+
+Før delte persondata kan aktiveres i produksjon, består den eksterne
+juridiske/personvernmessige gaten av:
+
+- endelig ordlyd og versjonering av avtalen for tilgang til delte CRM-data
+- nødvendige oppdateringer i personvernerklæringen
+- dokumentasjon av behandlingsgrunnlag, formål, rettigheter og interne
+  ansvars-/arbeidsrutiner
+- juridisk kontroll før delte persondata aktiveres i produksjon
 
 ### 9. Permissions og capabilities
 
@@ -519,8 +530,9 @@ avhengighetene:
 - Ingen kodeimplementasjon inngår i denne PR-en.
 - Deletion/`CASCADE` må herdes før multi-tenant assignment aktiveres.
 - Global role fallback må fjernes før shared capabilities aktiveres.
-- Agreementens juridiske/personvernmessige gate må være godkjent før shared
-  persondata aktiveres.
+- De gjenværende juridiske/personvernmessige portene for avtale,
+  personvernerklæring, behandlingsgrunnlag og juridisk kontroll må være
+  godkjent før delte persondata aktiveres i produksjon.
 - Image-home må være implementert og verifisert før `Organization.tenant` mister
   semantisk betydning.
 - ADR-012 må godkjennes før structured places eller maps bygges.
@@ -687,11 +699,15 @@ feile lukket.
 
 ## Åpne eksterne porter
 
-Følgende må avklares utenfor denne ADR-leveransen:
+Behandlingsansvaret er avklart: MUSIKKONTORET AS er juridisk
+behandlingsansvarlig for CRM-behandlingen og det felles SharingDomainet.
+Følgende må fortsatt avklares utenfor denne ADR-leveransen:
 
-- juridisk avtaletekst, behandlingsansvar, avtaleeier, versjonsprosess,
-  effective-at-policy og gyldig akseptprosess
-- personvernvurdering og dataminimering for domain-wide personmatching
+- endelig ordlyd og versjonering av avtalen for tilgang til delte CRM-data
+- nødvendige oppdateringer i personvernerklæringen
+- dokumentasjon av behandlingsgrunnlag, formål, rettigheter og interne
+  ansvars-/arbeidsrutiner
+- juridisk kontroll før delte persondata aktiveres i produksjon
 - redaksjonell mapping/policy for legacytags
 - separat ADR-012 for structured places og actor-only maps
 - persistent import storage, backup/restore, retensjon og konsistens mot ADR-008

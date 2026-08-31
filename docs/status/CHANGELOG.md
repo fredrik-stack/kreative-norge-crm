@@ -18,8 +18,14 @@
   for personer
 - dokumentert [PII-fritt fase 5A-impactgrunnlag](PHASE_5_SHARING_DOMAIN_IMPACT_2026-08-30.md),
   inkludert 53 ImportJob-filreferanser og 0 tilgjengelige kildefiler
-- gjort persistent import storage, agreement/legal, deletion-hardening, global
-  rollefallback og browser-aktiv UI til eksplisitte framtidige porter
+- registrert MUSIKKONTORET AS som juridisk behandlingsansvarlig for
+  CRM-behandlingen og det felles SharingDomainet, med Fredrik Forssman som
+  produkteier, faglig ansvarlig og operativ kontaktperson
+- avgrenset gjenværende agreement/legal-port til endelig avtaleordlyd og
+  versjonering, personvernerklæring, dokumentert behandlingsgrunnlag/formål/
+  rettigheter/interne rutiner og juridisk kontroll før produksjonsaktivering
+- gjort persistent import storage, deletion-hardening, global rollefallback og
+  browser-aktiv UI til eksplisitte framtidige porter
 - oppdatert roadmap til 5A–5E og korrigert ADR-010s indeksstatus til
   `CLOSED / VERIFIED`
 - presisert ADR-001, ADR-005 og ADR-010 slik at dagens tenantisolerte

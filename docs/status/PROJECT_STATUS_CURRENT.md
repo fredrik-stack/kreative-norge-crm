@@ -230,7 +230,7 @@ Deretter skal Import 2.0 gjennom en egen produkt- og UX-designfase før større 
 
 ### 5. Sharing domain og canonical identity – godkjent mål, ikke implementert
 
-Fase 5A har levert [PII-fritt read-only impactgrunnlag](PHASE_5_SHARING_DOMAIN_IMPACT_2026-08-30.md). [ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md) velger direkte canonicalisering med additive SharingDomain- og assignmentporter, private overlays, shared editorial tags, agreement/capabilities, én PUBLIC-identitet og image-home uten reassosiering. Ingen runtimefunksjonalitet er implementert; `Organization`, `Person`, relasjoner, tags, import og bilder bruker fortsatt dagens direkte tenant-scope. ADR-012 for structured places og actor-only maps er neste arkitekturbeslutning og er ikke opprettet.
+Fase 5A har levert [PII-fritt read-only impactgrunnlag](PHASE_5_SHARING_DOMAIN_IMPACT_2026-08-30.md). [ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md) velger direkte canonicalisering med additive SharingDomain- og assignmentporter, private overlays, shared editorial tags, agreement/capabilities, én PUBLIC-identitet og image-home uten reassosiering. MUSIKKONTORET AS er besluttet juridisk behandlingsansvarlig for CRM-behandlingen og det felles SharingDomainet; Fredrik Forssman er produkteier, faglig ansvarlig og operativ kontaktperson, ikke juridisk behandlingsansvarlig. Ingen runtimefunksjonalitet er implementert; `Organization`, `Person`, relasjoner, tags, import og bilder bruker fortsatt dagens direkte tenant-scope. ADR-012 for structured places og actor-only maps er neste arkitekturbeslutning og er ikke opprettet.
 
 Detaljert faseinndeling, AI-prinsipp og senere produktområder finnes i [ROADMAP.md](ROADMAP.md).
 
@@ -340,7 +340,10 @@ Sikker automatisk staging-deploy er planlagt utenfor produktfasene og blokkerer 
 - behandlingsgrunnlag og retensjon for kontakt-, import-, eksport- og auditdata
 - versjonering av ny public kontaktkontrakt
 - om personens offentlige tittel senere skal være koblingsspesifikk
-- juridisk tekst, behandlingsansvar, avtaleeier og gyldig prosess for ADR-011s versjonerte sharing agreement
+- endelig ordlyd og versjonering av avtalen for tilgang til delte CRM-data
+- nødvendige oppdateringer i personvernerklæringen
+- dokumentasjon av behandlingsgrunnlag, formål, rettigheter og interne ansvars-/arbeidsrutiner
+- juridisk kontroll før delte persondata aktiveres i produksjon
 - persistent import storage, backup/restore, retensjon og database–fil-konsistens før Import 2.0-aktivering
 - ADR-012 for provider-nøytral Place, PersonPlace, OrganizationPlace og actor-only maps
 - mapping/policy og redaksjonell review av tenantbundne legacytags før de kan bli shared editorial eller private internal tags

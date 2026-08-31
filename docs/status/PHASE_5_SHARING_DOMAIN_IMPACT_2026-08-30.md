@@ -92,11 +92,17 @@ Det trengs ingen permanent canonical hubmodell for det observerte datasettet.
   aktørs PUBLIC-state. Personlig e-post skal ikke ligge i dette feltet.
 - Canonical core har ingen redaksjonell home tenant. Image-home er bare en smal
   historisk sikkerhetsbro for private image writes.
+- MUSIKKONTORET AS er juridisk behandlingsansvarlig for CRM-behandlingen og det
+  felles SharingDomainet. Fredrik Forssman er produkteier, faglig ansvarlig og
+  operativ kontaktperson, ikke juridisk behandlingsansvarlig.
 
 ## Åpne eksterne porter
 
-- juridisk/personvernmessig delingsavtale, behandlingsansvar og gyldig
-  akseptprosess
+- endelig ordlyd og versjonering av avtalen for tilgang til delte CRM-data
+- nødvendige oppdateringer i personvernerklæringen
+- dokumentasjon av behandlingsgrunnlag, formål, rettigheter og interne
+  ansvars-/arbeidsrutiner
+- juridisk kontroll før delte persondata aktiveres i produksjon
 - ADR-012 for Place, PersonPlace, OrganizationPlace og actor-only maps
 - redaksjonell policy for legacytags
 - deletion-/CASCADE-hardening og fjerning av global rollefallback
