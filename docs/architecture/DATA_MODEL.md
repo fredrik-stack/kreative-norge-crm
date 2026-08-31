@@ -34,6 +34,10 @@ med separate `PlaceProviderReference`- og `PlaceCoordinate`-livssykluser.
 legacy/proveniens og revision/review. Privacy, publication og SharingDomain-
 scope ligger på canonical objekt og relasjon, ikke på Place.
 
+Ett Place kan bevare flere historiske eller foreslåtte koordinatrader, men har
+maksimalt én aktivt godkjent kartkoordinat om gangen. Bytte er atomisk og
+auditert; uten entydig aktiv koordinat projiseres ingen markør.
+
 `OrganizationPlace` kan senere være eksplisitt offentlig og inngå i actor-only
 kart. `PersonPlace` er strukturert data for profil, matching, filtrering og
 tenantforslag, men kan ikke utløse providerkall eller inngå i koordinat-,

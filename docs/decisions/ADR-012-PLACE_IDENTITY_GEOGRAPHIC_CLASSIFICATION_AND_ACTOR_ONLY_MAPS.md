@@ -245,6 +245,10 @@ PlaceCoordinate er separat kildebelagt data og skal minst støtte:
 Latitude valideres i intervallet -90 til 90 og longitude i -180 til 180.
 Koordinater kan erstattes, utløpe eller deaktiveres uten at Place slettes.
 Ingen koordinat er påkrevd for Place, OrganizationPlace eller PersonPlace.
+Et Place kan ha flere historiske, foreslåtte eller avviste koordinatrader, men
+kan til enhver tid ha maksimalt én aktivt godkjent kartkoordinat. Bytte av aktivt
+kartpunkt skal deaktivere gammel og aktivere ny rad atomisk med revision-/stale-
+kontroll og audit. Uten en slik entydig aktiv rad får Place ingen markør.
 
 Offisielle/open-data-koordinater foretrekkes for norske steder når kilden
 dekker behovet og tillater lagring. Et representasjonspunkt er ikke en påstand
@@ -751,6 +755,8 @@ eller providerwrites.
   produktkontrakten bruker primær PersonPlace
 - avvisning av duplisert aktiv Organization/Place/type
 - latitude-/longitude-range, presisjon, aktiv koordinat og utløp
+- maksimalt én aktivt godkjent kartkoordinat per Place; konkurrerende aktivering
+  avvises og kontrollert bytte er atomisk og auditert
 - byte-/tekstlig uendret legacyverdi
 - reverse før writes og eksplisitt blokkering/forward-fix etter semantiske writes
 
