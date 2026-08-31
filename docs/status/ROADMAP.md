@@ -2,7 +2,7 @@
 
 **Status:** Godkjent strategisk arbeidsrekkefølge
 
-**Sist oppdatert:** 2026-08-25
+**Sist oppdatert:** 2026-08-31
 
 Roadmapen skiller mellom produktfaser og et parallelt infrastrukturløp. En fase beskriver prioritert rekkefølge, ikke at innholdet allerede er implementert. Større implementering krever fortsatt et godkjent ADR når arbeidet innebærer et vesentlig arkitekturvalg.
 
@@ -217,7 +217,7 @@ Host/systemd er valgt execution placement for off-serverankeret; ledger og write
 - database- og assetrestore, staging, takedown, fallback og API-overgang er verifisert uten endret 3E-state
 - beholde legacyfelt og aliaser gjennom stabiliseringsperioden; fysisk opprydding får egne senere gater
 
-Fase 3 er avsluttet og etablerer bare bildekontrakten som senere Import 2.0 skal bruke. Fase 4 etablerer internasjonal telefonidentitet før full Import 2.0. Produkt- og UX-design for Import 2.0 ligger deretter i fase 5, og full implementering ligger i fase 7. Fase 4A–4H er gjennomført og [samlet teknisk stagingverifisert](STAGING_PHASE_4H_PHONE_TECHNICAL_VERIFICATION_2026-08-26.md). Første owner-smoke fant tre avgrensede presentasjons-/Editor-UX-feil; alle tre er [rettet og teknisk stagingreverifisert](STAGING_PHASE_4_OWNER_SMOKE_REMEDIATION_2026-08-29.md) 2026-08-29 uten schema- eller publiseringsendring. Tre siste UI-polishpunkter fra andre owner-smoke er også [implementert og teknisk stagingreverifisert](STAGING_PHASE_4_OWNER_SMOKE_UI_POLISH_2026-08-29.md) uten schema-, data- eller publiseringsendring. Prosjekteier [godkjente siste manuelle kontroll 2026-08-29](PHASE_4_OWNER_APPROVAL_2026-08-29.md). `PHASE 4 = CLOSED / VERIFIED`; fase 5 er neste aktive produktfase, men er ikke startet.
+Fase 3 er avsluttet og etablerer bare bildekontrakten som senere Import 2.0 skal bruke. Fase 4 etablerer internasjonal telefonidentitet før full Import 2.0. Produkt- og UX-design for Import 2.0 ligger deretter i fase 5, og full implementering ligger i fase 7. Fase 4A–4H er gjennomført og [samlet teknisk stagingverifisert](STAGING_PHASE_4H_PHONE_TECHNICAL_VERIFICATION_2026-08-26.md). Første owner-smoke fant tre avgrensede presentasjons-/Editor-UX-feil; alle tre er [rettet og teknisk stagingreverifisert](STAGING_PHASE_4_OWNER_SMOKE_REMEDIATION_2026-08-29.md) 2026-08-29 uten schema- eller publiseringsendring. Tre siste UI-polishpunkter fra andre owner-smoke er også [implementert og teknisk stagingreverifisert](STAGING_PHASE_4_OWNER_SMOKE_UI_POLISH_2026-08-29.md) uten schema-, data- eller publiseringsendring. Prosjekteier [godkjente siste manuelle kontroll 2026-08-29](PHASE_4_OWNER_APPROVAL_2026-08-29.md). `PHASE 4 = CLOSED / VERIFIED`; fase 5A er fullført som planleggingsgrunnlag, og fase 5B formaliserer godkjent målarkitektur uten runtimeimplementering.
 
 Leveransevise akseptansekriterier, testkrav, rollback og de tverrgående ferdigkriteriene for aktivt CRM-bilde, privat original, renditions, approval, locking, fallback, API-kompatibilitet, Open Graph, import, takedown, backup/restore og legacyutfasing finnes i [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md#implementeringsleveranser-og-akseptansekriterier).
 
@@ -264,22 +264,25 @@ produksjonssetting ble utført.
 
 ## Fase 5 – Produkt- og UX-design for Import 2.0
 
-**Status:** Neste aktive produktfase, ikke startet. Ingen større Import 2.0-kodeendring starter før produkt- og UX-planen er godkjent.
+**Status:** Aktiv planleggingsfase. 5A er fullført som read-only grunnlag, og 5B formaliserer [ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md) som godkjent målarkitektur. Canonical sharing er ikke implementert. 5C er neste arkitekturbeslutning.
 
 Den eksisterende importmotoren skal kartlegges og gjenbrukes der den er solid, men dagens brukeropplevelse skal ikke begrense det nye konseptet.
 
-Leveranser:
+Fase 5 følger denne rekkefølgen:
 
-- kart over dagens import- og mappingmotor og tekniske begrensninger
-- brukerreise og tydelig problemdefinisjon
-- prioriterte brukerhistorier
-- informasjonsarkitektur
-- wireframes og klikkbar prototype
-- review- og konfliktflyt
-- kvalitetsmål og trygg håndtering av usikre data
-- synlig fremdrift og hensiktsmessige gamification-mekanismer
-- akseptansekriterier og testplan
-- faseinndelt implementeringsplan
+1. **5A – Produktretning og read-only impact inventory (`FULLFØRT` som planleggingsgrunnlag):** eksisterende import-/mappingmotor, tenant-eierskap, dataomfang, tilgang, PUBLIC, bilder og storage er kartlagt uten writes. Kort PII-fri evidens finnes i [Phase 5 sharing-domain impact](PHASE_5_SHARING_DOMAIN_IMPACT_2026-08-30.md).
+2. **5B – ADR-011 sharing domain og canonical identity (denne dokumentasjonsleveransen):** direkte canonicalisering, assignments, overlays, agreement/capabilities, PUBLIC-authoritet, image-home og additiv migrering er besluttet som målarkitektur. Ingen kode, schema, data eller runtime er implementert.
+3. **5C – ADR-012 places, geography og actor-only maps (neste arkitekturbeslutning):** provider-nøytral Place, OrganizationPlace, enkel PersonPlace uten kartkrav, geografiske tenantregler og actor-only kart skal besluttes før implementering. Personer skal ikke sendes til Google eller få kartpunkter.
+4. **5D – Import 2.0 informasjonsarkitektur, wireframes og klikkbar prototype:** brukerreise, review-/konfliktflyt, kvalitetsmål, framdrift, gamification og brukertestgrunnlag.
+5. **5E – Godkjent implementerings- og testplan:** små leveranser, akseptansekriterier, migrering, featuregates, staging, rollback og ferdigdefinisjon før større kodeendringer.
+
+Avhengigheter for senere implementering:
+
+- shared identity og assignments må etableres før full Import 2.0
+- structured places og actor-only maps kommer først etter godkjent ADR-012
+- contact-/relationship-målarkitekturen må være klar før full Import 2.0
+- persistent import storage, backup/restore og retensjon må være aktiv før Import 2.0 kan aktiveres
+- browser-aktiv Codex er en hard gate før Import 2.0- og kart-UI implementeres
 
 ## Fase 6 – Personer, kontaktarkitektur og Editor-UX
 

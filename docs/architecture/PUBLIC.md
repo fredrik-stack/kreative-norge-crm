@@ -24,6 +24,25 @@ PUBLIC HTML bruker en kanonisk ID-basert detaljrute:
 
 Denne regelen gjør at publiserte aktører uten organisasjonsnummer fortsatt får fungerende PUBLIC-lenke. Kommandoen `check_public_actor_links` kan kjøres skrivebeskyttet for å kontrollere at alle kortlenker fra PUBLIC-listen svarer uten 404.
 
+## Godkjent canonical PUBLIC-mål – ikke implementert
+
+[ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md)
+beslutter at én canonical Organization senere skal ha én PUBLIC-identitet, én
+side og én global publication state uavhengig av antall tenantassignments.
+Dagens ID-baserte rute og bevarte Organization-PK er grunnlaget for canonical
+ID. Et eksplisitt `canonical_id` skal legges additivt til i public API før
+cutover; organisasjonsnummer forblir bare en entydig alias-/søkerute.
+Assignments og private overlays skal ikke eksponeres automatisk, og PUBLIC skal
+bare bruke shared editorial tags.
+
+Dette er målarkitektur, ikke dagens runtime. Dagens PUBLIC leser fortsatt
+direkte tenant-eide Organization-rader og dagens tenantbundne tags.
+`Organization.email` er i målmodellen offisiell shared aktøre-post og inngår i
+PUBLIC når aktøren er publisert; det innføres ikke et nytt `publish_email`-flagg.
+Telefon beholder eksplisitt publish-toggle. Personkontakt forblir
+relasjonsspesifikk etter ADR-005. Structured places og actor-only maps kommer
+først etter ADR-012; personer skal aldri få PUBLIC-kartpunkter.
+
 ## Publiseringsregler
 
 Publisering styres blant annet av:

@@ -16,7 +16,42 @@ Foreløpig tilgang:
 - slette: superadmin og gruppeadmin
 - import/eksport: superadmin, gruppeadmin og redigerer
 
-Systemet bruker Django session-auth og CSRF. Kombinasjonen av tenant-medlemskap, globale Django-grupper og Django-superuser skal beskrives mer detaljert i neste fase.
+Systemet bruker Django session-auth og CSRF. Dagens kombinasjon av tenant-
+medlemskap, globale Django-grupper og Django-superuser beskriver nåtilstanden;
+den godkjente hardeningen for shared tilgang beskrives nedenfor.
+
+## Godkjent sharing-domain-sikkerhet – ikke implementert
+
+[ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md)
+godkjenner målarkitekturen for deling innen eksakt SharingDomain. Dagens direkte
+tenantroller og gruppefallback er fortsatt aktiv nåtilstand; ingen shared
+capabilities eller agreementgate er implementert.
+
+Framtidige domain-wide read-, match-, assignment- og writehandlinger skal kreve
+alle disse kontrollene server-side:
+
+- `user.is_active`
+- aktiv `TenantMembership` i den aktive tenanten
+- eksakt SharingDomain-likhet
+- gjeldende, versjonert og auditerbar agreement acceptance
+- eksplisitt capability for handlingen
+- objekt-, assignment- og eventuelt image-home-scope
+
+Alle menneskelige brukere, også plattform-superadmin, må akseptere gjeldende
+agreement. Tenant-`SUPERADMIN` er ikke plattform-superadmin. Den konseptuelle
+capabilityen `ADD_EXISTING_SHARED_ENTITY_TO_OWN_TENANT` gir bare assignment til
+brukerens egen aktive tenant, aldri en vilkårlig annen tenant.
+
+Dagens globale Django-gruppefallback skal fjernes eller begrenses før shared
+capabilities aktiveres. Et globalt gruppenavn skal aldri automatisk gi rolle i
+en vilkårlig tenant. Frontend-skjuling er ikke en sikkerhetsgrense, og alle
+rolle-, membership-, agreement-, capability-, assignment- og domainbrudd skal
+ha negative backendtester.
+
+Canonical core kan redigeres av aktive plattform-superadmins,
+tenant-superadmins, gruppeadmins og redigerere med øvrige porter oppfylt; leser
+kan ikke skrive. Endringen gjelder alle assignments og krever audit og
+revision-/stale-kontroll. Andre tenanters overlays skal aldri serialiseres.
 
 ## Godkjent planlagt bilderollematrise
 

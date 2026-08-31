@@ -27,6 +27,25 @@
 - `ImportDecision`: brukerens eksplisitte valg i review
 - `ImportCommitLog`: spor av opprettede, oppdaterte, koblede, hoppede eller feilede enheter
 
+## Godkjent SharingDomain-grense for senere Import 2.0
+
+[ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md)
+er godkjent målarkitektur, men er ikke implementert i dagens importmotor.
+ImportJob skal fortsatt ha én operativ tenant og én reviewer. Senere kan matching
+søke i hele eksakt SharingDomain gjennom en privacy-minimert projeksjon, men
+bare med aktiv membership, gjeldende agreement og capability.
+
+Canonical core, privat overlay, relation, assignment og publication skal være
+separate typed beslutninger med revision-/stale-kontroll. Assignment og
+publication kan aldri være skjulte bivirkninger. ImportImageDecision forblir
+tenant-/image-home-sikker, og commit gjør fortsatt ingen søk, fetch,
+bildeprocessing eller automatisk publication.
+
+Fase 5As stagingkartlegging fant 53 ImportJob-filreferanser og 0 tilgjengelige
+kildfiler i default storage. Originalpakke, rapporter, proveniens, persistent
+storage, backup/restore, retensjon og database–fil-konsistens er derfor en hard
+framtidig gate før Import 2.0 kan aktiveres. Gaten er ikke løst av ADR-011.
+
 ## API-flyt
 
 Importjobber støtter oppretting, opplasting, preview, radvis uthenting, AI-generering, lagring av beslutninger, commit og feilrapport.

@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-08-31
+
+### Fase 5B: ADR-011 sharing-domain-målarkitektur formalisert
+
+- lagret [ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md)
+  som `Godkjent målarkitektur – ikke implementert`
+- valgt direkte canonicalisering med bevarte Organization-/Person-PK-er,
+  additive SharingDomain-/assignmentporter, private overlays, versjonert
+  agreement/capabilities og én canonical PUBLIC-identitet
+- skilt shared editorial tags fra tenantprivate internal tags og fastslått at
+  dagens tenanttags krever mapping eller redaksjonell review
+- definert image-home som framtidig private-write-scope uten reassosiering av
+  historiske assets, selections, releases, ledger, takedown eller snapshots
+- beholdt ADR-005/010-kontraktene for personkontakt og telefon, og lagt
+  structured places/actor-only maps til senere ADR-012 uten Google-/kartscope
+  for personer
+- dokumentert [PII-fritt fase 5A-impactgrunnlag](PHASE_5_SHARING_DOMAIN_IMPACT_2026-08-30.md),
+  inkludert 53 ImportJob-filreferanser og 0 tilgjengelige kildefiler
+- gjort persistent import storage, agreement/legal, deletion-hardening, global
+  rollefallback og browser-aktiv UI til eksplisitte framtidige porter
+- oppdatert roadmap til 5A–5E og korrigert ADR-010s indeksstatus til
+  `CLOSED / VERIFIED`
+- ingen kode, modeller, migrasjoner, tester, runtime, staging eller deploy er
+  endret
+
 ## 2026-08-30
 
 ### Fase 4 formelt lukket etter endelig owner-smoke

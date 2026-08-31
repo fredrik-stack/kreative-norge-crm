@@ -26,3 +26,12 @@ mellommodell, ikke relasjonsspesifikk kontaktpublisering og ikke full ADR-005.
 Staging-data ble rettet 2026-07-26 slik at eksisterende e-postkontakter er offentlige, unntatt at tre navngitte aktør-person-koblinger er interne via `publish_person=False`.
 
 `ADR-005` har besluttet at personkontakt senere skal publiseres per aktør–person-kobling gjennom én felles offentlig projeksjon. Den langsiktige omleggingen er ikke implementert. Endelig visuelt design, filtrering, API-versjonering og integrasjon mot Musikkontoret.no er fortsatt uavklart.
+
+[ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md)
+har i tillegg godkjent én framtidig PUBLIC-identitet og global publication state
+per canonical Organization. Dette er ikke implementert: dagens aktører og tags
+er fortsatt direkte tenant-eide. Målprojeksjonen skal returnere aktøren én gang,
+bruke bare shared editorial tags og aldri eksponere assignments eller private
+overlays. Offisiell `Organization.email` følger aktørens PUBLIC-state uten et
+nytt `publish_email`-flagg; telefon beholder eget publiseringsvalg. Structured
+places og actor-only maps avventer ADR-012, og personer får aldri kartpunkter.
