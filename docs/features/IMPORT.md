@@ -27,3 +27,15 @@ assignment og publication skal være separate reviewbeslutninger; assignment og
 publication kan aldri skje skjult. Persistent import package og rapportstorage,
 proveniens, backup/restore, retensjon og database–fil-konsistens er en hard gate
 før Import 2.0-aktivering og er ikke implementert av ADR-011.
+
+[ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md)
+beslutter i tillegg den framtidige `STEDER`-kontrakten og additiv overgang fra
+dagens fritekststeder. Unike Place-/relasjonskandidater, duplicate-/similarity-
+kontroll, betinget tvetydighetsreview og rådgivende tenantforslag skal
+ferdigstilles før eksplisitt commit. Importrevieweren kan velge eksisterende og
+opprette source-backed eller manuelt brukerbekreftet canonical Place i
+normalflyten uten plattform-superadmin; bare globale registerkonflikter
+eskaleres. Stedscommit kjører aldri Google/geokoding/providerkall og oppretter
+aldri public status eller assignment automatisk. PersonPlace er strukturert data
+uten kart eller Google-persondatascope. Dette er ikke implementert i dagens
+importflyt.

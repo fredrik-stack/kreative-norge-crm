@@ -47,6 +47,15 @@ Den verifiserte baselinen målte et svært lite database- og filgrunnlag. Aktiv 
 
 Hetzner Cloud Backups er fortsatt aktivert etter prosjekteiers manuelle Console-kontroll 2026-08-02, og en nyere helserverbackup er synlig. Console viste tidligere 0 Cloud Volumes. Dette endrer ikke kravet om logisk PostgreSQL-dump, Borg, Storage Box eller restore-smoke.
 
+Standardkjeden omfatter bare data som etter egen domene-, lisens- og
+providerkontrakt kan følge ADR-008s retensjon. Den gir ikke framtidige,
+tidsbegrensede rå providerdata automatisk adgang til `pg_dump`, Borg, Storage
+Box-snapshots eller Cloud Backup. [ADR-012](ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md)
+krever at slike koordinater enten ligger i separat kortlivet storage som er
+bevist ekskludert fra alle langsiktige kopier, eller omfattes av en særskilt
+kjede som håndhever samme slettefrist og fail-closed restore-reconciliation.
+Dette endrer ikke dagens aktive kjede, retensjon, evidens eller bildekontrakt.
+
 ### Borg-kontrakt
 
 - Lokal Borg-klient er pin-net til en stabil versjon `>=1.2.8` og `<1.3.0`, mens eksplisitt Hetzner remote path forblir `borg-1.2`.

@@ -46,6 +46,28 @@ kildefiler i default storage. Originalpakke, rapporter, proveniens, persistent
 storage, backup/restore, retensjon og database–fil-konsistens er derfor en hard
 framtidig gate før Import 2.0 kan aktiveres. Gaten er ikke løst av ADR-011.
 
+## Godkjent `STEDER`-kontrakt for senere Import 2.0
+
+[ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md)
+fastsetter en framtidig, additiv `STEDER`-kontrakt for kildeark/source-ID,
+entity type/source-ID, originalverdi, land, region/fylke, kommune,
+locality/by/tettsted, stedstype, primær/offentlig status, proveniens og
+reviewstatus.
+
+Unike rå stedsverdier skal kunne løses samlet før commit som kandidat →
+kontrollert offentlig kode-/provideroppslag ved behov → duplicate-/similarity-
+kontroll → source-backed eller manuelt brukerbekreftet Place, med review bare
+ved reell tvetydighet → typed OrganizationPlace eller PersonPlace → eventuelt
+rådgivende tenantforslag. Importrevieweren kan løse normalflyten uten
+plattform-superadmin; bare globale registerkonflikter eskaleres. Stedsdelen av
+commit kjører aldri Google-søk, geokoding, kartlasting eller providerhenting og
+oppretter aldri publication eller assignment automatisk. PersonPlace får aldri
+kart- eller Google-persondatascope.
+
+Dette er målarkitektur. Dagens import bruker fortsatt fritekstfeltene
+`organization_municipalities` og `person_municipality`; ingen `STEDER`-flyt,
+Place-modell eller providerintegrasjon er implementert.
+
 ## API-flyt
 
 Importjobber støtter oppretting, opplasting, preview, radvis uthenting, AI-generering, lagring av beslutninger, commit og feilrapport.
