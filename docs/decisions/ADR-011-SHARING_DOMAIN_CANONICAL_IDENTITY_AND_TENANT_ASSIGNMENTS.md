@@ -37,10 +37,14 @@ ADR-011 presiserer eller viderefører følgende beslutninger:
   et sterkt matchsignal, ikke personidentitet, og samme telefon kan tilhøre flere
   personer. Normalisering endrer aldri publication.
 
-Et senere, separat ADR-012 skal beslutte provider-nøytral Place,
+[ADR-012](ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md)
+er senere godkjent som separat målarkitektur for provider-nøytral Place,
 OrganizationPlace, PersonPlace, geografiske tenantregler, providerreferanser,
-koordinater og actor-only kart. ADR-012 er ikke opprettet eller implementert av
-denne beslutningen.
+koordinater og actor-only kart. Den er ikke runtimeimplementert og endrer ikke
+ADR-011s identity-, assignment- eller autorisasjonsbeslutninger. Senere
+henvisninger i ADR-011 om at ADR-012 «skal beslutte» eller «må godkjennes»
+beskriver denne beslutningens opprinnelige avhengighet; dokumentasjonsporten er
+nå oppfylt av ADR-012, mens alle implementeringsporter fortsatt er åpne.
 
 ## Bakgrunn
 

@@ -53,6 +53,33 @@ tenant-superadmins, gruppeadmins og redigerere med øvrige porter oppfylt; leser
 kan ikke skrive. Endringen gjelder alle assignments og krever audit og
 revision-/stale-kontroll. Andre tenanters overlays skal aldri serialiseres.
 
+## Godkjent sted-, kart- og providersikkerhet – ikke implementert
+
+[ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md)
+bevarer alle ADR-011-portene. Global Place er bare offentlig geografisk
+referansedata; OrganizationPlace/PersonPlace kan leses og skrives gjennom det
+canonical objektets autoriserte SharingDomain-/assignmentkontekst. Geografiske
+tenantforslag er rådgivende og kan aldri gi membership, capability, assignment
+eller autorisasjon.
+
+Canonical Place, providerreferanser og aktive kartpunkter forvaltes gjennom en
+egen plattformcapability med revision-/stale-kontroll og audit. En tenantbruker
+kan velge Place og endre typed stedskobling innen eget objektscope, men kan ikke
+mutere eller deaktivere global geografisk sannhet på tvers av SharingDomains.
+
+Editor- og PUBLIC-kart bruker separate read-only, dataminimerte actor-
+projections. Personer, kontakter, private notater, andre tenanters overlays og
+internal tags, private bildeoriginaler, credentials og audit-/agreementdetaljer
+er forbudt i kartpayload og providerquery. PersonPlace har aldri eget Google-,
+koordinat-, markør- eller kartproviderscope og utløser ingen providerquery med
+persondata. Dette hindrer ikke at den provider-nøytrale Place-raden har lovlig
+Kartverket-/SSB-proveniens.
+
+En senere Google-aktivering krever separate, minst privilegerte Editor/PUBLIC-
+browserkeys og eventuell servercredential, origin-/IP- og API-restriksjoner,
+miljøisolasjon, kvoter, sanitert logging og default-off gates. Ingen key eller
+Google-konfigurasjon finnes i dagens runtime.
+
 ## Godkjent planlagt bilderollematrise
 
 [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) beslutter en capability-basert bilderollematrise. Hele matrisen er ikke implementert; dagens generelle read/write/delete-regler gjelder fortsatt utenfor de eksplisitte bildehandlingene. 3E.4 implementerer det avgrensede takedown-subsettet server-side som beskrevet nedenfor. Fase 3F gjenbruker eksisterende tenant-scopede image write-capabilities for typed importbeslutninger; flagg, ImportRow og målobjekt er ikke en autorisasjon i seg selv.

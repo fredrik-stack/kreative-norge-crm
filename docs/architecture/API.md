@@ -38,6 +38,25 @@ review, og bare gyldige numre kan skrive canonical identitet ved commit.
 
 Eksport har foreløpig grunnleggende oppretting, listing og visning av eksportjobber. Filgenerering og nedlasting er ikke bekreftet ferdig.
 
+## Godkjent strukturert sted- og kartkontrakt – ikke implementert
+
+[ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md)
+krever senere additive structured-place-felt ved siden av dagens
+`municipalities`/`municipality`. Eksakte ruter og serializernavn avgjøres ved
+implementering.
+
+Actor-only kart skal ha separate read-only, dataminimerte Editor- og PUBLIC-
+projections. De kan returnere canonical Organization-ID, OrganizationPlace-ID,
+stedsnavn, godkjent koordinat/presisjon, nødvendige filter-ID-er og eksisterende
+image projection/fallback. De skal ikke returnere personer, kontakter,
+assignments, andre tenanters overlays/internal tags, private bildeoriginaler,
+providercredentials eller audit-/agreementdetaljer.
+
+PersonPlace kan få additive tekst-/profilfelt, men aldri kartendepunkt,
+koordinat- eller providerprojection. Provideroppslag er en separat default-off
+handling; vanlig read, lister og import-commit gjør ingen skjulte Google-,
+geokodings- eller kartkall. Dagens API har ingen Place- eller kartruter.
+
 ## Intern bildekandidatflyt og public bildekontrakt – ADR-007
 
 [ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) er godkjent målarkitektur. Fase 3D.1s offisielle flyt er aktivert og visuelt godkjent i staging. Fase 3D.2 utvider den interne, feature-gated API-flyten med Brave-søk, limt URL, manuell upload, fokusforvalg, presis X/Y, Foto-zoom og valgfri asset-alttekst. Precision/zoom-oppfølgingen er gjennomført og merget til `main` med PR #33, CI-grønn på mergecommiten, teknisk stagingverifisert, historisk live Brave-verifisert og visuelt eiergodkjent. Brave-credentialen er deretter deaktivert; providerkallet er operativt ikke aktivt for ordinære Editor-sluttbrukere før sluttbrukeravtalegaten er dokumentert oppfylt. Targetschemaet er aktivt i staging etter den separate 3E.3-gaten.

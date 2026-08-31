@@ -264,22 +264,30 @@ produksjonssetting ble utført.
 
 ## Fase 5 – Produkt- og UX-design for Import 2.0
 
-**Status:** Aktiv planleggingsfase. 5A er fullført som read-only grunnlag, og 5B formaliserer [ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md) som godkjent målarkitektur. Canonical sharing er ikke implementert. 5C er neste arkitekturbeslutning.
+**Status:** Aktiv planleggingsfase. 5A er fullført som read-only grunnlag,
+5B/[ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md)
+er merget målarkitektur, og 5C/[ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md)
+formaliserer sted og actor-only kart som målarkitektur. Ingen av ADR-011 eller
+ADR-012 er runtimeimplementert. Etter merge av 5C er 5D neste aktive
+produktarbeid.
 
 Den eksisterende importmotoren skal kartlegges og gjenbrukes der den er solid, men dagens brukeropplevelse skal ikke begrense det nye konseptet.
 
 Fase 5 følger denne rekkefølgen:
 
 1. **5A – Produktretning og read-only impact inventory (`FULLFØRT` som planleggingsgrunnlag):** eksisterende import-/mappingmotor, tenant-eierskap, dataomfang, tilgang, PUBLIC, bilder og storage er kartlagt uten writes. Kort PII-fri evidens finnes i [Phase 5 sharing-domain impact](PHASE_5_SHARING_DOMAIN_IMPACT_2026-08-30.md).
-2. **5B – ADR-011 sharing domain og canonical identity (denne dokumentasjonsleveransen):** direkte canonicalisering, assignments, overlays, agreement/capabilities, PUBLIC-authoritet, image-home og additiv migrering er besluttet som målarkitektur. Ingen kode, schema, data eller runtime er implementert.
-3. **5C – ADR-012 places, geography og actor-only maps (neste arkitekturbeslutning):** provider-nøytral Place, OrganizationPlace, enkel PersonPlace uten kartkrav, geografiske tenantregler og actor-only kart skal besluttes før implementering. Personer skal ikke sendes til Google eller få kartpunkter.
-4. **5D – Import 2.0 informasjonsarkitektur, wireframes og klikkbar prototype:** brukerreise, review-/konfliktflyt, kvalitetsmål, framdrift, gamification og brukertestgrunnlag.
+2. **5B – ADR-011 sharing domain og canonical identity (`MERGET MÅLARKITEKTUR`):** direkte canonicalisering, assignments, overlays, agreement/capabilities, PUBLIC-authoritet, image-home og additiv migrering er besluttet. Ingen kode, schema, data eller runtime er implementert.
+3. **5C – ADR-012 places, geography og actor-only maps (denne dokumentasjonsleveransen):** provider-nøytral Place, OrganizationPlace, strukturert PersonPlace uten kart, versjonerte geografiske tenantforslag, additiv legacyovergang og actor-only kart i Editor/PUBLIC er besluttet som målarkitektur. Google er valgfri adapter, ikke canonical stedssannhet. Ingen runtime er implementert.
+4. **5D – Import 2.0 informasjonsarkitektur, wireframes og klikkbar prototype (neste produktarbeid etter 5C-merge):** brukerreise, review-/konfliktflyt, stedskontroll og tenantforslag, actor-only kartbrukerreise, kvalitetsmål, framdrift, gamification og brukertestgrunnlag.
 5. **5E – Godkjent implementerings- og testplan:** små leveranser, akseptansekriterier, migrering, featuregates, staging, rollback og ferdigdefinisjon før større kodeendringer.
 
 Avhengigheter for senere implementering:
 
 - shared identity og assignments må etableres før full Import 2.0
-- structured places og actor-only maps kommer først etter godkjent ADR-012
+- structured places og actor-only maps kan først implementeres etter den
+  godkjente ADR-012-rekkefølgen; maps gjelder bare Organizations
+- PersonPlace er strukturert data uten Google-, koordinat-, markør- eller
+  kartscope
 - contact-/relationship-målarkitekturen må være klar før full Import 2.0
 - persistent import storage, backup/restore og retensjon må være aktiv før Import 2.0 kan aktiveres
 - browser-aktiv Codex er en hard gate før Import 2.0- og kart-UI implementeres

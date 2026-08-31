@@ -40,8 +40,28 @@ direkte tenant-eide Organization-rader og dagens tenantbundne tags.
 `Organization.email` er i målmodellen offisiell shared aktøre-post og inngår i
 PUBLIC når aktøren er publisert; det innføres ikke et nytt `publish_email`-flagg.
 Telefon beholder eksplisitt publish-toggle. Personkontakt forblir
-relasjonsspesifikk etter ADR-005. Structured places og actor-only maps kommer
-først etter ADR-012; personer skal aldri få PUBLIC-kartpunkter.
+relasjonsspesifikk etter ADR-005. Structured places og actor-only maps følger
+den godkjente
+[ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md),
+men er ikke implementert; personer skal aldri få PUBLIC-kartpunkter.
+
+## Godkjent PUBLIC actor-only kartmål – ikke implementert
+
+PUBLIC-kartet blir et supplement til en fullverdig liste. En markør krever
+publisert canonical Organization, eksplisitt offentlig OrganizationPlace,
+verifisert Place, gyldig godkjent koordinat, aktiv kartgate og oppfylt
+juridisk/providergate. Én Organization med flere assignments dupliseres ikke;
+markøren representerer OrganizationPlace, ikke tenant.
+
+Assignments, overlays, internal tags, personer og private data eksponeres ikke.
+Organizations uten koordinat forblir i listen. Kartet bruker samme canonical ID
+og godkjente image projection/fallback som øvrig PUBLIC og skaper ingen ny
+image state.
+
+Google-komponenten skal kunne vente til uttrykkelig brukerhandling eller en
+senere juridisk godkjent consentmekanisme. Manglende key, script, samtykke,
+kvote eller provider gir listefallback uten datawrite. Google er ikke canonical
+stedssannhet, og dagens PUBLIC har ingen kartfunksjon.
 
 ## Publiseringsregler
 

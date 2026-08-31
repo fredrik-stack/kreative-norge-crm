@@ -25,6 +25,25 @@ aktiv image-home-assignment i samme SharingDomain. Den bestemmer bare framtidige
 private image writes; opprettelse og transfer skal aldri reassosiere historiske
 assets, selections, releases eller ledgerstate.
 
+## Godkjent stedmålmodell – ikke implementert
+
+[ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md)
+velger global provider-nøytral `Place` som offentlig geografisk referansedata,
+med separate `PlaceProviderReference`- og `PlaceCoordinate`-livssykluser.
+`OrganizationPlace` og `PersonPlace` blir typed, additive relasjoner med
+legacy/proveniens og revision/review. Privacy, publication og SharingDomain-
+scope ligger på canonical objekt og relasjon, ikke på Place.
+
+`OrganizationPlace` kan senere være eksplisitt offentlig og inngå i actor-only
+kart. `PersonPlace` er strukturert data for profil, matching, filtrering og
+tenantforslag, men kan ikke utløse providerkall eller inngå i koordinat-,
+markør- eller kartprojection. Versjonerte `GeographicTenantRuleSet` produserer
+bare forklarte forslag og kan aldri opprette assignment eller gi autorisasjon.
+
+Dagens `Organization.municipalities` og `Person.municipality` består som
+implementert friteksttilstand gjennom en additiv shadow-/reviewovergang. Ingen
+av målmodellene finnes i kode eller migrasjoner ennå.
+
 ## CRM-kjerne
 
 - `Tenant`

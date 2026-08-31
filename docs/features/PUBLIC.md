@@ -34,4 +34,10 @@ er fortsatt direkte tenant-eide. Målprojeksjonen skal returnere aktøren én ga
 bruke bare shared editorial tags og aldri eksponere assignments eller private
 overlays. Offisiell `Organization.email` følger aktørens PUBLIC-state uten et
 nytt `publish_email`-flagg; telefon beholder eget publiseringsvalg. Structured
-places og actor-only maps avventer ADR-012, og personer får aldri kartpunkter.
+places og actor-only maps følger nå den godkjente
+[ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md),
+men er ikke implementert. PUBLIC-kartet gjelder bare Organizations med
+eksplisitt offentlig OrganizationPlace og gyldig godkjent koordinat. Personer
+får aldri kartpunkter, Organizations uten koordinat forblir i listen, og Google
+skal kunne være deaktivert uten at PUBLIC-listen eller aktørsidene slutter å
+fungere.

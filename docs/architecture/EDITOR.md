@@ -6,6 +6,23 @@ React-editoren støtter tenantvalg, rollebasert tilgang, aktører, personer, rel
 
 Editoren har håndtering av ulagrede endringer og egne URL-er for oversikter og detaljvisninger.
 
+## Godkjent sted- og actor-only kartmål – ikke implementert
+
+[ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md)
+legger senere til strukturert OrganizationPlace og PersonPlace. PersonPlace er
+strukturert profil-/matchingdata uten koordinat-, Google-, markør- eller
+kartscope.
+
+Editor får først etter egne implementeringsgater en actor-only kartarbeidsflate
+synkronisert med en fullverdig resultatliste. Vanlig bruker ser bare canonical
+Organizations assigned til aktiv tenant; plattform-superadmin kan bruke
+tillatte filtre i samme SharingDomain. Kartprojectionen er dataminimert og
+gjenbruker godkjent PUBLIC-image projection/fallback uten nye image writes.
+
+Google er valgfri kartadapter og skal kunne være deaktivert uten at sted,
+lister, søk, importreview eller tenantforslag slutter å fungere. Browser-aktiv
+Codex er hard gate før wireframes/prototype blir kart- eller Import 2.0-runtime.
+
 ## Implementert Aktørbilde-flyt bak featureflag
 
 Når `IMAGE_ASSET_FEATURE_ENABLED=True` for et miljø, viser Organization-editoren seksjonen `Aktørbilde`. Kildereisen presenteres i denne prioriterte rekkefølgen:

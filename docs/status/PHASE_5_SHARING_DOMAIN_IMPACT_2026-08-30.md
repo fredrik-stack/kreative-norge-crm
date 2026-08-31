@@ -33,6 +33,17 @@ Fire tenants var tomme. Bildegrunnlaget lå i Musikkontoret Nord og omfattet 10
 assets, 13 rendition-sett, 39 renditions, 11 selections hvorav 8 aktive, og 4
 releases.
 
+Stedsgrunnlaget i samme skrivebeskyttede inventory var:
+
+- 125 Organizations med ikke-tom `municipalities`
+- 32 Organizations med flere skilletegnsdelte steder
+- 141 Persons med ikke-tom `municipality`
+
+Dette er legacy fritekst, ikke verifiserte Places eller koordinater. Tallene
+brukes som migreringsevidens i
+[ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md);
+det er ikke kjørt en ny staginginventory for fase 5C.
+
 ## Identitet og integritet
 
 Kartleggingen observerte ingen cross-tenant-dublettgrupper etter:
@@ -82,9 +93,10 @@ Det trengs ingen permanent canonical hubmodell for det observerte datasettet.
 
 ## Prosjekteiers presiseringer av kartleggingsanbefalingene
 
-- PersonPlace skal være del av målmodellen gjennom senere ADR-012, ikke utsettes
-  på ubestemt tid. PersonPlace er uten Google-, koordinat- eller kartkrav, og
-  personer skal ikke få kartmarkører eller PUBLIC-kartprojeksjon.
+- PersonPlace er del av målmodellen gjennom den godkjente
+  [ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md),
+  ikke utsatt på ubestemt tid. PersonPlace er uten Google-, koordinat- eller
+  kartkrav, og personer skal ikke få kartmarkører eller PUBLIC-kartprojeksjon.
 - Shared editorial tags innen SharingDomain er nødvendig. Dagens tenanttags må
   klassifiseres ved policy eller redaksjonell review; private internal tags blir
   tenantoverlays.
@@ -104,11 +116,15 @@ Det trengs ingen permanent canonical hubmodell for det observerte datasettet.
 - dokumentasjon av behandlingsgrunnlag, formål, rettigheter og interne
   ansvars-/arbeidsrutiner
 - juridisk kontroll før delte persondata aktiveres i produksjon
-- ADR-012 for Place, PersonPlace, OrganizationPlace og actor-only maps
+- implementering av den godkjente
+  [ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md)
+  for Place, PersonPlace, OrganizationPlace og actor-only maps
 - redaksjonell policy for legacytags
 - deletion-/CASCADE-hardening og fjerning av global rollefallback
 - persistent import storage med backup/restore og retensjon
 - browser-aktiv Codex før senere Import 2.0- og kart-UI
 
-Den formelle målarkitekturen og migreringsrekkefølgen finnes i
-[ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md).
+Den formelle målarkitekturen og migreringsrekkefølgene finnes i
+[ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md)
+og
+[ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md).
