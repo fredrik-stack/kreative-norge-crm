@@ -2,6 +2,24 @@
 
 Denne mappen er prosjektets levende dokumentasjonskilde.
 
+## Import 2.0 – godkjent UX-grunnlag fra fase 5D
+
+[Brukertestrapporten](status/PHASE_5D_USER_TEST_REPORT_2026-10-11.md) og
+[UX-spesifikasjon v6, revisjon 4](features/IMPORT_2_0_UX_SPEC_V6.md) dokumenterer
+owner-approved intern validering med to formelle kollegadeltakere og
+prosjekteiers egen gjennomgang. R12/O-24 lukket UX-grunnlaget 2026-10-12:
+alle fire jobbregelgrupper er tilgjengelige ved Filtrerte kandidater, og de tre
+feltfiltrene beholdes. Ingen ny manuell prototypetest eller formell brukertest
+gjenstår som gate.
+
+Dokumentene er lagret gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73). Skrivebeskyttet review er
+gjennomført uten blokkerende funn, og prosjekteier har bestilt kontrollert
+merge 2026-10-12. Eksakt head, mergestatus og CI følger PR-en i GitHub.
+Etter dokumentasjonsleveransen og ny kontroll av fersk main følger read-only
+5E med en beslutningsklar implementerings- og testplan. 5E er ikke startet
+eller godkjent. Import 2.0 og ADR-011/012 er fortsatt målarkitektur uten
+runtimeimplementering. Browser-aktiv Codex forblir en hard gate ved senere UI.
+
 ## Leserekkefølge
 
 1. `status/PROJECT_STATUS_CURRENT.md` – kort nåstatus

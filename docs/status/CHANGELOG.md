@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-10-12
+
+### Fase 5D: godkjent UX v6 revisjon 4 og brukertestrapport lagret
+
+- lagret hele [brukertestrapporten](PHASE_5D_USER_TEST_REPORT_2026-10-11.md)
+  og [Import 2.0 UX-spesifikasjon v6 revisjon 4](../features/IMPORT_2_0_UX_SPEC_V6.md)
+- registrert owner-approved intern validering: to formelle kollegadeltakere og
+  prosjekteiers egen gjennomgang; ingen gjennomført fempersonersplan
+- bevart R12 → O-24 → UX-02/UX-14: Kategorier og tags, Telefon,
+  Berikelsesnivå og Stedsavklaring er tilgjengelige ved Filtrerte kandidater;
+  de tre feltfiltrene beholdes, med låst utvalg og synlig null effekt
+- bevart historisk prototypekontroll på 45/45 og separat 8/8 kontrollgrupper;
+  ingen ny manuell prototypetest eller formell brukertest gjenstår som gate
+- synkronisert indeks, prosjektstatus, roadmap og importdokumentasjon;
+  dokumentene er lagret gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73) og gjennomgått uten blokkerende
+  funn; prosjekteier har bestilt kontrollert merge, med faktisk mergestatus,
+  siste head og PR-/main-CI dokumentert i GitHub og leveranserapporten
+- neste fase er ustartet read-only 5E etter dokumentasjonsleveransen og ny
+  kontroll av fersk main; ingen senere faser er omnummerert
+- leveransen implementerer ingen runtime, modeller, migrasjoner, API-er eller
+  frontend og endrer ingen staging, deploy eller featureflagg; ingen ny visuell
+  nettleserverifisering er utført
+
 ## 2026-08-31
 
 ### Fase 5C: ADR-012 place- og actor-only kartmålarkitektur formalisert

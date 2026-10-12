@@ -6,6 +6,25 @@ Brukeren skal kunne laste opp kontaktdata, få radvis preview, se konflikter og 
 
 Dagens løsning omfatter CSV/XLSX-basert flyt, matching, validering, AI-forslag, review, commit og feilrapport. Google Sheets, Checkin og Mailmojo er planlagt senere og er ikke implementerte kilder.
 
+## Godkjent Import 2.0-opplevelse – ennå ikke implementert
+
+[UX-spesifikasjon v6, revisjon 4](IMPORT_2_0_UX_SPEC_V6.md) er den godkjente
+produktkontrakten. [Fase 5D-rapporten](../status/PHASE_5D_USER_TEST_REPORT_2026-10-11.md)
+dokumenterer owner-approved intern validering med to formelle kollegadeltakere
+og prosjekteiers egen gjennomgang. R12/O-24 avslutter UX-godkjenningen
+2026-10-12: Kategorier og tags, Telefon, Berikelsesnivå og Stedsavklaring er
+tilgjengelige ved Filtrerte kandidater; de tre feltfiltrene beholdes, med
+virkning bare innen det låste utvalget og ærlig null effekt.
+
+Ingen ny manuell prototypetest eller formell brukertest gjenstår som gate.
+Dokumentene er lagret gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73) og gjennomgått uten blokkerende
+funn. Prosjekteier har bestilt kontrollert merge; faktisk mergestatus og CI
+følger PR-en i GitHub. Etter leveransen og fersk main følger ustartet read-only
+5E før godkjent nødvendig grunnmur og senere Import 2.0-implementering.
+Den aktive importmotoren og telefon-/bildekontraktene nedenfor er uendret.
+
+## Aktive og planlagte importkontrakter
+
 Import støtter `person_email_public` og `person_phone_public` for eksplisitt publisering av primær kontakt. Manglende eller tom publiseringskolonne bevarer eksisterende `is_public` ved oppdatering og bruker intern standard for ny kontakt.
 
 Importjobbens synlige telefonregion fryses i jobbkonfigurasjonen. Eksplisitt
