@@ -1,10 +1,20 @@
 # Import Architecture
 
-**Status:** Teknisk motor implementert; fase 4F-telefonkontrakten og samlet fase 4H-gate er teknisk stagingverifisert; større produkt- og UX-revisjon er planlagt og ikke startet
+**Status:** Teknisk motor implementert; fase 4F-telefonkontrakten og samlet fase 4H-gate er teknisk stagingverifisert; Import 2.0-UX v6 revisjon 4 er owner-approved, men ikke runtimeimplementert
 
 **Sist verifisert:** 2026-08-26
 
 **Verifisert mot:** importmodellene, importtjenestene, API-handlingene, React-siden for import/eksport, kontaktregresjonstester og nyere commit-historikk.
+
+**UX-/dokumentasjonsstatus 2026-10-12:**
+[UX-spesifikasjon v6 revisjon 4](../features/IMPORT_2_0_UX_SPEC_V6.md) og
+[Fase 5D-rapporten](../status/PHASE_5D_USER_TEST_REPORT_2026-10-11.md) lagres på
+dokumentasjonsbranchen for én draft PR og separat review; merge er ikke utført.
+R12/O-24 lukker UX-grunnlaget med alle fire regelgrupper tilgjengelige ved
+Filtrerte kandidater og de tre feltfiltrene beholdt. Read-only 5E følger etter
+dokumentasjonsleveransen og fersk main; den er ikke startet eller godkjent.
+Dette endrer ingen teknisk motor, telefon-/bildekontrakt eller ADR-grense.
+Ingen ny staging- eller visuell nettleserverifisering er utført.
 
 ## Implementert teknisk flyt
 
@@ -130,9 +140,9 @@ Publisering av primær e-post og telefon er tri-state:
 
 Sekundærfeltene `person_secondary_emails_public` og `person_secondary_phones_public` gjelder fortsatt for sekundære kontaktkanaler.
 
-## Planlagt større UX-revisjon
+## Godkjent større UX-revisjon – planlagt runtime
 
-Dagens tekniske motor er et fundament, men dagens brukeropplevelse skal ikke låse neste løsning. Før videre implementering skal en egen planfase definere en gamification-inspirert arbeidsflyt.
+Dagens tekniske motor er et fundament, men dagens brukeropplevelse skal ikke låse neste løsning. Den godkjente v6-kontrakten definerer arbeidsflyten; read-only 5E skal gjøre implementerings- og testplanen beslutningsklar før videre implementering.
 
 Den nye opplevelsen skal:
 
@@ -146,15 +156,18 @@ Den nye opplevelsen skal:
 
 ## Før ny implementering
 
-Det skal utarbeides:
+Fase 5D har levert produkt-/UX-grunnlaget i den lenkede v6-kontrakten:
 
-- brukerreise og problemkart
-- oversikt over dagens friksjon og tidsbruk
-- prinsipper for gamification og kvalitetsmåling
+- brukerreise og konsoliderte testfunn
+- dokumentert friksjon i mapping og berikelsesvalg; ingen målt runtime-tidsbruk
+- sannferdig fremdrift og kvalitetsinformasjon uten udokumenterte poeng
 - informasjonsarkitektur og wireframes
 - beslutning om hvilke steg som kan automatiseres
-- akseptansekriterier og brukertestopplegg
-- etappevis implementeringsplan
+- akseptansekriterier og resultatet av avsluttet intern brukertest
+
+Etappevis implementerings- og testplan gjenstår i read-only 5E. Produktgrunnlag
+og avsluttet formell brukertest er ikke runtime- eller integrasjonsbevis;
+browser-aktiv Codex er fortsatt en hard gate ved senere UI-implementering.
 
 ## Åpne arkitekturspørsmål
 

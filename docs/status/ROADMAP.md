@@ -2,7 +2,7 @@
 
 **Status:** Godkjent strategisk arbeidsrekkefølge
 
-**Sist oppdatert:** 2026-08-31
+**Sist oppdatert:** 2026-10-12
 
 Roadmapen skiller mellom produktfaser og et parallelt infrastrukturløp. En fase beskriver prioritert rekkefølge, ikke at innholdet allerede er implementert. Større implementering krever fortsatt et godkjent ADR når arbeidet innebærer et vesentlig arkitekturvalg.
 
@@ -264,12 +264,16 @@ produksjonssetting ble utført.
 
 ## Fase 5 – Produkt- og UX-design for Import 2.0
 
-**Status:** Aktiv planleggingsfase. 5A er fullført som read-only grunnlag,
+**Status:** 5A er fullført som read-only grunnlag,
 5B/[ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md)
 er merget målarkitektur, og 5C/[ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md)
-formaliserer sted og actor-only kart som målarkitektur. Ingen av ADR-011 eller
-ADR-012 er runtimeimplementert. Etter merge av 5C er 5D neste aktive
-produktarbeid.
+er merget målarkitektur for sted og actor-only kart. Ingen av ADR-011 eller
+ADR-012 er runtimeimplementert. 5D-produkt-/UX-grunnlaget er owner-approved
+og låst som v6 revisjon 4 med R12/O-24 2026-10-12. Dokumentene lagres på
+`docs/phase5d-ux-v6-close` for én draft PR og separat review; merge er ikke
+utført, og dokumentene finnes ennå ikke på main. Read-only 5E er neste
+planfase etter dokumentasjonsleveransen og ny kontroll av fersk main;
+den er ikke startet eller godkjent.
 
 Den eksisterende importmotoren skal kartlegges og gjenbrukes der den er solid, men dagens brukeropplevelse skal ikke begrense det nye konseptet.
 
@@ -277,9 +281,16 @@ Fase 5 følger denne rekkefølgen:
 
 1. **5A – Produktretning og read-only impact inventory (`FULLFØRT` som planleggingsgrunnlag):** eksisterende import-/mappingmotor, tenant-eierskap, dataomfang, tilgang, PUBLIC, bilder og storage er kartlagt uten writes. Kort PII-fri evidens finnes i [Phase 5 sharing-domain impact](PHASE_5_SHARING_DOMAIN_IMPACT_2026-08-30.md).
 2. **5B – ADR-011 sharing domain og canonical identity (`MERGET MÅLARKITEKTUR`):** direkte canonicalisering, assignments, overlays, agreement/capabilities, PUBLIC-authoritet, image-home og additiv migrering er besluttet. Ingen kode, schema, data eller runtime er implementert.
-3. **5C – ADR-012 places, geography og actor-only maps (denne dokumentasjonsleveransen):** provider-nøytral Place, kontrollert selvbetjent canonical Place-opprettelse, OrganizationPlace på tvers av assignments, strukturert PersonPlace uten kart, versjonerte geografiske tenantforslag, additiv legacyovergang og actor-only kart i Editor/PUBLIC er besluttet som målarkitektur. Google er valgfri adapter, ikke canonical stedssannhet; rå Google-koordinater krever restore-sikker livssyklus og relevante Google-flater krever en separat Customer Application-vilkårsgate. Ingen runtime er implementert.
-4. **5D – Import 2.0 informasjonsarkitektur, wireframes og klikkbar prototype (neste produktarbeid etter 5C-merge):** brukerreise, review-/konfliktflyt, stedskontroll og tenantforslag, actor-only kartbrukerreise, kvalitetsmål, framdrift, gamification og brukertestgrunnlag.
-5. **5E – Godkjent implementerings- og testplan:** små leveranser, akseptansekriterier, migrering, featuregates, staging, rollback og ferdigdefinisjon før større kodeendringer.
+3. **5C – ADR-012 places, geography og actor-only maps (`MERGET MÅLARKITEKTUR`):** provider-nøytral Place, kontrollert selvbetjent canonical Place-opprettelse, OrganizationPlace på tvers av assignments, strukturert PersonPlace uten kart, versjonerte geografiske tenantforslag, additiv legacyovergang og actor-only kart i Editor/PUBLIC er besluttet som målarkitektur. Google er valgfri adapter, ikke canonical stedssannhet; rå Google-koordinater krever restore-sikker livssyklus og relevante Google-flater krever en separat Customer Application-vilkårsgate. Ingen runtime er implementert.
+4. **5D – Import 2.0 informasjonsarkitektur, wireframes og klikkbar prototype (`OWNER-APPROVED`):** [brukertestrapporten](PHASE_5D_USER_TEST_REPORT_2026-10-11.md) og [UX v6 revisjon 4](../features/IMPORT_2_0_UX_SPEC_V6.md) lagrer den godkjente brukerreisen og avsluttet intern validering med to formelle kollegadeltakere og prosjekteiers egen gjennomgang. R12 → O-24 → UX-02/UX-14 gjør alle fire jobbregelgrupper tilgjengelige ved Filtrerte kandidater; de tre feltfiltrene beholdes. Ingen ny manuell prototypetest eller formell brukertestrunde gjenstår som gate. Dokumentasjonsreview/merge er separat fra godkjent UX og uendret runtime.
+5. **5E – Beslutningsklar implementerings- og testplan (`IKKE STARTET ELLER GODKJENT`):** read-only planfase etter dokumentasjonsleveransen og ny kontroll av fersk main. Skal avklare små leveranser, akseptansekriterier, migrering, featuregates, staging, rollback og ferdigdefinisjon før større kodeendringer. Handoffens mulige 6A/6B/6C-inndeling er et planforslag som skal harmoniseres med gjeldende ADR-er; ingen senere fase omnummereres nå.
+
+Rekkefølgen er 5D UX-godkjenning → dokumentasjonsleveranse → fersk main →
+read-only 5E → godkjent nødvendig grunnmur → senere Import 2.0-implementering.
+Kart, direkte Checkin-API og Mailmojo skal ikke forsinke kjerneimporten;
+5E skal harmonisere dette med de gjeldende ADR-avhengighetene.
+Prosjekteiers manuelle artefaktgjennomgang er utført, men ingen ny visuell
+nettleserverifisering av agenten er utført.
 
 Avhengigheter for senere implementering:
 
@@ -327,7 +338,9 @@ Alle personvern-, migrerings-, rollback-, API- og datakrav i ADR-005 gjelder for
 - gjør trygge rader raske og konflikter tydelige
 - behold menneskelig kontroll over irreversible eller publiserende valg
 - test med representative, reelle filer
-- gjennomfør brukertest med prosjekteier og minst én kollega
+- gjennomfør senere teknisk integrasjons-/UI-verifisering med prosjekteier og
+  minst én kollega; den formaliserte 5D-brukertesten er avsluttet og skal ikke
+  gjentas som en ny formell brukertestrunde
 
 ## Fase 8 – Eksport som ferdig produkt
 
