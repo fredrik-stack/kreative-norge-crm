@@ -269,9 +269,10 @@ produksjonssetting ble utført.
 er merget målarkitektur, og 5C/[ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md)
 er merget målarkitektur for sted og actor-only kart. Ingen av ADR-011 eller
 ADR-012 er runtimeimplementert. 5D-produkt-/UX-grunnlaget er owner-approved
-og låst som v6 revisjon 4 med R12/O-24 2026-10-12. Dokumentene lagres på
-`docs/phase5d-ux-v6-close` for én draft PR og separat review; merge er ikke
-utført, og dokumentene finnes ennå ikke på main. Read-only 5E er neste
+og låst som v6 revisjon 4 med R12/O-24 2026-10-12. Dokumentene er lagret
+gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73) og gjennomgått uten blokkerende funn. Prosjekteier har
+bestilt kontrollert merge; faktisk mergestatus og CI følger PR-en i GitHub.
+Read-only 5E er neste
 planfase etter dokumentasjonsleveransen og ny kontroll av fersk main;
 den er ikke startet eller godkjent.
 

@@ -17,8 +17,9 @@ tilgjengelige ved Filtrerte kandidater; de tre feltfiltrene beholdes, med
 virkning bare innen det låste utvalget og ærlig null effekt.
 
 Ingen ny manuell prototypetest eller formell brukertest gjenstår som gate.
-Dokumentene leveres på dokumentasjonsbranchen for separat draft-PR-review;
-merge er ikke utført. Etter leveransen og fersk main følger ustartet read-only
+Dokumentene er lagret gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73) og gjennomgått uten blokkerende
+funn. Prosjekteier har bestilt kontrollert merge; faktisk mergestatus og CI
+følger PR-en i GitHub. Etter leveransen og fersk main følger ustartet read-only
 5E før godkjent nødvendig grunnmur og senere Import 2.0-implementering.
 Den aktive importmotoren og telefon-/bildekontraktene nedenfor er uendret.
 

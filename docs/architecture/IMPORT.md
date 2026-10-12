@@ -8,8 +8,10 @@
 
 **UX-/dokumentasjonsstatus 2026-10-12:**
 [UX-spesifikasjon v6 revisjon 4](../features/IMPORT_2_0_UX_SPEC_V6.md) og
-[Fase 5D-rapporten](../status/PHASE_5D_USER_TEST_REPORT_2026-10-11.md) lagres på
-dokumentasjonsbranchen for én draft PR og separat review; merge er ikke utført.
+[Fase 5D-rapporten](../status/PHASE_5D_USER_TEST_REPORT_2026-10-11.md) er lagret
+gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73). Skrivebeskyttet review er gjennomført uten blokkerende
+funn; prosjekteier har bestilt kontrollert merge. Eksakt head, mergestatus og
+CI følger PR-en i GitHub.
 R12/O-24 lukker UX-grunnlaget med alle fire regelgrupper tilgjengelige ved
 Filtrerte kandidater og de tre feltfiltrene beholdt. Read-only 5E følger etter
 dokumentasjonsleveransen og fersk main; den er ikke startet eller godkjent.

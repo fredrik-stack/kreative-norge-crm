@@ -12,8 +12,9 @@ alle fire jobbregelgrupper er tilgjengelige ved Filtrerte kandidater, og de tre
 feltfiltrene beholdes. Ingen ny manuell prototypetest eller formell brukertest
 gjenstår som gate.
 
-Dokumentene lagres på `docs/phase5d-ux-v6-close` for én draft PR og separat
-review; merge er ikke utført, og dokumentene finnes ennå ikke på `main`.
+Dokumentene er lagret gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73). Skrivebeskyttet review er
+gjennomført uten blokkerende funn, og prosjekteier har bestilt kontrollert
+merge 2026-10-12. Eksakt head, mergestatus og CI følger PR-en i GitHub.
 Etter dokumentasjonsleveransen og ny kontroll av fersk main følger read-only
 5E med en beslutningsklar implementerings- og testplan. 5E er ikke startet
 eller godkjent. Import 2.0 og ADR-011/012 er fortsatt målarkitektur uten

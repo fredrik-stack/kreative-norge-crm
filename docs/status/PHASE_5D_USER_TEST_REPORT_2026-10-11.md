@@ -8,7 +8,7 @@
 **Supplerende gjennomgang:** Prosjekteiers grundige egen test\
 **Revisjonsdato:** 12. oktober 2026\
 **Revisjonsgrunnlag:** Prosjekteiers siste manuelle gjennomgang av v6 revisjon 4 og bestilling av én avgrenset sluttkorrigering, uten ny manuell testrunde, 12. oktober 2026 (R12 / O-24)\
-**Status for revidert v6:** **ENDELIG UX-GODKJENT** etter utført sluttkorrigering; dokumentasjonen lagres på `docs/phase5d-ux-v6-close` for separat PR-review; merge er ikke utført\
+**Status for revidert v6:** **ENDELIG UX-GODKJENT** etter utført sluttkorrigering; dokumentasjonen er lagret gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73); review er gjennomført uten blokkerende funn og kontrollert merge er bestilt. Faktisk mergestatus og CI følger GitHub\
 **Oppfølging:** [UX-spesifikasjon v6](../features/IMPORT_2_0_UX_SPEC_V6.md) og klikkbar prototype v6 (separat levert artefakt: `import_2_0_prototype_v6.html`, v6 revisjon 4 med O-24, SHA-256 `938a40ea725772d96a70fb660a228652070047e3d1d6b3eeebe24aa324499628`; ikke innchecket i denne PR-en)
 
 ## 1. Konklusjon og godkjenningsstatus
@@ -29,7 +29,7 @@ Prosjekteier har besluttet at det **ikke skal gjennomføres flere brukertester**
 | Siste manuelle eiergjennomgang av revisjon 4 | **UTFØRT**, dokumentert i R12; bare O-24 bestilt som sluttkorrigering |
 | Sluttkorrigering O-24 | **UTFØRT OG TEKNISK KONTROLLERT**; ingen ny manuell retest etter eiers uttrykkelige instruks |
 | Endelig UX-godkjenning av den ferdige v6-leveransen | **GODKJENT AV PROSJEKTEIER** på grunnlag av R12 og utført O-24 |
-| Dokumentasjons-PR og merge av Fase 5D-artefaktene | Dokumentene er lagret på `docs/phase5d-ux-v6-close` og leveres i én draft PR for separat review; **MERGE IKKE UTFØRT**, dokumentene finnes ennå ikke på `main`. Eksakt PR-head og CI føres i GitHub og leveranserapporten. |
+| Dokumentasjons-PR og merge av Fase 5D-artefaktene | Dokumentene er lagret gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73). Skrivebeskyttet review er gjennomført uten blokkerende funn; prosjekteier har bestilt kontrollert merge 2026-10-12. Eksakt siste head, mergestatus, mergecommit og PR-/main-CI følger GitHub og leveranserapporten. |
 | Fase 5E, beslutningsklar implementerings- og testplan | **IKKE STARTET**; følger etter dokumentasjonsleveransen og fersk main-kontroll, og skal være read-only |
 | Runtimeimplementering av Import 2.0 | Ikke startet som del av denne leveransen |
 
@@ -266,7 +266,7 @@ R12 er prosjekteiers siste manuelle gjennomgang av v6 revisjon 4, fulgt av en ut
 
 **Feltavhengigheter og bevaring:** Underkategori krever fortsatt valgt hovedkategori og tilbyr bare etablerte, tilhørende underkategorier. Tilgjengelige regelgrupper opphever ikke denne reelle feltavhengigheten. Andre omfang beholder sine datatypeavgrensninger. De tre filtrene, den øvrige godkjente brukerreisen og alle andre beslutninger i revisjon 4 er beholdt.
 
-**Godkjenningsstatus:** R12 og utført O-24 avslutter UX-arbeidet som **endelig godkjent av prosjekteier**. Korreksjonen er kilde- og logikkontrollert som beskrevet i §7.5. Den er ikke manuelt retestet, fordi prosjekteier uttrykkelig ba om å gå videre uten en ny manuell runde. Dokumentene lagres på dokumentasjonsbranchen for separat PR-review; merge og Fase 5E gjenstår; denne godkjenningen starter ikke runtimeimplementering.
+**Godkjenningsstatus:** R12 og utført O-24 avslutter UX-arbeidet som **endelig godkjent av prosjekteier**. Korreksjonen er kilde- og logikkontrollert som beskrevet i §7.5. Den er ikke manuelt retestet, fordi prosjekteier uttrykkelig ba om å gå videre uten en ny manuell runde. Dokumentene er lagret gjennom PR #73 med gjennomført review og bestilt kontrollert merge; faktisk mergestatus følger GitHub. Fase 5E er ikke startet; denne godkjenningen starter ikke runtimeimplementering.
 
 ## 7. Hva valideringen understøtter
 
@@ -337,7 +337,7 @@ Den vedtatte rekkefølgen og faktiske statusen er:
 
 1. **Utført:** Ferdigstill v6 revisjon 4 med UX-01–14 og videreførte eierkorreksjoner O-01–O-23; gjennomfør prosjekteiers siste manuelle artefaktgjennomgang (R12).
 2. **Utført:** Innarbeid bare sluttpresiseringen O-24 og kontroller sluttfilen. Endelig UX-godkjenning følger R12 og utført korreksjon; det skal ikke bes om en ny manuell runde.
-3. **Denne dokumentasjonsleveransen:** Hele brukertestrapporten og UX-spesifikasjonen lagres på `docs/phase5d-ux-v6-close` og leveres i én draft PR, sammen med synkroniserte statusdokumenter, roadmap og changelog. Separat review og merge gjenstår; dokumentene finnes ennå ikke på `main`. Eksakt PR-head og CI føres i GitHub og leveranserapporten.
+3. **Denne dokumentasjonsleveransen:** Hele brukertestrapporten og UX-spesifikasjonen er lagret gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73), sammen med synkroniserte statusdokumenter, roadmap og changelog. Skrivebeskyttet review er gjennomført uten blokkerende funn; kontrollert merge er bestilt av prosjekteier. Eksakt siste head, mergestatus, mergecommit og PR-/main-CI følger GitHub og leveranserapporten.
 4. **Ikke startet:** Kontroller fersk `main` etter dokumentasjonsleveransen og gjennomfør Fase 5E som en read-only, beslutningsklar implementerings- og testplan.
 5. **Ikke autorisert av denne UX-godkjenningen:** Runtimearbeid. Det følger først etter godkjent Fase 5E-plan og de nødvendige grunnmur-/aktiveringsportene. Browser-aktiv Codex er en hard gate ved senere UI-implementering.
 

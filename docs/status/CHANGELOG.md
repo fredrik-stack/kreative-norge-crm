@@ -14,8 +14,9 @@
 - bevart historisk prototypekontroll på 45/45 og separat 8/8 kontrollgrupper;
   ingen ny manuell prototypetest eller formell brukertest gjenstår som gate
 - synkronisert indeks, prosjektstatus, roadmap og importdokumentasjon;
-  dokumentene leveres på `docs/phase5d-ux-v6-close` i én draft PR for separat
-  review, uten merge eller tilgjengelighet på main
+  dokumentene er lagret gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73) og gjennomgått uten blokkerende
+  funn; prosjekteier har bestilt kontrollert merge, med faktisk mergestatus,
+  siste head og PR-/main-CI dokumentert i GitHub og leveranserapporten
 - neste fase er ustartet read-only 5E etter dokumentasjonsleveransen og ny
   kontroll av fersk main; ingen senere faser er omnummerert
 - leveransen implementerer ingen runtime, modeller, migrasjoner, API-er eller
