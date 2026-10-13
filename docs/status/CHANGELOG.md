@@ -2,13 +2,13 @@
 
 ## 2026-10-13
 
-### 6A.1: lokal additiv domene- og assignmentgrunnmur
+### 6A.1: additiv domene- og assignmentgrunnmur i PR #75
 
 - lagt til SharingDomain, nullable domain-bindinger og separate profil-/tenantassignments med unikhet og `PROTECT` på nye relasjoner
 - beholdt legacytenant, CASCADE uten assignments, eksisterende lesere, permissions, PUBLIC og bildehistorikk; ingen seed/backfill eller støttet assignment-write
 - skjult nye felt i eksisterende admin og beholdt eksplisitte serializerfelt; ingen ny aktivering eller konfigurasjon
 - lagt til PostgreSQL-tester for strukturell validering/bypassgrense, FK/unikhet, ORM/admin/SQL-sletting, API/adminavgrensning og isolert forward/reverse/forward
-- gjennomgått branchleveranse til én draft PR med commit/push; faktisk head, PR og CI følger GitHub. Ingen staging, merge eller deploy. Full 6A/ADR-011 er ikke ferdig.
+- gjennomgått leveranse gjennom [PR #75](https://github.com/fredrik-stack/kreative-norge-crm/pull/75), med commit/push og bestilt kontrollert merge 2026-10-13; faktisk siste head, mergestatus og PR-/main-CI følger GitHub. Ingen staging eller deploy. Full 6A/ADR-011 er ikke ferdig.
 
 ### Fase 5E: eiergodkjent plan og ny importkontrakt dokumentert gjennom PR #74
 

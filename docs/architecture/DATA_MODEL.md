@@ -7,7 +7,7 @@
 Aktiv kode bruker fortsatt direkte tenant-eierskap: `Organization`, `Person`,
 `OrganizationPerson`, `PersonContact`, `Tag`, import og bildeobjekter peker på én
 `Tenant`, flere relasjoner bruker `CASCADE`, og det finnes ingen
-aktiverte sharing-domain-/assignmentlesere eller -skrivere. Direkte tenant-eierskap er fortsatt autoritativt. Den lokale 6A.1-diffen nedenfor legger bare til skjema.
+aktiverte sharing-domain-/assignmentlesere eller -skrivere. Direkte tenant-eierskap er fortsatt autoritativt. 6A.1-leveransen nedenfor legger bare til skjema.
 
 [ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md)
 er godkjent målarkitektur; full shared runtime er **ikke implementert**. Målmodellen beholder
@@ -17,16 +17,16 @@ har ingen redaksjonell home tenant; tenantprivate notater, internal tags,
 arbeidsstatus og lokale vurderinger flyttes til overlays. Dagens direkte tenant-
 felt beholdes som legacy/home-scope gjennom en kontrollert overgang.
 
-Den lokale 6A.1-skjemaetappen legger til parent-slettevern gjennom assignmentenes `PROTECT`. Før multiassignment aktiveres, må også autorisert assignmentfjerning og øvrige livssyklus-/skriveporter være verifisert. Shared editorial tags
+6A.1-skjemaetappen legger til parent-slettevern gjennom assignmentenes `PROTECT`. Før multiassignment aktiveres, må også autorisert assignmentfjerning og øvrige livssyklus-/skriveporter være verifisert. Shared editorial tags
 og private internal tags skal være separate; dagens tenantbundne `Tag`-rader
 klassifiseres ikke automatisk. Hver canonical Organization skal ha nøyaktig én
 aktiv image-home-assignment i samme SharingDomain. Den bestemmer bare framtidige
 private image writes; opprettelse og transfer skal aldri reassosiere historiske
 assets, selections, releases eller ledgerstate.
 
-## 6A.1 – lokalt implementert skjemagrunnmur 2026-10-13
+## 6A.1 – implementert skjemagrunnmur 2026-10-13
 
-**Leveranse:** gjennomgått branchleveranse til én draft PR på `feat/phase6a1-domain-assignment-foundation`, fra `72ac4545fa7e54d3aafb249ec075a4fd01e168cf`. Faktisk commit, push, PR og CI følger GitHub og leveranserapporten. Merge og stagingverifisering inngår ikke. Shared funksjoner er ikke aktivert.
+**Leveranse:** gjennomgått leveranse gjennom [PR #75](https://github.com/fredrik-stack/kreative-norge-crm/pull/75) på `feat/phase6a1-domain-assignment-foundation`, fra `72ac4545fa7e54d3aafb249ec075a4fd01e168cf`. Faktisk commit, push, PR og CI følger GitHub og leveranserapporten. Skrivebeskyttet review av `e2231c16d8c1c43947b417a7337030b30b6c356a` er gjennomført uten blokkerende funn; kontrollert merge er bestilt 2026-10-13. Faktisk mergestatus, mergecommit og PR-/main-CI følger GitHub og leveranserapporten. Stagingverifisering inngår ikke. Shared funksjoner er ikke aktivert.
 
 - `SharingDomain`: ordinær PK, navn, unik slug og opprettelsestid; ingen seed eller default-domain.
 - Nullable `sharing_domain` på Tenant, Organization og Person, med `PROTECT` og FK-indekser. Alle eksisterende bindinger forblir NULL; PK-er og obligatoriske legacytenant-felt er uendret.
