@@ -2,6 +2,14 @@
 
 ## 2026-10-13
 
+### 6A.1: lokal additiv domene- og assignmentgrunnmur
+
+- lagt til SharingDomain, nullable domain-bindinger og separate profil-/tenantassignments med unikhet og `PROTECT` på nye relasjoner
+- beholdt legacytenant, CASCADE uten assignments, eksisterende lesere, permissions, PUBLIC og bildehistorikk; ingen seed/backfill eller støttet assignment-write
+- skjult nye felt i eksisterende admin og beholdt eksplisitte serializerfelt; ingen ny aktivering eller konfigurasjon
+- lagt til PostgreSQL-tester for strukturell validering/bypassgrense, FK/unikhet, ORM/admin/SQL-sletting, API/adminavgrensning og isolert forward/reverse/forward
+- gjennomgått branchleveranse til én draft PR med commit/push; faktisk head, PR og CI følger GitHub. Ingen staging, merge eller deploy. Full 6A/ADR-011 er ikke ferdig.
+
 ### Fase 5E: eiergodkjent plan og ny importkontrakt dokumentert gjennom PR #74
 
 - lagret hele [5E-planen](PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) som FULLFØRT / OWNER-APPROVED SOM PLAN;

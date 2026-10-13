@@ -7,23 +7,41 @@
 Aktiv kode bruker fortsatt direkte tenant-eierskap: `Organization`, `Person`,
 `OrganizationPerson`, `PersonContact`, `Tag`, import og bildeobjekter peker på én
 `Tenant`, flere relasjoner bruker `CASCADE`, og det finnes ingen
-`SharingDomain`- eller assignmentmodeller. Dette er dagens implementerte modell.
+aktiverte sharing-domain-/assignmentlesere eller -skrivere. Direkte tenant-eierskap er fortsatt autoritativt. Den lokale 6A.1-diffen nedenfor legger bare til skjema.
 
 [ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md)
-er godkjent målarkitektur, men **ikke implementert**. Målmodellen beholder
+er godkjent målarkitektur; full shared runtime er **ikke implementert**. Målmodellen beholder
 eksisterende Organization-/Person-PK-er som canonical identitet innen ett
 eksplisitt SharingDomain og legger tenantassignments additivt til. Canonical core
 har ingen redaksjonell home tenant; tenantprivate notater, internal tags,
 arbeidsstatus og lokale vurderinger flyttes til overlays. Dagens direkte tenant-
 felt beholdes som legacy/home-scope gjennom en kontrollert overgang.
 
-Før multiassignment kan aktiveres, må tenant deletion/`CASCADE` herdes slik at
-et canonical objekt med andre assignments aldri slettes. Shared editorial tags
+Den lokale 6A.1-skjemaetappen legger til parent-slettevern gjennom assignmentenes `PROTECT`. Før multiassignment aktiveres, må også autorisert assignmentfjerning og øvrige livssyklus-/skriveporter være verifisert. Shared editorial tags
 og private internal tags skal være separate; dagens tenantbundne `Tag`-rader
 klassifiseres ikke automatisk. Hver canonical Organization skal ha nøyaktig én
 aktiv image-home-assignment i samme SharingDomain. Den bestemmer bare framtidige
 private image writes; opprettelse og transfer skal aldri reassosiere historiske
 assets, selections, releases eller ledgerstate.
+
+## 6A.1 – lokalt implementert skjemagrunnmur 2026-10-13
+
+**Leveranse:** gjennomgått branchleveranse til én draft PR på `feat/phase6a1-domain-assignment-foundation`, fra `72ac4545fa7e54d3aafb249ec075a4fd01e168cf`. Faktisk commit, push, PR og CI følger GitHub og leveranserapporten. Merge og stagingverifisering inngår ikke. Shared funksjoner er ikke aktivert.
+
+- `SharingDomain`: ordinær PK, navn, unik slug og opprettelsestid; ingen seed eller default-domain.
+- Nullable `sharing_domain` på Tenant, Organization og Person, med `PROTECT` og FK-indekser. Alle eksisterende bindinger forblir NULL; PK-er og obligatoriske legacytenant-felt er uendret.
+- `OrganizationTenantAssignment` og `PersonTenantAssignment`: obligatoriske profil-/tenant-FK-er med `PROTECT`, opprettelses-/oppdateringstid og unikhet per profil/tenant. Ingen redundant domain-kolonne, aktiveringsstatus eller ekstra indeks.
+- Migrasjon `0033_domain_assignment_foundation` følger `0032_phone_identity_fields`: domain/tenant-binding → profilbindinger → assignmenttabeller. Bare skjemaoperasjoner, ingen backfill eller endring av eksisterende verdier.
+
+Database-FK-er, NOT NULL og unikhet beskytter referanser og duplikater. Assignmentenes `full_clean()` avviser manglende/ulik domain og manglende targets. `save()`, `QuerySet.update` og bulkoperasjoner kaller ikke denne valideringen automatisk; cross-domain-likhet er ikke en databasegaranti. Det finnes ingen støttet application-writer, API, adminregistrering eller kommando for de nye modellene/feltene. Nye felt er utelukket fra eksisterende adminskjemaer og serializers.
+
+Assignmentenes `PROTECT` stanser direkte profil-/tenant-sletting og legacytenantens CASCADE mot en assigned profil, også ved assignment bare til annen tenant. Model-, QuerySet- og adminveier bruker Django Collector; dette er ikke SQL `ON DELETE PROTECT`. PostgreSQL-FK-er verner også direkte parent-DELETE. Legacydata uten assignments beholder dagens CASCADE. Eksplisitt assignmentfjerning og siste-assignment-/canonical-sletting er fortsatt senere autoriserte livssyklusleveranser.
+
+**Lokal verifikasjon:** Docker med isolert PostgreSQL: CRM-suiten 582 tester bestått, safety-ledger 64 tester bestått og siste målrettede kjøring 12/12 bestått. `makemigrations --check --dry-run` fant ingen endringer. Testene inkluderer adminlagring, API-/tenantavgrensning, direkte SQL-FK-vern og forward/reverse/forward før semantiske writes. Ingen migrasjon er kjørt mot eksisterende lokal CRM- eller stagingdatabase; CI på eksakt publisert head følges i GitHub og leveranserapporten; baseline-CI erstatter ikke denne kontrollen.
+
+Før senere backfill/write kreves nytt relevant inventar og støttede transaksjonelle tjenester som håndhever domain-endringer, alle bypassveier, autorisasjon, samtidighet, audit/revisjoner og øvrige ADR-011-porter. Ingen deling, PUBLIC-cutover eller image-home er aktivert. Historisk bilde-/release-/event-/ledgerstate reassosieres ikke.
+
+Bare de nye migrasjonene kan reverseres når domain-bindingene og nye tabeller er tomme og ingen semantisk state tapes. Dette er testet med isolerte legacyfixtures; ikke en garanti for destruktiv rollback etter nye writes. Før senere staging-schema-apply kreves separat bestilling, eksakt commit, verifisert backup/gjenopprettingsgrunnlag og pre/poststate. Historisk 5A er ikke fersk databaseline.
 
 ## Godkjent stedmålmodell – ikke implementert
 
