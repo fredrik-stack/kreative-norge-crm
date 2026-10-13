@@ -24,7 +24,7 @@ kilde-/reviewgrunnlag, PostgreSQL-worker og samlet DB-fullføringsplan med
 kvittering/etterleveranser. 6A → 6B → 6C før 7A–7E og parallell privat storage
 er planlagt; ADR-012 §28 holder kart utenfor kjerneimportens kritiske sti.
 Den nye plan-/ADR-dokumentasjonen er lagret på `docs/phase5e-approved-plan`
-og leveres i én draft PR for separat review; merge er ikke utført. Nye runtimeleveranser er IKKE STARTET. Ingen ny
+og leveres gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74); review er gjennomført uten blokkerende funn og kontrollert merge er bestilt 2026-10-13. Faktisk mergestatus og CI følger GitHub. Nye runtimeleveranser er IKKE STARTET. Ingen ny
 formell brukertest, manuell prototyperunde eller obligatorisk kollegatest;
 senere tekniske tester, browsergate og relevant staging-/eiergodkjenning består.
 Den aktive importmotoren og telefon-/bildekontraktene nedenfor er uendret.

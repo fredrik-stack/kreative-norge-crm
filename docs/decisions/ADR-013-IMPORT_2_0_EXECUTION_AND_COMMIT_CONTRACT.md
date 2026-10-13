@@ -10,7 +10,7 @@ Godkjent målarkitektur – ikke implementert.
 
 **Dokumentasjonsbaseline:** `main` på `18951b010d46eb7beea85e6c96b228e4472893af`.
 
-**Leveransestatus:** dokumentasjonen er lagret på `docs/phase5e-approved-plan` og leveres i én draft PR for separat review; merge er ikke utført. Eksakt PR-head, PR-lenke og CI følger GitHub og leveranserapporten. Ingen runtimeimplementering inngår.
+**Leveransestatus:** dokumentasjonen er lagret på `docs/phase5e-approved-plan` og leveres gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74); review er gjennomført uten blokkerende funn og kontrollert merge er bestilt 2026-10-13. Faktisk mergestatus og CI følger GitHub. Eksakt PR-head, PR-lenke og CI følger GitHub og leveranserapporten. Ingen runtimeimplementering inngår.
 
 Den [samlede 5E-planen](../status/PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) bevarer hele det godkjente faggrunnlaget og er leveranse-/test-/migreringsplanen. Dette ADR-et er normativt for de nye importkontraktene. [UX v6 revisjon 4](../features/IMPORT_2_0_UX_SPEC_V6.md), inkludert O-24, består.
 

@@ -1,6 +1,6 @@
 # ADR-005: Helhetlig kontaktarkitektur
 
-**Datert videreføring 2026-10-13:** [5E-planen](../status/PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) er eiergodkjent som plan. 6B viderefører autoritative kontakter og relasjonsspesifikk publication, og vedtar rolle/tittel på aktør–person-koblingen etter ADR-011. Mapping fra dagens globale tittel/kontaktpublisering er fortsatt en senere dataport før kontakt-/PUBLIC-omlegging. Eksport og fysisk feltdropp kan komme senere; full ADR-005 er ikke implementert. Ny import bruker [ADR-013](ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md). Dokumentasjonsleveransen er lagret på `docs/phase5e-approved-plan` og leveres i én draft PR for separat review; merge er ikke utført.
+**Datert videreføring 2026-10-13:** [5E-planen](../status/PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) er eiergodkjent som plan. 6B viderefører autoritative kontakter og relasjonsspesifikk publication, og vedtar rolle/tittel på aktør–person-koblingen etter ADR-011. Mapping fra dagens globale tittel/kontaktpublisering er fortsatt en senere dataport før kontakt-/PUBLIC-omlegging. Eksport og fysisk feltdropp kan komme senere; full ADR-005 er ikke implementert. Ny import bruker [ADR-013](ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md). Dokumentasjonsleveransen er lagret på `docs/phase5e-approved-plan` og leveres gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74); review er gjennomført uten blokkerende funn og kontrollert merge er bestilt 2026-10-13. Faktisk mergestatus og CI følger GitHub.
 
 ## Status
 

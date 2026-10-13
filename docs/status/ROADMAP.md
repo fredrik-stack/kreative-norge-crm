@@ -272,7 +272,7 @@ R12/O-24 er owner-approved og dokumentasjonsleveransen merget gjennom
 2026-10-13. [ADR-013](../decisions/ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md) formaliserer den nye
 importkontrakten, og ADR-012 §28 har en eiergodkjent presisering av sted/import
 før kart. Den nye plan-/ADR-dokumentasjonen er lagret på `docs/phase5e-approved-plan`
-og leveres i én draft PR for separat review; **merge er ikke utført**. Nye runtimeleveranser
+og leveres gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74); review er gjennomført uten blokkerende funn og kontrollert merge er bestilt. Faktisk mergestatus og CI følger GitHub. Nye runtimeleveranser
 er **IKKE STARTET**; data-/aktiveringskrav er fortsatt planlagt ved sine porter.
 
 Den eksisterende importmotoren skal kartlegges og gjenbrukes der den er solid, men dagens brukeropplevelse skal ikke begrense det nye konseptet.
@@ -283,10 +283,10 @@ Fase 5 følger denne rekkefølgen:
 2. **5B – ADR-011 sharing domain og canonical identity (`MERGET MÅLARKITEKTUR`):** direkte canonicalisering, assignments, overlays, agreement/capabilities, PUBLIC-authoritet, image-home og additiv migrering er besluttet. Ingen kode, schema, data eller runtime er implementert.
 3. **5C – ADR-012 places, geography og actor-only maps (`MERGET MÅLARKITEKTUR`):** provider-nøytral Place, kontrollert selvbetjent canonical Place-opprettelse, OrganizationPlace på tvers av assignments, strukturert PersonPlace uten kart, versjonerte geografiske tenantforslag, additiv legacyovergang og actor-only kart i Editor/PUBLIC er besluttet som målarkitektur. Google er valgfri adapter, ikke canonical stedssannhet; rå Google-koordinater krever restore-sikker livssyklus og relevante Google-flater krever en separat Customer Application-vilkårsgate. Ingen runtime er implementert.
 4. **5D – Import 2.0 informasjonsarkitektur, wireframes og klikkbar prototype (`OWNER-APPROVED`):** [brukertestrapporten](PHASE_5D_USER_TEST_REPORT_2026-10-11.md) og [UX v6 revisjon 4](../features/IMPORT_2_0_UX_SPEC_V6.md) lagrer den godkjente brukerreisen og avsluttet intern validering med to formelle kollegadeltakere og prosjekteiers egen gjennomgang. R12 → O-24 → UX-02/UX-14 gjør alle fire jobbregelgrupper tilgjengelige ved Filtrerte kandidater; de tre feltfiltrene beholdes. Ingen ny manuell prototypetest eller formell brukertestrunde gjenstår som gate. 5D-dokumentasjonen er merget gjennom PR #73; runtime er uendret.
-5. **5E – Implementerings- og testplan (`FULLFØRT / OWNER-APPROVED SOM PLAN`):** hele [5E-planen](PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) er godkjent 2026-10-13 med seks hovedvalg. [ADR-013](../decisions/ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md) er normativ importkontrakt; 6A → 6B → 6C → 7A–7E er vedtatt konkretisering. Denne plan-/ADR-dokumentasjonen er lagret på dokumentasjonsbranchen og leveres i én draft PR for separat review; merge er ikke utført. Ingen ny runtime er startet.
+5. **5E – Implementerings- og testplan (`FULLFØRT / OWNER-APPROVED SOM PLAN`):** hele [5E-planen](PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) er godkjent 2026-10-13 med seks hovedvalg. [ADR-013](../decisions/ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md) er normativ importkontrakt; 6A → 6B → 6C → 7A–7E er vedtatt konkretisering. Denne plan-/ADR-dokumentasjonen er lagret på dokumentasjonsbranchen og leveres gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74); review er gjennomført uten blokkerende funn og kontrollert merge er bestilt 2026-10-13. Faktisk mergestatus og CI følger GitHub. Ingen ny runtime er startet.
 
 Rekkefølgen er godkjent 5D → merget 5D-dokumentasjon/fersk main → godkjent
-5E-plan → plan-/ADR-leveranse i draft PR og separat dokumentasjonsreview → senere
+5E-plan → plan-/ADR-leveranse gjennom PR #74 med gjennomført review og bestilt kontrollert merge → senere
 avgrenset implementering av nødvendig grunnmur → Import 2.0. Dette er ikke en
 ny kontrollfase eller autorisasjon til automatisk oppstart av 6A.
 

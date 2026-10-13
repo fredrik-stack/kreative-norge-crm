@@ -13,7 +13,7 @@ gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73).
 [5E-planen](../status/PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) er FULLFØRT / OWNER-APPROVED SOM PLAN.
 [ADR-013](../decisions/ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md) er normativ v2-målkontrakt; planen samler
 leveranser/tester/migrering. Denne nye dokumentasjonen er lagret på dokumentasjonsbranchen og leveres
-i én draft PR for separat review; merge er ikke utført; ingen worker, nye ruter, assignments eller
+gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74); review er gjennomført uten blokkerende funn og kontrollert merge er bestilt. Faktisk mergestatus og CI følger GitHub; ingen worker, nye ruter, assignments eller
 Places er implementert gjennom leveransen.
 R12/O-24 lukker UX-grunnlaget med alle fire regelgrupper tilgjengelige ved
 Filtrerte kandidater og de tre feltfiltrene beholdt. Den godkjente planen
@@ -171,7 +171,7 @@ Fase 5D har levert produkt-/UX-grunnlaget i den lenkede v6-kontrakten:
 - beslutning om hvilke steg som kan automatiseres
 - akseptansekriterier og resultatet av avsluttet intern brukertest
 
-Etappevis implementerings- og testplan er eiergodkjent i 5E, og dokumentert i denne branchleveransen til draft PR; merge er ikke utført. Aktiv legacyimport ovenfor er uendret;
+Etappevis implementerings- og testplan er eiergodkjent i 5E, og dokumentert gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74); review er gjennomført uten blokkerende funn og kontrollert merge er bestilt. Faktisk mergestatus og CI følger GitHub. Aktiv legacyimport ovenfor er uendret;
 KN_IMPORT/1, kandidatversjoner, nye API-innganger, worker og fullføringsplan
 er målkontrakt i ADR-013, ikke runtimefakta. Ingen ny formell brukertest,
 manuell prototyperunde eller obligatorisk kollegatest kreves. Tekniske tester,

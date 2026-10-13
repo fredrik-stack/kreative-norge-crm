@@ -6,7 +6,7 @@
 
 **Runtimeimplementering av de nye leveransene:** IKKE STARTET
 
-**Dokumentasjonsleveranse:** planen og godkjenningen er lagret på `docs/phase5e-approved-plan` og leveres i én draft PR for separat review; merge er ikke utført og den nye dokumentasjonen finnes ennå ikke på main. Eksakt PR-head, PR-lenke og CI følger GitHub og leveranserapporten. Lokal dokumentasjonsreview er gjennomført uten blokkerende funn.
+**Dokumentasjonsleveranse:** planen og godkjenningen er lagret på `docs/phase5e-approved-plan` og leveres gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74); skrivebeskyttet review av `a9691d5f1f2969514e24a266a9b4c9cd1add11c1` er gjennomført uten blokkerende funn, og kontrollert merge er bestilt 2026-10-13. Faktisk mergestatus følger GitHub. Eksakt PR-head, PR-lenke og CI følger GitHub og leveranserapporten. Lokal dokumentasjonsreview er gjennomført uten blokkerende funn.
 
 **Godkjenningsgrunnlag:** Prosjekteier Fredrik Forssman godkjente hele den beslutningsklare 5E-rapporten og alle seks hovedvalg 2026-10-13. Rapportens ti fagområder er bevart nedenfor, med godkjente valg omskrevet til vedtatt målretning. Eksakte modellnavn, ruter og DDL er fortsatt implementeringsdetaljer der kilden ikke fastsetter dem.
 
@@ -362,9 +362,9 @@ Prosjekteier godkjente hele planen, inkludert disse hovedvalgene, 2026-10-13:
 5. **Én samlet databasetransaksjon per godkjent fullføringsplan**, med kvittering og separat status for etterleveranser.
 6. **De beskrevne test-, migrerings- og aktiveringskravene**, uten nye brukertestrunder.
 
-Denne dokumentasjonsleveransen lagrer planen på branchen for én draft PR, formaliserer [ADR-013](../decisions/ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md), presiserer ADR-012s rekkefølge og synkroniserer roadmap/status. Neste steg er separat dokumentasjonsreview, ikke automatisk oppstart av 6A.
+Denne dokumentasjonsleveransen leverer planen gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74), formaliserer [ADR-013](../decisions/ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md), presiserer ADR-012s rekkefølge og synkroniserer roadmap/status. Kontrollert dokumentasjonsmerge er bestilt; senere oppstart av 6A krever separat avgrenset bestilling.
 
-**Kildeplanens historiske utførelse:** read-only 5E-analyse og beslutningsklar plan, uten repo-, runtime- eller stagingendring. **Denne leveransen:** Markdown-dokumentasjon på `docs/phase5e-approved-plan`, med commit/push og én draft PR. Merge, deploy og runtimeimplementering er ikke utført.
+**Kildeplanens historiske utførelse:** read-only 5E-analyse og beslutningsklar plan, uten repo-, runtime- eller stagingendring. **Denne leveransen:** Markdown-dokumentasjon på `docs/phase5e-approved-plan`, med commit/push og [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74), gjennomført review og bestilt kontrollert merge. Faktisk siste head, mergestatus, mergecommit og PR-/main-CI følger GitHub og leveranserapporten; reviewheadens CI erstatter ikke kontroll av senere head eller mergecommit. Deploy og runtimeimplementering er ikke utført.
 
 [maincommit]: https://github.com/fredrik-stack/kreative-norge-crm/commit/18951b010d46eb7beea85e6c96b228e4472893af
 [pr73]: https://github.com/fredrik-stack/kreative-norge-crm/pull/73

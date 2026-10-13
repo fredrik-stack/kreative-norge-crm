@@ -17,12 +17,11 @@ importkontrakten. 6A deling/tilgang → 6B kontakter/relasjoner → 6C stedskjer
 [ADR-012 §28](decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md#28-migreringsrekkefølge)
 lar stedskjerne/STEDER/import leveres før separate koordinat-/provider-/kartleveranser.
 
-Denne plan-/ADR-dokumentasjonen er lagret på `docs/phase5e-approved-plan` og leveres gjennom én draft PR for
-separat review; **merge er ikke utført**. Nye runtimeleveranser
+Denne plan-/ADR-dokumentasjonen er lagret på `docs/phase5e-approved-plan` og leveres gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74). Skrivebeskyttet review er gjennomført uten blokkerende funn; prosjekteier har bestilt kontrollert merge 2026-10-13. Faktisk mergestatus og CI følger PR-en i GitHub. Nye runtimeleveranser
 er **IKKE STARTET**; ADR-011/012 og full ADR-005 forblir målarkitektur der de
 ikke er implementert. Ingen ny formell brukertest, manuell prototyperunde eller
 obligatorisk kollegatest; tekniske tester, browser-aktiv Codex før senere UI og
-relevant staging-/eiergodkjenning består. Neste steg er separat dokumentasjonsreview.
+relevant staging-/eiergodkjenning består. Kontrollert dokumentasjonsmerge er bestilt; senere implementering krever separat avgrenset bestilling.
 
 ## Leserekkefølge
 

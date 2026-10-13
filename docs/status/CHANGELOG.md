@@ -2,7 +2,7 @@
 
 ## 2026-10-13
 
-### Fase 5E: eiergodkjent plan og ny importkontrakt dokumentert lokalt
+### Fase 5E: eiergodkjent plan og ny importkontrakt dokumentert gjennom PR #74
 
 - lagret hele [5E-planen](PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) som FULLFØRT / OWNER-APPROVED SOM PLAN;
   [ADR-013](../decisions/ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md) er godkjent målarkitektur, ikke implementert
@@ -17,9 +17,8 @@
 - bevart UX v6 revisjon 4, R12/O-24 og historisk 45/45 samt separat 8/8;
   ingen ny formell brukertest, manuell prototype- eller obligatorisk kollegatest
 - synkronisert styrings-/importdokumenter og korte daterte videreføringsnoter;
-  5D er merget gjennom PR #73, mens den nye 5E-plan-/ADR-leveransen bare er
-  lagret på `docs/phase5e-approved-plan` og leveres i én draft PR for separat
-  review; merge er ikke utført
+  5D er merget gjennom PR #73, mens den nye 5E-plan-/ADR-leveransen er
+  lagret på `docs/phase5e-approved-plan` og leveres gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74); review er gjennomført uten blokkerende funn og kontrollert merge er bestilt. Faktisk mergestatus og CI følger GitHub
 - nye runtimeleveranser er IKKE STARTET; senere data-/aktiveringsporter er
   fortsatt åpne ved relevante leveranser. Ingen nye tester, stagingkontroll,
   runtime, kode, modeller, migrasjoner, flags eller deploy inngår her
