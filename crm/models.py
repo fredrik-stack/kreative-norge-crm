@@ -268,7 +268,22 @@ def export_job_upload_to(instance, filename: str) -> str:
     return f"exports/tenant_{instance.tenant_id}/job_{instance.id or 'new'}/{filename}"
 
 
+class SharingDomain(models.Model):
+    """Explicit future sharing boundary; no implicit tenant binding."""
+
+    name = models.CharField(max_length=255)
+    slug = models.SlugField(unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class Tenant(models.Model):
+    sharing_domain = models.ForeignKey(
+        SharingDomain, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="tenants",
+    )
     name = models.CharField(max_length=255)
     slug = models.SlugField(unique=True)
     default_phone_region = models.CharField(
@@ -565,6 +580,10 @@ class Subcategory(models.Model):
 
 
 class Organization(models.Model):
+    sharing_domain = models.ForeignKey(
+        SharingDomain, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="organizations",
+    )
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="organizations")
 
     name = models.CharField(max_length=255)
@@ -1459,6 +1478,10 @@ class ImageReviewEvent(models.Model):
 
 
 class Person(models.Model):
+    sharing_domain = models.ForeignKey(
+        SharingDomain, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="persons",
+    )
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="persons")
 
     full_name = models.CharField(max_length=255)
@@ -1502,6 +1525,67 @@ class Person(models.Model):
         return self.contacts.filter(type="PHONE", is_public=True).order_by(
             "-is_primary", "id"
         )
+
+def _validate_assignment_domain(assignment, entity_field):
+    # Structural validation only: save/update/bulk operations do not call clean.
+    # Future supported writers must enforce scope, concurrency and authorization.
+    errors = {}
+    targets = {}
+    for field in (entity_field, "tenant"):
+        model = assignment._meta.get_field(field).remote_field.model
+        target_id = getattr(assignment, f"{field}_id")
+        target = model.objects.filter(pk=target_id).first() if target_id is not None else None
+        if target is None:
+            errors[field] = "Assignment target must exist."
+        elif target.sharing_domain_id is None:
+            errors[field] = "Assignment target must have an explicit sharing domain."
+        else:
+            targets[field] = target
+    if len(targets) == 2 and targets[entity_field].sharing_domain_id != targets["tenant"].sharing_domain_id:
+        errors["tenant"] = "Assignment targets must belong to the same sharing domain."
+    if errors:
+        raise ValidationError(errors)
+
+
+class OrganizationTenantAssignment(models.Model):
+    organization = models.ForeignKey(
+        Organization, on_delete=models.PROTECT, related_name="tenant_assignments",
+    )
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.PROTECT, related_name="organization_assignments",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(
+            fields=["organization", "tenant"], name="org_tenant_assignment_unique",
+        )]
+
+    def clean(self):
+        super().clean()
+        _validate_assignment_domain(self, "organization")
+
+
+class PersonTenantAssignment(models.Model):
+    person = models.ForeignKey(
+        Person, on_delete=models.PROTECT, related_name="tenant_assignments",
+    )
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.PROTECT, related_name="person_assignments",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(
+            fields=["person", "tenant"], name="person_tenant_assignment_unique",
+        )]
+
+    def clean(self):
+        super().clean()
+        _validate_assignment_domain(self, "person")
+
 
 class PersonContact(models.Model):
     CONTACT_TYPES = [

@@ -20,6 +20,12 @@ Systemet bruker Django session-auth og CSRF. Dagens kombinasjon av tenant-
 medlemskap, globale Django-grupper og Django-superuser beskriver nåtilstanden;
 den godkjente hardeningen for shared tilgang beskrives nedenfor.
 
+## 6A.1-skjemaavgrensning 2026-10-13
+
+6A.1 legger til nullable domain-bindinger og separate assignmenttabeller; shared tilgang er ikke aktivert og leveransen er ikke stagingverifisert. Nye felt er utelukket fra eksisterende adminskjemaer/serializers, og de nye modellene er ikke adminregistrert. Ingen nye støttede skriveinnganger eller featureflagg er innført. Legacytenant-filtrering og global rollefallback er uendret.
+
+Assignmentenes strukturelle `full_clean()` er ingen autorisasjons- eller databasegaranti for lik domain: save/update/bulk kan omgå den. Senere assignment-write/backfill må ha en støttet transaksjonell grense og beskytte endring av domain på targets. Assignment-FK-ene beskytter parentsletting, men erstatter ikke en autorisert livssyklus for eksplisitt assignmentfjerning. Se [datamodellens 6A.1-avgrensning](DATA_MODEL.md).
+
 ## Godkjent sharing-domain-sikkerhet – ikke implementert
 
 [ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md)

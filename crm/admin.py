@@ -21,6 +21,7 @@ from .models import (
 
 @admin.register(Tenant)
 class TenantAdmin(admin.ModelAdmin):
+    exclude = ("sharing_domain",)
     list_display = ("id", "name", "slug", "created_at")
     search_fields = ("name", "slug")
 
@@ -94,6 +95,7 @@ class OrganizationPersonInline(admin.TabularInline):
 
 @admin.register(Organization)
 class OrganizationAdmin(admin.ModelAdmin):
+    exclude = ("sharing_domain",)
     list_display = ("id", "name", "tenant", "org_number", "email", "is_published", "created_at")
     list_filter = ("tenant", "is_published")
     search_fields = ("name", "org_number", "email")
@@ -103,6 +105,7 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 @admin.register(Person)
 class PersonAdmin(admin.ModelAdmin):
+    exclude = ("sharing_domain",)
     list_display = ("id", "full_name", "tenant", "email", "phone", "municipality", "created_at")
     list_filter = ("tenant",)
     search_fields = ("full_name", "email", "phone")

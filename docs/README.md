@@ -23,6 +23,8 @@ ikke er implementert. Ingen ny formell brukertest, manuell prototyperunde eller
 obligatorisk kollegatest; tekniske tester, browser-aktiv Codex før senere UI og
 relevant staging-/eiergodkjenning består. Kontrollert dokumentasjonsmerge er bestilt; senere implementering krever separat avgrenset bestilling.
 
+**Videreføringsstatus 2026-10-13:** 6A.1-skjema er implementert og testet i leveranse gjennom [PR #75](https://github.com/fredrik-stack/kreative-norge-crm/pull/75), med gjennomført review og bestilt kontrollert merge på `feat/phase6a1-domain-assignment-foundation`. Shared funksjoner er ikke aktivert; ingen staging eller deploy. Dette oppdaterer leveransestatusen etter 5E-leveransen ovenfor, som beskriver main-baselinen. Se [datamodellen](architecture/DATA_MODEL.md) og [prosjektstatus](status/PROJECT_STATUS_CURRENT.md).
+
 ## Leserekkefølge
 
 1. `status/PROJECT_STATUS_CURRENT.md` – kort nåstatus
