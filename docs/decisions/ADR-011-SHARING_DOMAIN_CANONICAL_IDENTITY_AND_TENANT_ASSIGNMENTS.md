@@ -1,5 +1,7 @@
 # ADR-011: Sharing domain, canonical identity og tenantassignments
 
+**Datert videreføring 2026-10-13:** [5E-planen](../status/PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) er nå eiergodkjent som plan; senere formuleringer om at detaljplanen skal godkjennes i 5E beskriver den tidligere planstatusen. 6A → 6B → 6C → fase 7 konkretiserer leveransene. ADR-012 §28 er datert presisert slik at stedskjerne/STEDER/import kan leveres før separat kartarbeid. Tilgangs-, image-home-, kontakt-/relasjons-, storage- og aktiveringsporter består. [ADR-013](ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md) formaliserer importkontrakten. Ingen ny runtime er implementert. Dokumentasjonsleveransen er lagret på `docs/phase5e-approved-plan` og leveres i én draft PR for separat review; merge er ikke utført.
+
 ## Status
 
 Godkjent målarkitektur – ikke implementert

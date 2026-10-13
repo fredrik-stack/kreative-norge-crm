@@ -2,7 +2,7 @@
 
 **Status:** Godkjent strategisk arbeidsrekkefølge
 
-**Sist oppdatert:** 2026-10-12
+**Sist oppdatert:** 2026-10-13
 
 Roadmapen skiller mellom produktfaser og et parallelt infrastrukturløp. En fase beskriver prioritert rekkefølge, ikke at innholdet allerede er implementert. Større implementering krever fortsatt et godkjent ADR når arbeidet innebærer et vesentlig arkitekturvalg.
 
@@ -264,17 +264,16 @@ produksjonssetting ble utført.
 
 ## Fase 5 – Produkt- og UX-design for Import 2.0
 
-**Status:** 5A er fullført som read-only grunnlag,
-5B/[ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md)
-er merget målarkitektur, og 5C/[ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md)
-er merget målarkitektur for sted og actor-only kart. Ingen av ADR-011 eller
-ADR-012 er runtimeimplementert. 5D-produkt-/UX-grunnlaget er owner-approved
-og låst som v6 revisjon 4 med R12/O-24 2026-10-12. Dokumentene er lagret
-gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73) og gjennomgått uten blokkerende funn. Prosjekteier har
-bestilt kontrollert merge; faktisk mergestatus og CI følger PR-en i GitHub.
-Read-only 5E er neste
-planfase etter dokumentasjonsleveransen og ny kontroll av fersk main;
-den er ikke startet eller godkjent.
+**Status:** 5A er fullført som read-only grunnlag. 5B/ADR-011 og 5C/ADR-012
+er merget målarkitektur, ikke runtimeimplementert. 5D-UX v6 revisjon 4 med
+R12/O-24 er owner-approved og dokumentasjonsleveransen merget gjennom
+[PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73).
+[Fase 5E-planen](PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) er **FULLFØRT / OWNER-APPROVED SOM PLAN**
+2026-10-13. [ADR-013](../decisions/ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md) formaliserer den nye
+importkontrakten, og ADR-012 §28 har en eiergodkjent presisering av sted/import
+før kart. Den nye plan-/ADR-dokumentasjonen er lagret på `docs/phase5e-approved-plan`
+og leveres i én draft PR for separat review; **merge er ikke utført**. Nye runtimeleveranser
+er **IKKE STARTET**; data-/aktiveringskrav er fortsatt planlagt ved sine porter.
 
 Den eksisterende importmotoren skal kartlegges og gjenbrukes der den er solid, men dagens brukeropplevelse skal ikke begrense det nye konseptet.
 
@@ -283,15 +282,20 @@ Fase 5 følger denne rekkefølgen:
 1. **5A – Produktretning og read-only impact inventory (`FULLFØRT` som planleggingsgrunnlag):** eksisterende import-/mappingmotor, tenant-eierskap, dataomfang, tilgang, PUBLIC, bilder og storage er kartlagt uten writes. Kort PII-fri evidens finnes i [Phase 5 sharing-domain impact](PHASE_5_SHARING_DOMAIN_IMPACT_2026-08-30.md).
 2. **5B – ADR-011 sharing domain og canonical identity (`MERGET MÅLARKITEKTUR`):** direkte canonicalisering, assignments, overlays, agreement/capabilities, PUBLIC-authoritet, image-home og additiv migrering er besluttet. Ingen kode, schema, data eller runtime er implementert.
 3. **5C – ADR-012 places, geography og actor-only maps (`MERGET MÅLARKITEKTUR`):** provider-nøytral Place, kontrollert selvbetjent canonical Place-opprettelse, OrganizationPlace på tvers av assignments, strukturert PersonPlace uten kart, versjonerte geografiske tenantforslag, additiv legacyovergang og actor-only kart i Editor/PUBLIC er besluttet som målarkitektur. Google er valgfri adapter, ikke canonical stedssannhet; rå Google-koordinater krever restore-sikker livssyklus og relevante Google-flater krever en separat Customer Application-vilkårsgate. Ingen runtime er implementert.
-4. **5D – Import 2.0 informasjonsarkitektur, wireframes og klikkbar prototype (`OWNER-APPROVED`):** [brukertestrapporten](PHASE_5D_USER_TEST_REPORT_2026-10-11.md) og [UX v6 revisjon 4](../features/IMPORT_2_0_UX_SPEC_V6.md) lagrer den godkjente brukerreisen og avsluttet intern validering med to formelle kollegadeltakere og prosjekteiers egen gjennomgang. R12 → O-24 → UX-02/UX-14 gjør alle fire jobbregelgrupper tilgjengelige ved Filtrerte kandidater; de tre feltfiltrene beholdes. Ingen ny manuell prototypetest eller formell brukertestrunde gjenstår som gate. Dokumentasjonsreview/merge er separat fra godkjent UX og uendret runtime.
-5. **5E – Beslutningsklar implementerings- og testplan (`IKKE STARTET ELLER GODKJENT`):** read-only planfase etter dokumentasjonsleveransen og ny kontroll av fersk main. Skal avklare små leveranser, akseptansekriterier, migrering, featuregates, staging, rollback og ferdigdefinisjon før større kodeendringer. Handoffens mulige 6A/6B/6C-inndeling er et planforslag som skal harmoniseres med gjeldende ADR-er; ingen senere fase omnummereres nå.
+4. **5D – Import 2.0 informasjonsarkitektur, wireframes og klikkbar prototype (`OWNER-APPROVED`):** [brukertestrapporten](PHASE_5D_USER_TEST_REPORT_2026-10-11.md) og [UX v6 revisjon 4](../features/IMPORT_2_0_UX_SPEC_V6.md) lagrer den godkjente brukerreisen og avsluttet intern validering med to formelle kollegadeltakere og prosjekteiers egen gjennomgang. R12 → O-24 → UX-02/UX-14 gjør alle fire jobbregelgrupper tilgjengelige ved Filtrerte kandidater; de tre feltfiltrene beholdes. Ingen ny manuell prototypetest eller formell brukertestrunde gjenstår som gate. 5D-dokumentasjonen er merget gjennom PR #73; runtime er uendret.
+5. **5E – Implementerings- og testplan (`FULLFØRT / OWNER-APPROVED SOM PLAN`):** hele [5E-planen](PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) er godkjent 2026-10-13 med seks hovedvalg. [ADR-013](../decisions/ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md) er normativ importkontrakt; 6A → 6B → 6C → 7A–7E er vedtatt konkretisering. Denne plan-/ADR-dokumentasjonen er lagret på dokumentasjonsbranchen og leveres i én draft PR for separat review; merge er ikke utført. Ingen ny runtime er startet.
 
-Rekkefølgen er 5D UX-godkjenning → dokumentasjonsleveranse → fersk main →
-read-only 5E → godkjent nødvendig grunnmur → senere Import 2.0-implementering.
-Kart, direkte Checkin-API og Mailmojo skal ikke forsinke kjerneimporten;
-5E skal harmonisere dette med de gjeldende ADR-avhengighetene.
-Prosjekteiers manuelle artefaktgjennomgang er utført, men ingen ny visuell
-nettleserverifisering av agenten er utført.
+Rekkefølgen er godkjent 5D → merget 5D-dokumentasjon/fersk main → godkjent
+5E-plan → plan-/ADR-leveranse i draft PR og separat dokumentasjonsreview → senere
+avgrenset implementering av nødvendig grunnmur → Import 2.0. Dette er ikke en
+ny kontrollfase eller autorisasjon til automatisk oppstart av 6A.
+
+Kart, direkte Checkin-API og Mailmojo skal ikke forsinke kjerneimporten.
+ADR-012 §28-presiseringen lar stedskjerne/geografiske forslag/nødvendig Editor/
+additivt API/tekstlig PUBLIC verifiseres før STEDER/import. Koordinat-/provider-/
+kartarbeid følger separat med sine eksisterende krav og tester.
+Prosjekteiers 5D-artefaktgjennomgang er utført; ingen ny visuell nettleser- eller
+stagingverifisering er gjort som del av denne dokumentasjonsleveransen.
 
 Avhengigheter for senere implementering:
 
@@ -308,11 +312,29 @@ Avhengigheter for senere implementering:
 - persistent import storage, backup/restore og retensjon må være aktiv før Import 2.0 kan aktiveres
 - browser-aktiv Codex er en hard gate før Import 2.0- og kart-UI implementeres
 
-## Fase 6 – Personer, kontaktarkitektur og Editor-UX
+## Fase 6 – Nødvendig delings-, kontakt- og stedskjerne
 
-**Status:** Planlagt langsiktig kontaktfase etter telefonfundamentet.
+**Status:** Planlagt og eiergodkjent retning gjennom 5E; ny runtime ikke startet.
 
-Denne fasen realiserer resterende målarkitektur i [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md) i kontrollerte, reversible leveranser:
+Vedtatt rekkefølge er 6A → 6B → 6C før fase 7. Den samlede
+[5E-planen §12](PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md#12-etappevis-leveranseplan) angir PR-scope,
+inndata-/aktiveringsporter, aksept, negative tester, migrering, rollback og
+stoppunkt. Privat importlagring kan forberedes parallelt. Kode levert,
+funksjon aktivert og stagingverifisert skal rapporteres hver for seg.
+
+### 6A – Deling og tilgang
+
+SharingDomain, bevarte canonical ID-er, assignments, private overlays,
+avtale/capabilities, revisions-/skrivetjenester, sikre gamle innganger,
+canonical PUBLIC med additiv `canonical_id` og image-home uten reassosiering.
+Global rollefallback og tenant-CASCADE må håndteres før shared aktivering;
+private data skilles ut før delt lesing. Legacytag-/privatdatapolicy ligger
+før relevant delt lesing/PUBLIC. Delte kontaktfunksjoner åpnes først når 6B og
+gamle innganger følger samme kontrakt. ADR-011s øvrige porter består.
+
+### 6B – Kontakter, relasjoner og nødvendig Editor-UX
+
+Denne underfasen realiserer nødvendig kontakt-/relasjonsgrunnlag i [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md) i kontrollerte, reversible leveranser:
 
 - én samlet kontaktseksjon
 - flere e-postadresser og telefonnumre
@@ -324,13 +346,37 @@ Denne fasen realiserer resterende målarkitektur i [ADR-005](../decisions/ADR-00
 - sticky lagreknapp og lagringsstatus nær handlingen
 - mindre unødvendig scrolling og bedre utnyttelse av desktopbredde
 - hensiktsmessig modal- eller redigeringsflyt
-- støtte for relasjonsspesifikk offentlig tittel når produktvalget er avklart
+- rolle og tittel på aktør–person-koblingen; mapping av global legacytittel og
+  kontaktpublisering avgjøres før kontakt-/PUBLIC-omlegging
 
-Alle personvern-, migrerings-, rollback-, API- og datakrav i ADR-005 gjelder fortsatt.
+Alle personvern-, migrerings-, rollback-, API- og datakrav i ADR-005 gjelder fortsatt. Full eksport og
+fysisk feltdropp kan komme senere; hele ADR-005 merkes ikke implementert før
+resten av dens leveranser er fullført.
+
+### 6C – Stedskjerne uten kartavhengighet
+
+Global provider-nøytral Place, OrganizationPlace, PersonPlace, kontrollert
+source-backed/manuelt bekreftet create/reuse, norsk/utenlandsk kildegrunnlag,
+råtekst/proveniens, geografiske forslag og nødvendig Editor/API/tekstlig PUBLIC.
+Kontakt-/relasjonsgrunnlaget ligger først. Selvbetjent Place-create er
+uttrykkelig og separat før profilfullføring. Ingen personkart, skjult
+publication eller assignment. Koordinat-/provider-/kartleveranser og tester
+følger senere etter ADR-012 §28-presiseringen med alle eksisterende gater.
+
+### Parallell leveranse – privat importlagring og backup/restore
+
+Privat persistent filområde, filmanifest/checksum/størrelse/versjon/status,
+rapporter, samordnet backup/sletting, retensjon og isolert restore av hele
+jobbkjedens referanser. Retensjon og ferdige utilknyttede bilder avklares før
+første reelle v2-lagring; storage/restore må være verifisert før reell upload.
+Transient providertransport med høyst 30 minutters absolutt utløp holdes
+utenfor varig historie og backup. Dette etablerer ingen ny plattform eller
+krav om automatisk staging-deploy.
 
 ## Fase 7 – Implementer Import 2.0
 
-**Status:** Planlagt etter godkjent prototype og stabil kontakt-/telefonmodell.
+**Status:** Planlagt og eiergodkjent retning i 5E; ikke runtimeimplementert.
+Kjerneimport leveres etter verifisert 6A–6C og nødvendig storage; kart er separat.
 
 - gjenbruk den eksisterende importmotoren som teknisk fundament
 - implementer den godkjente brukerreisen i avgrensede etapper
@@ -339,9 +385,51 @@ Alle personvern-, migrerings-, rollback-, API- og datakrav i ADR-005 gjelder for
 - gjør trygge rader raske og konflikter tydelige
 - behold menneskelig kontroll over irreversible eller publiserende valg
 - test med representative, reelle filer
-- gjennomfør senere teknisk integrasjons-/UI-verifisering med prosjekteier og
-  minst én kollega; den formaliserte 5D-brukertesten er avsluttet og skal ikke
-  gjentas som en ny formell brukertestrunde
+- gjennomfør tekniske tester, browser-aktiv Codex og relevant staging-/
+  eiergodkjenning; ingen ny formell brukertest, manuell prototyperunde eller
+  obligatorisk kollegatest legges inn
+
+
+### 7A – Kilde, mapping og jobbregler
+
+KN_IMPORT/1 med AKTØRER/PERSONER/KOBLINGER/STEDER, flerkontakt og kanalvalg,
+felles versjonert skjema/mal/KI-prompt, CSV/XLSX/Checkin-Excel-mapping,
+varige utkast/egne versjonerte API-innganger og O-20/O-24 over hele jobbutvalget.
+Problem-/handlingskontrakt fastsettes før review-UI; blank er ikke false.
+
+### 7B – Analyse og berikelse
+
+Én worker i eksisterende image med PostgreSQL-arbeidsgrunnlag, restart/retry/
+stale-kontroll, kildebasert matching, avgrenset berikelse og importtilpasset
+bildeforberedelse uten midlertidig CRM-aktør. Godkjente startgrenser i ADR-013
+skal implementeres/måles, ikke omtales som oppnådde garantier. Brave/provider-
+gatene består; godkjent bildegrunnlag er varig, uvalgte treff transient.
+
+### 7C – Gjennomgang
+
+Konsoliderte kandidater, serverfiltrert kø i puljer på 50, én detaljflate,
+Matcher og kilder, strukturert problemliste/gule innganger, alle godkjente
+feltvalg og ærlig lagring. O-21/O-22 bevarer søk/filter/fokus/rulling/nabo og
+synlig avhengighetsretur. Individuell rolle/status og ingen ekstra Musikkontor-
+radbekreftelse består.
+
+### 7D – Sluttkontroll og fullføring
+
+Komplett offentlig før/etter-plan med alle aktør-/personvisninger, også
+avledede offentlige visninger utenfor kildekoblingene, O-23 og planbundet
+bekreftelse. Én DB-transaksjon per godkjent fast plan med audit/kvittering,
+stabil låserekkefølge og idempotens. Ingen provider/fetch/processing ved commit;
+local deny-/safetykontroll består. Rapporter/bildeetterleveranser har varige
+oppgaver og separat status; ingen fil-/ledgerrollbackgaranti. Sammenhengende
+teknisk backend-/stagingreise og prøvd tilbakeføring kreves.
+
+### 7E – Google Sheets og v1-lukking
+
+Konto/regneark/faner blir ett versjonert snapshot med samme pakke-/mapping-/
+review-/fullføringsreise; ingen kontinuerlig synkronisering eller tilbakeskriving.
+Leveres etter CSV/XLSX-kjernen, før v1 lukkes. Checkin gjennom Excel-mapping;
+direkte Checkin-API, Mailmojo, kart og engangs-XML-konvertering blokkerer ikke
+kjerneimport. Etappenes konkrete tester/porter/stoppunkt følger 5E-planen.
 
 ## Fase 8 – Eksport som ferdig produkt
 

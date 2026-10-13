@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-10-13
+
+### Fase 5E: eiergodkjent plan og ny importkontrakt dokumentert lokalt
+
+- lagret hele [5E-planen](PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) som FULLFØRT / OWNER-APPROVED SOM PLAN;
+  [ADR-013](../decisions/ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md) er godkjent målarkitektur, ikke implementert
+- vedtatt 6A deling/tilgang → 6B kontakter/relasjoner → 6C stedskjerne →
+  7A–7E Import 2.0, med parallell privat importstorage/backup/restore
+- datert presisert ADR-012 §28: stedskjerne/geografiske forslag/nødvendig
+  Editor/additivt API/tekstlig PUBLIC før STEDER/import; koordinat-/provider-/
+  kartarbeid separat med eksisterende tester, restore- og vilkårsgater
+- formalisert KN_IMPORT/1 med flerkontakt/relasjonskanalvalg, versjonert
+  kilde-/kandidat-/reviewgrunnlag, liten PostgreSQL-worker, avgrenset berikelse,
+  importtilpassede bilder og én DB-transaksjon med kvittering/etterleveranser
+- bevart UX v6 revisjon 4, R12/O-24 og historisk 45/45 samt separat 8/8;
+  ingen ny formell brukertest, manuell prototype- eller obligatorisk kollegatest
+- synkronisert styrings-/importdokumenter og korte daterte videreføringsnoter;
+  5D er merget gjennom PR #73, mens den nye 5E-plan-/ADR-leveransen bare er
+  lagret på `docs/phase5e-approved-plan` og leveres i én draft PR for separat
+  review; merge er ikke utført
+- nye runtimeleveranser er IKKE STARTET; senere data-/aktiveringsporter er
+  fortsatt åpne ved relevante leveranser. Ingen nye tester, stagingkontroll,
+  runtime, kode, modeller, migrasjoner, flags eller deploy inngår her
+
 ## 2026-10-12
 
 ### Fase 5D: godkjent UX v6 revisjon 4 og brukertestrapport lagret
