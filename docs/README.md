@@ -2,23 +2,26 @@
 
 Denne mappen er prosjektets levende dokumentasjonskilde.
 
-## Import 2.0 – godkjent UX-grunnlag fra fase 5D
+## Import 2.0 – godkjent UX og implementeringsplan
 
-[Brukertestrapporten](status/PHASE_5D_USER_TEST_REPORT_2026-10-11.md) og
-[UX-spesifikasjon v6, revisjon 4](features/IMPORT_2_0_UX_SPEC_V6.md) dokumenterer
-owner-approved intern validering med to formelle kollegadeltakere og
-prosjekteiers egen gjennomgang. R12/O-24 lukket UX-grunnlaget 2026-10-12:
-alle fire jobbregelgrupper er tilgjengelige ved Filtrerte kandidater, og de tre
-feltfiltrene beholdes. Ingen ny manuell prototypetest eller formell brukertest
-gjenstår som gate.
+[5D-brukertestrapporten](status/PHASE_5D_USER_TEST_REPORT_2026-10-11.md) og
+[UX v6 revisjon 4](features/IMPORT_2_0_UX_SPEC_V6.md), med R12/O-24, er
+owner-approved og merget gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73).
+To formelle kollegadeltakere og prosjekteiers gjennomgang er intern validering,
+ikke en gjennomført fempersonersplan.
 
-Dokumentene er lagret gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73). Skrivebeskyttet review er
-gjennomført uten blokkerende funn, og prosjekteier har bestilt kontrollert
-merge 2026-10-12. Eksakt head, mergestatus og CI følger PR-en i GitHub.
-Etter dokumentasjonsleveransen og ny kontroll av fersk main følger read-only
-5E med en beslutningsklar implementerings- og testplan. 5E er ikke startet
-eller godkjent. Import 2.0 og ADR-011/012 er fortsatt målarkitektur uten
-runtimeimplementering. Browser-aktiv Codex forblir en hard gate ved senere UI.
+[Fase 5E-planen](status/PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) er **FULLFØRT / OWNER-APPROVED SOM PLAN**
+2026-10-13. [ADR-013](decisions/ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md) er godkjent målarkitektur for
+importkontrakten. 6A deling/tilgang → 6B kontakter/relasjoner → 6C stedskjerne →
+7A–7E Import 2.0 er vedtatt; privat importstorage kan forberedes parallelt.
+[ADR-012 §28](decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md#28-migreringsrekkefølge)
+lar stedskjerne/STEDER/import leveres før separate koordinat-/provider-/kartleveranser.
+
+Denne plan-/ADR-dokumentasjonen er lagret på `docs/phase5e-approved-plan` og leveres gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74). Skrivebeskyttet review er gjennomført uten blokkerende funn; prosjekteier har bestilt kontrollert merge 2026-10-13. Faktisk mergestatus og CI følger PR-en i GitHub. Nye runtimeleveranser
+er **IKKE STARTET**; ADR-011/012 og full ADR-005 forblir målarkitektur der de
+ikke er implementert. Ingen ny formell brukertest, manuell prototyperunde eller
+obligatorisk kollegatest; tekniske tester, browser-aktiv Codex før senere UI og
+relevant staging-/eiergodkjenning består. Kontrollert dokumentasjonsmerge er bestilt; senere implementering krever separat avgrenset bestilling.
 
 ## Leserekkefølge
 

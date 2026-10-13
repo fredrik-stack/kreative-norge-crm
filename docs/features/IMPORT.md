@@ -17,10 +17,16 @@ tilgjengelige ved Filtrerte kandidater; de tre feltfiltrene beholdes, med
 virkning bare innen det låste utvalget og ærlig null effekt.
 
 Ingen ny manuell prototypetest eller formell brukertest gjenstår som gate.
-Dokumentene er lagret gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73) og gjennomgått uten blokkerende
-funn. Prosjekteier har bestilt kontrollert merge; faktisk mergestatus og CI
-følger PR-en i GitHub. Etter leveransen og fersk main følger ustartet read-only
-5E før godkjent nødvendig grunnmur og senere Import 2.0-implementering.
+5D-dokumentene er merget gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73).
+[Fase 5E-planen](../status/PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) er FULLFØRT / OWNER-APPROVED SOM PLAN
+2026-10-13. [ADR-013](../decisions/ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md) vedtar KN_IMPORT/1, versjonert
+kilde-/reviewgrunnlag, PostgreSQL-worker og samlet DB-fullføringsplan med
+kvittering/etterleveranser. 6A → 6B → 6C før 7A–7E og parallell privat storage
+er planlagt; ADR-012 §28 holder kart utenfor kjerneimportens kritiske sti.
+Den nye plan-/ADR-dokumentasjonen er lagret på `docs/phase5e-approved-plan`
+og leveres gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74); review er gjennomført uten blokkerende funn og kontrollert merge er bestilt 2026-10-13. Faktisk mergestatus og CI følger GitHub. Nye runtimeleveranser er IKKE STARTET. Ingen ny
+formell brukertest, manuell prototyperunde eller obligatorisk kollegatest;
+senere tekniske tester, browsergate og relevant staging-/eiergodkjenning består.
 Den aktive importmotoren og telefon-/bildekontraktene nedenfor er uendret.
 
 ## Aktive og planlagte importkontrakter

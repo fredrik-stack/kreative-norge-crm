@@ -6,6 +6,8 @@ Godkjent målarkitektur – ikke implementert
 
 **Beslutningsdato:** 2026-08-31
 
+**Eiergodkjent presisering 2026-10-13:** [5E-planen](../status/PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) og [ADR-013](ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md) formaliserer at stedskjerne/STEDER/import kan leveres før separate koordinat-/provider-/kartleveranser. Se §28 for forholdet til opprinnelig rekkefølge. Dokumentasjonen er lagret på `docs/phase5e-approved-plan` og leveres gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74); review er gjennomført uten blokkerende funn og kontrollert merge er bestilt 2026-10-13. Faktisk mergestatus og CI følger GitHub. Ingen runtime eller aktivering er utført.
+
 **Dokumentasjonsbaseline:** `main` på
 `98a20c5aa6e8e7743db8b4310d4093cb17b51d3a`
 
@@ -582,6 +584,11 @@ bare globale registerkonflikter, multi-domain-konflikter og forvaltningshandling
 eskaleres til plattformcapability. Dette er fase 5D/7-UX og ikke implementert
 runtime her.
 
+**Videreføring 2026-10-13:** STEDER/import kan etter §28-presiseringen leveres
+etter verifisert stedskjerne, geografiske forslag, nødvendig Editor-støtte,
+additivt API og tekstlig PUBLIC; koordinat-/provider-/kartarbeid følger separat.
+Dette endrer ikke stedskontrakten eller kart-/providergatene.
+
 Stedsdelen av import-commit skal aldri kjøre Google-søk, geokoding, kartlasting
 eller providerhenting. Den skal aldri gjøre et sted offentlig eller opprette
 tenantassignment automatisk. Dagens generelle import kan skrive publication når
@@ -937,7 +944,20 @@ Kostnader og ulemper:
 
 ## 28. Migreringsrekkefølge
 
-Senere implementering skal være additiv og følge denne rekkefølgen:
+### Eiergodkjent presisering 2026-10-13
+
+Prosjekteier har godkjent hele [Fase 5E-planen](../status/PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) med rekkefølgen 6A deling/tilgang → 6B kontakter/relasjoner → 6C stedskjerne → fase 7 Import 2.0. Kontakt-/relasjonsgrunnlaget ligger fortsatt før steder etter ADR-011.
+
+> Når stedskjernen, geografiske forslag, nødvendig Editor-støtte, additive API-felt og tekstlig PUBLIC-visning er verifisert, kan STEDER og Import 2.0 leveres. Koordinat-, provider- og kartarbeid følger separat, med sine eksisterende aktiveringskrav.
+
+Den opprinnelige listen nedenfor la koordinat-/karttrinn 13–18 før STEDER-trinn 19. Gjeldende presisering beholder stedskjernens trinn 1–12 som inngangsgrunnlag, men tillater STEDER/import etter disse uten først å gjennomføre 13–18. Koordinat-, provider- og karttrinn følger separat; deres tester, restore-sikre providerlivssyklus, Customer Application-vilkår og øvrige aktiveringskrav i §29–30 og §32 slettes eller svekkes ikke. Legacy write deprecation og fysisk cleanup beholder sine egne senere porter; ingen gamle rapporter, PR-er eller leveranser omnummereres.
+
+Globale provider-nøytrale Places, norsk kildegrunnlag, OrganizationPlace/PersonPlace, ingen personkart, rådgivende geografi og ingen skjult publication/assignment består. Tekstlig sted/PUBLIC og import skal fungere uten kartprovider. [ADR-013](ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md) fastsetter den nye utførelses-/commitkontrakten.
+
+### Opprinnelig rekkefølge fra 2026-08-31 – historisk referanse
+
+Listen bevares som beslutningsspor. Senere implementering er additiv og følger den daterte presiseringen ovenfor der den endrer avhengighetene:
+
 
 1. Place og offisielle source/providerreferanser.
 2. Kontrollert server-side search/select/create/reuse med duplicate-/similarity-

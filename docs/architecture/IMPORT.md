@@ -1,21 +1,25 @@
 # Import Architecture
 
-**Status:** Teknisk motor implementert; fase 4F-telefonkontrakten og samlet fase 4H-gate er teknisk stagingverifisert; Import 2.0-UX v6 revisjon 4 er owner-approved, men ikke runtimeimplementert
+**Status:** Aktiv legacyimportmotor implementert; fase 4F/4H-telefonkontrakt teknisk stagingverifisert. Import 2.0-UX og Fase 5E-plan er owner-approved; ny v2-runtime er IKKE STARTET.
 
 **Sist verifisert:** 2026-08-26
 
 **Verifisert mot:** importmodellene, importtjenestene, API-handlingene, React-siden for import/eksport, kontaktregresjonstester og nyere commit-historikk.
 
-**UX-/dokumentasjonsstatus 2026-10-12:**
+**UX-/plan-/dokumentasjonsstatus 2026-10-13:**
 [UX-spesifikasjon v6 revisjon 4](../features/IMPORT_2_0_UX_SPEC_V6.md) og
-[Fase 5D-rapporten](../status/PHASE_5D_USER_TEST_REPORT_2026-10-11.md) er lagret
-gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73). Skrivebeskyttet review er gjennomført uten blokkerende
-funn; prosjekteier har bestilt kontrollert merge. Eksakt head, mergestatus og
-CI følger PR-en i GitHub.
+[Fase 5D-rapporten](../status/PHASE_5D_USER_TEST_REPORT_2026-10-11.md) er merget
+gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73).
+[5E-planen](../status/PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) er FULLFØRT / OWNER-APPROVED SOM PLAN.
+[ADR-013](../decisions/ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md) er normativ v2-målkontrakt; planen samler
+leveranser/tester/migrering. Denne nye dokumentasjonen er lagret på dokumentasjonsbranchen og leveres
+gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74); review er gjennomført uten blokkerende funn og kontrollert merge er bestilt. Faktisk mergestatus og CI følger GitHub; ingen worker, nye ruter, assignments eller
+Places er implementert gjennom leveransen.
 R12/O-24 lukker UX-grunnlaget med alle fire regelgrupper tilgjengelige ved
-Filtrerte kandidater og de tre feltfiltrene beholdt. Read-only 5E følger etter
-dokumentasjonsleveransen og fersk main; den er ikke startet eller godkjent.
-Dette endrer ingen teknisk motor, telefon-/bildekontrakt eller ADR-grense.
+Filtrerte kandidater og de tre feltfiltrene beholdt. Den godkjente planen
+følger 6A → 6B → 6C → 7A–7E med parallell storage. ADR-012 §28 lar
+stedskjerne/STEDER/import leveres før separat koordinat-/provider-/kartarbeid.
+Dette endrer ingen aktiv teknisk motor eller eksisterende telefon-/bildeinvarianter.
 Ingen ny staging- eller visuell nettleserverifisering er utført.
 
 ## Implementert teknisk flyt
@@ -144,7 +148,7 @@ Sekundærfeltene `person_secondary_emails_public` og `person_secondary_phones_pu
 
 ## Godkjent større UX-revisjon – planlagt runtime
 
-Dagens tekniske motor er et fundament, men dagens brukeropplevelse skal ikke låse neste løsning. Den godkjente v6-kontrakten definerer arbeidsflyten; read-only 5E skal gjøre implementerings- og testplanen beslutningsklar før videre implementering.
+Dagens tekniske motor er et fundament, men dagens brukeropplevelse skal ikke låse neste løsning. Den godkjente v6-kontrakten definerer arbeidsflyten; den eiergodkjente 5E-planen og ADR-013 fastsetter framtidig v2-leveranse-/utførelsesretning.
 
 Den nye opplevelsen skal:
 
@@ -167,13 +171,16 @@ Fase 5D har levert produkt-/UX-grunnlaget i den lenkede v6-kontrakten:
 - beslutning om hvilke steg som kan automatiseres
 - akseptansekriterier og resultatet av avsluttet intern brukertest
 
-Etappevis implementerings- og testplan gjenstår i read-only 5E. Produktgrunnlag
-og avsluttet formell brukertest er ikke runtime- eller integrasjonsbevis;
-browser-aktiv Codex er fortsatt en hard gate ved senere UI-implementering.
+Etappevis implementerings- og testplan er eiergodkjent i 5E, og dokumentert gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74); review er gjennomført uten blokkerende funn og kontrollert merge er bestilt. Faktisk mergestatus og CI følger GitHub. Aktiv legacyimport ovenfor er uendret;
+KN_IMPORT/1, kandidatversjoner, nye API-innganger, worker og fullføringsplan
+er målkontrakt i ADR-013, ikke runtimefakta. Ingen ny formell brukertest,
+manuell prototyperunde eller obligatorisk kollegatest kreves. Tekniske tester,
+browser-aktiv Codex før senere UI også i Editor-grunnmuren og relevant
+staging-/eiergodkjenning består.
 
 ## Åpne arkitekturspørsmål
 
-- hvordan store jobber senere skal behandles asynkront
+- målte volumgrenser og eventuelt behov for en større køplattform etter den vedtatte PostgreSQL-workerens MVP
 - hvor lenge importfiler og rapporter skal lagres
 
 ## Godkjent fremtidig bildekontrakt

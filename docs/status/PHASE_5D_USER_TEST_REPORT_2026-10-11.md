@@ -1,5 +1,9 @@
 # Fase 5D – konsolidert brukertestrapport, revisjon 4
 
+**Videreføringsstatus 2026-10-13:** 5D-dokumentasjonen er merget gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73) på `18951b010d46eb7beea85e6c96b228e4472893af`. [Fase 5E-planen](PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) er FULLFØRT / OWNER-APPROVED SOM PLAN; den nye plan-/ADR-dokumentasjonen er lagret på `docs/phase5e-approved-plan` og leveres gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74); review er gjennomført uten blokkerende funn og kontrollert merge er bestilt 2026-10-13. Faktisk mergestatus og CI følger GitHub. Ny runtimeimplementering er IKKE STARTET. Ingen ny formell brukertest, manuell prototyperunde eller obligatorisk kollegatest; senere tekniske tester, browsergate og relevant staging-/eiergodkjenning består.
+
+Innholdet nedenfor bevarer 5D-kildegrunnlagets status og revisjonsspor fra 2026-10-12, inkludert de daværende «5E ikke startet»- og leveransestatusbeskrivelsene. Nyere planstatus følger den daterte videreføringsnoten; UX v6 revisjon 4, R1–R12, UX-01–UX-14, O-01–O-24, datoer, hasher og testomfang er uendret.
+
 **Prosjekt:** Kreative Norge CRM\
 **Testdato:** 11. oktober 2026\
 **Testet prototype:** Import 2.0, klikkbar prototype v5\

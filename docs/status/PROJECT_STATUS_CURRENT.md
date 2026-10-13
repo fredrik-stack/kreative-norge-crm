@@ -1,6 +1,6 @@
 # Project Status Current
 
-**Status:** Fase 1 og 2 gjennomført; fase 3 er **CLOSED / VERIFIED** etter fullførte 3A–3F-gater. Lokal Hetzner storage-/backup-MVP og ADR-009 fase 3E.1A safety-ledger/off-server anchor er **ACTIVE** i staging; fase 3E.1B-materialisering er **ACTIVE / VERIFIED**; fase 3E.1C-controlled serving er **CLOSED / ACTIVE**; fase 3E.2 projection/API shadow er **CLOSED / SHADOW VERIFIED**; fase 3E.3 API/PUBLIC/head-cutover og fase 3E.4 ledger-v2/formell takedown er **CLOSED / ACTIVE** i staging; fase 3F legacy-/Import-kontrakten og restore er **CLOSED / VERIFIED** med den nye Import-gaten av i shared staging. Hele fase 4A–4H er implementert, merget og teknisk stagingverifisert. 4G satte eksplisitt `NO` på de tre stagingtenantene og backfillet 2 Organization- og 56 PHONE-kontaktidentiteter uten å endre råverdi eller publisering. Samlet 4H-gate, post-change-backup og isolert restore er grønne. Første owner-smoke fant tre avgrensede feil i dialmål, intern aktørtelefon og forklaring av effektiv PUBLIC-status; de ble rettet og [teknisk stagingreverifisert 2026-08-29](STAGING_PHASE_4_OWNER_SMOKE_REMEDIATION_2026-08-29.md). Andre owner-smoke fant tre UI-polishpunkter; de ble rettet og [teknisk stagingreverifisert 2026-08-29](STAGING_PHASE_4_OWNER_SMOKE_UI_POLISH_2026-08-29.md). Prosjekteier gjennomførte deretter siste manuelle kontroll og [godkjente resultatet 2026-08-29](PHASE_4_OWNER_APPROVAL_2026-08-29.md). **PHASE 4 = CLOSED / VERIFIED**, og ADR-010 er implementert innen avtalt fase-4-scope. Fase 5A er fullført som skrivebeskyttet planleggingsgrunnlag. [ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md) og [ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md) er godkjent målarkitektur for canonical sharing og provider-nøytrale steder/actor-only kart, men er **ikke implementert**. Dagens direkte tenantmodell og fritekststeder er fortsatt aktive. Fase 5D-produkt-/UX-grunnlaget er owner-approved og låst som v6 revisjon 4 med R12/O-24. Dokumentene er lagret gjennom PR #73 og gjennomgått uten blokkerende funn; kontrollert merge er bestilt av prosjekteier. Faktisk mergestatus og CI følger den lenkede PR-en nedenfor. Read-only 5E er neste planfase etter dokumentasjonsleveransen og ny kontroll av fersk main, og er ikke startet eller godkjent. Ingen produksjonssetting er utført. Brave er operativt ikke aktiv for ordinære Editor-sluttbrukere.
+**Status:** Fase 1 og 2 gjennomført; fase 3 er **CLOSED / VERIFIED** etter fullførte 3A–3F-gater. Lokal Hetzner storage-/backup-MVP og ADR-009 fase 3E.1A safety-ledger/off-server anchor er **ACTIVE** i staging; fase 3E.1B-materialisering er **ACTIVE / VERIFIED**; fase 3E.1C-controlled serving er **CLOSED / ACTIVE**; fase 3E.2 projection/API shadow er **CLOSED / SHADOW VERIFIED**; fase 3E.3 API/PUBLIC/head-cutover og fase 3E.4 ledger-v2/formell takedown er **CLOSED / ACTIVE** i staging; fase 3F legacy-/Import-kontrakten og restore er **CLOSED / VERIFIED** med den nye Import-gaten av i shared staging. Hele fase 4A–4H er implementert, merget og teknisk stagingverifisert. 4G satte eksplisitt `NO` på de tre stagingtenantene og backfillet 2 Organization- og 56 PHONE-kontaktidentiteter uten å endre råverdi eller publisering. Samlet 4H-gate, post-change-backup og isolert restore er grønne. Første owner-smoke fant tre avgrensede feil i dialmål, intern aktørtelefon og forklaring av effektiv PUBLIC-status; de ble rettet og [teknisk stagingreverifisert 2026-08-29](STAGING_PHASE_4_OWNER_SMOKE_REMEDIATION_2026-08-29.md). Andre owner-smoke fant tre UI-polishpunkter; de ble rettet og [teknisk stagingreverifisert 2026-08-29](STAGING_PHASE_4_OWNER_SMOKE_UI_POLISH_2026-08-29.md). Prosjekteier gjennomførte deretter siste manuelle kontroll og [godkjente resultatet 2026-08-29](PHASE_4_OWNER_APPROVAL_2026-08-29.md). **PHASE 4 = CLOSED / VERIFIED**, og ADR-010 er implementert innen avtalt fase-4-scope. Fase 5A er fullført som skrivebeskyttet planleggingsgrunnlag. [ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md) og [ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md) er godkjent målarkitektur for canonical sharing og provider-nøytrale steder/actor-only kart, men er **ikke implementert**. Dagens direkte tenantmodell og fritekststeder er fortsatt aktive. Fase 5D-produkt-/UX-grunnlaget er owner-approved og låst som v6 revisjon 4 med R12/O-24. 5D-dokumentasjonen er merget gjennom PR #73 på `18951b010d46eb7beea85e6c96b228e4472893af`. Fase 5E er FULLFØRT / OWNER-APPROVED SOM PLAN 2026-10-13. Den nye 5E-planen, ADR-013 og ADR-012-presiseringen er lagret på `docs/phase5e-approved-plan` og leveres gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74); review er gjennomført uten blokkerende funn og kontrollert merge er bestilt 2026-10-13. Faktisk mergestatus og CI følger GitHub. Nye runtimeleveranser er IKKE STARTET. Ingen produksjonssetting er utført. Brave er operativt ikke aktiv for ordinære Editor-sluttbrukere.
 
 **Teknisk sist verifisert:** 2026-08-29 i staging; siste komplette 4H-gate 2026-08-26
 
@@ -28,7 +28,7 @@ Fase 4D–4G ble levert med separate PR-er, frozen-head-reviews uten funn, seks 
 
 Den [samlede 4H-evidensen 2026-08-26](STAGING_PHASE_4H_PHONE_TECHNICAL_VERIFICATION_2026-08-26.md) verifiserer Editor, API, Import, cross-tenant, PUBLIC, fingerprints, 560 backendtester, 31 frontendtester, image/safety og post-4H-backup `kreative-norge-staging-20260826T061135Z` med full verify og isolert restore. Etter to dokumenterte remediation-/polishrunder [godkjente prosjekteier siste manuelle smoke 2026-08-29](PHASE_4_OWNER_APPROVAL_2026-08-29.md). Resultatet er `PHASE 4 = CLOSED / VERIFIED`.
 
-**Produkt-roadmap sist oppdatert:** 2026-10-12
+**Produkt-roadmap sist oppdatert:** 2026-10-13
 
 **Arbeidsflyt sist kontrollert:** 2026-07-28
 
@@ -36,7 +36,7 @@ Den [samlede 4H-evidensen 2026-08-26](STAGING_PHASE_4H_PHONE_TECHNICAL_VERIFICAT
 
 ## Aktiv utviklingsfase
 
-### Fase 5D – godkjent UX-grunnlag og avgrenset dokumentasjonsleveranse
+### Fase 5D og 5E – godkjent UX og implementeringsplan
 
 [Brukertestrapporten](PHASE_5D_USER_TEST_REPORT_2026-10-11.md) og
 [Import 2.0 UX v6, revisjon 4](../features/IMPORT_2_0_UX_SPEC_V6.md) dokumenterer
@@ -54,22 +54,32 @@ artefaktkontroll, ikke tester kjørt i denne dokumentasjonsøkten. Prosjekteiers
 manuelle gjennomgang skilles fra agentens tekniske kontroll; ingen ny visuell
 nettleserverifisering er utført.
 
-Dokumentene er lagret gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73) fra `docs/phase5d-ux-v6-close`.
-Skrivebeskyttet review av head `9355c2fcba32ac253a4373181b52c98db33e44e5`
-er gjennomført uten blokkerende funn. Prosjekteier har bestilt kontrollert
-merge 2026-10-12. Eksakt siste head, mergestatus, mergecommit og PR-/main-CI
-følger GitHub og leveranserapporten; reviewheadens CI erstatter ikke kontroll
-av en senere head eller mergecommit.
+5D-dokumentasjonen er merget gjennom [PR #73](https://github.com/fredrik-stack/kreative-norge-crm/pull/73)
+på `18951b010d46eb7beea85e6c96b228e4472893af`. PR-CI `38306273325` var 6/6
+success på `6a70c14b22e2d408e99b2b10f71995fa2a051830`, og main-CI `38306834660`
+var 6/6 success på mergecommiten. Dette er eksisterende baseline-CI, ikke
+kontroll av den nye plan-/ADR-leveransen; denne krever CI på eksakt siste PR-head og på mergecommiten.
 Runtime, staging og featureflagg er uendret. ADR-011/012 og full ADR-005 er
 fortsatt målarkitektur der de ikke er implementert.
 
-Rekkefølgen er 5D UX-godkjenning → dokumentasjonsleveranse → fersk main →
-read-only 5E → godkjent nødvendig grunnmur → senere Import 2.0-implementering.
-5E skal levere en beslutningsklar implementerings- og testplan og er **IKKE
-STARTET ELLER GODKJENT**. Handoffens mulige 6A/6B/6C-inndeling er et
-planforslag som 5E skal harmonisere med ADR-ene; ingen senere fase omnummereres.
-Kart, direkte Checkin-API og Mailmojo skal ikke forsinke kjerneimporten.
-Browser-aktiv Codex er fortsatt en hard gate ved senere UI-implementering.
+[Fase 5E-planen](PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) er **FULLFØRT / OWNER-APPROVED SOM PLAN**
+2026-10-13, med alle seks hovedvalg godkjent. [ADR-013](../decisions/ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md)
+formaliserer importkontrakten. Den nye plan-/ADR-dokumentasjonen er lagret på `docs/phase5e-approved-plan`
+og leveres gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74); review er gjennomført uten blokkerende funn og kontrollert merge er bestilt 2026-10-13. Faktisk mergestatus og CI følger GitHub. Eksakt
+PR-head, PR-lenke og CI følger GitHub og leveranserapporten. Lokal
+dokumentasjonsreview er gjennomført uten blokkerende funn; senere
+runtime-/aktiveringskontroller er ikke utført.
+Nye runtimeleveranser er **IKKE STARTET**; senere databeslutninger og
+aktiveringskontroller er planlagt, ikke gjennomført.
+
+Vedtatt rekkefølge er 6A deling/tilgang → 6B kontakter/relasjoner → 6C
+stedskjerne → 7A–7E Import 2.0, med parallell privat storage. ADR-012 §28 er
+eiergodkjent presisert: stedskjerne/geografi/nødvendig Editor/additivt API og
+tekstlig PUBLIC før STEDER/import; koordinat-/provider-/kartarbeid følger
+separat med eksisterende krav. Kart, direkte Checkin-API og Mailmojo blokkerer
+ikke kjerneimporten. Ingen ny formell brukertest, manuell prototyperunde eller
+obligatorisk kollegatest. Tekniske tester, browser-aktiv Codex før senere UI
+inkludert Editor-grunnmur og relevant staging-/eiergodkjenning består. Kontrollert dokumentasjonsmerge er bestilt; senere 6A krever separat avgrenset bestilling.
 
 ### Tidligere gjennomførte leveranser
 
@@ -259,7 +269,7 @@ Den avgrensede mellomleveransen sporer offentlig telefon gjennom Editor, API og 
 
 Fase 3A-kartleggingen, ADR-007 og fase 3B-grunnlaget er gjennomført. ADR-008s lokale Hetzner-MVP er **ACTIVE**. Fase 3C og 3D.1–3D.2 er gjennomført som tidligere dokumentert; Brave er operativt deaktivert i påvente av sluttbrukeravtalegaten. ADR-009s 3E.1A safety-ledger/off-server anchor, 3E.1B-materialisering og 3E.1C-controlled serving er **ACTIVE** i staging, 3E.2 er **CLOSED / SHADOW VERIFIED**, og 3E.3–3E.4 er **CLOSED / ACTIVE**. `image_renditions_public` er fortsatt bare artifact-storage. Staging har fire release-aggregater og ni delivery-filer; den permanent denied releasen har ingen originfiler. Ledger v2, permanent syntetisk takedown og live restore-/republishbevis er fullført.
 
-Import 2.0s produkt- og UX-grunnlag er nå godkjent i fase 5D som v6 revisjon 4. Read-only 5E skal levere en beslutningsklar implementerings- og testplan etter dokumentasjonsleveransen og fersk main. Dagens importmotor skal gjenbrukes der den er solid, men skal ikke låse den nye brukeropplevelsen.
+Import 2.0s produkt- og UX-grunnlag er nå godkjent i fase 5D som v6 revisjon 4. 5E er nå eiergodkjent som implementerings- og testplan; ny plan-/ADR-dokumentasjon leveres gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74), med gjennomført review og bestilt kontrollert merge; faktisk mergestatus og CI følger GitHub. Dagens importmotor skal gjenbrukes der den er solid, men skal ikke låse den nye brukeropplevelsen.
 
 ### 4. Internasjonal telefonidentitet – lukket og verifisert
 
