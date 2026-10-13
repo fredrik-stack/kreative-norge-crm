@@ -2,6 +2,34 @@
 
 ## 2026-10-13
 
+### 6A.1 eierbekreftet lesekontroll og dokumentasjonsleveranse
+
+- lagret prosjekteiers bekreftelse mottatt 2026-10-13: avtalt session-/Editor-/admin-/PUBLIC-lesing gjennom vanlig HTTPS fullført uten feil
+- STAGING VERIFIED / OWNER-CONFIRMED innen additiv skjemagrunnmur/API-runtime, utledet fra reviewede tekniske bevis og separat manuell eierbekreftelse; ingen ny testsuite, HTTP-runde eller stagingkjøring av Codex
+- synkronisert de seks dokumentene og roadmap-presiseringen; tidligere PARTIALLY VERIFIED og deployavbrudd er bevart som datert historikk
+- bevart historisk pre-arkiv-/checksumgap, separate checkpoint-/staticbevis og avsluttet midlertidig vern; ingen garanti om dagens fjernarkivtilgjengelighet
+- dokumentasjon leveres på `docs/phase6a1-staging-evidence` som én draft PR; faktisk commit/push/PR/CI/merge følger GitHub. Ingen runtimeendring, ny deploy, backfill eller shared-aktivering
+- [eierbekreftelse og avgrensning](STAGING_PHASE_6A1_SCHEMA_VERIFICATION_2026-10-13.md#prosjekteiers-lesebekreftelse-mottatt-2026-10-13)
+
+### 6A.1 kontrollert API-recovery – delvis stagingverifisert
+
+- gjennomført ett eiergodkjent API-only recreate med kommandoavgrenset Compose API 1.44; eksakt målimage kjører fra merget `b2d4725e8547f49c39256db188107f2ed29ed93c`
+- faktisk klientvalg, tom migrasjonsplan, byteeksakt målimage-kilde og privat rollback-override kontrollert før utskifting; ingen build/pull eller verktøyoppgradering
+- beholdt 0033, alle 31 legacytabellers fingerprints, media/static, mounts, konfigurasjon og safety; DB/web uendret, ingen nginx-reload nødvendig
+- ferske pre/post-checkpoints med checksumkontroll, full verifikasjon og isolert restore uten prune/compact; static bevart separat, fravær av imports/exports kontrollert fra stoppet container
+- backup-timer gjenopptatt og skrivefrys opphevet 17:41:33 UTC / 19:41:33 CEST; ingen permanent checkpoint-/retensjonsendring
+- intern web/TLS-origin/PUBLIC grønne; autorisert Editor-/admin-HTTP uavklart og ekstern HTTPS fortsatt Cloudflare-challenge. Full 6A.1-verifikasjon er ikke erklært
+- opprinnelig prunet pre-arkiv og manglende pre-dumpchecksum består som historiske gap; ingen backfill/deling/neste etappe
+- [recoveryevidens](STAGING_PHASE_6A1_SCHEMA_VERIFICATION_2026-10-13.md#kontrollert-api-recovery-2026-10-13) og alle seks dokumentendringer er fortsatt lokale, ustagede og ikke committet
+
+### 6A.1 staging: schema anvendt, API-deploy avbrutt
+
+- anvendt bare 0033 og bekreftet tomme nye tabeller/NULL-bindinger, bevarte fingerprints for 31 legacytabeller samt uendret media/safety
+- pre/post-backup og isolert restore bestått; ordinær prune fjernet senere pre-arkivet, så det er ikke fortsatt tilbakeføringsgrunnlag
+- API-recreate feilet med Compose 1.29.2 `ContainerConfig`; gammel API startet igjen med 0033 beholdt, uten bred workaround eller schema-reverse
+- ny API-runtime og full 6A.1-stagingverifikasjon er ikke levert; ingen backfill, deling eller neste etappe
+- [evidens](STAGING_PHASE_6A1_SCHEMA_VERIFICATION_2026-10-13.md) og statusendringer er bare lokal, ustaget/ikke committet dokumentasjon
+
 ### 6A.1: additiv domene- og assignmentgrunnmur i PR #75
 
 - lagt til SharingDomain, nullable domain-bindinger og separate profil-/tenantassignments med unikhet og `PROTECT` på nye relasjoner
