@@ -1,9 +1,18 @@
 # 6A.2 – eksplisitt domenebinding og legacyassignment
 
-**Status:** lokalt implementert 2026-10-13; skrivebeskyttet review 2026-10-14 uten
-blokkerende funn. Kode er publisert i PR #77; kontrollert kode-merge uten deploy er bestilt
-2026-10-14. Faktisk siste head, merge og CI følger GitHub og SESSION WRAP-UP.
-Ikke deployet, schema-applied eller backfillet på reelle data.
+**Status 2026-10-14:** Målcommit `63743441a173d2c1b4c71d9f9011b93fbadd2ca4`
+er deployet API-only og 0034 er anvendt i staging. Bevaring og arkivbundne
+pre/post-checkpoints med isolert restore er verifisert. Read-only dry-run
+foreslår 578 endringer, `writes:0`, null batchregistrering. **STAGING VERIFIED /
+OWNER-CONFIRMED innen avtalt API-/schema-/lesescope:** tekniske bevis og
+prosjekteiers fullførte Editor-/admin-/PUBLIC-lesekontroll er grønne.
+Ekstern maskinell HTTPS møtte Cloudflare, adskilt fra eiers manuelle lesebevis.
+Ingen reell backfill eller deling.
+Dry-run er ikke eiergodkjent; senere apply krever fersk godkjenning og gyldige
+driftsporter. [Datert evidens](../status/STAGING_PHASE_6A2_SCHEMA_DRY_RUN_2026-10-14.md).
+Skrivebeskyttet dokumentasjonsreview er fullført uten blokkerende funn.
+Publisering som én draft PR er bestilt på `docs/phase6a2-staging-evidence`;
+faktisk PR/head og CI følger GitHub og SESSION WRAP-UP.
 Godkjent lokal bestilling og presiseringer fra prosjekteier 2026-10-13 under
 ADR-011, ADR-013 og 5E-planen. Dette er operatørstyrt registrering av eksisterende
 tilhørighet, ikke deling eller vanlig brukers assignmenthandling.
