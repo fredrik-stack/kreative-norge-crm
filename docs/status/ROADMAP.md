@@ -328,9 +328,11 @@ funksjon aktivert og stagingverifisert skal rapporteres hver for seg.
 
 **Historisk status etter eiergodkjent recovery 2026-10-13, 17:41:33 UTC / 19:41:33 CEST:** API-only recreate med API 1.44 er fullført til eksakt målimage på `b2d4725e8547f49c39256db188107f2ed29ed93c`; 0033 og data/media/static/safety er bevart. Pre/post-checkpoints og isolert restore er grønne uten prune/compact; backup-timer og normal brukerdrift er gjenopptatt. 6A.1 er **delvis stagingverifisert**, med autorisert Editor-/admin-HTTP og ekstern HTTPS fortsatt uavklart. Før videre leveranse skal lokal recoveryevidens gjennomgås og de manglende lesekontrollene avklares. Ingen automatisk 6A.2, backfill eller delingsaktivering. Se [recoverydelen](STAGING_PHASE_6A1_SCHEMA_VERIFICATION_2026-10-13.md#kontrollert-api-recovery-2026-10-13).
 
-**Gjeldende 6A.1-sluttstatus, eierbekreftelse mottatt 2026-10-13:** STAGING VERIFIED / OWNER-CONFIRMED innen additiv skjemagrunnmur/API-runtime, basert på reviewede tekniske bevis og prosjekteiers fullførte manuelle lesekontroll uten feil. [Eierbekreftelse](STAGING_PHASE_6A1_SCHEMA_VERIFICATION_2026-10-13.md#prosjekteiers-lesebekreftelse-mottatt-2026-10-13). Dokumentasjonen leveres separat som draft PR; ingen ny runtimekjøring, backfill eller shared-aktivering. Videre data-/skrive-/aktiveringsporter består; hele 6A er ikke ferdig.
+**Gjeldende 6A.1-sluttstatus, eierbekreftelse mottatt 2026-10-13:** STAGING VERIFIED / OWNER-CONFIRMED innen additiv skjemagrunnmur/API-runtime, basert på reviewede tekniske bevis og prosjekteiers fullførte manuelle lesekontroll uten feil. [Eierbekreftelse](STAGING_PHASE_6A1_SCHEMA_VERIFICATION_2026-10-13.md#prosjekteiers-lesebekreftelse-mottatt-2026-10-13). Dokumentasjonen er merget gjennom PR #76 på `9407828f2b8f27215828d16b6a4691eabf4cc895`, med grønn main-CI `38457842425`; ingen ny runtimekjøring, backfill eller shared-aktivering. Videre data-/skrive-/aktiveringsporter består; hele 6A er ikke ferdig.
 
 **6A.1 leveransestatus 2026-10-13:** Skjemagrunnmur implementert og gjennomgått i leveransen gjennom [PR #75](https://github.com/fredrik-stack/kreative-norge-crm/pull/75): SharingDomain, nullable tenant-/profilbindinger, separate assignments og parent-slettevern. Ingen seed/backfill, shared leser/writer eller aktivering; STAGING VERIFIED / OWNER-CONFIRMED innen avtalt 6A.1-scope. Full 6A er fortsatt planlagt. Videre backfill/skriving krever egne inventar-, transaksjons-/tilgangs- og aktiveringsporter. Se [DATA_MODEL](../architecture/DATA_MODEL.md).
+
+**6A.2 lokal leveranse 2026-10-13:** Godkjent mekanisme for eksplisitt domenebinding og første legacyassignment er lokalt implementert med dry-run/apply, databasebundet batchregister, smalt ORM-/PostgreSQL-vern og kontrollert sletteavvisning. Skrivebeskyttet review 2026-10-14 fant ingen blokkerende funn; publisering som draft PR er bestilt på `feat/phase6a2-legacy-domain-backfill`. Faktisk commit/push/PR/CI følger GitHub og SESSION WRAP-UP. Ikke deployet eller anvendt på reelle data. Mapping er datert inventargrunnlag, ikke apply-tillatelse. Vanlig profilredigering består; assigned profiler/tenants får godkjent midlertidig slettebegrensning ved senere backfill. Shared tilgang og neste etappe er ikke startet. Se [runbook](../operations/LEGACY_DOMAIN_BACKFILL.md).
 
 SharingDomain, bevarte canonical ID-er, assignments, private overlays,
 avtale/capabilities, revisions-/skrivetjenester, sikre gamle innganger,
@@ -339,6 +341,10 @@ Global rollefallback og tenant-CASCADE må håndteres før shared aktivering;
 private data skilles ut før delt lesing. Legacytag-/privatdatapolicy ligger
 før relevant delt lesing/PUBLIC. Delte kontaktfunksjoner åpnes først når 6B og
 gamle innganger følger samme kontrakt. ADR-011s øvrige porter består.
+
+**Avtalt v1-kartomfang:** Google Maps-basert aktørkart i både Editor CRM og PUBLIC
+inngår i v1 innen ADR-012. Kart leveres separat og skal ikke blokkere utvikling av
+kjerneimporten. Ingen kartimplementering inngår i 6A.2; personkart inngår ikke.
 
 ### 6B – Kontakter, relasjoner og nødvendig Editor-UX
 

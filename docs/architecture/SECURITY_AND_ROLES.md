@@ -22,9 +22,31 @@ den godkjente hardeningen for shared tilgang beskrives nedenfor.
 
 ## 6A.1-skjemaavgrensning 2026-10-13
 
-6A.1 legger til nullable domain-bindinger og separate assignmenttabeller; shared tilgang er ikke aktivert og leveransen er ikke stagingverifisert. Nye felt er utelukket fra eksisterende adminskjemaer/serializers, og de nye modellene er ikke adminregistrert. Ingen nye støttede skriveinnganger eller featureflagg er innført. Legacytenant-filtrering og global rollefallback er uendret.
+6A.1 legger til nullable domain-bindinger og separate assignmenttabeller; shared tilgang er ikke aktivert. 6A.1 er STAGING VERIFIED / OWNER-CONFIRMED innen avtalt skjemagrunnmur/API-runtime, se datert stagingevidens. Nye felt er utelukket fra eksisterende adminskjemaer/serializers, og de nye modellene er ikke adminregistrert. Ingen nye støttede skriveinnganger eller featureflagg er innført. Legacytenant-filtrering og global rollefallback er uendret.
 
-Assignmentenes strukturelle `full_clean()` er ingen autorisasjons- eller databasegaranti for lik domain: save/update/bulk kan omgå den. Senere assignment-write/backfill må ha en støttet transaksjonell grense og beskytte endring av domain på targets. Assignment-FK-ene beskytter parentsletting, men erstatter ikke en autorisert livssyklus for eksplisitt assignmentfjerning. Se [datamodellens 6A.1-avgrensning](DATA_MODEL.md).
+**Historisk kontrakt ved 6A.1:** Assignmentenes strukturelle `full_clean()` er ingen autorisasjons- eller databasegaranti for lik domain: save/update/bulk kan omgå den. Senere assignment-write/backfill må ha en støttet transaksjonell grense og beskytte endring av domain på targets. Assignment-FK-ene beskytter parentsletting, men erstatter ikke en autorisert livssyklus for eksplisitt assignmentfjerning. Se [datamodellens 6A.1-avgrensning](DATA_MODEL.md).
+
+## 6A.2 – lokalt implementert migreringsgrense
+
+`backfill_legacy_domain` er en operatørstyrt, eksplisitt migreringshandling for
+eksisterende tilhørighet. Ingen bruker kan legge profil til en ny tenant gjennom
+API/admin/import som følge av denne leveransen. Aktiv staff/platform-superuser-ID
+registreres med operasjonell CLI-tilgang, miljø/databaseidentitet og godkjent plan.
+Dette erstatter ikke agreement, membership, capabilities, revision/audit eller
+privacyprojeksjon for senere shared handlinger. Global rollefallback er uendret.
+
+Smalt ORM-vern og PostgreSQL-triggere verner strukturfelter/assignments, inklusive
+bulk og samtidige parentendringer. Privat insertadgang gjelder bare tjenestens
+valgte profil/tenant-tupler inne i transaksjonen og opphører ved feil. Batchregister
+og eksplisitt read-back skiller PREPARED fra COMMITTED_VERIFIED uten blind retry.
+Ingen beskyttelse mot DB-administrator som deaktiverer triggere er påstått.
+
+Prosjekteier har godkjent midlertidig sletteavvisning ved senere backfill, også når
+bare egen legacyassignment finnes. API gir 409, admin låser bound legacytenant og
+viser protected-delete. Vanlig tillatt profilredigering fortsetter. Ingen ny
+livssyklus eller assignmentfjerning er autorisert. Leveransen er gjennomgått uten blokkerende funn 2026-10-14 og leveres som draft PR
+på `feat/phase6a2-legacy-domain-backfill`; faktisk commit/push/PR/CI følger GitHub
+og SESSION WRAP-UP. Ikke staginganvendt eller aktivert. Se [runbook](../operations/LEGACY_DOMAIN_BACKFILL.md).
 
 ## Godkjent sharing-domain-sikkerhet – ikke implementert
 

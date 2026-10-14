@@ -93,8 +93,18 @@ class OrganizationPersonInline(admin.TabularInline):
     fields = ("person", "status", "publish_person")
 
 
+class BoundLegacyTenantAdminMixin:
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if obj is not None and obj.sharing_domain_id is not None and "tenant" in form.base_fields:
+            # Django validates the disabled field from the existing instance,
+            # including forged POSTs. The database guard covers non-form writes.
+            form.base_fields["tenant"].disabled = True
+        return form
+
+
 @admin.register(Organization)
-class OrganizationAdmin(admin.ModelAdmin):
+class OrganizationAdmin(BoundLegacyTenantAdminMixin, admin.ModelAdmin):
     exclude = ("sharing_domain",)
     list_display = ("id", "name", "tenant", "org_number", "email", "is_published", "created_at")
     list_filter = ("tenant", "is_published")
@@ -104,7 +114,7 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 
 @admin.register(Person)
-class PersonAdmin(admin.ModelAdmin):
+class PersonAdmin(BoundLegacyTenantAdminMixin, admin.ModelAdmin):
     exclude = ("sharing_domain",)
     list_display = ("id", "full_name", "tenant", "email", "phone", "municipality", "created_at")
     list_filter = ("tenant",)

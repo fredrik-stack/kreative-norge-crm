@@ -6,6 +6,8 @@ from django.core.exceptions import ValidationError
 from django.utils.text import slugify
 from django.conf import settings
 
+from .domain_integrity import AssignmentMixin, DomainBindingMixin
+
 from .validators import (
     validate_e164_phone,
     validate_phone_region,
@@ -279,7 +281,7 @@ class SharingDomain(models.Model):
         return self.name
 
 
-class Tenant(models.Model):
+class Tenant(DomainBindingMixin):
     sharing_domain = models.ForeignKey(
         SharingDomain, null=True, blank=True, on_delete=models.PROTECT,
         related_name="tenants",
@@ -295,6 +297,7 @@ class Tenant(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        base_manager_name = "objects"
         constraints = [
             models.CheckConstraint(
                 condition=(
@@ -579,7 +582,7 @@ class Subcategory(models.Model):
         super().save(*args, **kwargs)
 
 
-class Organization(models.Model):
+class Organization(DomainBindingMixin):
     sharing_domain = models.ForeignKey(
         SharingDomain, null=True, blank=True, on_delete=models.PROTECT,
         related_name="organizations",
@@ -637,6 +640,7 @@ class Organization(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        base_manager_name = "objects"
         indexes = [
             models.Index(fields=["tenant", "name"]),
             models.Index(fields=["tenant", "org_number"]),
@@ -1477,7 +1481,7 @@ class ImageReviewEvent(models.Model):
         return f"ImageReviewEvent #{self.pk or 'new'} ({self.event_type})"
 
 
-class Person(models.Model):
+class Person(DomainBindingMixin):
     sharing_domain = models.ForeignKey(
         SharingDomain, null=True, blank=True, on_delete=models.PROTECT,
         related_name="persons",
@@ -1547,7 +1551,7 @@ def _validate_assignment_domain(assignment, entity_field):
         raise ValidationError(errors)
 
 
-class OrganizationTenantAssignment(models.Model):
+class OrganizationTenantAssignment(AssignmentMixin):
     organization = models.ForeignKey(
         Organization, on_delete=models.PROTECT, related_name="tenant_assignments",
     )
@@ -1558,6 +1562,8 @@ class OrganizationTenantAssignment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        base_manager_name = "objects"
+        default_manager_name = "objects"
         constraints = [models.UniqueConstraint(
             fields=["organization", "tenant"], name="org_tenant_assignment_unique",
         )]
@@ -1567,7 +1573,7 @@ class OrganizationTenantAssignment(models.Model):
         _validate_assignment_domain(self, "organization")
 
 
-class PersonTenantAssignment(models.Model):
+class PersonTenantAssignment(AssignmentMixin):
     person = models.ForeignKey(
         Person, on_delete=models.PROTECT, related_name="tenant_assignments",
     )
@@ -1578,6 +1584,8 @@ class PersonTenantAssignment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        base_manager_name = "objects"
+        default_manager_name = "objects"
         constraints = [models.UniqueConstraint(
             fields=["person", "tenant"], name="person_tenant_assignment_unique",
         )]
@@ -2103,3 +2111,24 @@ class ExportJob(models.Model):
 
     def __str__(self) -> str:
         return f"ExportJob #{self.pk or 'new'} ({self.tenant.slug})"
+
+
+class LegacyDomainBackfillBatch(models.Model):
+    """Operator migration receipt, not shared-user audit or assignment authority."""
+    environment = models.CharField(max_length=64)
+    database_identity = models.CharField(max_length=255)
+    batch_id = models.CharField(max_length=64)
+    request_digest = models.CharField(max_length=64)
+    plan_digest = models.CharField(max_length=64)
+    operator_id = models.PositiveBigIntegerField()
+    code_baseline = models.CharField(max_length=40)
+    manifest_path = models.TextField()
+    state = models.CharField(max_length=32, default="PREPARED")
+    receipt = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(
+            fields=["environment", "database_identity", "batch_id"],
+            name="legacy_domain_batch_identity_unique",
+        )]

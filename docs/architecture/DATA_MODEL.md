@@ -47,6 +47,32 @@ Før senere backfill/write kreves nytt relevant inventar og støttede transaksjo
 
 Bare de nye migrasjonene kan reverseres når domain-bindingene og nye tabeller er tomme og ingen semantisk state tapes. Dette er testet med isolerte legacyfixtures; ikke en garanti for destruktiv rollback etter nye writes. Før senere staging-schema-apply kreves separat bestilling, eksakt commit, verifisert backup/gjenopprettingsgrunnlag og pre/poststate. Historisk 5A er ikke fersk databaseline.
 
+## 6A.2 – lokal backfillmekanisme og integritetsvern
+
+Godkjent lokal implementering 2026-10-13; review uten blokkerende funn 2026-10-14.
+Publisering som draft PR på `feat/phase6a2-legacy-domain-backfill` er bestilt;
+faktisk commit/push/PR/CI følger GitHub og SESSION WRAP-UP. Ikke staginganvendt eller aktivert.
+Ny 0034 legger til unik miljø/database/batchregistrering og fem PostgreSQL-triggere;
+0033 er uendret, uten seed eller RunPython-backfill. `backfill_legacy_domain` har
+read-only snapshot som default og separat eksplisitt apply. PK, legacytenant,
+alle profil-/relasjons-/kontakt-/publication-/bildeverdier og tidsstempler bevares.
+Bare godkjent domainopprettelse/binding og én egen legacyassignment skrives.
+
+ORM-grensen verner domainfelt og assignmentmodeller. Triggerne bruker konflikterende
+FOR SHARE-radlåser for targetvalidering; etablerte bindinger er immutable, bound
+legacytenant kan ikke byttes og assignments kan ikke reassosieres/fjernes.
+Apply låser konkret CRM-/operatørgrunnlag før fresh READ COMMITTED-plan, stale-check,
+atomiske endringer og DB-kvittering. PREPARED er ikke COMMITTED_VERIFIED; en ny path
+omgår ikke batchregisteret. [Runbookens låser og kvitteringskontrakt](../operations/LEGACY_DOMAIN_BACKFILL.md).
+
+Vanlig legacyredigering består. Ny legacyoppretting gir fortsatt NULL/ingen assignment,
+med eksplisitt catch-up før senere shadow. PROTECT gir prosjekteiergodkjent midlertidig
+slettebegrensning også for én egen legacyassignment; API gir kontrollert 409, admin
+låser bound tenantfelt og bruker protected-delete-visning. Ingen assignment-delete-omvei.
+Global rollefallback/shared capabilities, overlays, image-home og PUBLIC er ikke omlagt.
+Reverse av 0034 krever tom semantisk/auditstate; etter backfill bevares state og rettes
+fremover. Isolerte lokale tester/restore er ikke reell data-apply eller stagingbevis.
+
 ## Godkjent stedmålmodell – ikke implementert
 
 [ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md)

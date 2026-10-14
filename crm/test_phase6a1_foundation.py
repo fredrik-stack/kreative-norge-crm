@@ -1,12 +1,14 @@
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, connection, transaction
+from django.db import IntegrityError, connection, transaction, models
 from django.db.models.deletion import ProtectedError
 from django.db.migrations.executor import MigrationExecutor
 from django.forms.models import model_to_dict
 from django.test import TestCase, TransactionTestCase, RequestFactory, override_settings
 from rest_framework.test import APIClient
+
+from crm.domain_integrity import DomainStructureError
 
 from crm.models import (
     SharingDomain, Tenant, Organization, Person,
@@ -14,13 +16,26 @@ from crm.models import (
 )
 
 
+def fixture_bound(model, **values):
+    # Explicit synthetic fixture setup bypasses the application writer boundary.
+    obj = model(**values)
+    models.QuerySet(model=model, using="default").bulk_create([obj])
+    return obj
+
+
+def fixture_assignment(model, **values):
+    obj = model(**values)
+    models.QuerySet(model=model, using="default").bulk_create([obj])
+    return obj
+
+
 class AssignmentFoundationTests(TestCase):
     def setUp(self):
         self.domain = SharingDomain.objects.create(name="Synthetic", slug="synthetic")
-        self.legacy = Tenant.objects.create(name="Legacy", slug="legacy", sharing_domain=self.domain)
-        self.target = Tenant.objects.create(name="Target", slug="target", sharing_domain=self.domain)
-        self.org = Organization.objects.create(name="Actor", tenant=self.legacy, sharing_domain=self.domain)
-        self.person = Person.objects.create(full_name="Person", tenant=self.legacy, sharing_domain=self.domain)
+        self.legacy = fixture_bound(Tenant, name="Legacy", slug="legacy", sharing_domain=self.domain)
+        self.target = fixture_bound(Tenant, name="Target", slug="target", sharing_domain=self.domain)
+        self.org = fixture_bound(Organization, name="Actor", tenant=self.legacy, sharing_domain=self.domain)
+        self.person = fixture_bound(Person, full_name="Person", tenant=self.legacy, sharing_domain=self.domain)
 
     def cases(self):
         return [(OrganizationTenantAssignment, "organization", self.org),
@@ -41,13 +56,13 @@ class AssignmentFoundationTests(TestCase):
                 values = {field: entity, "tenant": self.target}
                 obj = model(**values)
                 obj.full_clean()
-                obj.save()
+                fixture_assignment(model, **values)
                 second = model(**{field: entity, "tenant": self.legacy})
                 second.full_clean()
-                second.save()
+                fixture_assignment(model, **{field: entity, "tenant": self.legacy})
                 self.assertEqual(entity.tenant_assignments.count(), 2)
                 with self.assertRaises(IntegrityError), transaction.atomic():
-                    model.objects.create(**values)
+                    fixture_assignment(model, **values)
 
     def test_database_rejects_null_and_dangling_targets(self):
         for model, field, entity in self.cases():
@@ -55,13 +70,13 @@ class AssignmentFoundationTests(TestCase):
                            {field: entity, "tenant_id": 999999}, {f"{field}_id": 999999, "tenant": self.target}):
                 with self.subTest(model=model.__name__, values=str(values)):
                     with self.assertRaises(IntegrityError), transaction.atomic():
-                        model.objects.create(**values)
+                        fixture_assignment(model, **values)
                         # PostgreSQL FKs are deferred: check within the savepoint.
                         connection.check_constraints()
 
     def test_full_clean_rejects_missing_domains_cross_domain_and_missing_targets(self):
         other = SharingDomain.objects.create(name="Other", slug="other")
-        wrong = Tenant.objects.create(name="Wrong", slug="wrong", sharing_domain=other)
+        wrong = fixture_bound(Tenant, name="Wrong", slug="wrong", sharing_domain=other)
         unbound = Tenant.objects.create(name="Unbound", slug="unbound")
         for model, field, entity in self.cases():
             for tenant in (wrong, unbound):
@@ -73,30 +88,25 @@ class AssignmentFoundationTests(TestCase):
                            {field: entity, "tenant": None}):
                 with self.assertRaises(ValidationError):
                     model(**values).full_clean()
-            entity.sharing_domain = None
-            entity.save(update_fields=["sharing_domain"])
+            unbound_entity = type(entity).objects.create(tenant=unbound, **{"name" if field == "organization" else "full_name": "Unbound"})
             with self.assertRaises(ValidationError):
-                model(**{field: entity, "tenant": self.target}).full_clean()
+                model(**{field: unbound_entity, "tenant": self.target}).full_clean()
 
-    def test_orm_and_bulk_do_not_enforce_cross_domain_validation(self):
-        # This is a documented boundary, not an authorized application writer.
+    def test_phase6a2_closes_previous_orm_and_bulk_cross_domain_bypass(self):
         other = SharingDomain.objects.create(name="Other", slug="other")
-        wrong = Tenant.objects.create(name="Wrong", slug="wrong", sharing_domain=other)
+        wrong = fixture_bound(Tenant, name="Wrong", slug="wrong", sharing_domain=other)
         for model, field, entity in self.cases():
-            obj = model.objects.create(**{field: entity, "tenant": wrong})
-            with self.assertRaises(ValidationError):
-                obj.full_clean()
-            model.objects.filter(pk=obj.pk).update(tenant=self.target)
-            obj.refresh_from_db()
-            obj.full_clean()
-            model.objects.filter(pk=obj.pk).delete()
-            model.objects.bulk_create([model(**{field: entity, "tenant": wrong})])
-            with self.assertRaises(ValidationError):
-                model.objects.get(**{field: entity}).full_clean()
+            values = {field: entity, "tenant": wrong}
+            with self.assertRaises(DomainStructureError):
+                model.objects.create(**values)
+            with self.assertRaises(DomainStructureError):
+                model.objects.bulk_create([model(**values)])
+            with self.assertRaises(IntegrityError), transaction.atomic():
+                fixture_assignment(model, **values)
 
     def test_assignment_protects_profile_target_and_legacy_tenant_without_partial_delete(self):
         for model, field, entity in self.cases():
-            model.objects.create(**{field: entity, "tenant": self.target})
+            fixture_assignment(model, **{field: entity, "tenant": self.target})
         for obj in (self.org, self.person, self.target, self.legacy):
             for operation in (obj.delete, lambda obj=obj: type(obj).objects.filter(pk=obj.pk).delete()):
                 with self.subTest(parent=type(obj).__name__), self.assertRaises(ProtectedError):
@@ -118,7 +128,7 @@ class AssignmentFoundationTests(TestCase):
 
     def test_postgresql_foreign_keys_reject_raw_parent_delete(self):
         for model, field, entity in self.cases():
-            model.objects.create(**{field: entity, "tenant": self.target})
+            fixture_assignment(model, **{field: entity, "tenant": self.target})
         for obj in (self.org, self.person, self.target, self.legacy, self.domain):
             with self.subTest(parent=type(obj).__name__):
                 with self.assertRaises(IntegrityError), transaction.atomic():
@@ -151,7 +161,7 @@ class AssignmentFoundationTests(TestCase):
         request = RequestFactory().get("/admin/")
         request.user = get_user_model().objects.create_superuser(username="admin", password="test")
         for model, field, entity in self.cases():
-            model.objects.create(**{field: entity, "tenant": self.target})
+            fixture_assignment(model, **{field: entity, "tenant": self.target})
         for obj in (self.org, self.person, self.target, self.legacy):
             model_admin = admin.site._registry[type(obj)]
             self.assertNotIn("sharing_domain", model_admin.get_form(request).base_fields)

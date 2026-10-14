@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-13 – 6A.2 lokal domenebinding/backfillmekanisme
+
+- Godkjent lokal operatørkommando/tjeneste med komplett mapping, konsistent read-only
+  dry-run og separat apply; ingen seed eller skjult startupdatamigrering.
+- Ny 0034: PostgreSQL-integritet/synkronisering og unik miljø/database/batchregistrering;
+  0033 beholdt. Smalt ORM-vern, atomisk apply og DB-bundet commitkvittering/read-back.
+- Vanlig profilredigering bevart; bound tenantbytte avvist, godkjent midlertidig
+  slettebegrensning med API 409/adminvern. Nye legacyprofiler krever eksplisitt catch-up.
+- Runbook skiller Docker-image layers/static fra backupdekkede bildemediaområder.
+  Isolerte syntetiske PostgreSQL-funksjons-, samtidighets- og dump/restoretester.
+- Roadmap presisert: Google Maps-aktørkart i Editor CRM og PUBLIC inngår i avtalt v1,
+  men leveres separat uten å blokkere kjerneimport. Ingen kartkode i 6A.2.
+- Review uten blokkerende funn 2026-10-14; publisering som draft PR er bestilt på
+  `feat/phase6a2-legacy-domain-backfill`. Faktisk commit/push/PR/CI følger GitHub
+  og SESSION WRAP-UP. Ingen merge, deploy, reell schema-apply/backfill,
+  Borg-operasjoner eller delingsaktivering. Se [runbook](../operations/LEGACY_DOMAIN_BACKFILL.md).
+
+
 ## 2026-10-13
 
 ### 6A.1 eierbekreftet lesekontroll og dokumentasjonsleveranse

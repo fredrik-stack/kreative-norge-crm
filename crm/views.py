@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate, login, logout
 import importlib
 from dataclasses import asdict
+from django.db.models.deletion import ProtectedError
 from django.db.models import Count
 from django.db.models import Q
 from django.http import FileResponse, HttpResponse
@@ -229,7 +230,18 @@ class SubcategoryViewSet(viewsets.ReadOnlyModelViewSet):
         return qs
 
 
-class OrganizationViewSet(viewsets.ModelViewSet):
+class DomainProtectedDestroyMixin:
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {"code": "profile_delete_protected", "detail": "Profilen har beskyttet tilhørighet eller historikk og kan ikke slettes."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+
+class OrganizationViewSet(DomainProtectedDestroyMixin, viewsets.ModelViewSet):
     permission_classes = [TenantScopedPermission]
     serializer_class = OrganizationSerializer
 
@@ -572,7 +584,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         )
 
 
-class PersonViewSet(viewsets.ModelViewSet):
+class PersonViewSet(DomainProtectedDestroyMixin, viewsets.ModelViewSet):
     permission_classes = [TenantScopedPermission]
     serializer_class = PersonSerializer
 
