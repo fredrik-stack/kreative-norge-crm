@@ -44,7 +44,15 @@ Den [samlede 4H-evidensen 2026-08-26](STAGING_PHASE_4H_PHONE_TECHNICAL_VERIFICAT
 
 **Gjeldende 6A.1-status etter eierbekreftelse mottatt 2026-10-13: STAGING VERIFIED / OWNER-CONFIRMED.** Reviewede tekniske runtime-/schema-/bevarings-/backupbevis og prosjekteiers bekreftelse på session/innlogging, aktør-/personlister med eksisterende kort, adminlister/-skjemaer uten lagring og PUBLIC HTML/API i vanlig HTTPS dekker samlet avtalt 6A.1-scope. Samlet eierresultat: alt fungerer fint og ser bra ut, ingen feilmeldinger. Eksakt klokkeslett, nettleserversjon, statuskoder og rålogger er ikke oppgitt; dette er manuell bekreftelse, ikke ny Codex-automatisering. [Bevisnivå og eierbekreftelse](STAGING_PHASE_6A1_SCHEMA_VERIFICATION_2026-10-13.md#prosjekteiers-lesebekreftelse-mottatt-2026-10-13).
 
-Ingen backfill/shared-aktivering, ferdigmelding av hele 6A/ADR-011 eller neste etappe inngår. Historisk anonym session og maskinell Cloudflare-challenge er ikke nye kodefeil som nå er rettet. Pre-arkiv-/checksumgap og ordinær retensjon består. De seks dokumentene leveres separat på `docs/phase6a1-staging-evidence` som én draft PR; commit/push/PR/CI/merge rapporteres via GitHub og SESSION WRAP-UP.
+Ingen backfill/shared-aktivering, ferdigmelding av hele 6A/ADR-011 eller neste etappe inngår. Historisk anonym session og maskinell Cloudflare-challenge er ikke nye kodefeil som nå er rettet. Pre-arkiv-/checksumgap og ordinær retensjon består. De seks dokumentene er merget gjennom PR #76 på `9407828f2b8f27215828d16b6a4691eabf4cc895`; main-CI `38457842425` er success. Ingen ny stagingdeploy inngikk.
+
+**6A.2 lokal leveranse 2026-10-13:** Godkjent mekanisme for eksplisitt domenebinding og første legacyassignment er lokalt implementert med dry-run/apply, databasebundet batchregister, smalt ORM-/PostgreSQL-vern og kontrollert sletteavvisning. Skrivebeskyttet review 2026-10-14 fant ingen blokkerende funn; kode er publisert i [PR #77](https://github.com/fredrik-stack/kreative-norge-crm/pull/77) på `feat/phase6a2-legacy-domain-backfill`, med grønn CI på gjennomgått head. Kontrollert kode-merge uten deploy er bestilt 2026-10-14. Faktisk siste head, merge og CI følger GitHub og SESSION WRAP-UP. Ikke deployet eller anvendt på reelle data. Mapping er datert inventargrunnlag, ikke apply-tillatelse. Vanlig profilredigering består; assigned profiler/tenants får godkjent midlertidig slettebegrensning ved senere backfill. Shared tilgang og neste etappe er ikke startet. Se [runbook](../operations/LEGACY_DOMAIN_BACKFILL.md).
+
+**Åpent 6A.2-COMMIT-testpunkt:** Gjennomført test dekker filfeil etter vellykket
+COMMIT, ikke forbindelsesbrudd ved COMMIT-svaret med og uten faktisk commit.
+PR-review 2026-10-14 fant ingen kodefeil i banen og vurderte punktet som
+ikke-blokkerende for kode-merge uten deploy. Punktet er fortsatt åpent og skal
+følges opp før reell data-apply klareres. Se [runbook](../operations/LEGACY_DOMAIN_BACKFILL.md#åpent-commit-testpunkt--vurdert-i-pr-review-2026-10-14).
 
 ## Aktiv utviklingsfase
 
