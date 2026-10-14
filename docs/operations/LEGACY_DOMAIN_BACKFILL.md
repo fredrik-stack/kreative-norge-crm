@@ -1,8 +1,8 @@
 # 6A.2 – eksplisitt domenebinding og legacyassignment
 
 **Status:** lokalt implementert 2026-10-13; skrivebeskyttet review 2026-10-14 uten
-blokkerende funn. Publisering som draft PR på `feat/phase6a2-legacy-domain-backfill`
-er bestilt; faktisk commit/push/PR/CI følger GitHub og SESSION WRAP-UP.
+blokkerende funn. Kode er publisert i PR #77; kontrollert kode-merge uten deploy er bestilt
+2026-10-14. Faktisk siste head, merge og CI følger GitHub og SESSION WRAP-UP.
 Ikke deployet, schema-applied eller backfillet på reelle data.
 Godkjent lokal bestilling og presiseringer fra prosjekteier 2026-10-13 under
 ADR-011, ADR-013 og 5E-planen. Dette er operatørstyrt registrering av eksisterende
@@ -206,6 +206,16 @@ API-start kjører migrate/collectstatic og er ingen tillatelse til data-apply.
 Konfigurerte **bildemediaområder** private/public/public-delivery inngår derimot
 i backupdekningen; dette må kontrolleres mot faktisk konfigurasjon.
 Ingen Borg-/stagingoperasjon utføres av kommandoens lokale tester.
+
+### Åpent COMMIT-testpunkt – vurdert i PR-review 2026-10-14
+
+Testen dekker filfeil etter vellykket database-COMMIT. Forbindelsesbrudd ved selve
+COMMIT-svaret, både med og uten faktisk commit, er ikke dekket av denne testen.
+Review fant ingen kodefeil i banen og vurderte punktet som ikke-blokkerende for
+kode-merge uten deploy. Punktet er **fortsatt åpent**, ikke rettet eller lukket.
+Dette er ingen godkjenning av reell data-apply. Begge utfall skal følges opp med
+målrettet isolert verifikasjon som del av senere avklaring før reell apply klareres;
+ingen testimplementering eller driftsoperasjon inngår i mergebestillingen.
 
 ## Lokal verifikasjon
 

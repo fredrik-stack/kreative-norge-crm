@@ -44,9 +44,8 @@ Ingen beskyttelse mot DB-administrator som deaktiverer triggere er påstått.
 Prosjekteier har godkjent midlertidig sletteavvisning ved senere backfill, også når
 bare egen legacyassignment finnes. API gir 409, admin låser bound legacytenant og
 viser protected-delete. Vanlig tillatt profilredigering fortsetter. Ingen ny
-livssyklus eller assignmentfjerning er autorisert. Leveransen er gjennomgått uten blokkerende funn 2026-10-14 og leveres som draft PR
-på `feat/phase6a2-legacy-domain-backfill`; faktisk commit/push/PR/CI følger GitHub
-og SESSION WRAP-UP. Ikke staginganvendt eller aktivert. Se [runbook](../operations/LEGACY_DOMAIN_BACKFILL.md).
+livssyklus eller assignmentfjerning er autorisert. Leveransen er gjennomgått uten blokkerende funn 2026-10-14 og publisert i PR #77. Kontrollert kode-merge uten deploy er bestilt; faktisk siste
+head, merge og CI følger GitHub og SESSION WRAP-UP. Ikke staginganvendt eller aktivert. Se [runbook](../operations/LEGACY_DOMAIN_BACKFILL.md).
 
 ## Godkjent sharing-domain-sikkerhet – ikke implementert
 

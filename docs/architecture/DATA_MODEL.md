@@ -50,8 +50,8 @@ Bare de nye migrasjonene kan reverseres når domain-bindingene og nye tabeller e
 ## 6A.2 – lokal backfillmekanisme og integritetsvern
 
 Godkjent lokal implementering 2026-10-13; review uten blokkerende funn 2026-10-14.
-Publisering som draft PR på `feat/phase6a2-legacy-domain-backfill` er bestilt;
-faktisk commit/push/PR/CI følger GitHub og SESSION WRAP-UP. Ikke staginganvendt eller aktivert.
+Kode er publisert gjennom PR #77; kontrollert kode-merge uten deploy er bestilt
+2026-10-14. Faktisk siste head, merge og CI følger GitHub og SESSION WRAP-UP. Ikke staginganvendt eller aktivert.
 Ny 0034 legger til unik miljø/database/batchregistrering og fem PostgreSQL-triggere;
 0033 er uendret, uten seed eller RunPython-backfill. `backfill_legacy_domain` har
 read-only snapshot som default og separat eksplisitt apply. PK, legacytenant,

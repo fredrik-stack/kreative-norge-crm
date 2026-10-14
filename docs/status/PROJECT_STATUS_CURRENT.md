@@ -46,7 +46,13 @@ Den [samlede 4H-evidensen 2026-08-26](STAGING_PHASE_4H_PHONE_TECHNICAL_VERIFICAT
 
 Ingen backfill/shared-aktivering, ferdigmelding av hele 6A/ADR-011 eller neste etappe inngår. Historisk anonym session og maskinell Cloudflare-challenge er ikke nye kodefeil som nå er rettet. Pre-arkiv-/checksumgap og ordinær retensjon består. De seks dokumentene er merget gjennom PR #76 på `9407828f2b8f27215828d16b6a4691eabf4cc895`; main-CI `38457842425` er success. Ingen ny stagingdeploy inngikk.
 
-**6A.2 lokal leveranse 2026-10-13:** Godkjent mekanisme for eksplisitt domenebinding og første legacyassignment er lokalt implementert med dry-run/apply, databasebundet batchregister, smalt ORM-/PostgreSQL-vern og kontrollert sletteavvisning. Skrivebeskyttet review 2026-10-14 fant ingen blokkerende funn; publisering som draft PR er bestilt på `feat/phase6a2-legacy-domain-backfill`. Faktisk commit/push/PR/CI følger GitHub og SESSION WRAP-UP. Ikke deployet eller anvendt på reelle data. Mapping er datert inventargrunnlag, ikke apply-tillatelse. Vanlig profilredigering består; assigned profiler/tenants får godkjent midlertidig slettebegrensning ved senere backfill. Shared tilgang og neste etappe er ikke startet. Se [runbook](../operations/LEGACY_DOMAIN_BACKFILL.md).
+**6A.2 lokal leveranse 2026-10-13:** Godkjent mekanisme for eksplisitt domenebinding og første legacyassignment er lokalt implementert med dry-run/apply, databasebundet batchregister, smalt ORM-/PostgreSQL-vern og kontrollert sletteavvisning. Skrivebeskyttet review 2026-10-14 fant ingen blokkerende funn; kode er publisert i [PR #77](https://github.com/fredrik-stack/kreative-norge-crm/pull/77) på `feat/phase6a2-legacy-domain-backfill`, med grønn CI på gjennomgått head. Kontrollert kode-merge uten deploy er bestilt 2026-10-14. Faktisk siste head, merge og CI følger GitHub og SESSION WRAP-UP. Ikke deployet eller anvendt på reelle data. Mapping er datert inventargrunnlag, ikke apply-tillatelse. Vanlig profilredigering består; assigned profiler/tenants får godkjent midlertidig slettebegrensning ved senere backfill. Shared tilgang og neste etappe er ikke startet. Se [runbook](../operations/LEGACY_DOMAIN_BACKFILL.md).
+
+**Åpent 6A.2-COMMIT-testpunkt:** Gjennomført test dekker filfeil etter vellykket
+COMMIT, ikke forbindelsesbrudd ved COMMIT-svaret med og uten faktisk commit.
+PR-review 2026-10-14 fant ingen kodefeil i banen og vurderte punktet som
+ikke-blokkerende for kode-merge uten deploy. Punktet er fortsatt åpent og skal
+følges opp før reell data-apply klareres. Se [runbook](../operations/LEGACY_DOMAIN_BACKFILL.md#åpent-commit-testpunkt--vurdert-i-pr-review-2026-10-14).
 
 ## Aktiv utviklingsfase
 

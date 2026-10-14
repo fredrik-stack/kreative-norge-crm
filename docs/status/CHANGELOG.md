@@ -12,9 +12,9 @@
   Isolerte syntetiske PostgreSQL-funksjons-, samtidighets- og dump/restoretester.
 - Roadmap presisert: Google Maps-aktørkart i Editor CRM og PUBLIC inngår i avtalt v1,
   men leveres separat uten å blokkere kjerneimport. Ingen kartkode i 6A.2.
-- Review uten blokkerende funn 2026-10-14; publisering som draft PR er bestilt på
-  `feat/phase6a2-legacy-domain-backfill`. Faktisk commit/push/PR/CI følger GitHub
-  og SESSION WRAP-UP. Ingen merge, deploy, reell schema-apply/backfill,
+- Review uten blokkerende funn 2026-10-14; kode publisert i PR #77 og kontrollert
+  kode-merge uten deploy bestilt samme dato. Faktisk siste head, merge og CI følger
+  GitHub og SESSION WRAP-UP. Ingen deploy, reell schema-apply/backfill,
   Borg-operasjoner eller delingsaktivering. Se [runbook](../operations/LEGACY_DOMAIN_BACKFILL.md).
 
 
