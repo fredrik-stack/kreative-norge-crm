@@ -54,6 +54,24 @@ PR-review 2026-10-14 fant ingen kodefeil i banen og vurderte punktet som
 ikke-blokkerende for kode-merge uten deploy. Punktet er fortsatt åpent og skal
 følges opp før reell data-apply klareres. Se [runbook](../operations/LEGACY_DOMAIN_BACKFILL.md#åpent-commit-testpunkt--vurdert-i-pr-review-2026-10-14).
 
+**Separat lokal COMMIT-testoppfølging 2026-10-14:** Prosjekteier har godkjent
+avgrenset testimplementering fra merget main `ab35b54af6e2763f819faff47cbea0b628db7cc5`.
+To nye tester på lokal branch `test/phase6a2-commit-ack-verification` simulerer
+forbindelsesbrudd ved COMMIT-grensen med og uten faktisk database-COMMIT.
+De kontrollerer uavhengig read-back på ny forbindelse, bevaring og gjentatt
+apply uten nye writes. Ingen runtime-/modell-/migrasjonsendringer.
+Skrivebeskyttet lokal review 2026-10-14 fant ingen kritiske eller viktige funn;
+prosjekteier har bestilt publisering som én draft PR på samme testbranch.
+Faktisk commit/push, PR/head og CI følger GitHub og SESSION WRAP-UP. Bare
+dokumentasjonsstatus synkroniseres ved publisering; testkoden er uendret fra
+reviewgrunnlaget. Punktet er fortsatt åpent frem til separat PR-review og
+statusavklaring; reell data-apply, stagingdeploy og delingsaktivering er ikke
+klarert. Begge nye tester bestod også i motsatt
+rekkefølge; målrettet suite 39/39 og full CRM-suite 609/609 bestod lokalt.
+Fullkjøringen avsluttet 2026-10-14 17:20:49 UTC. Første fullkjørings to
+DNS-relaterte thumbnail-feil, testmiljø, metode og begrensninger følger runbooken;
+ingen kode-/testomgåelse eller ny CI inngår.
+
 ## Aktiv utviklingsfase
 
 ### Fase 5D og 5E – godkjent UX og implementeringsplan
