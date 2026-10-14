@@ -209,7 +209,7 @@ Ingen Borg-/stagingoperasjon utføres av kommandoens lokale tester.
 
 ### Åpent COMMIT-testpunkt – vurdert i PR-review 2026-10-14
 
-Testen dekker filfeil etter vellykket database-COMMIT. Forbindelsesbrudd ved selve
+**Historisk vurdering før testoppfølgingen i PR #78:** Testen dekker filfeil etter vellykket database-COMMIT. Forbindelsesbrudd ved selve
 COMMIT-svaret, både med og uten faktisk commit, er ikke dekket av denne testen.
 Review fant ingen kodefeil i banen og vurderte punktet som ikke-blokkerende for
 kode-merge uten deploy. Punktet er **fortsatt åpent**, ikke rettet eller lukket.
@@ -235,12 +235,16 @@ PREPARED-manifest/manglende `.verified.json` i begge tilfeller og at identisk
 gjentatt apply bare leser tilbake, uten DML, ny plan eller filskriving.
 Eksisterende filfeiltest beholdes separat. Skrivebeskyttet lokal review
 2026-10-14 fant ingen kritiske eller viktige funn og vurderte det avtalte
-testhullet som dekket innen den godkjente simuleringsmetoden. Prosjekteier har
-bestilt publisering som én draft PR på `test/phase6a2-commit-ack-verification`;
-faktisk PR/head og CI følger GitHub og SESSION WRAP-UP. Ingen ny testkode inngår
-i publiseringsøkten. Punktet er **fortsatt åpent frem til separat PR-review og
-statusavklaring**; lokal testverifikasjon er ikke reell mapping-/dry-run-/
-applygodkjenning eller en ny driftsbestilling.
+testhullet som dekket innen den godkjente simuleringsmetoden. Leveransen er
+publisert i [PR #78](https://github.com/fredrik-stack/kreative-norge-crm/pull/78)
+på `test/phase6a2-commit-ack-verification`. Separat skrivebeskyttet PR-review av
+`a168275584b21eee907b96e410e1fe6c7dc249ae` fant ingen kritiske eller viktige funn;
+det avtalte testpunktet er **verifisert og reviewet innen drivergrensesimuleringen**.
+Dette dekker begge faktiske databaseutfall, ikke alle nettverks-/protokollfeil.
+Prosjekteier har bestilt kontrollert ordinær merge uten deploy. Faktisk siste
+head, mergecommit og CI følger PR-en og SESSION WRAP-UP; ingen ny testkode inngår
+i mergeøkten. Denne statusavklaringen er **ikke reell mapping-/dry-run-/
+applygodkjenning** eller en ny driftsbestilling; senere driftsporter består.
 
 Verifisert lokalt 2026-10-14 på testdiff fra main `ab35b54af6e2763f819faff47cbea0b628db7cc5`:
 
