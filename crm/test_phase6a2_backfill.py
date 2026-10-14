@@ -9,7 +9,7 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.db import IntegrityError, close_old_connections, connection, connections, models, transaction
+from django.db import IntegrityError, OperationalError, close_old_connections, connection, connections, models, transaction
 from django.db.models.deletion import ProtectedError
 from django.forms.models import model_to_dict
 from django.test import RequestFactory, TransactionTestCase, override_settings
@@ -159,6 +159,137 @@ class LegacyBackfillTests(TransactionTestCase):
         self.assertEqual(replay["state"], "COMMITTED_VERIFIED")
         self.assertEqual(PersonTenantAssignment.objects.count(), 1)
         self.assertEqual(json.loads(Path(options["manifest_path"]).read_text())["state"], "PREPARED")
+
+    def _lost_commit_response(self, *, commit_reaches_database):
+        """Driver-boundary simulation, not a PostgreSQL wire-protocol fault test.
+
+        Let PREPARED registration commit normally. At the semantic transaction's
+        _commit(), inspect its completed writes, then either really commit or
+        disconnect without committing. In both cases close the physical driver
+        connection and raise the same caller-visible connection error.
+        """
+        options = self.options()
+        before = _snapshot()
+        db = connections["default"]
+        self.addCleanup(db.close)
+        real_commit = db._commit
+        boundaries = []
+        disconnected = []
+
+        def commit_boundary():
+            batch = LegacyDomainBackfillBatch.objects.get(batch_id=options["batch_id"])
+            boundaries.append(batch.state)
+            if batch.state == "PREPARED":
+                return real_commit()
+            self.assertEqual(batch.state, "COMMITTED_VERIFIED")
+            self.assertEqual(batch.receipt["plan_digest"], options["expected_digest"])
+            self.assertEqual(batch.receipt["after"], _snapshot())
+            self.assertEqual(batch.receipt["before"], before)
+            self.assertEqual(OrganizationTenantAssignment.objects.count(), 1)
+            self.assertEqual(PersonTenantAssignment.objects.count(), 1)
+            with db.cursor() as cursor:
+                cursor.execute("SELECT pg_backend_pid()")
+                original_pid = cursor.fetchone()[0]
+
+            # Independent visibility proves PREPARED was committed earlier and
+            # the semantic writes/receipt are still uncommitted at this hook.
+            observer = db.Database.connect(**db.get_connection_params())
+            try:
+                observer.autocommit = True
+                with observer.cursor() as cursor:
+                    cursor.execute("SELECT pg_backend_pid()")
+                    self.assertNotEqual(cursor.fetchone()[0], original_pid)
+                    cursor.execute("SELECT state, receipt FROM crm_legacydomainbackfillbatch WHERE batch_id=%s", [options["batch_id"]])
+                    state, receipt = cursor.fetchone()
+                    self.assertEqual(state, "PREPARED")
+                    if isinstance(receipt, str):
+                        receipt = json.loads(receipt)
+                    self.assertEqual(receipt, {"request": batch.receipt["request"]})
+                    cursor.execute("SELECT count(*) FROM crm_sharingdomain")
+                    self.assertEqual(cursor.fetchone()[0], 0)
+            finally:
+                observer.close()
+
+            driver = db.connection
+            if commit_reaches_database:
+                real_commit()
+            # No manual rollback: disconnect itself aborts the uncommitted case.
+            driver.close()
+            disconnected.append((driver, original_pid))
+            raise OperationalError("synthetic lost COMMIT response")
+
+        with patch.object(db, "_commit", side_effect=commit_boundary):
+            with self.assertRaises(CommandError) as failure:
+                apply_backfill(**options)
+        self.assertEqual(boundaries, ["PREPARED", "COMMITTED_VERIFIED"])
+        self.assertIsInstance(failure.exception.__cause__, OperationalError)
+        self.assertIn("use read-back before any next action", str(failure.exception))
+        self.assertNotIn("rolled back", str(failure.exception).lower())
+        self.assertEqual(len(disconnected), 1)
+        driver, original_pid = disconnected[0]
+        self.assertTrue(driver.closed)
+        # Discard any connection Django opened while unwinding the failed commit.
+        db.close()
+        report = read_batch(environment=options["environment"], expected_database=options["expected_database"],
+                            batch_id=options["batch_id"], operator_id=self.operator.pk)
+        self.assertIsNot(db.connection, driver)
+        with db.cursor() as cursor:
+            cursor.execute("SELECT pg_backend_pid()")
+            self.assertNotEqual(cursor.fetchone()[0], original_pid)
+        self.assertEqual(report["mode"], "READ_BACK")
+        self.assertEqual(LegacyDomainBackfillBatch.objects.count(), 1)
+        self.assertEqual(_snapshot()["preserved"], before["preserved"])
+        if commit_reaches_database:
+            self.assertEqual(report["state"], "COMMITTED_VERIFIED")
+            self.assertTrue(report["current_state_matches_receipt"])
+            self.assertEqual(report["receipt"]["after"], _snapshot())
+            domain = SharingDomain.objects.get()
+            for tenant in (self.tenant, self.empty):
+                tenant.refresh_from_db()
+                self.assertEqual(tenant.sharing_domain_id, domain.pk)
+            for model, obj, assignment, field in (
+                (Organization, self.org, OrganizationTenantAssignment, "organization_id"),
+                (Person, self.person, PersonTenantAssignment, "person_id"),
+            ):
+                self.assertEqual(model.objects.get(pk=obj.pk).sharing_domain_id, domain.pk)
+                self.assertEqual(list(assignment.objects.values_list(field, "tenant_id")), [(obj.pk, self.tenant.pk)])
+        else:
+            self.assertEqual(report["state"], "PREPARED")
+            self.assertEqual(set(report["receipt"]), {"request"})
+            self.assertNotIn("current_state_matches_receipt", report)
+            self.assertEqual(_snapshot(), before)
+            self.assertEqual(SharingDomain.objects.count(), 0)
+            self.assertEqual(OrganizationTenantAssignment.objects.count(), 0)
+            self.assertEqual(PersonTenantAssignment.objects.count(), 0)
+
+        manifest = Path(options["manifest_path"])
+        prepared_bytes = manifest.read_bytes()
+        self.assertEqual(json.loads(prepared_bytes)["state"], "PREPARED")
+        self.assertFalse(Path(str(manifest) + ".verified.json").exists())
+        snapshot = _snapshot()
+        batches = list(LegacyDomainBackfillBatch.objects.values())
+        statements = []
+        def record_sql(execute, sql, params, many, context):
+            statements.append(sql.strip().split()[0].upper())
+            return execute(sql, params, many, context)
+        with db.execute_wrapper(record_sql), \
+                patch("crm.services.domain_backfill._plan") as plan, \
+                patch("crm.services.domain_backfill.write_phone_backfill_manifest") as write_manifest:
+            replay = apply_backfill(**options)
+        plan.assert_not_called()
+        write_manifest.assert_not_called()
+        self.assertFalse({"INSERT", "UPDATE", "DELETE"}.intersection(statements))
+        self.assertEqual(replay, report)
+        self.assertEqual(_snapshot(), snapshot)
+        self.assertEqual(list(LegacyDomainBackfillBatch.objects.values()), batches)
+        self.assertEqual(manifest.read_bytes(), prepared_bytes)
+        self.assertFalse(Path(str(manifest) + ".verified.json").exists())
+
+    def test_lost_commit_response_after_actual_commit(self):
+        self._lost_commit_response(commit_reaches_database=True)
+
+    def test_lost_commit_response_without_actual_commit(self):
+        self._lost_commit_response(commit_reaches_database=False)
 
     def test_inbound_scope_mismatch_and_extra_assignment_are_blockers(self):
         PersonContact.objects.create(tenant=self.other, person=self.person, type="EMAIL", value="wrong@example.invalid")

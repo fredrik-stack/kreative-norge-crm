@@ -209,13 +209,63 @@ Ingen Borg-/stagingoperasjon utføres av kommandoens lokale tester.
 
 ### Åpent COMMIT-testpunkt – vurdert i PR-review 2026-10-14
 
-Testen dekker filfeil etter vellykket database-COMMIT. Forbindelsesbrudd ved selve
+**Historisk vurdering før testoppfølgingen i PR #78:** Testen dekker filfeil etter vellykket database-COMMIT. Forbindelsesbrudd ved selve
 COMMIT-svaret, både med og uten faktisk commit, er ikke dekket av denne testen.
 Review fant ingen kodefeil i banen og vurderte punktet som ikke-blokkerende for
 kode-merge uten deploy. Punktet er **fortsatt åpent**, ikke rettet eller lukket.
 Dette er ingen godkjenning av reell data-apply. Begge utfall skal følges opp med
 målrettet isolert verifikasjon som del av senere avklaring før reell apply klareres;
 ingen testimplementering eller driftsoperasjon inngår i mergebestillingen.
+
+**Separat eiergodkjent lokal testoppfølging 2026-10-14:** To nye tester i
+`crm.test_phase6a2_backfill` simulerer tapt COMMIT-svar ved Django-forbindelsens
+`_commit`-grense, uten runtime-/modell-/migrasjonsendringer. PREPARED-registrering
+committes normalt. Ved den semantiske transaksjonens COMMIT-grense kontrolleres
+fullførte writes og sluttkvittering; en separat PostgreSQL-forbindelse ser ennå
+bare PREPARED og ikke noe nytt domain. Deretter utføres enten ekte driver-COMMIT
+eller ingen COMMIT, før den fysiske forbindelsen lukkes og samme simulerte
+forbindelsesfeil sendes til kalleren. Ingen manuell rollback brukes som
+erstatning for forbindelsesbruddet. Dette er deterministisk simulering ved
+drivergrensen, **ikke** en wire-protokolltest eller bevis for alle nettverksfeil.
+
+Offentlig `read_batch` på en frisk forbindelse med annen backend-PID viser
+henholdsvis COMMITTED_VERIFIED med matchende kvittering/state og PREPARED uten
+semantiske endringer. Testene kontrollerer bevaring, eksakte legacyassignments,
+PREPARED-manifest/manglende `.verified.json` i begge tilfeller og at identisk
+gjentatt apply bare leser tilbake, uten DML, ny plan eller filskriving.
+Eksisterende filfeiltest beholdes separat. Skrivebeskyttet lokal review
+2026-10-14 fant ingen kritiske eller viktige funn og vurderte det avtalte
+testhullet som dekket innen den godkjente simuleringsmetoden. Leveransen er
+publisert i [PR #78](https://github.com/fredrik-stack/kreative-norge-crm/pull/78)
+på `test/phase6a2-commit-ack-verification`. Separat skrivebeskyttet PR-review av
+`a168275584b21eee907b96e410e1fe6c7dc249ae` fant ingen kritiske eller viktige funn;
+det avtalte testpunktet er **verifisert og reviewet innen drivergrensesimuleringen**.
+Dette dekker begge faktiske databaseutfall, ikke alle nettverks-/protokollfeil.
+Prosjekteier har bestilt kontrollert ordinær merge uten deploy. Faktisk siste
+head, mergecommit og CI følger PR-en og SESSION WRAP-UP; ingen ny testkode inngår
+i mergeøkten. Denne statusavklaringen er **ikke reell mapping-/dry-run-/
+applygodkjenning** eller en ny driftsbestilling; senere driftsporter består.
+
+Verifisert lokalt 2026-10-14 på testdiff fra main `ab35b54af6e2763f819faff47cbea0b628db7cc5`:
+
+| Kjøring (`python manage.py test`, inne i engangscontainer) | Resultat | UTC start–slutt |
+| --- | --- | --- |
+| De to nye `LegacyBackfillTests.test_lost_commit_response_*` | 2/2, 0,425 s | 17:15:10–17:15:13 |
+| Samme to testnavn i motsatt rekkefølge | 2/2, 0,409 s | 17:15:13–17:15:16 |
+| `crm.test_phase6a1_foundation crm.test_phase6a2_backfill` | 39/39, 6,565 s | 17:15:16–17:15:24 |
+| `crm.tests.ThumbnailSelectionTests`, etter DNS-avklaring | 4/4, 0,009 s | 17:18:10–17:18:12 |
+| `crm`, full suite med fungerende DNS | 609/609, 154,954 s | 17:18:12–17:20:49 |
+
+Kjøringene overlapper og summeres ikke. Alle brukte `--noinput --verbosity 2`,
+eksisterende API-image `f6d0688b61db` og PostgreSQL 16 i ny container med tmpfs,
+eget nettverk, ingen publiserte DB-porter/eksisterende volumer og read-only
+repomount. Bare syntetiske data; egne containere/nettverk er ryddet.
+Første fulle kjøring 17:15:24–17:16:58 UTC kjørte 609 tester med to feil i
+eksisterende thumbnail-tester: det interne Docker-nettverket hindret DNS-oppslag
+av `example.com`. DNS-feilen ble reprodusert separat; med vanlig Docker-nettverk
+fungerte oppslaget og både thumbnail-testene og full suite bestod uendret.
+Ingen test eller sikkerhetskontroll ble koblet ut. Dette er lokale tester,
+ikke ny CI, stagingverifikasjon, restore eller reell data-apply.
 
 ## Lokal verifikasjon
 

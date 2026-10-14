@@ -48,11 +48,33 @@ Ingen backfill/shared-aktivering, ferdigmelding av hele 6A/ADR-011 eller neste e
 
 **6A.2 lokal leveranse 2026-10-13:** Godkjent mekanisme for eksplisitt domenebinding og første legacyassignment er lokalt implementert med dry-run/apply, databasebundet batchregister, smalt ORM-/PostgreSQL-vern og kontrollert sletteavvisning. Skrivebeskyttet review 2026-10-14 fant ingen blokkerende funn; kode er publisert i [PR #77](https://github.com/fredrik-stack/kreative-norge-crm/pull/77) på `feat/phase6a2-legacy-domain-backfill`, med grønn CI på gjennomgått head. Kontrollert kode-merge uten deploy er bestilt 2026-10-14. Faktisk siste head, merge og CI følger GitHub og SESSION WRAP-UP. Ikke deployet eller anvendt på reelle data. Mapping er datert inventargrunnlag, ikke apply-tillatelse. Vanlig profilredigering består; assigned profiler/tenants får godkjent midlertidig slettebegrensning ved senere backfill. Shared tilgang og neste etappe er ikke startet. Se [runbook](../operations/LEGACY_DOMAIN_BACKFILL.md).
 
-**Åpent 6A.2-COMMIT-testpunkt:** Gjennomført test dekker filfeil etter vellykket
+**Historisk åpent 6A.2-COMMIT-testpunkt før PR #78:** Gjennomført test dekker filfeil etter vellykket
 COMMIT, ikke forbindelsesbrudd ved COMMIT-svaret med og uten faktisk commit.
 PR-review 2026-10-14 fant ingen kodefeil i banen og vurderte punktet som
 ikke-blokkerende for kode-merge uten deploy. Punktet er fortsatt åpent og skal
 følges opp før reell data-apply klareres. Se [runbook](../operations/LEGACY_DOMAIN_BACKFILL.md#åpent-commit-testpunkt--vurdert-i-pr-review-2026-10-14).
+
+**Separat lokal COMMIT-testoppfølging 2026-10-14:** Prosjekteier har godkjent
+avgrenset testimplementering fra merget main `ab35b54af6e2763f819faff47cbea0b628db7cc5`.
+To nye tester på lokal branch `test/phase6a2-commit-ack-verification` simulerer
+forbindelsesbrudd ved COMMIT-grensen med og uten faktisk database-COMMIT.
+De kontrollerer uavhengig read-back på ny forbindelse, bevaring og gjentatt
+apply uten nye writes. Ingen runtime-/modell-/migrasjonsendringer.
+Skrivebeskyttet lokal review 2026-10-14 fant ingen kritiske eller viktige funn;
+leveransen er publisert i [PR #78](https://github.com/fredrik-stack/kreative-norge-crm/pull/78).
+Separat skrivebeskyttet PR-review av `a168275584b21eee907b96e410e1fe6c7dc249ae`
+fant heller ingen kritiske eller viktige funn. Det avtalte testpunktet er
+verifisert og reviewet innen drivergrensesimuleringen, ikke som bevis for alle
+nettverks-/protokollfeil. Prosjekteier har bestilt kontrollert ordinær merge
+uten deploy; faktisk siste head, mergecommit og CI følger GitHub og SESSION
+WRAP-UP. Bare dokumentasjonsstatus synkroniseres i mergeøkten; testkoden er
+uendret fra reviewgrunnlaget. Reell data-apply, stagingdeploy og delingsaktivering
+er fortsatt ikke klarert. Begge nye tester bestod også i motsatt
+rekkefølge; målrettet suite 39/39 og full CRM-suite 609/609 bestod lokalt.
+Fullkjøringen avsluttet 2026-10-14 17:20:49 UTC. Første fullkjørings to
+DNS-relaterte thumbnail-feil, testmiljø, metode og begrensninger følger runbooken;
+ingen kode-/testomgåelse inngår. PR-CI for gjennomgått head er grønn (run
+`38627160229`, 6/6); en ny statuscommit krever ny grønn PR-CI før merge.
 
 ## Aktiv utviklingsfase
 
