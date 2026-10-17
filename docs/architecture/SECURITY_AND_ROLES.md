@@ -28,6 +28,15 @@ den godkjente hardeningen for shared tilgang beskrives nedenfor.
 
 ## 6A.2 – lokalt implementert migreringsgrense
 
+**Gjeldende stagingstatus 2026-10-14:** Ny API og 0034/integritetsvern er
+deployet/anvendt; ingen reell domenebinding, assignment eller batch er opprettet.
+Dry-run var read-only med null writes. Eksisterende miljø/flagg, rettigheter og
+safety/deny-state er bevart. STAGING VERIFIED / OWNER-CONFIRMED innen avtalt
+API-/schema-/lesescope, basert på tekniske bevis og eiers fullførte lesekontroll.
+Maskinell ekstern Cloudflare-avvisning er adskilt fra manuelt eierbevis.
+Ingen applygodkjenning eller shared-aktivering følger av dette.
+Se [datert evidens](../status/STAGING_PHASE_6A2_SCHEMA_DRY_RUN_2026-10-14.md).
+
 `backfill_legacy_domain` er en operatørstyrt, eksplisitt migreringshandling for
 eksisterende tilhørighet. Ingen bruker kan legge profil til en ny tenant gjennom
 API/admin/import som følge av denne leveransen. Aktiv staff/platform-superuser-ID
@@ -44,7 +53,7 @@ Ingen beskyttelse mot DB-administrator som deaktiverer triggere er påstått.
 Prosjekteier har godkjent midlertidig sletteavvisning ved senere backfill, også når
 bare egen legacyassignment finnes. API gir 409, admin låser bound legacytenant og
 viser protected-delete. Vanlig tillatt profilredigering fortsetter. Ingen ny
-livssyklus eller assignmentfjerning er autorisert. Leveransen er gjennomgått uten blokkerende funn 2026-10-14 og publisert i PR #77. Kontrollert kode-merge uten deploy er bestilt; faktisk siste
+livssyklus eller assignmentfjerning er autorisert. **Historisk leveransestatus før staging:** Leveransen er gjennomgått uten blokkerende funn 2026-10-14 og publisert i PR #77. Kontrollert kode-merge uten deploy er bestilt; faktisk siste
 head, merge og CI følger GitHub og SESSION WRAP-UP. Ikke staginganvendt eller aktivert. Se [runbook](../operations/LEGACY_DOMAIN_BACKFILL.md).
 
 ## Godkjent sharing-domain-sikkerhet – ikke implementert

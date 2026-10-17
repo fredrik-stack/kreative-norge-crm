@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-14 – 6A.2 API/schema og read-only dry-run i staging
+
+- API-only deploy av `63743441a173d2c1b4c71d9f9011b93fbadd2ca4`; 0034 anvendt, 0033 bevart. Ingen ny runtimekode eller backfill.
+- Eksakt målimage og fem triggere verifisert; gamle CRM-/authverdier, media/static, miljø/mounts og safety bevart. Web/DB beholdt.
+- Ikke-prunende pre/post-checkpoints med separate arkiv-/dumpchecksums og isolert restore; timere og API-policy gjenopprettet, vindu avsluttet.
+- Dry-run: 578 foreslåtte endringer, writes:0, ingen batchregistrering; ikke eiergodkjent eller anvendt.
+- STAGING VERIFIED / OWNER-CONFIRMED innen avtalt API-/schema-/lesescope etter tekniske bevis og eiers fullførte Editor-/admin-/PUBLIC-lesekontroll uten feil. Maskinell ekstern Cloudflare-avvisning er bevart som separat observasjon.
+- [Datert 6A.2-evidens](STAGING_PHASE_6A2_SCHEMA_DRY_RUN_2026-10-14.md). Dokumentasjonen er publisert og PR-reviewet uten blokkerende funn i [PR #79](https://github.com/fredrik-stack/kreative-norge-crm/pull/79). Kontrollert dokumentasjonsmerge er bestilt 2026-10-17; faktisk merge/head og CI følger GitHub og SESSION WRAP-UP. Ingen ny drift eller applygodkjenning inngår. Ingen delingsaktivering eller neste etappe.
+
 ## 2026-10-13 – 6A.2 lokal domenebinding/backfillmekanisme
 
 - Godkjent lokal operatørkommando/tjeneste med komplett mapping, konsistent read-only

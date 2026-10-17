@@ -49,7 +49,15 @@ Bare de nye migrasjonene kan reverseres når domain-bindingene og nye tabeller e
 
 ## 6A.2 – lokal backfillmekanisme og integritetsvern
 
-Godkjent lokal implementering 2026-10-13; review uten blokkerende funn 2026-10-14.
+**Gjeldende stagingstatus 2026-10-14:** 0034 er anvendt og eksakt API-målcommit
+`63743441a173d2c1b4c71d9f9011b93fbadd2ca4` kjører. Fem triggere/batchschema og
+bevart legacyinnhold er teknisk verifisert. Alle domains/bindinger/assignments og
+batchregister er fortsatt tomme/NULL; dry-run ga 578 forslag og null writes.
+Ingen reell backfill eller shared-aktivering. STAGING VERIFIED / OWNER-CONFIRMED
+innen API-/schema-/lesescope etter tekniske bevis og eiers lesekontroll;
+se [datert evidens](../status/STAGING_PHASE_6A2_SCHEMA_DRY_RUN_2026-10-14.md).
+
+**Historisk leveransestatus før staging:** Godkjent lokal implementering 2026-10-13; review uten blokkerende funn 2026-10-14.
 Kode er publisert gjennom PR #77; kontrollert kode-merge uten deploy er bestilt
 2026-10-14. Faktisk siste head, merge og CI følger GitHub og SESSION WRAP-UP. Ikke staginganvendt eller aktivert.
 Ny 0034 legger til unik miljø/database/batchregistrering og fem PostgreSQL-triggere;
