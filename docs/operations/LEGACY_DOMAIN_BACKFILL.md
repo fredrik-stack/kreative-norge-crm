@@ -11,8 +11,10 @@ Ingen reell backfill eller deling.
 Dry-run er ikke eiergodkjent; senere apply krever fersk godkjenning og gyldige
 driftsporter. [Datert evidens](../status/STAGING_PHASE_6A2_SCHEMA_DRY_RUN_2026-10-14.md).
 Skrivebeskyttet dokumentasjonsreview er fullført uten blokkerende funn.
-Publisering som én draft PR er bestilt på `docs/phase6a2-staging-evidence`;
-faktisk PR/head og CI følger GitHub og SESSION WRAP-UP.
+Dokumentasjonen er publisert og PR-reviewet uten blokkerende funn i
+[PR #79](https://github.com/fredrik-stack/kreative-norge-crm/pull/79). Kontrollert
+dokumentasjonsmerge er bestilt 2026-10-17; faktisk merge/head og CI følger
+GitHub og SESSION WRAP-UP. Ingen ny drift eller applygodkjenning inngår.
 Godkjent lokal bestilling og presiseringer fra prosjekteier 2026-10-13 under
 ADR-011, ADR-013 og 5E-planen. Dette er operatørstyrt registrering av eksisterende
 tilhørighet, ikke deling eller vanlig brukers assignmenthandling.

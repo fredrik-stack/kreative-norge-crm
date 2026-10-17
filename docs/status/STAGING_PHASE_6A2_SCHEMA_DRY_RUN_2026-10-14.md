@@ -181,10 +181,11 @@ lokal syntetisk testsuite ble kjørt i driftsøkten; tidligere lokale/CI-kontrak
 gjenbrukes for negative write-/delete-/reversetester.
 
 Skrivebeskyttet review av de åtte dokumentfilene og private driftsbevis fant
-ingen kritiske eller viktige funn. Publisering som én draft PR er bestilt på
-`docs/phase6a2-staging-evidence`; faktisk commit/push, PR/head og ny ordinær CI
-følger GitHub og SESSION WRAP-UP. Publiseringen endrer bare nødvendig
-review-/leveransestatus, uten ny drift eller utvidet applygodkjenning.
+ingen kritiske eller viktige funn. Dokumentasjonen er publisert og PR-reviewet
+uten blokkerende funn i [PR #79](https://github.com/fredrik-stack/kreative-norge-crm/pull/79).
+Kontrollert dokumentasjonsmerge er bestilt 2026-10-17; faktisk merge/head og CI
+følger GitHub og SESSION WRAP-UP. Dette er bare review-/leveransestatus,
+uten ny drift eller utvidet applygodkjenning.
 
 **Stoppunkt:** kode merget / API deployet / 0034 anvendt / bevaring og checkpoint-
 restore verifisert / dry-run produsert / autorisert lesekontroll eierbekreftet /

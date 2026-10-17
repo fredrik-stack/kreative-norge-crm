@@ -7,7 +7,7 @@
 - Ikke-prunende pre/post-checkpoints med separate arkiv-/dumpchecksums og isolert restore; timere og API-policy gjenopprettet, vindu avsluttet.
 - Dry-run: 578 foreslåtte endringer, writes:0, ingen batchregistrering; ikke eiergodkjent eller anvendt.
 - STAGING VERIFIED / OWNER-CONFIRMED innen avtalt API-/schema-/lesescope etter tekniske bevis og eiers fullførte Editor-/admin-/PUBLIC-lesekontroll uten feil. Maskinell ekstern Cloudflare-avvisning er bevart som separat observasjon.
-- [Datert 6A.2-evidens](STAGING_PHASE_6A2_SCHEMA_DRY_RUN_2026-10-14.md). Dokumentasjonen er gjennomgått uten blokkerende funn; publisering som én draft PR er bestilt på `docs/phase6a2-staging-evidence`. Faktisk PR/head og CI følger GitHub og SESSION WRAP-UP. Ingen delingsaktivering eller neste etappe.
+- [Datert 6A.2-evidens](STAGING_PHASE_6A2_SCHEMA_DRY_RUN_2026-10-14.md). Dokumentasjonen er publisert og PR-reviewet uten blokkerende funn i [PR #79](https://github.com/fredrik-stack/kreative-norge-crm/pull/79). Kontrollert dokumentasjonsmerge er bestilt 2026-10-17; faktisk merge/head og CI følger GitHub og SESSION WRAP-UP. Ingen ny drift eller applygodkjenning inngår. Ingen delingsaktivering eller neste etappe.
 
 ## 2026-10-13 – 6A.2 lokal domenebinding/backfillmekanisme
 
