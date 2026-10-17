@@ -162,8 +162,10 @@ Privat detaljevidens: `/root/phase6a2-apply-20261017-01/` (0700, sensitive filer
 Skrivebeskyttet review av de åtte dokumentfilene mot eksakt applyordre, private
 bevis og ny eierbekreftelse fant ingen kritiske eller viktige funn. Alle filer
 matchet reviewmanifestet før publisering; bare nødvendig leveransestatus er justert.
-Publisering som én draft PR er bestilt på `docs/phase6a2-backfill-evidence`;
-faktisk commit/push, PR/head og ordinær CI følger GitHub og SESSION WRAP-UP.
+Dokumentasjonen er publisert og PR-reviewet uten blokkerende funn i
+[PR #80](https://github.com/fredrik-stack/kreative-norge-crm/pull/80).
+Kontrollert dokumentasjonsmerge er bestilt 2026-10-17; faktisk merge/head og CI
+følger GitHub og SESSION WRAP-UP. Ingen ny drift eller applygodkjenning inngår.
 Ingen ny lokal testsuite eller driftsoperasjon inngår i dokumentasjonspubliseringen.
 Historisk 6A.1-evidens og datert 6A.2-schema/dry-run-evidens er bevart uendret.
 
