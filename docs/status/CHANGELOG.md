@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-17 – første eiergodkjente 6A.2-legacybackfill i staging
+
+- Eksakt godkjent plan anvendt én gang: 578 semantiske endringer; én COMMITTED_VERIFIED-batch, frisk read-back og no-op uten restendringer.
+- Pre/post-checkpoints uten prune/compact, full verifikasjon og isolert restore. Faktisk restaurert backfill/batch/kvittering/triggere/bevaring kontrollert read-only før cleanup.
+- Imports/exports bevist fraværende mot stanset API; separate supplements og static sikret uten permanent skriptendring.
+- Ingen ny runtimekode, deploy, schemaendring, deling eller neste etappe. Samme API startet igjen, timere gjenopprettet og driftsvindu avsluttet. Prosjekteier bekreftet etterfølgende eksisterende Editor-/admin-/PUBLIC-lesing uten feil; STAGING VERIFIED / OWNER-CONFIRMED innen avtalt backfill-/bevarings-/lesescope.
+- [Datert evidens](STAGING_PHASE_6A2_BACKFILL_2026-10-17.md). Dokumentasjonen er reviewet uten blokkerende funn; publisering som én draft PR er bestilt på `docs/phase6a2-backfill-evidence`. Faktisk PR/head og CI følger GitHub og SESSION WRAP-UP.
+
 ## 2026-10-14 – 6A.2 API/schema og read-only dry-run i staging
 
 - API-only deploy av `63743441a173d2c1b4c71d9f9011b93fbadd2ca4`; 0034 anvendt, 0033 bevart. Ingen ny runtimekode eller backfill.
