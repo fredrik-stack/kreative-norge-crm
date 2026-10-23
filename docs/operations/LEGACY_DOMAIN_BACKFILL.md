@@ -184,9 +184,12 @@ Assignment må aldri slettes først for å omgå parent-PROTECT/FK-vern. Siste
 assignment/canonical delete og ombinding er senere autoriserte livssykluser.
 Dette er en faktisk slettebegrensning etter backfill, ikke uendret sletteadferd.
 
-Nye legacyprofiler tas igjen gjennom separat, fersk scope/dry-run/catch-up før
-senere duplicate inventory/migration manifest og shadow/cutover. Denne
-førkontrollen eller kvitteringen erstatter ikke ADR-011s senere trinn.
+Presisering 2026-10-23: Nye NULL-bundne legacyprofiler kan rapporteres i
+lesende inventar og [PK-shadow](DOMAIN_READ_SHADOW.md) uten catch-up. De gir
+ufullstendig dekning; konsistent domainbundet delscope kan vurderes separat.
+Dette autoriserer ingen catch-up eller cutover. Eventuell senere data-apply
+krever fortsatt separat fersk scope/dry-run/godkjenning. Denne førkontrollen
+eller kvitteringen erstatter ikke ADR-011s senere trinn.
 Ingen multiassignment-brukerhandling, shared reader/writer, privat overlay,
 PUBLIC-cutover, image-home, kontakter/Places eller Import 2.0 er aktivert.
 

@@ -326,6 +326,15 @@ funksjon aktivert og stagingverifisert skal rapporteres hver for seg.
 
 ### 6A – Deling og tilgang
 
+**PK-shadowleveranse 2026-10-23:** Operatørbasert sammenligningskode for ADR-011
+migreringstrinn 6 er implementert i separat kodeleveranse med default-off gate;
+review/merge/CI følger PR-en. Stagingdeploy og måling er en egen etterfølgende
+del av det avgrensede mandatet og er ikke bevist av lokal kode/test.
+NULL-profiler gir eksplisitt deldekning uten automatisk catch-up. Legacylesing
+forblir autoritativ; ingen shared reader/writer eller neste etappe aktiveres.
+Se [mandat og målekontrakt](../operations/DOMAIN_READ_SHADOW.md).
+
+
 **Historisk første stagingutføring 2026-10-13:** 0033 anvendt uten backfill; data/media/safety bevart. API-deploy avbrutt av Compose `ContainerConfig`, gammel API tilbakeført. Full 6A.1-stagingverifikasjon er ikke fullført; avgrenset API-recovery krevde da ny bestilling. Ingen delingsaktivering eller oppstart av 6A.2. Se [evidens](STAGING_PHASE_6A1_SCHEMA_VERIFICATION_2026-10-13.md).
 
 **Historisk status etter eiergodkjent recovery 2026-10-13, 17:41:33 UTC / 19:41:33 CEST:** API-only recreate med API 1.44 er fullført til eksakt målimage på `b2d4725e8547f49c39256db188107f2ed29ed93c`; 0033 og data/media/static/safety er bevart. Pre/post-checkpoints og isolert restore er grønne uten prune/compact; backup-timer og normal brukerdrift er gjenopptatt. 6A.1 er **delvis stagingverifisert**, med autorisert Editor-/admin-HTTP og ekstern HTTPS fortsatt uavklart. Før videre leveranse skal lokal recoveryevidens gjennomgås og de manglende lesekontrollene avklares. Ingen automatisk 6A.2, backfill eller delingsaktivering. Se [recoverydelen](STAGING_PHASE_6A1_SCHEMA_VERIFICATION_2026-10-13.md#kontrollert-api-recovery-2026-10-13).
