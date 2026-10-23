@@ -146,7 +146,7 @@ Hele 6A og framtidig delt tilgang erklæres ikke ferdig.
 
 ## Lokal kodeverifikasjon 2026-10-23
 
-Isolert lokal PostgreSQL 16 i egen Docker-container: 21 nye målrettede tester
+Isolert lokal PostgreSQL 16 i egen Docker-container: 22 nye målrettede tester
 bestod, inklusive alle 14 kombinasjoner/tomme sett, like antall/ulike PK-er,
 manglende/ekstra assignments, syntetiske umulige domainbrudd uten svekket DB-vern,
 NULL-deldekning uten writes, ekte samtidig profiloppretting, read-only-avvisning,
@@ -161,5 +161,7 @@ syntetisk lokal test, ikke en stagingmåling eller ny datagodkjenning.
 Separat review av første kodehead fant at Djangos globale `--traceback` kunne
 endre ikke-null CLI-exitkoder til 1. CLI-wrapperen er rettet, og faktisk
 subprocess-kjøring bekrefter exit 2/3/4 og fast stderr også med dette flagget.
-Alle 21 målrettede tester bestod etter rettingen. De 130 uendrede eksisterende
+Alle 22 målrettede tester bestod etter rettingen. Argumentforkortelser er
+avslått, slik at `--trace`/`--traceb`/`--tr` avvises sanitert med exit 4 og
+aldri kan aktivere Djangos traceback-modus. De 130 uendrede eksisterende
 regresjonene ble ikke gjentatt for denne isolerte wrapperrettingen.

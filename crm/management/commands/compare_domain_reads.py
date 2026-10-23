@@ -26,6 +26,8 @@ class Command(BaseCommand):
         ])
 
     def create_parser(self, prog_name, subcommand, **kwargs):
+        # Otherwise --trace is accepted as --traceback by argparse.
+        kwargs["allow_abbrev"] = False
         parser = super().create_parser(prog_name, subcommand, **kwargs)
         parser.__class__ = SanitizedParser
         return parser

@@ -238,6 +238,18 @@ class DomainReadShadowTests(TransactionTestCase):
 
 
 class ShadowConfigurationTests(SimpleTestCase):
+    def test_traceback_abbreviations_are_sanitized_argument_errors(self):
+        env = {**os.environ, "SHARING_DOMAIN_SHADOW_ENABLED": "False"}
+        for flag in ("--trace", "--traceb", "--tr"):
+            result = subprocess.run([
+                sys.executable, "manage.py", "compare_domain_reads", flag,
+                "--environment", "test", "--expected-database", "private-input",
+                "--code-baseline", "a" * 40,
+            ], env=env, capture_output=True, text=True, cwd=settings.BASE_DIR)
+            self.assertEqual(result.returncode, 4)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(result.stderr.strip(), "INVALID_ARGUMENTS")
+
     def test_real_cli_gate_off_with_traceback_keeps_exit_four(self):
         env = {**os.environ, "SHARING_DOMAIN_SHADOW_ENABLED": "False"}
         result = subprocess.run([
