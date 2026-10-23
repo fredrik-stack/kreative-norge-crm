@@ -2,7 +2,7 @@
 
 **Status:** Gjeldende grunnarbeidsflyt
 
-**Sist oppdatert:** 2026-08-07
+**Sist oppdatert:** 2026-10-23
 
 ## Fredrik Development System
 
@@ -115,18 +115,36 @@ Eksisterende dokumenterte senere gater kan utsettes til de faktisk blokkerer nes
 
 ## Normal leveransesyklus
 
-1. Prosjekteier og ChatGPT avklarer mål, avgrensning og akseptansekriterier.
-2. Ukjente feil diagnostiseres før retting.
-3. Større retning designes og godkjennes i et ADR før implementering.
-4. Spesifikasjonen lagres eller oppdateres i repoet når oppgaven er større.
-5. Codex analyserer berørte deler av kodebasen.
-6. Codex implementerer i en passende branch eller avtalt arbeidsflyt.
-7. Relevante automatiske tester kjøres.
-8. Lokal Docker-test gjennomføres når risiko eller omfang tilsier det.
-9. Endringen committes og pushes til GitHub.
-10. Staging deployes og testes.
-11. Dokumentasjon og prosjektstatus oppdateres eller kontrolleres.
-12. Prosjekteier godkjenner eller bestiller oppfølging.
+**Datert presisering 2026-10-23:** Ett uttrykkelig mandat kan omfatte hele
+leveransen. Mandatet angir scope, akseptansekriterier, tillatte handlinger og
+sluttpunkt, inklusive om merge og staging er bestilt. Skills gir ingen fullmakt
+i seg selv. Innen et slikt mandat fortsetter gjennomføreren uten nye
+bekreftelser ved skilloverganger eller trygge rettinger innen scope.
+
+1. Avklar mandatet; diagnostiser ukjente feil før retting. Større retning krever godkjent ADR.
+2. Verifiser utgangspunktet med skrivebeskyttet oppstart. Lagre større oppgavers mandat i relevant dokument under `docs/`.
+3. Implementer minste robuste løsning, kjør nødvendige tester og oppdater eller kontroller dokumentasjonen.
+4. Commit, push og opprett draft PR. PR-en samler eller lenker mandat, endringer, validering, review, CI, faktisk leveransestatus og beslutningsbehov.
+5. Bruk en faktisk separat reviewer med `$gjennomga-siste-endring`. Egenkontroll er ikke uavhengig review. Revieweren leser dokumentert base og head og endrer ikke kode, branch, database eller PR.
+6. Gjennomføreren lagrer reviewresultatet med base-/headreferanser i PR-en eller et lenket dokument, retter funn innen mandatet, retester og innhenter relevant nytt review. Endringer etter review krever relevant ny validering; dokumenter hva siste review dekker.
+7. Når review er uten blokkerende funn og nødvendige PR-kontroller er grønne på gjeldende head, gjør PR-en klar og utfør kontrollert ordinær merge dersom bestilt. GitHubs påkrevde godkjenninger og branchregler består; ingen adminomgåelse.
+8. Kontroller nødvendig main-CI på faktisk mergecommit før bestilt stagingarbeid.
+9. Deploy og verifiser staging bare når mandatet bestiller det og relevante driftsporter er oppfylt. Dokumentasjonsendringer alene utløser ikke deploy.
+10. Publiser nødvendig sanitert evidens og status med samme PR-/review-/merge-/CI-krav. Dokumentasjonsmerge krever ingen ny deploy eller ny dokumentasjonsrunde bare for å registrere sin egen merge; GitHub er fasit.
+11. Lever ett samlet SESSION WRAP-UP ved avtalt sluttpunkt eller reell blokkering. Ikke start neste produktleveranse automatisk.
+
+Stopp ved nytt produkt-/arkitektur-/scopevalg, handling utenfor mandatet,
+manglende nødvendig tilgang eller menneskelig handling, en kvalitets-/driftsport
+som ikke kan oppfylles trygt, eller en viktig faglig uenighet som ikke løses.
+Oppgi ferdig arbeid, konkrete bevis, nøyaktig hindring, anbefalt løsning og den
+ene beslutningen eller handlingen som trengs. Test-/reviewfunn med trygg løsning
+innen scope håndteres videre uten ny eiergodkjenning. Påkrevde kontroller svekkes ikke.
+
+Oppstart, kontinuitetsbro og avslutning beholder skrivebeskyttede roller.
+`$fullfor-til-staging` utfører autoriserte leveransehandlinger også for en
+dokumentasjonsleveranse; fagskills brukes etter behov innen samme mandat.
+ChatGPT kan hente publisert grunnlag fra GitHub. Automatisk kommunikasjon eller
+varsling mellom separate ChatGPT-/Codex-sesjoner er ikke etablert.
 
 ## Når lokal testing bør prioriteres
 
@@ -194,7 +212,7 @@ Varig lagret:
 
 Avslutningen skal i tillegg foreslå neste ChatGPT-prompt og neste Codex-prompt. Siste seksjon skal være `Kopier inn i neste Codex-session` med en ferdig prompt som starter `$start-arbeidsokt`, angir dagens neste fokus og navngir anbefalt videre skill.
 
-Avslutningsskillen endrer ikke filer og committer, pusher, merger eller deployer ikke. Slike handlinger skal allerede være gjennomført av riktig leveranseskill eller bestilles uttrykkelig i en separat arbeidsfase.
+Avslutningsskillen endrer ikke filer og committer, pusher, merger eller deployer ikke. Slike handlinger utføres av leveranseskillen innen gjeldende mandat før avslutningskontrollen, eller bestilles senere hvis de faller utenfor mandatet. Skilloverganger utløser ikke egne avslutninger eller nye godkjenningspunkter.
 
 ## Dokumentasjonsplikt
 

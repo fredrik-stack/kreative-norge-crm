@@ -85,5 +85,7 @@ Hvis hele `CHATGPT SESSION SUMMARY` skal følge med inn i Codex, kan prompten br
 - Strategisk rekkefølge lagres i `docs/status/ROADMAP.md`.
 - Verifisert nåstatus lagres i `docs/status/PROJECT_STATUS_CURRENT.md`.
 - Implementasjon og historikk lagres i Git og pushes til GitHub.
+- PR-er skal samle eller lenke mandat, versjonsbundet review, CI, faktisk leveransestatus og beslutningsbehov etter WORKFLOW.md. ChatGPT kan hente dette publiserte grunnlaget; automatisk kommunikasjon eller varsling mellom separate sesjoner er ikke etablert.
+- Et gjeldende uttrykkelig leveransemandat videreføres etter skrivebeskyttet oppstart; skills gir ikke fullmakter i seg selv. Ett samlet wrap-up leveres ved sluttpunkt eller reell blokkering.
 - Samtaler og session-sammendrag er midlertidige arbeidsflater.
 - Session-flyten skal ikke generere parallelle `*REFERENCE`-, `*STATUS`- eller håndoffdokumenter i repo-roten. Oppdater den autoritative filen under `docs/`, eller oppbevar midlertidige kontekstpakker utenfor repoet.

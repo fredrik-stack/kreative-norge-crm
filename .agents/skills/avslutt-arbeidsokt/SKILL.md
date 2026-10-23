@@ -7,6 +7,8 @@ description: Avslutt en utviklings-, planleggings- eller kvalitetsøkt i Kreativ
 
 Følg `AGENTS.md`, `docs/development/WORKFLOW.md` og `docs/development/DOCUMENTATION_RULES.md`. Verifiser mot repo, Git og tilgjengelig GitHub-status; ikke bruk samtalehistorikken alene som bevis.
 
+Bruk én samlet avslutning ved mandatets faktiske sluttpunkt eller reell blokkering, ikke ved interne skilloverganger. Autoriserte leveransehandlinger fullføres av leveranseskillen før denne skrivebeskyttede kontrollen.
+
 1. Sammenlign dagens fokus og eventuell startbaseline med faktisk diff, staged diff, nye filer, commits og upstream. Ikke tilskriv økten filer som var skitne eller usporede før arbeidet startet.
 2. Skill tydelig mellom:
    - **implementert:** finnes i lokal diff eller commit

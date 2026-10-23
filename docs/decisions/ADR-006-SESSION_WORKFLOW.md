@@ -6,6 +6,32 @@ Godkjent og implementert i repoets session-workflow. Alle 15 skills er strukture
 
 **Beslutningsdato:** 2026-07-24
 
+## Datert presisering 2026-10-23 – sammenhengende leveransemandat
+
+Prosjekteier har godkjent at ett avgrenset mandat kan følge implementering/test
+→ commit/push/draft PR → faktisk separat skrivebeskyttet review → retting,
+retest og relevant re-review → kontrollert ordinær merge → main-CI → uttrykkelig
+bestilt staging → publisert evidens. [WORKFLOW.md](../development/WORKFLOW.md#normal-leveransesyklus)
+er operativ kontrakt. Denne presiseringen viderefører historikken nedenfor.
+
+Mandatet angir scope, aksept, tillatte handlinger og sluttpunkt. Skills utvider
+ikke fullmakten. Skilloverganger og trygge rettinger innen mandatet trenger ikke
+ny eiergodkjenning. Ett samlet SESSION WRAP-UP gis ved sluttpunkt eller reell
+blokkering; oppstart, bro og avslutning forblir skrivebeskyttede.
+
+Leveranseskillen eier også bestilt publisering av dokumentasjonsarbeid. Samme
+review-/mergekrav gjelder dokumentasjons-PR-er; disse utløser ikke deploy.
+Review gjelder dokumentert base/head; reviewer endrer ikke kode, branch,
+database eller PR. Gjennomføreren lagrer review med versjonsreferanser og
+innhenter relevant ny validering etter endringer. Egenkontroll er ikke
+uavhengig review, og GitHubs godkjenninger/branchregler kan ikke omgås.
+
+PR-er samler eller lenker mandat, review, CI og faktisk leveransestatus;
+stabil kunnskap ligger fortsatt i eksisterende `docs/`. ChatGPT kan hente
+publisert grunnlag fra GitHub, men automatisk kommunikasjon eller varsling
+mellom separate sesjoner er ikke etablert. Ingen ny orkestrering, integrasjon,
+deployautomatisering eller endring av tilgangs-/sandboxregler inngår.
+
 ## Forhold til eksisterende utviklingssystem
 
 Denne beslutningen viderefører de fire grunnreglene i `AGENTS.md` og arbeidsnivåene i `docs/development/FREDRIK_DEVELOPMENT_SYSTEM.md`.

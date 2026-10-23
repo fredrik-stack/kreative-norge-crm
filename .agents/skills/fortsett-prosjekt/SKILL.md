@@ -14,7 +14,7 @@ Følg `AGENTS.md`, `docs/development/CHATGPT_SESSION_CONTINUITY.md` og session-k
 5. Bruk angitt Codex-fokus når det er konsistent med repoet. Hvis fokus mangler, bruk øverste uavsluttede roadmap-prioritet som anbefaling.
 6. Deleger den tekniske oppstarten til `$start-arbeidsokt` og følg dens komplette outputkontrakt. Ikke dupliser eller forkort Git-, risiko- eller project-health-kontrollene.
 
-I Codex er dette en tynn bro, ikke strategisk produktprioritering. Ikke endre filer, starte implementering, stage, committe, pushe, merge eller deploye. En senere handling krever en ny uttrykkelig bestilling og riktig fag-skill.
+I Codex er dette en tynn bro, ikke strategisk produktprioritering. Ikke endre filer, starte implementering, stage, committe, pushe, merge eller deploye. Etter kontroll og oppstartsrapport kan riktig fag-/leveranseskill fortsette når gjeldende bestilling allerede uttrykkelig gir mandat; broen utfører ikke handlingene selv.
 
 ## Output
 
