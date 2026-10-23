@@ -85,6 +85,9 @@ DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() == "true"
 SHARING_DOMAIN_SHADOW_ENABLED = _read_fail_closed_bool(
     "SHARING_DOMAIN_SHADOW_ENABLED", default=False,
 )
+TENANT_NOTE_OVERLAYS_ENABLED = _read_fail_closed_bool(
+    "TENANT_NOTE_OVERLAYS_ENABLED", default=False,
+)
 
 IMAGE_ASSET_FEATURE_ENABLED = _read_fail_closed_bool(
     "IMAGE_ASSET_FEATURE_ENABLED",
