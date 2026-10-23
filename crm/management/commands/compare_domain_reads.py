@@ -18,6 +18,13 @@ class Command(BaseCommand):
     requires_system_checks = []
     requires_migrations_checks = False
 
+    def run_from_argv(self, argv):
+        # This operator command always preserves its sanitized status/exit contract.
+        # Django's global --traceback would otherwise re-raise CommandError as exit 1.
+        return super().run_from_argv([
+            *argv[:2], *(arg for arg in argv[2:] if arg != "--traceback"),
+        ])
+
     def create_parser(self, prog_name, subcommand, **kwargs):
         parser = super().create_parser(prog_name, subcommand, **kwargs)
         parser.__class__ = SanitizedParser

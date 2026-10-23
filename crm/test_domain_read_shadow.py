@@ -238,6 +238,35 @@ class DomainReadShadowTests(TransactionTestCase):
 
 
 class ShadowConfigurationTests(SimpleTestCase):
+    def test_real_cli_gate_off_with_traceback_keeps_exit_four(self):
+        env = {**os.environ, "SHARING_DOMAIN_SHADOW_ENABLED": "False"}
+        result = subprocess.run([
+            sys.executable, "manage.py", "compare_domain_reads", "--traceback",
+            "--environment", "test", "--expected-database", "private-input",
+            "--code-baseline", "a" * 40,
+        ], env=env, capture_output=True, text=True, cwd=settings.BASE_DIR)
+        self.assertEqual(result.returncode, 4)
+        self.assertEqual(json.loads(result.stdout)["reason_codes"], ["GATE_DISABLED"])
+        self.assertEqual(result.stderr.strip(), "CommandError: INCOMPLETE")
+        self.assertNotIn("private-input", result.stdout + result.stderr)
+
+    def test_real_cli_wrapper_preserves_all_nonzero_statuses_with_traceback(self):
+        # Exercise the actual Django CLI wrapper, without a database or weakened guards.
+        for status, code in (("EXPLAINED_PARTIAL", 2), ("FAILED", 3), ("INCOMPLETE", 4)):
+            script = (
+                "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings'); "
+                "import django; django.setup(); "
+                "from unittest.mock import patch; "
+                "from crm.management.commands.compare_domain_reads import Command; "
+                f"p=patch('crm.management.commands.compare_domain_reads.measure',return_value={{'status':{status!r}}}); "
+                "p.start(); Command().run_from_argv(['manage.py','compare_domain_reads','--traceback',"
+                "'--environment','test','--expected-database','private-input','--code-baseline','" + "a" * 40 + "'])"
+            )
+            result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, cwd=settings.BASE_DIR)
+            self.assertEqual(result.returncode, code, result.stderr)
+            self.assertEqual(json.loads(result.stdout)["status"], status)
+            self.assertEqual(result.stderr.strip(), f"CommandError: {status}")
+
     def test_fail_closed_bool_parser_and_default(self):
         for raw, expected in ((None, False), ("True", True), (" on ", True), ("False", False), ("private-invalid", False)):
             env = os.environ.copy(); env.pop("SHARING_DOMAIN_SHADOW_ENABLED", None)

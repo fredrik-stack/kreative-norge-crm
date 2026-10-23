@@ -62,7 +62,7 @@ retting av de to historiske telefonavvikene.
 
 Maskinlesbar JSON kommer på stdout. Ved ikke-null status kommer bare en fast
 status på stderr. Argumentfeil gir fast `INVALID_ARGUMENTS` og exit 4 uten å
-ekko argumentverdier. `--traceback` eksponerer ikke underliggende målefeil.
+ekko argumentverdier. `--traceback` ignoreres av CLI-wrapperen slik at både sanitering og faste exitkoder bevares.
 Faste reason codes omfatter `GATE_DISABLED`, `INVALID_CONTEXT`,
 `POSTGRESQL_REQUIRED`, `OUTER_TRANSACTION`, `DATABASE_MISMATCH`, `SCOPE_MISMATCH`,
 `SNAPSHOT_MISMATCH`, `INTERRUPTED`, `MEASUREMENT_ERROR` og PK-/strukturkodene i
@@ -146,7 +146,7 @@ Hele 6A og framtidig delt tilgang erklæres ikke ferdig.
 
 ## Lokal kodeverifikasjon 2026-10-23
 
-Isolert lokal PostgreSQL 16 i egen Docker-container: 19 nye målrettede tester
+Isolert lokal PostgreSQL 16 i egen Docker-container: 21 nye målrettede tester
 bestod, inklusive alle 14 kombinasjoner/tomme sett, like antall/ulike PK-er,
 manglende/ekstra assignments, syntetiske umulige domainbrudd uten svekket DB-vern,
 NULL-deldekning uten writes, ekte samtidig profiloppretting, read-only-avvisning,
@@ -157,3 +157,9 @@ serving bestod. `makemigrations --check --dry-run` ga ingen endringer.
 Relative dokumentlenker og `git diff --check` bestod. Eksisterende OpenAPI-
 serializeradvarsler opptrådte i regresjonssuiten; testene bestod. Dette er
 syntetisk lokal test, ikke en stagingmåling eller ny datagodkjenning.
+
+Separat review av første kodehead fant at Djangos globale `--traceback` kunne
+endre ikke-null CLI-exitkoder til 1. CLI-wrapperen er rettet, og faktisk
+subprocess-kjøring bekrefter exit 2/3/4 og fast stderr også med dette flagget.
+Alle 21 målrettede tester bestod etter rettingen. De 130 uendrede eksisterende
+regresjonene ble ikke gjentatt for denne isolerte wrapperrettingen.
