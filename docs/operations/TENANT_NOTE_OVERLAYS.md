@@ -1,5 +1,12 @@
 # Tenantprivate notater – inaktiv lagringsgrunnmur
 
+**Staging 2026-10-24:** PR #85 er separat reviewet/ordinært merget og deployet
+på `5c39ec51b3f5a7af20f05f2367d51afa0075e952` etter grønn main-CI, 6/6.
+0035 er anvendt; nye tabeller er tomme og gaten effektivt/varig av. Ett notat-/
+taginventar og teknisk bevaring er fullført. [Faktisk evidens, tellinger og
+beslutningsbehov](../status/STAGING_PHASE_6A_NOTE_OVERLAYS_2026-10-24.md).
+Dette er inaktiv grunnmur, ikke notatflytting, runtimeomlegging eller fullført trinn 7.
+
 ## Mandat 2026-10-24 og leveransegrense
 
 Prosjekteiers bestilling av ADR-011 migreringstrinn 7 autoriserer additiv

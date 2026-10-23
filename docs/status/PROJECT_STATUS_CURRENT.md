@@ -1,16 +1,22 @@
 # Project Status Current
 
-## Tenantprivate notater – lokal grunnmur 2026-10-24
+## Tenantprivate notater – inaktiv grunnmur stagingverifisert 2026-10-24
 
-ADR-011 trinn 7 har en additiv notatgrunnmur under levering: separate
-OrganizationNoteOverlay/PersonNoteOverlay, én-til-én til eksisterende assignment,
-nullable note og separat `TENANT_NOTE_OVERLAYS_ENABLED=False`. 0035 oppretter
-bare nye tabeller og identitetsvern; ingen eksisterende data kopieres.
-Legacy note/tags og alle aktive brukerinnganger forblir autoritative. Ingen
-shared tilgang, fallback, private tags eller fullført trinn 7. [Mandat,
-lagringskontrakt og kartlagt migreringsgrunnlag](../operations/TENANT_NOTE_OVERLAYS.md).
-Review/merge/CI og faktisk stagingstatus dokumenteres separat; staging er ennå
-ikke utført for denne leveransen.
+[Kode-PR #85](https://github.com/fredrik-stack/kreative-norge-crm/pull/85) er separat
+reviewet og ordinært merget på `5c39ec51b3f5a7af20f05f2367d51afa0075e952`;
+main-CI `40035930772` er SUCCESS, 6/6. Eksakt kode/image er deployet API-only,
+og bare additiv0035 er anvendt. Begge overlaytabeller er tomme, FK/unikhet/PK og
+identitetsvern er verifisert; `TENANT_NOTE_OVERLAYS_ENABLED` er effektivt/varig av.
+Eksisterende CRM-innhold, miljø, media/static, safety og teknisk API/admin/PUBLIC
+består; arkivbundne pre/post-backup-/restorekontroller er grønne og timere aktive.
+Ett read-only inventar viser 273 NULL-, 6 tomme og 6 tekstnotater på 285 profiler,
+med korrekt egen assignment og ingen observerte scopeavvik. 60 legacytags,
+97 koblinger, 13 ubrukte; ingen klassifisering eller flytting.
+[Sanitert stagingevidens](../status/STAGING_PHASE_6A_NOTE_OVERLAYS_2026-10-24.md)
+og [mandat/rutematrise](../operations/TENANT_NOTE_OVERLAYS.md) beskriver grunnlag
+og senere beslutningsbehov. Legacy note/tags er autoritative; ingen overlaylesing,
+shared tilgang, private tags eller fullført trinn 7/6A. Evidenspublisering følger
+GitHub; dokumentasjonsmerge utløser ingen deploy.
 
 
 **Operatørbasert PK-shadow – teknisk stagingverifisert 2026-10-24:** Arbeidsflyt/skills er levert gjennom [PR #82](https://github.com/fredrik-stack/kreative-norge-crm/pull/82). [Kode-PR #83](https://github.com/fredrik-stack/kreative-norge-crm/pull/83) er separat reviewet, ordinært merget på `ad876846275ff46b3d2827a9507598ecf3ba6e1d` og deployet API-only etter main-CI `40028992875` success (6/6). Én operatørmåling ga **FULL_EQUAL**, exit 0: alle 14 tenant-/modellkombinasjoner, 128 aktører / 157 personer og 285 egne assignments, ingen nye NULL-profiler eller strukturelle avvik. Gaten er fortsatt effektivt False i ordinær runtime og varig konfigurasjon. Pre/post-backup med full verify/isolert restore, relevante tekniske lese-/helsekontroller og bevaring er grønne; timere er gjenopprettet. Første deploystopp ved gammel shell-PID 1/exit 137 ble kontrollert gjenopprettet og korrigert før måling. [Sanitert stagingevidens](STAGING_PHASE_6A_READ_SHADOW_2026-10-24.md) skiller PK-bevis, autorisert teknisk lesing og øvrige begrensninger. Ingen shared reader/writer, catch-up, kandidatavgjørelse eller telefonretting; hele 6A er ikke ferdig. [Mandat/målekontrakt](../operations/DOMAIN_READ_SHADOW.md). Evidensens review/merge/CI følger separat dokumentasjons-PR; ingen ny deploy følger av dokumentasjonsmerge.

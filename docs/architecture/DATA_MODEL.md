@@ -1,16 +1,22 @@
 # Data Model
 
-## Tenantprivate notater – lokal grunnmur 2026-10-24
+## Tenantprivate notater – inaktiv grunnmur stagingverifisert 2026-10-24
 
-ADR-011 trinn 7 har en additiv notatgrunnmur under levering: separate
-OrganizationNoteOverlay/PersonNoteOverlay, én-til-én til eksisterende assignment,
-nullable note og separat `TENANT_NOTE_OVERLAYS_ENABLED=False`. 0035 oppretter
-bare nye tabeller og identitetsvern; ingen eksisterende data kopieres.
-Legacy note/tags og alle aktive brukerinnganger forblir autoritative. Ingen
-shared tilgang, fallback, private tags eller fullført trinn 7. [Mandat,
-lagringskontrakt og kartlagt migreringsgrunnlag](../operations/TENANT_NOTE_OVERLAYS.md).
-Review/merge/CI og faktisk stagingstatus dokumenteres separat; staging er ennå
-ikke utført for denne leveransen.
+[Kode-PR #85](https://github.com/fredrik-stack/kreative-norge-crm/pull/85) er separat
+reviewet og ordinært merget på `5c39ec51b3f5a7af20f05f2367d51afa0075e952`;
+main-CI `40035930772` er SUCCESS, 6/6. Eksakt kode/image er deployet API-only,
+og bare additiv0035 er anvendt. Begge overlaytabeller er tomme, FK/unikhet/PK og
+identitetsvern er verifisert; `TENANT_NOTE_OVERLAYS_ENABLED` er effektivt/varig av.
+Eksisterende CRM-innhold, miljø, media/static, safety og teknisk API/admin/PUBLIC
+består; arkivbundne pre/post-backup-/restorekontroller er grønne og timere aktive.
+Ett read-only inventar viser 273 NULL-, 6 tomme og 6 tekstnotater på 285 profiler,
+med korrekt egen assignment og ingen observerte scopeavvik. 60 legacytags,
+97 koblinger, 13 ubrukte; ingen klassifisering eller flytting.
+[Sanitert stagingevidens](../status/STAGING_PHASE_6A_NOTE_OVERLAYS_2026-10-24.md)
+og [mandat/rutematrise](../operations/TENANT_NOTE_OVERLAYS.md) beskriver grunnlag
+og senere beslutningsbehov. Legacy note/tags er autoritative; ingen overlaylesing,
+shared tilgang, private tags eller fullført trinn 7/6A. Evidenspublisering følger
+GitHub; dokumentasjonsmerge utløser ingen deploy.
 
 
 **Datert 6A.2-backfillstatus 2026-10-17:** Eiergodkjent eksakt plan er anvendt i staging: ett domain, sju tenantbindinger, 285 profilbindinger og 285 egne legacyassignments. Batch `phase6a2-staging-20261017-01` er COMMITTED_VERIFIED med matchende frisk read-back og separat no-op-plan uten restendringer. Bevaring og arkivbundet post-restore av faktisk backfill er verifisert. Samme API kjører og driftsvinduet er avsluttet med timere gjenopprettet; prosjekteier har bekreftet eksisterende Editor-/admin-/PUBLIC-lesing uten feil. STAGING VERIFIED / OWNER-CONFIRMED innen avtalt backfill-/bevarings-/lesescope, se [datert evidens](../status/STAGING_PHASE_6A2_BACKFILL_2026-10-17.md). Ingen shared-aktivering eller ferdigmelding av hele 6A. Midlertidig slettebegrensning består; senere catch-up/apply krever separat godkjenning. Skrivebeskyttet review av de åtte dokumentfilene er fullført uten kritiske eller viktige funn. Dokumentasjonen er publisert og PR-reviewet uten blokkerende funn i [PR #80](https://github.com/fredrik-stack/kreative-norge-crm/pull/80). Kontrollert dokumentasjonsmerge er bestilt 2026-10-17; faktisk merge/head og CI følger GitHub og SESSION WRAP-UP. Ingen ny drift eller applygodkjenning inngår. Eldre daterte avsnitt nedenfor beskriver historisk grunnlag.
