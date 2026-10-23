@@ -95,6 +95,10 @@ Feil ikke-NULL domain eller assignments er avvik. Dette presiserer eldre
 formulering om catch-up før enhver shadow; senere cutover/data-apply har egne porter.
 Se [målekontrakt og mandat](../operations/DOMAIN_READ_SHADOW.md). Kode levert,
 review/merge, deploy og faktisk måling rapporteres separat gjennom PR/evidens.
+**Staging 2026-10-24:** PR #83 er merget/deployet etter grønn main-CI. Alle 14
+kombinasjoner ga FULL_EQUAL med null NULL-/strukturavvik; operatørgaten er fortsatt
+av. [Datert evidens](../status/STAGING_PHASE_6A_READ_SHADOW_2026-10-24.md).
+Ingen shared reader eller full ADR-011-implementering følger av dette.
 
 ## Godkjent stedmålmodell – ikke implementert
 
