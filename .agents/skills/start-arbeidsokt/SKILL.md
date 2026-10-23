@@ -32,7 +32,7 @@ Bruk denne faste rekkefølgen:
 8. `ANBEFALT SKILL`
 9. `ARBEIDSPLAN`
 
-Ikke endre kode, dokumentasjon eller ekstern tilstand. Ikke stage, commit, push, merge eller deploy. Hvis samme brukerprompt uttrykkelig ber om videre arbeid med en navngitt skill, fullfør først oppstartsrapporten og overlat deretter til den skillen.
+Ikke endre kode, dokumentasjon eller ekstern tilstand. Ikke stage, commit, push, merge eller deploy. Hvis samme brukerprompt uttrykkelig ber om videre arbeid med en navngitt skill, fullfør først oppstartsrapporten og overlat deretter til den skillen. Fortsett innen eksisterende mandat uten ny bekreftelse; skillovergangen er ikke et avslutningspunkt.
 
 ## Output
 

@@ -64,7 +64,7 @@ undersøk → planlegg ved større konsekvens → ADR → Codex-oppgave
 → implementering → gjennomgang → dokumentasjonskontroll → release-forberedelse
 ```
 
-Skillene foreslår neste naturlige skill i slutten av hvert resultat. Dette er veiledning, ikke automatisk kjeding. Session-start velger normalt inngang til riktig nivå, mens session-slutt pakker en kontrollert handoff.
+Skillene foreslår neste naturlige skill i slutten av hvert resultat. Dette er veiledning, ikke fullmakt i seg selv. Et uttrykkelig sammenhengende mandat kan likevel autorisere fortsettelse mellom skills uten nye bekreftelser; se WORKFLOW.md. Session-start velger normalt inngang til riktig nivå, mens session-slutt pakker en kontrollert handoff.
 
 ## Ansvar og sannhetskilder
 
@@ -103,6 +103,6 @@ Når en arbeidsflyt endres:
 3. Kontroller at skillen fortsatt avslutter med `Output` og `Neste anbefalte skill`.
 4. Kjør strukturell validering for alle skills.
 5. Oppdater Skill Pack-katalogen og eksemplene dersom rolle eller overgang endres.
-6. Start en ny Codex-session og kontroller eksplisitt og relevant implisitt aktivering.
+6. Ved endret oppdagelsesmetadata: start en ny Codex-session og kontroller relevant aktivering. Ved instruksjonsendring i eksisterende skills: kontroller struktur, referanser og faktisk separat review; ikke påstå ny runtimeoppdagelse uten bevis.
 
 Se `FREDRIK_SKILL_PACK.md` for teknisk struktur og `EXAMPLES.md` for praktisk bruk.

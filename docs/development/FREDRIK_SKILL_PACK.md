@@ -94,6 +94,8 @@ De etablerer baseline og handoff, men utfører ikke diagnose, beslutning, implem
 - `$oppdater-prosjektdokumentasjonen`
 - `$klargjor-produksjonssetting`
 
+Sammenhengende leveranser følger [WORKFLOW.md](WORKFLOW.md#normal-leveransesyklus): eksplisitt mandat, draft PR, faktisk separat skrivebeskyttet review, retting/retest/re-review, ordinær merge og main-CI før eventuell bestilt staging. Oppstart/avslutning er skrivebeskyttet; skilloverganger er ikke egne godkjenningspunkter.
+
 Nivåene er en konseptuell arbeidsflyt. De 12 fagskillene, de 2 session-skillene og kontinuitetsbroen ligger flatt fordi den dokumenterte oppdagelsesroten er `.agents/skills/`, og Codex har ingen dokumentert metadatafunksjon for nivågrupper eller tvungen rekkefølge.
 
 ## Hvordan Codex oppdager og bruker skills

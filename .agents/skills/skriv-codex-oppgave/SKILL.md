@@ -15,10 +15,10 @@ Prompten skal:
 4. angi tydelige avgrensninger og hva som ikke skal gjøres
 5. definere akseptansekriterier
 6. angi nødvendige tester og om lokal Docker kreves
-7. angi branch-, commit-, push- og stagingkrav
+7. angi ett mandat med tillatte branch-/commit-/push-/draft-PR-/review-/merge-/CI-handlinger og om staging er bestilt; følg sammenhengende leveranseflyt i WORKFLOW.md
 8. kreve dokumentasjonsoppdatering når funksjonalitet endres
 9. kreve sluttrapport etter formatet i workflowen
-10. angi stoppunkt dersom godkjenning kreves før neste fase
+10. angi faktisk sluttpunkt og reelle stoppgrenser; skilloverganger og trygge rettinger innen mandatet krever ikke nye bekreftelser
 
 Hold prompten kort nok til daglig bruk, men komplett nok til at Codex ikke må gjette. Ikke implementer oppgaven.
 

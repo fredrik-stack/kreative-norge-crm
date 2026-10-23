@@ -147,7 +147,7 @@ Bruk når retning og akseptansekriterier er godkjent og leveransen skal helt til
 ```text
 $fullfor-til-staging
 
-Gjennomfør den godkjente rettingen av thumbnail-preview, kjør relevante tester, oppdater docs, commit, push og kontroller brukerreisen i staging.
+Gjennomfør den godkjente rettingen av thumbnail-preview innen avtalt scope. Mandatet omfatter tester/docs, commit/push/draft PR, faktisk separat skrivebeskyttet review, retting/retest/re-review, ordinær merge, grønn main-CI og kontrollert staging med evidens. Bevar branchregler og driftsporter. Fortsett uten nye bekreftelser innen mandatet; ett wrap-up ved sluttpunkt eller reell blokkering.
 ```
 
 ## LEVEL 4 – KVALITET
