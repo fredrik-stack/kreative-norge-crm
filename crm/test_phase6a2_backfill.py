@@ -549,7 +549,8 @@ class LegacyBackfillTests(TransactionTestCase):
     def test_reverse_rejects_semantic_state(self):
         from django.db.migrations.executor import MigrationExecutor
         self.apply()
-        with self.assertRaises(RuntimeError):
+        # Roll back any newer empty schema reversals when 0034 rejects semantic state.
+        with self.assertRaises(RuntimeError), transaction.atomic():
             MigrationExecutor(connection).migrate([("crm", "0033_domain_assignment_foundation")])
         self.assertEqual(PersonTenantAssignment.objects.count(), 1)
 

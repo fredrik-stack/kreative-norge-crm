@@ -7,6 +7,7 @@ from django.utils.text import slugify
 from django.conf import settings
 
 from .domain_integrity import AssignmentMixin, DomainBindingMixin
+from .note_overlays import NoteOverlayMixin
 
 from .validators import (
     validate_e164_phone,
@@ -1593,6 +1594,24 @@ class PersonTenantAssignment(AssignmentMixin):
     def clean(self):
         super().clean()
         _validate_assignment_domain(self, "person")
+
+
+class OrganizationNoteOverlay(NoteOverlayMixin):
+    assignment = models.OneToOneField(
+        OrganizationTenantAssignment, on_delete=models.PROTECT, related_name="note_overlay",
+    )
+
+    class Meta(NoteOverlayMixin.Meta):
+        abstract = False
+
+
+class PersonNoteOverlay(NoteOverlayMixin):
+    assignment = models.OneToOneField(
+        PersonTenantAssignment, on_delete=models.PROTECT, related_name="note_overlay",
+    )
+
+    class Meta(NoteOverlayMixin.Meta):
+        abstract = False
 
 
 class PersonContact(models.Model):

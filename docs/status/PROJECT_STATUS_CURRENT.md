@@ -1,5 +1,18 @@
 # Project Status Current
 
+## Tenantprivate notater – lokal grunnmur 2026-10-24
+
+ADR-011 trinn 7 har en additiv notatgrunnmur under levering: separate
+OrganizationNoteOverlay/PersonNoteOverlay, én-til-én til eksisterende assignment,
+nullable note og separat `TENANT_NOTE_OVERLAYS_ENABLED=False`. 0035 oppretter
+bare nye tabeller og identitetsvern; ingen eksisterende data kopieres.
+Legacy note/tags og alle aktive brukerinnganger forblir autoritative. Ingen
+shared tilgang, fallback, private tags eller fullført trinn 7. [Mandat,
+lagringskontrakt og kartlagt migreringsgrunnlag](../operations/TENANT_NOTE_OVERLAYS.md).
+Review/merge/CI og faktisk stagingstatus dokumenteres separat; staging er ennå
+ikke utført for denne leveransen.
+
+
 **Operatørbasert PK-shadow – teknisk stagingverifisert 2026-10-24:** Arbeidsflyt/skills er levert gjennom [PR #82](https://github.com/fredrik-stack/kreative-norge-crm/pull/82). [Kode-PR #83](https://github.com/fredrik-stack/kreative-norge-crm/pull/83) er separat reviewet, ordinært merget på `ad876846275ff46b3d2827a9507598ecf3ba6e1d` og deployet API-only etter main-CI `40028992875` success (6/6). Én operatørmåling ga **FULL_EQUAL**, exit 0: alle 14 tenant-/modellkombinasjoner, 128 aktører / 157 personer og 285 egne assignments, ingen nye NULL-profiler eller strukturelle avvik. Gaten er fortsatt effektivt False i ordinær runtime og varig konfigurasjon. Pre/post-backup med full verify/isolert restore, relevante tekniske lese-/helsekontroller og bevaring er grønne; timere er gjenopprettet. Første deploystopp ved gammel shell-PID 1/exit 137 ble kontrollert gjenopprettet og korrigert før måling. [Sanitert stagingevidens](STAGING_PHASE_6A_READ_SHADOW_2026-10-24.md) skiller PK-bevis, autorisert teknisk lesing og øvrige begrensninger. Ingen shared reader/writer, catch-up, kandidatavgjørelse eller telefonretting; hele 6A er ikke ferdig. [Mandat/målekontrakt](../operations/DOMAIN_READ_SHADOW.md). Evidensens review/merge/CI følger separat dokumentasjons-PR; ingen ny deploy følger av dokumentasjonsmerge.
 
 **6A.3-kartlegging og dokumentasjonsleveranse 2026-10-17:** Skrivebeskyttet review av inventar, privat beskrivende manifest, beregningsmetode og sanitert rapport er fullført uten kritiske eller viktige funn; reviewresultatet inngår i en separat dokumentasjonsleveranse med branch, commit, push og PR bestilt. Dokumentasjonen er merget gjennom [PR #81](https://github.com/fredrik-stack/kreative-norge-crm/pull/81) på `ed8b70b93068124d525d80b26e2f3d9085dc727f`, med main-CI `39067291349` success (6/6), revalidert 2026-10-23. Ett konsistent snapshot viser 128 aktører, 157 personer, 285 egne legacyassignments, null nye NULL-profiler og null observerte strukturelle scopeavvik. Sju mulige kandidatgrupper innen samme tenant berører to aktører og tolv personer; null cross-tenant-grupper etter undersøkte regler. Ett aktør- og ett personkontaktavvik mellom rå/canonical telefon er separat signalkvalitet, uten retting. Ingen identitetsavgjørelse eller shadow/shared-aktivering; hele 6A er ikke ferdig. Reviewet omfattet rekalkulering fra private signalhashverdier, historiske PK-/tenantbindinger, assignments og kontrollsummer; rånormalisering og relasjons-/kontakt-/tagdetaljer ble vurdert mot beregningskode og registrert evidens. Ingen ny databasekjøring inngikk. Se [sanitert evidens](STAGING_PHASE_6A3_DUPLICATE_INVENTORY_2026-10-17.md) for reviewresultat, dekning, begrensninger og konkrete forutsetninger for senere shadowbestilling.
