@@ -7,9 +7,13 @@ retting/retest/re-review, ordinær merge, main-CI, betinget stagingdeploy og
 operatørmåling, samt separat reviewet/merget sanitert evidens. WORKFLOW.md styrer
 leveransen. Ingen ny produkt-ADR eller neste produktetappe inngår.
 
-**Leveransestatus:** Kode-/review-/merge-/CI-status følger leveranse-PR-en.
-Stagingdeploy og faktisk måleresultat skal dokumenteres separat; lokal test er
-ikke stagingbevis. Gaten er default-off og skal være av i varig sluttstate.
+**Leveransestatus 2026-10-24:** [PR #83](https://github.com/fredrik-stack/kreative-norge-crm/pull/83)
+er separat reviewet og ordinært merget på `ad876846275ff46b3d2827a9507598ecf3ba6e1d`,
+med grønn main-CI `40028992875` (6/6). Eksakt kode er deployet API-only og én
+operatørmåling er teknisk stagingverifisert med FULL_EQUAL/exit 0. Gaten er av
+som varig sluttstate. [Datert evidens](../status/STAGING_PHASE_6A_READ_SHADOW_2026-10-24.md)
+beskriver faktisk image, snapshot, kontrollert deploystopp/recovery, checkpoints,
+bevaring og begrensninger. Lokal test er separat fra dette stagingbeviset.
 
 ## Scope og målekontrakt
 

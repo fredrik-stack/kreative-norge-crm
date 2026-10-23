@@ -68,7 +68,12 @@ Rapporten inneholder bare godkjent scope, driftsmetadata, aggregater og faste
 avvikskoder, ingen profil-PK-er/-hashverdier eller rå person-/kontaktdata.
 Dette er ingen aktivering av målarkitekturens shared capabilities/avtalekontrakt.
 [Mandat, feil-/stoppkontrakt og aktivering](../operations/DOMAIN_READ_SHADOW.md).
-Stagingmåling og varig av-gate må dokumenteres separat etter kodeleveransen.
+**Staging 2026-10-24:** Én operatørmåling er teknisk verifisert med FULL_EQUAL;
+ordinær API og varig miljø har fortsatt effektiv gate False. Aktive flags/mounts,
+safety READY/cursor 13 og legacylesing er bevart. Autorisert teknisk backendlesing
+brukte eksisterende plattformbruker innen read-only-transaksjon, uten ny login
+eller sessionskriving. [Evidens og begrensninger](../status/STAGING_PHASE_6A_READ_SHADOW_2026-10-24.md).
+Dette aktiverer ingen av de framtidige shared rettighetene nedenfor.
 
 ## Godkjent sharing-domain-sikkerhet – ikke implementert
 

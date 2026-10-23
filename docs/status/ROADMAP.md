@@ -326,14 +326,7 @@ funksjon aktivert og stagingverifisert skal rapporteres hver for seg.
 
 ### 6A – Deling og tilgang
 
-**PK-shadowleveranse 2026-10-23:** Operatørbasert sammenligningskode for ADR-011
-migreringstrinn 6 er implementert i separat kodeleveranse med default-off gate;
-review/merge/CI følger PR-en. Stagingdeploy og måling er en egen etterfølgende
-del av det avgrensede mandatet og er ikke bevist av lokal kode/test.
-NULL-profiler gir eksplisitt deldekning uten automatisk catch-up. Legacylesing
-forblir autoritativ; ingen shared reader/writer eller neste etappe aktiveres.
-Se [mandat og målekontrakt](../operations/DOMAIN_READ_SHADOW.md).
-
+**PK-shadow 2026-10-24 – TEKNISK STAGINGVERIFISERT / FULL_EQUAL:** [PR #83](https://github.com/fredrik-stack/kreative-norge-crm/pull/83) er reviewet/merget og kode `ad876846275ff46b3d2827a9507598ecf3ba6e1d` deployet etter grønn main-CI. Alle 14 kombinasjoner stemte på eksisterende PK-sett, med null NULL-profiler og null strukturavvik. Operatørgaten er av i varig sluttstate, og legacylesing er fortsatt autoritativ. [Evidens](STAGING_PHASE_6A_READ_SHADOW_2026-10-24.md) dokumenterer bevaring, checkpoints og tekniske kontroller. NULL-policyen fra [mandatet](../operations/DOMAIN_READ_SHADOW.md) gjelder fortsatt ved framtidige eksplisitt bestilte målinger; ingen automatisk catch-up eller neste etappe. Hele 6A/shared tilgang er ikke ferdig.
 
 **Historisk første stagingutføring 2026-10-13:** 0033 anvendt uten backfill; data/media/safety bevart. API-deploy avbrutt av Compose `ContainerConfig`, gammel API tilbakeført. Full 6A.1-stagingverifikasjon er ikke fullført; avgrenset API-recovery krevde da ny bestilling. Ingen delingsaktivering eller oppstart av 6A.2. Se [evidens](STAGING_PHASE_6A1_SCHEMA_VERIFICATION_2026-10-13.md).
 
