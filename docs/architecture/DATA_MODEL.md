@@ -83,6 +83,19 @@ Global rollefallback/shared capabilities, overlays, image-home og PUBLIC er ikke
 Reverse av 0034 krever tom semantisk/auditstate; etter backfill bevares state og rettes
 fremover. Isolerte lokale tester/restore er ikke reell data-apply eller stagingbevis.
 
+## Operatørbasert PK-shadow – kodeleveranse 2026-10-23
+
+En separat sammenligningstjeneste/managementkommando sammenholder legacytenant-
+og assignmentbaserte Organization-/Person-PK-sett innen eksakt Musikkontoret-
+domain og de sju dokumenterte tenantene. Ingen modell, migrasjon, aktiv leser,
+writer eller automatisk assignment er endret. Gaten er default-off.
+NULL-profiler rapporteres som eksplisitt deldekning uten catch-up; de hindrer
+full dekningspåstand, men ikke lesende sammenligning av konsistent bundet scope.
+Feil ikke-NULL domain eller assignments er avvik. Dette presiserer eldre
+formulering om catch-up før enhver shadow; senere cutover/data-apply har egne porter.
+Se [målekontrakt og mandat](../operations/DOMAIN_READ_SHADOW.md). Kode levert,
+review/merge, deploy og faktisk måling rapporteres separat gjennom PR/evidens.
+
 ## Godkjent stedmålmodell – ikke implementert
 
 [ADR-012](../decisions/ADR-012-PLACE_IDENTITY_GEOGRAPHIC_CLASSIFICATION_AND_ACTOR_ONLY_MAPS.md)

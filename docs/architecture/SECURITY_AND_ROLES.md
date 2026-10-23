@@ -58,6 +58,18 @@ viser protected-delete. Vanlig tillatt profilredigering fortsetter. Ingen ny
 livssyklus eller assignmentfjerning er autorisert. **Historisk leveransestatus før staging:** Leveransen er gjennomgått uten blokkerende funn 2026-10-14 og publisert i PR #77. Kontrollert kode-merge uten deploy er bestilt; faktisk siste
 head, merge og CI følger GitHub og SESSION WRAP-UP. Ikke staginganvendt eller aktivert. Se [runbook](../operations/LEGACY_DOMAIN_BACKFILL.md).
 
+## Operatørbasert PK-shadow 2026-10-23
+
+`SHARING_DOMAIN_SHADOW_ENABLED=False` er fail-closed standard. Gaten tillater
+bare eksplisitt operatørkommando og gir ingen bruker eller request ny tilgang.
+Aktive views, permissions og serializers er urørt; legacylesing er autoritativ.
+Eksakt domain-/tenantscope valideres før måling i ett read-only snapshot.
+Rapporten inneholder bare godkjent scope, driftsmetadata, aggregater og faste
+avvikskoder, ingen profil-PK-er/-hashverdier eller rå person-/kontaktdata.
+Dette er ingen aktivering av målarkitekturens shared capabilities/avtalekontrakt.
+[Mandat, feil-/stoppkontrakt og aktivering](../operations/DOMAIN_READ_SHADOW.md).
+Stagingmåling og varig av-gate må dokumenteres separat etter kodeleveransen.
+
 ## Godkjent sharing-domain-sikkerhet – ikke implementert
 
 [ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md)

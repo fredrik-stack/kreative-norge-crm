@@ -1,7 +1,7 @@
 # 6A.3 – skrivebeskyttet duplikatinventar og beskrivende migreringsmanifest
 
-**Dato:** 2026-10-17. **Status:** INVENTAR FULLFØRT / SKRIVEBESKYTTET REVIEW FULLFØRT UTEN KRITISKE ELLER VIKTIGE FUNN / DOKUMENTASJONSLEVERANSE TIL PR-REVIEW.
-Reviewresultatet er registrert i denne dokumentasjonsleveransen. Dokumentasjonen leveres gjennom separat PR; PR-review og merge gjenstår. Ingen ny eiergodkjenning av dataretting eller aktivering inngår. Ingen shadow eller ny runtimefunksjon er implementert eller aktivert; hele 6A er ikke ferdig.
+**Dato:** 2026-10-17. **Status:** INVENTAR FULLFØRT / SKRIVEBESKYTTET REVIEW FULLFØRT UTEN KRITISKE ELLER VIKTIGE FUNN / DOKUMENTASJON PUBLISERT I PR #81.
+Reviewresultatet er registrert i denne dokumentasjonsleveransen. Dokumentasjonen er publisert og merget gjennom [PR #81](https://github.com/fredrik-stack/kreative-norge-crm/pull/81) på `ed8b70b93068124d525d80b26e2f3d9085dc727f`, med main-CI `39067291349` success (6/6), verifisert 2026-10-23. Dette ajourfører publiseringsstatus, ikke inventarsnapshotet. Ingen ny eiergodkjenning av dataretting eller aktivering inngår. Ingen shadow eller ny runtimefunksjon er implementert eller aktivert; hele 6A er ikke ferdig.
 
 ## Mandat og baseline
 
