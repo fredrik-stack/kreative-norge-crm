@@ -1,5 +1,17 @@
 # Project Status Current
 
+## UI-6-FELLES – spesifikasjon 2026-10-24
+
+[Hovedspesifikasjonen](../features/UI_6_FELLES_SPEC.md) konkretiserer felles
+utforming, fire representative Editor-skjermer og faktiske submit-/blur-/change-
+lagringsscope. Én anbefalt første pakke gjelder lokal lagre-/forkast-/statusrad
+for profilhovedskjemaene, med eksisterende writes bevart. Ingen UI, API, data,
+flaggbinding eller browser-/stagingverifikasjon er endret/utført. Anbefalinger og
+åpne valg er skilt fra godkjent retning; separat implementeringsbestilling kreves.
+Notat-/taggautoritet,6A–6C, PUBLIC V3/V4 og adminscope består som egne grenser.
+Faktisk review/merge/CI følger leveranse-PR i GitHub, uten deploy.
+
+
 ## UI/UX-ferdigstillingsplan – presisert 2026-10-24
 
 [Samlet Editor-/PUBLIC-oversikt](EDITOR_PUBLIC_UI_COMPLETION_PLAN_2026-10-24.md)

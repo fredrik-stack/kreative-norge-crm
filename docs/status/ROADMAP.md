@@ -355,6 +355,12 @@ funksjon aktivert og stagingverifisert skal rapporteres hver for seg.
 
 ### UI-6 – felles utforming og resterende Editor-flater
 
+[UI-6-FELLES-spesifikasjonen](../features/UI_6_FELLES_SPEC.md) konkretiserer
+skjerm-/komponent-/handlingsregler og faktiske lagringsscope. Den anbefaler én
+første avgrenset presentasjonspakke: skjemabundet handling/status for aktør- og
+personprofilen, uten write-/API-omlegging. Bare implementeringsgrunnlag er
+publisert; kode krever separat bestilling og browser-aktiv kontroll før endring.
+
 Under fase 6 konkretiseres **UI-6-FELLES** fra godkjente forsider og eksisterende
 komponenter. **UI-6-NAV**, **UI-6-OVERSIKT**, **UI-6-PROFIL** og **UI-6-PRIVAT**
 ferdigstiller navigasjon/Musikkontor, aktør-/personlister med søk/filter, detalj/

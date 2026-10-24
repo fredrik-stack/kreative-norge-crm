@@ -1,5 +1,16 @@
 # Editor
 
+## UI-6-FELLES – implementeringsgrunnlag 2026-10-24
+
+[Detaljspesifikasjonen](../features/UI_6_FELLES_SPEC.md) beskriver gjenbruk,
+anbefalte layout-/felt-/handlingsregler og fire skjermer. Lagringsmatrisen skiller
+profilsubmit fra umiddelbare kontakt-/koblingswrites, bilde/preview og sekvensiell
+Lagre og fortsett. Ingen samlet atomisk lagring, autosave eller undo loves før
+respektive backendkontrakt finnes. Første anbefalte kodepakke er en skjemabundet
+handlings-/statusrad, ikke full UI-6-ferdigstilling. Bare dokumentasjon er levert;
+ingen ny visuell verifikasjon eller eiergodkjenning av nye produktvalg.
+
+
 ## Tverrgående UI/UX-plan 2026-10-24
 
 [Samlet ferdigstillingsplan](../status/EDITOR_PUBLIC_UI_COMPLETION_PLAN_2026-10-24.md)

@@ -1,5 +1,11 @@
 # Editor og PUBLIC – samlet UI/UX-ferdigstilling
 
+**Konkretisering 2026-10-24:** [UI-6-FELLES-spesifikasjonen](../features/UI_6_FELLES_SPEC.md)
+er detaljgrunnlag for U1–U6/U16, med fire Editor-disposisjoner og eksplisitt
+lagringsscope. Første anbefalte implementeringspakke er skjemabundet handling/
+status for profilhovedskjemaene. Dette er publisert anbefaling, ikke ferdig UI
+eller godkjenning av nye vesentlige produktvalg; egne backend-/dataporter består.
+
 **Dato:** 2026-10-24. **Status:** Eierbestilt planpresisering; ingen UI er implementert eller nyverifisert i denne leveransen.
 
 ## Mandat og styrende grunnlag

@@ -1,5 +1,11 @@
 # Kreative Norge CRM – dokumentasjon
 
+**UI-6-FELLES-spesifikasjon 2026-10-24:** [Kodeforankret utforming og første pakke](features/UI_6_FELLES_SPEC.md)
+beskriver fire Editor-disposisjoner, konkret gjenbruk og lagringsscope. Anbefalt
+første kodepakke er skjemabundet handlings-/statusrad, ikke ny global lagring.
+Publisert spesifikasjon er ikke UI-implementering eller godkjenning av nye produktvalg.
+
+
 **UI/UX-plan 2026-10-24:** [Samlet ferdigstillingsoversikt for Editor og PUBLIC](status/EDITOR_PUBLIC_UI_COMPLETION_PLAN_2026-10-24.md)
 viser flater, faktisk bevisnivå, navngitte leveranser og samlet v1-aksept.
 7E lukker importsporet; begge Google Maps-aktørkart og øvrige avtalte flater har
