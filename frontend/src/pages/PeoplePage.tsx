@@ -498,7 +498,7 @@ function PeopleEditorPanel(props: {
                 </p>
               ) : null}
 
-              <p className="meta">Kontaktverdier lagres når du forlater feltet; primær-/offentlig-valg og sletting lagres med egne handlinger. Profilknappen og profilreset omfatter ikke dette området.</p>
+              <p className="meta">Endrede, ikke-tomme verdier i eksisterende kontaktkanaler sendes til lagring når du forlater feltet. Tom verdi sletter ikke kanalen; bruk Slett. Primær-/offentlig-valg sendes separat. Ny kontakt krever «Legg til kontakt». Profilknappen og profilreset omfatter ikke dette området.</p>
               <div className="contact-list">
                 {editor.personContacts.map((contact) => (
                   <article key={contact.id} className="modal-contact-card">
