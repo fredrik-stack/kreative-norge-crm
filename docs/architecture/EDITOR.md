@@ -1,5 +1,18 @@
 # Editor
 
+## Tverrgående UI/UX-plan 2026-10-24
+
+[Samlet ferdigstillingsplan](../status/EDITOR_PUBLIC_UI_COMPLETION_PLAN_2026-10-24.md)
+plasserer navigasjon/Musikkontor, oversikter, profilskjema og private arbeidsdata
+i navngitte UI-6-leveranser; kontakt-/lagringsopplevelse i 6B og steder i 6C.
+Import 7A–7E, eksport fase 8 og Editor-aktørkart har egne ferdigkriterier før
+samlet Editor-v1-aksept. Eksisterende godkjenninger nedenfor er avgrensede og
+daterte, ikke ny visuell verifikasjon. Overlaygrunnmur er ikke ferdig privat
+notatvisning/søk/lagring; flytting, tilgang og samlet omlegging gjenstår. Ingen
+nye adminflater utledes av roller eller modeller. Browser-aktiv Codex før faktisk
+UI-implementering og relevant senere staging-/eiergodkjenning består.
+
+
 **Status:** implementert grunnløsning; fase 2-standarder for kontaktpublisering implementert; fase 4E synlig telefonregion/servernormalisering og fase 4F synlig importjobbregion er teknisk stagingverifisert gjennom fase 4H; tre owner-smoke-funn i telefonlenker, intern aktørtelefon og effektiv PUBLIC-status er rettet og teknisk stagingreverifisert 2026-08-29; siste UI-polish etter andre owner-smoke er også teknisk stagingreverifisert og manuelt eiergodkjent 2026-08-29; `PHASE 4 = CLOSED / VERIFIED`; fase 3D.1 offisiell bildekandidatflyt teknisk aktivert og visuelt godkjent i staging; fase 3D.2 med precision/zoom er gjennomført og merget til `main` med PR #33, fullverifisert lokalt, CI-grønn, historisk live Brave-verifisert og visuelt eiergodkjent; Brave er operativt deaktivert for ordinære Editor-sluttbrukere frem til sluttbrukeravtalegaten er dokumentert oppfylt
 
 React-editoren støtter tenantvalg, rollebasert tilgang, aktører, personer, relasjoner, kontaktkanaler, søk, taksonomifiltrering og import/eksport-side.

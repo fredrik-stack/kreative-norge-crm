@@ -1,5 +1,16 @@
 # Public Architecture
 
+## PUBLIC-V1 og kart – planpresisering 2026-10-24
+
+[Samlet UI/UX-plan](../status/EDITOR_PUBLIC_UI_COMPLETION_PLAN_2026-10-24.md)
+plasserer PUBLIC-V1-LISTE/DETALJ etter nødvendige 6A–6C-kontrakter, med mulig
+implementering parallelt med import. KART-V1 leverer begge avtalte Google Maps-
+aktørkart etter sine sted-/providerporter og før samlet v1. 7E er importsporets
+milepæl. Endelig PUBLIC-detaljdesign, filtrering/API-kontrakt og grensen mot
+Musikkontoret.no avklares før relevant implementering; ingen løsning velges her.
+Ingen ny browser-/staging-/visuell verifikasjon er utført i planleveransen.
+
+
 **Status:** Implementert grunnløsning; kontaktregel og fase 2-stabilisering implementert; standalone public image serving er `ACTIVE` i staging; 3E.2 projection/API-shadow er `CLOSED / SHADOW VERIFIED`; 3E.3 PUBLIC/head-kobling er `CLOSED / ACTIVE` i staging; 3F endrer ikke public projection eller serving
 
 **Sist verifisert:** 2026-08-29 i staging mot owner-smoke-rettingen

@@ -1,5 +1,17 @@
 # Feature: Public
 
+## Helhetlig ferdigstilling – presisering 2026-10-24
+
+[PUBLIC-V1 og samlet produktaksept](../status/EDITOR_PUBLIC_UI_COMPLETION_PLAN_2026-10-24.md)
+samler liste/søk/filter og aktørdetalj med offentlig kontakt-/stedsvisning.
+Konkretisering kan gå parallelt under fase 6; implementering krever nødvendige
+6A–6C-kontrakter og kan gå parallelt med import. Begge Google Maps-aktørkart er
+fortsatt v1-omfang i separat KART-V1, uten å blokkere kjerneimport. PUBLIC er ikke
+ferdig bare fordi 7E/importen lukkes. Detaljdesign, filter-/API-valg og forholdet
+til Musikkontoret.no er fortsatt åpne; ingen ny integrasjon eller administrasjons-
+flate vedtas. Daterte bevis nedenfor er ikke en ny visuell helhetsgodkjenning.
+
+
 **Status:** grunnløsning implementert; kontakt-, lenke- og tittelregel stabilisert i fase 2; 3E.3-bilde-/head-cutover er `CLOSED / ACTIVE` i staging
 
 Public skal vise et kontrollert utvalg av publiserte aktørdata i et symmetrisk og skalerbart grensesnitt.

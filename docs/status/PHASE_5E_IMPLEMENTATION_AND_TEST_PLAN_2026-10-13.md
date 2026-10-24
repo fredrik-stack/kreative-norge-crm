@@ -1,5 +1,17 @@
 # Fase 5E – godkjent implementerings- og testplan
 
+**Datert kryssreferanse 2026-10-24 – UI/UX-ferdigstilling:**
+[Samlet Editor-/PUBLIC-plan](EDITOR_PUBLIC_UI_COMPLETION_PLAN_2026-10-24.md)
+plasserer de resterende brukerflatene i eksisterende fasefølge og navngitte
+leveranser. «7E – Google Sheets og v1-lukking» og formuleringen om kart som
+ikke nye v1-blockere gjelder importsporets lukking/avhengigheter, ikke samlet
+produktaksept. Google Maps-aktørkart i både Editor og PUBLIC er fortsatt avtalt
+v1-omfang i egen leveranse etter nødvendig sted-/providergrunnlag; kart blokkerer
+ikke kjerneimporten. Eksport i fase 8, helhetlig PUBLIC og øvrige Editor-flater
+har egne ferdigkriterier. Den godkjente 5E-/UX-kontrakten og historikken nedenfor
+beholdes; ingen ny runtime, formell brukertest eller mobilimport bestilles.
+
+
 **Status:** FULLFØRT / OWNER-APPROVED SOM PLAN
 
 **Godkjenningsdato:** 2026-10-13

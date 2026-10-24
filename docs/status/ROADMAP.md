@@ -1,5 +1,15 @@
 # Roadmap
 
+## Tverrgående UI/UX-ferdigstilling – presisering 2026-10-24
+
+[Samlet Editor-/PUBLIC-plan](EDITOR_PUBLIC_UI_COMPLETION_PLAN_2026-10-24.md)
+viser godkjente krav, faktisk kode-/aktiverings-/visuelt bevisnivå, resterende
+flater, navngitte leveranser, avhengigheter og ferdigkriterier. Dette er en
+planpresisering, ikke ny UI, aktivering eller browserverifikasjon.
+6A → 6B → 6C → Import 2.0 består. Importsporets 7E-lukking er ikke samlet
+produktaksept; eksport i fase 8 og begge avtalte Google Maps-aktørkart inngår
+i samlet Editor-/PUBLIC-v1. Åpne detalj-/integrasjons-/adminvalg er merket i planen.
+
 ## Tenantprivate notater – inaktiv grunnmur stagingverifisert 2026-10-24
 
 [Kode-PR #85](https://github.com/fredrik-stack/kreative-norge-crm/pull/85) er separat
@@ -343,6 +353,20 @@ inndata-/aktiveringsporter, aksept, negative tester, migrering, rollback og
 stoppunkt. Privat importlagring kan forberedes parallelt. Kode levert,
 funksjon aktivert og stagingverifisert skal rapporteres hver for seg.
 
+### UI-6 – felles utforming og resterende Editor-flater
+
+Under fase 6 konkretiseres **UI-6-FELLES** fra godkjente forsider og eksisterende
+komponenter. **UI-6-NAV**, **UI-6-OVERSIKT**, **UI-6-PROFIL** og **UI-6-PRIVAT**
+ferdigstiller navigasjon/Musikkontor, aktør-/personlister med søk/filter, detalj/
+oppretting/redigering og avtalte private arbeidsdata. Sikring av eksisterende
+forvaltningsinnganger samles i avgrenset **UI-6-ADMIN**, ikke et nytt adminprodukt.
+Se [reisematrise og kriterier](EDITOR_PUBLIC_UI_COMPLETION_PLAN_2026-10-24.md#2-leveranse-gjenstående-arbeid-og-ferdigkriterier).
+
+Utforming kan konkretiseres parallelt med 6A. Runtime venter på nødvendige
+6A-writers/tilgang/data; kontakt-/stedstillegg leveres i 6B/6C før Editor-kjernen
+lukkes. Private notater krever separat flytting og samlet reader/writer/søk-
+omlegging; legacytag-policy velges ikke her. Ingen ubestemt «polish senere».
+
 ### 6A – Deling og tilgang
 
 **PK-shadow 2026-10-24 – TEKNISK STAGINGVERIFISERT / FULL_EQUAL:** [PR #83](https://github.com/fredrik-stack/kreative-norge-crm/pull/83) er reviewet/merget og kode `ad876846275ff46b3d2827a9507598ecf3ba6e1d` deployet etter grønn main-CI. Alle 14 kombinasjoner stemte på eksisterende PK-sett, med null NULL-profiler og null strukturavvik. Operatørgaten er av i varig sluttstate, og legacylesing er fortsatt autoritativ. [Evidens](STAGING_PHASE_6A_READ_SHADOW_2026-10-24.md) dokumenterer bevaring, checkpoints og tekniske kontroller. NULL-policyen fra [mandatet](../operations/DOMAIN_READ_SHADOW.md) gjelder fortsatt ved framtidige eksplisitt bestilte målinger; ingen automatisk catch-up eller neste etappe. Hele 6A/shared tilgang er ikke ferdig.
@@ -373,6 +397,9 @@ kjerneimporten. Ingen kartimplementering inngår i 6A.2; personkart inngår ikke
 
 ### 6B – Kontakter, relasjoner og nødvendig Editor-UX
 
+**6B-KONTAKT** lukker samlet kontakt-/relasjonsreise, offentlig preview,
+lagring/sticky handling og plassutnyttelse; se [UI/UX-kriteriene](EDITOR_PUBLIC_UI_COMPLETION_PLAN_2026-10-24.md#2-leveranse-gjenstående-arbeid-og-ferdigkriterier).
+
 Denne underfasen realiserer nødvendig kontakt-/relasjonsgrunnlag i [ADR-005](../decisions/ADR-005-CONTACT_ARCHITECTURE.md) i kontrollerte, reversible leveranser:
 
 - én samlet kontaktseksjon
@@ -393,6 +420,9 @@ fysisk feltdropp kan komme senere; hele ADR-005 merkes ikke implementert før
 resten av dens leveranser er fullført.
 
 ### 6C – Stedskjerne uten kartavhengighet
+
+**6C-STED** lukker nødvendig stedssøk/valg/oppretting/redigering i Editor og
+tekstlig PUBLIC. Den avtalte kartleveransen følger separat; se [samlet plan](EDITOR_PUBLIC_UI_COMPLETION_PLAN_2026-10-24.md).
 
 Global provider-nøytral Place, OrganizationPlace, PersonPlace, kontrollert
 source-backed/manuelt bekreftet create/reuse, norsk/utenlandsk kildegrunnlag,
@@ -464,15 +494,40 @@ teknisk backend-/stagingreise og prøvd tilbakeføring kreves.
 
 ### 7E – Google Sheets og v1-lukking
 
+**Datert presisering 2026-10-24:** Dette lukker importsporet etter 7A–7D,
+ikke hele Editor/PUBLIC/eksport/kart. Google Maps-aktørkart i begge flater er
+fortsatt v1-omfang uten å blokkere kjerneimporten. Se [milepælene](EDITOR_PUBLIC_UI_COMPLETION_PLAN_2026-10-24.md#3-parallellitet-og-milepæler).
+
 Konto/regneark/faner blir ett versjonert snapshot med samme pakke-/mapping-/
 review-/fullføringsreise; ingen kontinuerlig synkronisering eller tilbakeskriving.
 Leveres etter CSV/XLSX-kjernen, før v1 lukkes. Checkin gjennom Excel-mapping;
 direkte Checkin-API, Mailmojo, kart og engangs-XML-konvertering blokkerer ikke
 kjerneimport. Etappenes konkrete tester/porter/stoppunkt følger 5E-planen.
 
+## PUBLIC-V1 – helhetlig PUBLIC-ferdigstilling
+
+**Planlagt, ikke ferdigmeldt.** PUBLIC-V1-LISTE og PUBLIC-V1-DETALJ samler
+liste/kort, søk/filter, detalj, offentlig kontakt-/steds-/bildevisning og retur.
+Visuell konkretisering kan gå parallelt under fase 6; implementering kan gå
+parallelt med import når nødvendige 6A–6C-kontrakter er klare. PUBLIC-detaljdesign,
+filter-/API-kontrakt og grensen mot Musikkontoret.no avklares før berørt bestilling.
+Ingen ny integrasjon eller produksjonssetting vedtas. [Status og aksept](EDITOR_PUBLIC_UI_COMPLETION_PLAN_2026-10-24.md).
+
+## KART-V1 – Google Maps-aktørkart i Editor og PUBLIC
+
+**Vedtatt v1-omfang; ikke implementert.** Begge kart leveres etter nødvendig
+sted-/koordinat-/providergrunnlag og egne ADR-012-porter, før samlet v1-aksept.
+Kan gå parallelt med import; kart blokkerer ikke kjerneimporten. Ingen personkart.
+Listefallback ved deaktivert Google består, men er ikke ferdigmelding av de
+avtalte kartene. [Kriterier og milepæler](EDITOR_PUBLIC_UI_COMPLETION_PLAN_2026-10-24.md).
+
 ## Fase 8 – Eksport som ferdig produkt
 
 **Status:** Delvis teknisk grunnlag, produktet er ikke ferdig.
+
+**8-EKSPORT** ferdigstiller valg → faktisk generering → status → sikker
+nedlasting innen eksisterende omfang. Felt-/segment-/kontakt-/privatdesign
+konkretiseres før implementering. [Felles ferdigkriterier og samlet v1-aksept](EDITOR_PUBLIC_UI_COMPLETION_PLAN_2026-10-24.md#3-parallellitet-og-milepæler).
 
 - CSV- og XLSX-generering
 - valg av felter, filtre og segmenter
@@ -513,10 +568,11 @@ Infrastrukturløpet følger [Staging and Deployment](../development/STAGING_AND_
 
 ## Senere muligheter
 
-- Google Sheets-import
-- Checkin-import
+Google Sheets er vedtatt i 7E og Checkin-Excel i 7A. Begge Google Maps-aktørkart
+er plassert i KART-V1; de er ikke ubestemte senere muligheter.
+
+- direkte Checkin-API
 - Mailmojo-import
 - skjemaer og automatisk opprettelse av kontakter
-- geografisk visning
 - eksterne integrasjoner
 - nettdugnad og samtykkebasert redigering
