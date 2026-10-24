@@ -25,9 +25,7 @@ export function revealInvalidProfileField(event: InvalidEvent<HTMLFormElement>) 
   const field = event.target as HTMLElement;
   const section = field.closest("details");
   if (!section || section.open) return;
-  event.preventDefault();
   section.open = true;
-  requestAnimationFrame(() => { field.focus(); field.scrollIntoView({ block: "center" }); });
 }
 
 export function ProfileValidationSummary({ errors }: { errors: Record<string, string | undefined> }) {

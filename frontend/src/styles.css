@@ -2198,7 +2198,7 @@ select,
 .compact-editor .grid.two { gap: 12px; align-items: start; grid-template-columns: repeat(2,minmax(0,1fr)); }
 .compact-editor .field { min-width: 0; align-content: start; gap: 5px; }
 .compact-editor .field-label { font-size: 12px; line-height: 1.4; }
-.compact-editor :is(input:not([type=checkbox]):not([type=radio]),select), .detail-modal input {
+.compact-editor :where(input:not([type=checkbox]):not([type=radio]),select), .detail-modal input {
   height: 40px; min-height: 40px; min-width: 0; width: 100%; padding: 8px 10px; border-radius: 10px;
 }
 .compact-editor textarea { padding: 10px; min-height: 80px; border-radius: 10px; }
@@ -2368,7 +2368,7 @@ select,
 fieldset.field { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 fieldset.field > legend { padding: 0; margin: 0 0 5px; }
 @media(max-width:600px) {
-  .compact-editor :is(input:not([type=checkbox]):not([type=radio]),select) { font-size: 16px; min-height: 44px; height: 44px; }
+  .compact-editor :where(input:not([type=checkbox]):not([type=radio]),select) { font-size: 16px; min-height: 44px; height: 44px; }
   .compact-editor :is(.primary-button,.ghost-button), .detail-modal :is(.primary-button,.ghost-button) { min-height: 44px; }
   .compact-editor .contact-inline-input > select { flex-basis: 135px; width: 135px; }
 }

@@ -125,7 +125,8 @@ function OrganizationOverviewPanel(props: {
 }) {
   const { organizations, navigate, filterSummary, modalOrgId, onModalOrgIdChange } = props;
   const editor = useEditor();
-  const activeOrganization = modalOrgId ? organizations.find((organization) => organization.id === modalOrgId) ?? null : null;
+  // An explicit linked actor can be outside the overview's retained person filters.
+  const activeOrganization = modalOrgId ? editor.organizations.find((organization) => organization.id === modalOrgId) ?? null : null;
 
   return (
     <section className="panel overview-panel">
