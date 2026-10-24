@@ -111,8 +111,8 @@
       "sha256": "72072f90eb12b3d88a8cc49e88d6f14403fb37618603658ae785182eb3490ee7"
     },
     "actor-zoom200.png": {
-      "bytes": 292436,
-      "sha256": "f1d7eb199c9608fffc073bcba0d6ace08e1e572cfe5bf5eaf38309dc656ca741"
+      "bytes": 124342,
+      "sha256": "44308b2cc6546328723f3f2f1d4660643beb6cab1bc67e4bc4adb4787cc0a455"
     },
     "checks.json": {
       "bytes": 2001,
@@ -147,12 +147,12 @@
       "sha256": "274424e352876463bb14e7aee511b33364fd0001fadfd9f141aa4d9e429cc8af"
     },
     "person-zoom200.png": {
-      "bytes": 224249,
-      "sha256": "18392c75fc2327a843b09350cc5112d623a62e2cb1d11c0a71ffbbfb5301cd29"
+      "bytes": 183705,
+      "sha256": "f265a9a153861e3d1fcbd0d7a7dcefaea921aec1afcc0949a059cb93cfeb20c8"
     },
     "zoom.json": {
-      "bytes": 92,
-      "sha256": "2416a90fd080ebdc15cce2b889a06abd4867a4a71c14eb8b5362e240921deccc"
+      "bytes": 228,
+      "sha256": "bd7115fd77f69ef77ee37eefb82341a014245edf23236079e6fccc1ee65377a5"
     }
   }
 }

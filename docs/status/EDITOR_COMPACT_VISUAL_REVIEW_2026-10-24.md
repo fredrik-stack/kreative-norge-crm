@@ -81,7 +81,9 @@ lagring/bekreftet lagring på laptop. Dette er samme hovedform og samme write-sc
   [Godkjent bilde / faktisk browser](evidence/editor-compact-2026-10-24/11-image-approved-1440.png).
   Lokal privat bildelagring er isolert. Ingen PUBLIC-projection/provideraktivering.
 - Faktisk 200 % Chromium-zoom via browserens zoom-API,720×456 effektiv viewport,
-  DPR 2, uten horisontal sideoverløp eller overdekket fokusfelt:
+  DPR 2, uten horisontal sideoverløp eller overdekket fokusfelt. Bildene er direkte
+  Chromium-viewportfangst uten klipp (1440×913 fysiske piksler), etter at fokus
+  er kontrollert. De viser det aktuelle scrollområdet, ikke hele profilen:
   [aktør](evidence/editor-compact-2026-10-24/actor-zoom200.png),
   [person](evidence/editor-compact-2026-10-24/person-zoom200.png).
 - [Maskinell breddekontroll](evidence/editor-compact-2026-10-24/checks.json),

@@ -3,5 +3,8 @@
   "innerWidth": 720,
   "innerHeight": 456,
   "dpr": 2,
-  "scrollWidth": 720
+  "scrollWidth": 720,
+  "capture": "Chromium Page.captureScreenshot viewport, no clip, after settled focus frame",
+  "png_width": 1440,
+  "png_height": 913
 }
