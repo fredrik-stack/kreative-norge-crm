@@ -1,5 +1,11 @@
 # Kreative Norge CRM – dokumentasjon
 
+**UI/UX-plan 2026-10-24:** [Samlet ferdigstillingsoversikt for Editor og PUBLIC](status/EDITOR_PUBLIC_UI_COMPLETION_PLAN_2026-10-24.md)
+viser flater, faktisk bevisnivå, navngitte leveranser og samlet v1-aksept.
+7E lukker importsporet; begge Google Maps-aktørkart og øvrige avtalte flater har
+egne leveranser. Dette er planpresisering, ingen ny UI-/stagingverifikasjon.
+
+
 **Notatgrunnmur 2026-10-24:** ADR-011 trinn 7 har additiv, teknisk stagingverifisert
 lagring gjennom [PR #85](https://github.com/fredrik-stack/kreative-norge-crm/pull/85).
 Nye overlaytabeller er tomme og gaten av. Legacy note/tags er autoritative;

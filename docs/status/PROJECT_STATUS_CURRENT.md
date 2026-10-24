@@ -1,5 +1,18 @@
 # Project Status Current
 
+## UI/UX-ferdigstillingsplan – presisert 2026-10-24
+
+[Samlet Editor-/PUBLIC-oversikt](EDITOR_PUBLIC_UI_COMPLETION_PLAN_2026-10-24.md)
+plasserer resterende navigasjon, oversikter, profiler og private arbeidsflater i
+UI-6-leveranser, kontakter i 6B, steder i 6C, godkjent import i 7A–7E og eksport
+i fase 8. PUBLIC-V1 og KART-V1 er egne navngitte leveranser med parallellitet og
+aksept. Begge Google Maps-aktørkart inngår i samlet v1, ikke som blocker for
+kjerneimport. 7E lukker importsporet, ikke hele produktet. Plan, kode, aktivering
+og datert visuell verifikasjon skilles; ingen ny UI-/browser-/stagingkontroll er
+utført her. PUBLIC-/integrasjons-/adminvalg og note-/taggavhengigheter er åpne
+som angitt i planen. Publiseringsstatus følger PR/CI i GitHub.
+
+
 ## Tenantprivate notater – inaktiv grunnmur stagingverifisert 2026-10-24
 
 [Kode-PR #85](https://github.com/fredrik-stack/kreative-norge-crm/pull/85) er separat
