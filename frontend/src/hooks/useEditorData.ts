@@ -244,7 +244,7 @@ export function useEditorData() {
           const first = orgs[0];
           if (!first) {
             setSelectedOrgId("new");
-            setDraft(emptyDraft);
+            setDraft({ ...emptyDraft, phone_region: selectedTenant?.default_phone_region ?? null });
             return;
           }
           setSelectedOrgId((current) => {
@@ -331,18 +331,19 @@ export function useEditorData() {
     setOrganizationFieldErrors({});
   }, [selectedOrgId, selectedOrganization, selectedTenant?.default_phone_region]);
 
+  // Separate contact input belongs to the selected person, not each profile reload.
+  useEffect(() => {
+    setContactDraft({ ...emptyContactDraft, phone_region: selectedTenant?.default_phone_region ?? null });
+    setContactFieldErrors({});
+  }, [tenantId, selectedPersonId, selectedTenant?.default_phone_region]);
+
   useEffect(() => {
     if (selectedPersonId === "new") {
       setPersonDraft({ ...emptyPersonDraft, phone_region: selectedTenant?.default_phone_region ?? null });
       setPersonTagInput("");
-      setContactDraft({
-        ...emptyContactDraft,
-        phone_region: selectedTenant?.default_phone_region ?? null,
-      });
       setPersonSaveState("idle");
       setPersonContacts([]);
       setPersonFieldErrors({});
-      setContactFieldErrors({});
       setPersonContactsLoading(false);
       return;
     }
@@ -371,17 +372,12 @@ export function useEditorData() {
       subcategory_ids: (selectedPerson.subcategories ?? []).map((item) => item.id),
     });
     setPersonTagInput(formatTagInput(selectedPerson.tags ?? []));
-    setContactDraft({
-      ...emptyContactDraft,
-      phone_region: selectedTenant?.default_phone_region ?? null,
-    });
     setPersonContacts(selectedPerson.contacts ?? []);
     setContactPhoneRegions(
       buildContactPhoneRegions(selectedPerson.contacts ?? [], selectedTenant?.default_phone_region),
     );
     setPersonSaveState("idle");
     setPersonFieldErrors({});
-    setContactFieldErrors({});
   }, [selectedPersonId, selectedPerson, selectedTenant?.default_phone_region]);
 
   useEffect(() => {
@@ -516,7 +512,7 @@ export function useEditorData() {
   const organizationHasUnsavedChanges = useMemo(() => {
     const baseline =
       selectedOrgId === "new"
-        ? emptyDraft
+        ? { ...emptyDraft, phone_region: selectedTenant?.default_phone_region ?? null }
         : selectedOrganization
           ? {
               name: selectedOrganization.name ?? "",
@@ -554,7 +550,7 @@ export function useEditorData() {
   const peopleHasUnsavedChanges = useMemo(() => {
     const baseline =
       selectedPersonId === "new"
-        ? emptyPersonDraft
+        ? { ...emptyPersonDraft, phone_region: selectedTenant?.default_phone_region ?? null }
         : selectedPerson
           ? {
               full_name: selectedPerson.full_name ?? "",
@@ -593,7 +589,7 @@ export function useEditorData() {
   const personDraftHasUnsavedChanges = useMemo(() => {
     const baseline =
       selectedPersonId === "new"
-        ? emptyPersonDraft
+        ? { ...emptyPersonDraft, phone_region: selectedTenant?.default_phone_region ?? null }
         : selectedPerson
           ? {
               full_name: selectedPerson.full_name ?? "",
@@ -1086,9 +1082,12 @@ export function useEditorData() {
   }
 
   function onResetOrganizationDraft() {
+    if (saveState === "saving") return;
     if (selectedOrgId === "new") {
       setDraft({ ...emptyDraft, phone_region: selectedTenant?.default_phone_region ?? null });
       setOrganizationFieldErrors({});
+      setOrganizationTagInput("");
+      setSaveState("idle");
       return;
     }
     if (!selectedOrganization) return;
@@ -1123,9 +1122,12 @@ export function useEditorData() {
   }
 
   function onResetPersonDraft() {
+    if (personSaveState === "saving") return;
     if (selectedPersonId === "new") {
       setPersonDraft({ ...emptyPersonDraft, phone_region: selectedTenant?.default_phone_region ?? null });
       setPersonFieldErrors({});
+      setPersonTagInput("");
+      setPersonSaveState("idle");
       return;
     }
     if (!selectedPerson) return;

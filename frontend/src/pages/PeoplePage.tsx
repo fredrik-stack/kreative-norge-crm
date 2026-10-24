@@ -1,3 +1,4 @@
+import { ProfileFormActions } from "../components/ProfileFormActions";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Field } from "../components/Field";
@@ -5,7 +6,7 @@ import { PhoneLink } from "../components/PhoneLink";
 import { PhoneRegionSelect } from "../components/PhoneRegionSelect";
 import { useEditor } from "../context/EditorContext";
 import { filterSubcategoriesForCategory, sortedCategories as sortCategoriesByTaxonomy } from "../editorTaxonomy";
-import { saveLabel } from "../editor-utils";
+import { profileStatus } from "../editor-utils";
 import { useRouteSyncedSelection } from "../hooks/useRouteSyncedSelection";
 
 export function PeoplePage() {
@@ -371,6 +372,8 @@ function PeopleEditorPanel(props: {
     (link) => link.status === "ACTIVE" && link.publish_person,
   ).length;
 
+  const status = profileStatus(editor.personSaveState, editor.personDraftHasUnsavedChanges, editor.selectedPersonId === "new", "person");
+
   return (
     <section className="panel people-editor">
       {editor.tenantDataLoading ? (
@@ -406,12 +409,11 @@ function PeopleEditorPanel(props: {
         </div>
       ) : (
         <>
-          {editor.peopleHasUnsavedChanges ? (
+          {editor.personDraftHasUnsavedChanges && editor.personSaveState !== "saving" && editor.personSaveState !== "error" ? (
             <div className="inline-banner warn">Du har ulagrede endringer i personskjemaet.</div>
           ) : null}
-          {editor.personLastSavedAt && !editor.peopleHasUnsavedChanges ? (
-            <div className="inline-banner success">Sist lagret {formatTime(editor.personLastSavedAt)}</div>
-          ) : null}
+          {editor.personSaveState === "error" ? <div className="inline-banner warn">Lagring ikke bekreftet. Kontroller feilmeldingen og lagret resultat før du prøver igjen.</div> : null}
+          {editor.contactDraftHasUnsavedChanges ? <div className="inline-banner warn">Du har et ulagret kontaktutkast. Bruk «Legg til kontakt»; profilknappen lagrer ikke dette.</div> : null}
           <div className="editor-header">
             <div>
               <p className="eyebrow small">
@@ -419,10 +421,10 @@ function PeopleEditorPanel(props: {
               </p>
               <h2>{editor.personDraft.full_name || "Person"}</h2>
             </div>
-            <div className={`save-pill ${editor.personSaveState}`}>{saveLabel(editor.personSaveState)}</div>
+            <div className={`save-pill ${status.kind}`}>{status.label}</div>
           </div>
 
-          <form onSubmit={editor.onSubmitPerson} className="editor-form">
+          <form onSubmit={editor.onSubmitPerson} className="editor-form profile-form">
             <div className="grid two">
               <Field label="Fullt navn" required>
                 <input
@@ -496,6 +498,7 @@ function PeopleEditorPanel(props: {
                 </p>
               ) : null}
 
+              <p className="meta">Endrede, ikke-tomme verdier i eksisterende kontaktkanaler sendes til lagring når du forlater feltet. Tom verdi sletter ikke kanalen; bruk Slett. Primær-/offentlig-valg sendes separat. Ny kontakt krever «Legg til kontakt». Profilknappen og profilreset omfatter ikke dette området.</p>
               <div className="contact-list">
                 {editor.personContacts.map((contact) => (
                   <article key={contact.id} className="modal-contact-card">
@@ -742,16 +745,6 @@ function PeopleEditorPanel(props: {
 
             <div className="actions">
               <button
-                type="submit"
-                className="primary-button"
-                disabled={!editor.tenantId || editor.personSaveState === "saving"}
-              >
-                {editor.selectedPersonId === "new" ? "Opprett person" : "Lagre person"}
-              </button>
-              <button type="button" className="ghost-button" onClick={editor.onResetPersonDraft}>
-                Nullstill
-              </button>
-              <button
                 type="button"
                 className="link-delete"
                 onClick={() => {
@@ -764,20 +757,20 @@ function PeopleEditorPanel(props: {
                 Slett person
               </button>
             </div>
+            <ProfileFormActions
+              model="person"
+              isNew={editor.selectedPersonId === "new"}
+              state={editor.personSaveState}
+              dirty={editor.personDraftHasUnsavedChanges}
+              disabled={!editor.tenantId}
+              onReset={editor.onResetPersonDraft}
+            />
           </form>
 
         </>
       )}
     </section>
   );
-}
-
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("nb-NO", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
 }
 
 function CategorySelectFields(props: {

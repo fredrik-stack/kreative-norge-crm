@@ -1,6 +1,15 @@
 # Editor
 
-## UI-6-FELLES – implementeringsgrunnlag 2026-10-24
+## UI-6 førstepakke – profilhandlinger og lokal reset
+
+[Spesifikasjonen §8](../features/UI_6_FELLES_SPEC.md#8-første-bestilte-kodepakke--skjemabundet-handlingstatus-og-korrekt-reset)
+beskriver implementert rad/status, konsistent nyprofil-baseline og valgt resetretting.
+Personens kontaktutkast bevares ved profilreload, med separat banner/navigasjonsvern.
+Profilreset endrer ikke globale feil eller allerede lagrede/separate områder.
+Ingen tidspunkt vises uten sikker profilbinding. Ingen endret API-/writekontrakt.
+
+
+## Historisk UI-6-FELLES-spesifikasjonspublisering 2026-10-24
 
 [Detaljspesifikasjonen](../features/UI_6_FELLES_SPEC.md) beskriver gjenbruk,
 anbefalte layout-/felt-/handlingsregler og fire skjermer. Lagringsmatrisen skiller

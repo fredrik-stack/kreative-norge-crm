@@ -195,7 +195,7 @@ test("canonical dial targets, internal actor phones and effective PUBLIC state s
   await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
   await expect(page.getByLabel("Telefon", { exact: true })).toHaveValue("070 123 45 67");
   await page.getByRole("button", { name: "Lagre person" }).click();
-  await expect(page.getByText(/Sist lagret/)).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Personskjema lagret" })).toBeVisible();
   await expect(page.getByText(/Koblet til 1 aktør: 0 viser personen offentlig, 1 skjuler personen/)).toBeVisible();
   const savedContactCard = page.locator("article.modal-contact-card").first();
   await expect(savedContactCard.getByText("Kan vises offentlig", { exact: true })).toBeVisible();

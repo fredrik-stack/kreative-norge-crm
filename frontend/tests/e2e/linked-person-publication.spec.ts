@@ -109,8 +109,8 @@ test("switching organization clears linked-person draft, errors, status and publ
     .check();
   await existingLinkForm.getByRole("combobox").selectOption("INACTIVE");
 
-  await page.getByRole("button", { name: "Lagre endringer" }).click();
-  await expect(page.getByText(/Sist lagret/)).toBeVisible();
+  await page.getByRole("button", { name: "Lagre aktør" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Aktørskjema lagret" })).toBeVisible();
   await expect(firstForm.getByLabel(/^Fullt navn/)).toHaveValue("Skal ikke følge med");
   await expect(firstForm.getByRole("checkbox", { name: /Vis ny person som kontaktperson offentlig/ })).toBeChecked();
   await expect(
