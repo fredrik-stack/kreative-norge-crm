@@ -2,6 +2,8 @@
 
 ## Samordnet Editor – kodeleveranse 2026-10-24, visuell godkjenning gjenstår
 
+[Samlet visuell leveranse / browserbilder](EDITOR_COMPACT_VISUAL_REVIEW_2026-10-24.md) gjelder kode `caccd8b` og draft PR #92.
+
 Prosjekteiers nye føring bruker den eksakt kontrollerte Import v6 rev.4/O-24 som
 visuell referanse og overstyrer gammel oppbygning/ni personkolonner/sticky-bunnrad.
 [UI-6 §9](../features/UI_6_FELLES_SPEC.md#9-samordnet-editor--ny-eierføring-og-kodeleveranse-2026-10-24)
