@@ -1,6 +1,12 @@
 # Kreative Norge CRM – dokumentasjon
 
-**UI-6-FELLES-spesifikasjon 2026-10-24:** [Kodeforankret utforming og første pakke](features/UI_6_FELLES_SPEC.md)
+**UI-6 førstepakke 2026-10-24:** [Profilhandlinger/status og valgt resetretting](features/UI_6_FELLES_SPEC.md#8-første-bestilte-kodepakke--skjemabundet-handlingstatus-og-korrekt-reset)
+er implementert i kodeleveransen. Den erstatter tidligere anbefalt bevaring av
+nyprofilens taggtekst ved reset; øvrige utformingsmål er fortsatt anbefalinger.
+Merge, staging og eieraksept rapporteres separat.
+
+
+**Historisk spesifikasjonspublisering 2026-10-24:** [Kodeforankret utforming og første pakke](features/UI_6_FELLES_SPEC.md)
 beskriver fire Editor-disposisjoner, konkret gjenbruk og lagringsscope. Anbefalt
 første kodepakke er skjemabundet handlings-/statusrad, ikke ny global lagring.
 Publisert spesifikasjon er ikke UI-implementering eller godkjenning av nye produktvalg.

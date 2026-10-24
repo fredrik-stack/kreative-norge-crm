@@ -2171,3 +2171,33 @@ select,
     max-height: 40vh;
   }
 }
+
+/* Profile main forms only; separate writes keep their own actions. */
+.profile-form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+.profile-form-actions-copy { min-width: 0; }
+.profile-form-actions-copy p { margin: 6px 0 0; overflow-wrap: anywhere; }
+.profile-form-actions > .actions { flex-shrink: 0; }
+.profile-form-actions button { min-height: 44px; }
+.profile-form :is(input, textarea, select, button) { scroll-margin-block: 16px 240px; }
+@media (max-width: 800px) {
+  .profile-form-actions { flex-direction: column; align-items: stretch; }
+  .profile-form-actions > .actions { justify-content: flex-end; }
+  .profile-form :is(input, textarea, select, button) { scroll-margin-bottom: 340px; }
+}
+/* Short/zoomed viewports need normal flow to keep fields reachable. */
+@media (max-height: 600px) {
+  .profile-form-actions { position: static; }
+  .profile-form :is(input, textarea, select, button) { scroll-margin-bottom: 16px; }
+}

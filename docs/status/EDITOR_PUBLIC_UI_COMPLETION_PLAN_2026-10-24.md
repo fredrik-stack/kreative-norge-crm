@@ -1,5 +1,11 @@
 # Editor og PUBLIC – samlet UI/UX-ferdigstilling
 
+**Første kodepakke 2026-10-24:** U3 får avgrenset profilhandlingsrad/status og
+uttrykkelig valgt nyprofil-reset etter [spesifikasjonen §8](../features/UI_6_FELLES_SPEC.md#8-første-bestilte-kodepakke--skjemabundet-handlingstatus-og-korrekt-reset).
+Dette ferdigstiller ikke hele U3/U4 eller øvrig UI-6. Kode, merge, teknisk staging
+og visuell eieraksept rapporteres separat i leveranse-PR/evidens.
+
+
 **Konkretisering 2026-10-24:** [UI-6-FELLES-spesifikasjonen](../features/UI_6_FELLES_SPEC.md)
 er detaljgrunnlag for U1–U6/U16, med fire Editor-disposisjoner og eksplisitt
 lagringsscope. Første anbefalte implementeringspakke er skjemabundet handling/

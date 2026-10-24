@@ -1,6 +1,16 @@
 # Project Status Current
 
-## UI-6-FELLES – spesifikasjon 2026-10-24
+## UI-6 første kodepakke – 2026-10-24
+
+Profilhandlingsrad, sann profilstatus og uttrykkelig valgt nyprofil-reset er
+implementert i leveransen etter [spesifikasjonen §8](../features/UI_6_FELLES_SPEC.md#8-første-bestilte-kodepakke--skjemabundet-handlingstatus-og-korrekt-reset).
+Nyprofilens tags/state tømmes lokalt, standardregion og dirty-baseline samsvarer.
+Separat kontaktutkast bevares ved samme profils lagring og har eget varsel/vern.
+Ingen backend-/API-/data-/flaggomlegging. Merge/deploy/teknisk stagingbevis følger
+leveranse-PR/evidens; visuell eieraksept og øvrig UI-6 er ikke ferdigmeldt.
+
+
+## Historisk UI-6-FELLES-spesifikasjonspublisering 2026-10-24
 
 [Hovedspesifikasjonen](../features/UI_6_FELLES_SPEC.md) konkretiserer felles
 utforming, fire representative Editor-skjermer og faktiske submit-/blur-/change-

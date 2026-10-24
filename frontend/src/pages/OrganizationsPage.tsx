@@ -1,3 +1,4 @@
+import { ProfileFormActions } from "../components/ProfileFormActions";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
@@ -7,7 +8,7 @@ import { PhoneRegionSelect } from "../components/PhoneRegionSelect";
 import { useEditor } from "../context/EditorContext";
 import { describeEffectivePublication } from "../editorPublication";
 import { filterSubcategoriesForCategory, sortedCategories as sortCategoriesByTaxonomy } from "../editorTaxonomy";
-import { saveLabel } from "../editor-utils";
+import { profileStatus, saveLabel } from "../editor-utils";
 import { useRouteSyncedSelection } from "../hooks/useRouteSyncedSelection";
 import {
   ApiError,
@@ -384,6 +385,8 @@ function OrganizationEditorPanel(props: {
   const { navigate, orgId, invalidOrgRoute } = props;
   const editor = useEditor();
 
+  const status = profileStatus(editor.saveState, editor.organizationHasUnsavedChanges, editor.selectedOrgId === "new", "aktør");
+
   return (
     <section className="panel editor">
       {editor.tenantDataLoading ? (
@@ -419,14 +422,10 @@ function OrganizationEditorPanel(props: {
         </div>
       ) : (
         <>
-          {editor.organizationHasUnsavedChanges ? (
+          {editor.organizationHasUnsavedChanges && editor.saveState !== "saving" && editor.saveState !== "error" ? (
             <div className="inline-banner warn">Du har ulagrede endringer i aktørskjemaet.</div>
           ) : null}
-          {editor.organizationLastSavedAt && !editor.organizationHasUnsavedChanges ? (
-            <div className="inline-banner success">
-              Sist lagret {formatTime(editor.organizationLastSavedAt)}
-            </div>
-          ) : null}
+          {editor.saveState === "error" ? <div className="inline-banner warn">Lagring ikke bekreftet. Kontroller feilmeldingen og lagret resultat før du prøver igjen.</div> : null}
           <div className="editor-header">
             <div>
               <p className="eyebrow small">
@@ -434,10 +433,10 @@ function OrganizationEditorPanel(props: {
               </p>
               <h2>{editor.draft.name || "Organisasjon"}</h2>
             </div>
-            <div className={`save-pill ${editor.saveState}`}>{saveLabel(editor.saveState)}</div>
+            <div className={`save-pill ${status.kind}`}>{status.label}</div>
           </div>
 
-          <form onSubmit={editor.onSubmit} className="editor-form">
+          <form onSubmit={editor.onSubmit} className="editor-form profile-form">
             <div className="grid two">
               <Field label="Navn" required>
                 <input
@@ -632,19 +631,14 @@ function OrganizationEditorPanel(props: {
               </label>
             </div>
 
-            <div className="actions">
-              <button
-                type="submit"
-                className="primary-button"
-                disabled={!editor.tenantId || editor.saveState === "saving"}
-              >
-                {editor.selectedOrgId === "new" ? "Opprett aktør" : "Lagre endringer"}
-              </button>
-              <button type="button" className="ghost-button" onClick={editor.onResetOrganizationDraft}>
-                Nullstill
-              </button>
-              {editor.isPending ? <span className="meta">Oppdaterer visning...</span> : null}
-            </div>
+            <ProfileFormActions
+              model="aktør"
+              isNew={editor.selectedOrgId === "new"}
+              state={editor.saveState}
+              dirty={editor.organizationHasUnsavedChanges}
+              disabled={!editor.tenantId}
+              onReset={editor.onResetOrganizationDraft}
+            />
           </form>
 
           {typeof editor.selectedOrgId === "number" && editor.selectedOrganization?.image_asset_feature_enabled ? (
@@ -2289,14 +2283,6 @@ function OrganizationPreviewPanel({ invalidOrgRoute }: { invalidOrgRoute: boolea
       )}
     </section>
   );
-}
-
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("nb-NO", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
 }
 
 function formatDateTime(iso: string): string {

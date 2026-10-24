@@ -1,14 +1,15 @@
 # UI-6-FELLES – felles utforming av eksisterende Editor-flater
 
-**Dato:** 2026-10-24. **Status:** Kodeforankret anbefaling til senere implementering; publisering er ikke ny designgodkjenning eller ferdigstilt UI.
+**Dato:** 2026-10-24. **Status:** §§3–7 er anbefalt mål. Første avgrensede kodepakke i §8 er bestilt og implementert i leveransen; merge, deploy og teknisk stagingbevis følger leveranse-PR/evidens. Visuell eieraksept er separat.
 **Baseline:** `00ac0d9fcc78656ca1144baf893beb65e003c8d1` etter PR #87.
 
 ## 1. Mandat, bevis og avgrensning
 
-Eierbestillingen autoriserer konkretisering, lagring, én dokumentasjons-PR,
+Opprinnelig spesifikasjonsmandat (historisk) autoriserte konkretisering, lagring, én dokumentasjons-PR,
 faktisk separat skrivebeskyttet review, retting, ordinær merge og grønn main-CI.
-Ingen applikasjonskode, data, migrasjon, flagg, provider, UI-implementering,
-prototype, browser-/stagingkjøring eller deploy endres/utføres her.
+Den opprinnelige spesifikasjonsleveransen endret ingen applikasjonskode/data/flagg
+og utførte ingen browser/staging/deploy. Ny uttrykkelig kode-/stagingbestilling
+og valgt resetretting er avgrenset i §8. Øvrige anbefalinger er ikke bestilt.
 
 **Videreført godkjent retning (G):** [samlet ferdigstillingsplan U1–U6/U16](../status/EDITOR_PUBLIC_UI_COMPLETION_PLAN_2026-10-24.md),
 [roadmapens godkjente forsider](../status/ROADMAP.md#fase-1--verifiser-staging--og-frontend-baseline),
@@ -22,7 +23,7 @@ prototype, browser-/stagingkjøring eller deploy endres/utføres her.
 er historiske, avgrensede bevis; de er ikke ferske observasjoner av disse
 forslagene. **N** nedenfor betyr ny anbefaling, **Å** et senere beslutningsbehov.
 **K** betyr faktisk kontrollert kode, uten ny runtime-/visuell verifikasjon.
-Alle anbefalte mål i §§3–6 krever senere avgrenset implementeringsbestilling.
+Anbefalte mål i §§3–6 utenfor den uttrykkelig bestilte førstepakken krever senere avgrenset bestilling.
 
 6A → 6B → 6C → Import 2.0 består. Godkjent import-UX v6 rev.4/O-24 og 5E
 endres ikke; ingen full mobilimport eller ny brukertestrunde. Begge Google
@@ -36,7 +37,7 @@ Maps-aktørkart er fortsatt v1 i KART-V1, uten å blokkere kjerneimporten.
 | [styles.css](../../frontend/src/styles.css): panel, grid.two, actions, save-pill, kort, tabell, modal og responsive regler | Gjenbruk klasser/tokens. N: små seksjonsspesifikke tillegg for handlinger, min-width:0, omslag og avstand; ingen generell CSS-opprydding/nytt designsystem | U1–U6 / UI-6-FELLES |
 | [Field](../../frontend/src/components/Field.tsx): omsluttende label, required og feltfeil | Gjenbruk enkle felt. N ved berørt felt: unik control-id, feilmeldings-id og aria-describedby/aria-invalid; flere kontroller i samme feltgruppe trenger egne navn/fieldset, ikke én label som navngir både telefon og region | U3/U4/U6 / PROFIL, 6B, 6C; ikke del av første pakke |
 | [OrganizationsPage](../../frontend/src/pages/OrganizationsPage.tsx), [PeoplePage](../../frontend/src/pages/PeoplePage.tsx): oversikt, read-only detaljmodal og egne redigerings-/new-ruter | Behold kort versus persontabell og modal→Rediger-reisen. N: konkret gruppering/retur etter §4; ingen ny generell profilmodus/rute | U2/U3 / OVERSIKT, PROFIL |
-| Samme sider: hovedformens actions ligger nederst, save-pill i header; kontakters separate writes ligger også inne i personformens DOM | N: skjemabundet handling/status med uttrykkelig scope. Mangler én sann, nær forklaring av profilsubmit versus separate writes; DOM-nesting betyr ikke felles lagring | U3/U4 / første pakke §8; senere 6B |
+| Samme sider: skjemabundet handlingsrad og samordnet toppstatus; kontakters separate writes ligger fortsatt inne i personformens DOM | Implementert i første pakke: profilspesifikk status og scopeforklaring. DOM-nesting betyr fortsatt ikke felles lagring | U3/U4 / første pakke §8; senere 6B |
 | [useEditorData](../../frontend/src/hooks/useEditorData.ts): drafts, submit/CRUD, reset, dirty og saveAllPendingChanges | Behold eksisterende API-/writekontrakter. Ingen generell autosave/undo/atomisk lagring legges til. §5 er kontraktgrunnlag | U1–U6 / 6A, 6B, PROFIL |
 | [useUnsavedChangesGuard](../../frontend/src/hooks/useUnsavedChangesGuard.ts), [ConfirmNavigationModal](../../frontend/src/components/ConfirmNavigationModal.tsx), [useRouteSyncedSelection](../../frontend/src/hooks/useRouteSyncedSelection.ts) | Gjenbruk eksisterende blokkering/rutesynk. N: riktig scopeforklaring/fokus. Dekningshull nevnt i §5 må få egen kontroll før bred NAV-ferdigmelding | U1/U3 / NAV, PROFIL |
 | [PhoneLink](../../frontend/src/components/PhoneLink.tsx), [PhoneRegionSelect](../../frontend/src/components/PhoneRegionSelect.tsx), editorPublication/editorTaxonomy | Gjenbruk raw/canonical-telefon, region og eksisterende effektiv offentlig status/taksonomi; ikke endre publiseringsregler | U2–U4 / OVERSIKT, 6B |
@@ -54,7 +55,7 @@ Maps-aktørkart er fortsatt v1 i KART-V1, uten å blokkere kjerneimporten.
 | Aktørkort | Behold auto-fill minmax(290px,1fr), men bruk min(290px,100%) som nedre grense så 320–390px skjerm ikke sprenges. Kvadratisk84px-bilde, navn opptil to linjer, kategori/underkategori/tags i wrap, kommune/sted og lenke. Telefon forblir utenfor hovedkortet etter fase-4-godkjenningen. Status «Offentlig»/«Intern» er tekst, ikke ny privatklassifisering. Fullt navn/metadata tilgjengelig i modal; skjulte ekstra chips får navngitt «+N»/detaljtilgang |
 | Persontabell | Behold ni kolonner: navn, tittel, aktører, primærlenke, e-post, telefon, kommune, kategori, tags. Navn/aktører kan bryte linjer; lenketekst kan forkortes visuelt med fullt tilgjengelig mål. Behold min-width960px og avgrenset horisontal rulling på smal skjerm; gi rulleområdet navn/tastaturtilgang. Ikke fjern kontaktfelt eller lag mobilkort som nytt prosjekt. Kort/lesemodal gir fortsatt samlet lesbar visning |
 | Søk/filter | Synlig label «Søk aktører»/«Søk personer», ikke bare placeholder. Behold eksisterende søkefelt, kategori→underkategori og taggforslag; valgt tilstand i oppsummering. Antall = faktisk filtrert, innlastet utvalg; ikke påstå backendtotal/paginering som ikke finnes. «Nullstill filtre» tømmer søk/kategori/underkategori/tagg, ikke aktivt Musikkontor eller profilutkast |
-| Handlinger | Én hovedhandling per form: Opprett aktør/person eller Lagre aktør/person. Sekundær: Forkast profilutkast for eksisterende profil; ved ny profil «Nullstill profilfelt» med synlig beskjed om at taggtekst beholdes av dagens reset. Retur er navigasjon, ikke lagring. Slett/fjern ligger separat i relevant lagringsområde, med eksisterende bekreftelse/slettevern; ikke samme visuelle vekt som Lagre. Nytt/Rediger vises bare når gjeldende tillatelse støtter det |
+| Handlinger | Én hovedhandling per form: Opprett aktør/person eller Lagre aktør/person. Sekundær: Forkast profilutkast for eksisterende profil; ved ny profil «Nullstill profilutkast», som tømmer taggtekst og gjenoppretter standardregion etter det uttrykkelige resetvalget i §8. Retur er navigasjon, ikke lagring. Slett/fjern ligger separat i relevant lagringsområde, med eksisterende bekreftelse/slettevern; ikke samme visuelle vekt som Lagre. Nytt/Rediger vises bare når gjeldende tillatelse støtter det |
 | Lagre/status | Skjemabundet rad nederst i hovedformen, sticky bottom:0 mens den formen er i visningsområdet, egen ugjennomsiktig panelbakgrunn, top-border, padding12px, z-index under dialoger. Knappene på høyre side, scope/status til venstre, gap8–12px; wrap ved smal bredde. Ingen global fixed-lagrelinje som ser ut til å styre bilde/kontakter/koblinger. En liten toppstatus kan speile samme scope, ikke gi et annet lagringsløfte |
 
 Dette er anbefalte verdier, ikke målte kvalitetsfunn. Kontroller særlig om sticky
@@ -108,7 +109,7 @@ oppretting/redigering, ikke en ny read-only rute med nye rettigheter.
 | Sideområde / etter hovedkolonnen <=1200px | Eksisterende preview blander utkastfelt (blant annet navn, beskrivelse, kontakt og taksonomi) med lagret bilde/OG-metadata og API-hentede personer. Behold separat Oppdater preview, som oppdaterer metadata. Merk kildene; dette er ikke en samlet, autoritativ PUBLIC-projeksjon eller ferdig 6B-resolver |
 
 Ny aktør må opprettes før ID-avhengige bilde/koblingshandlinger. Retur mens
-hovedutkastet er skittent går gjennom vernet; reset omfatter bare hovedutkastet, med nyprofil-unntaket for taggtekst i §5.
+hovedutkastet er skittent går gjennom vernet; reset omfatter bare hovedutkastet etter §5.
 Lange navn har naturlig omslag, URL-er/beskrivelse/notat full feltbredde; ved
 <=860px felt i én kolonne. Framtidige OrganizationPlace-plassvalg under grunnlag
 og privat overlay under «Kun eget Musikkontor» krever respektive6C/6A.
@@ -139,8 +140,8 @@ ikke en transaksjonsgaranti på tvers av API-kall.
 
 | Skjema/område | Utløser og faktisk K-write | Hva lagrestatus/forkasting kan bety |
 | --- | --- | --- |
-| Aktørens hovedutkast | onChange endrer draft; onSubmit→submitOrganizationDraft lager tags først ved behov, deretter createOrganization/patchOrganization og reload/tagghenting. Inkluderer profilfelter, taksonomikoblinger, legacy note, publiseringsvalg | saveState=saved etter hele frontendsekvensen, ikke etter bare første200. For eksisterende profil setter reset utkast/taggtekst fra sist innlastet valgt profil og state=idle. For ny profil nullstilles draft/feltfeil, men taggtekst og SaveState beholdes; taggtekst kan fortsatt gi dirty. Ingen rollback av tags eller andre allerede fullførte kall. Feil kan komme etter persistens |
-| Personens hovedutkast | onChange endrer personDraft; onSubmitPerson→submitPersonDraft oppretter/patcher profil etter taggresolusjon og henter kontakter/tags. Primærkontaktkompatibilitet kan berøres av backend | personSaveState/personLastSavedAt gjelder hovedsubmit, ikke alle kontakt-/koblingshandlinger. For eksisterende profil tilbakestilles personutkast/taggtekst og state=idle; for ny profil nullstilles draft/feltfeil, men taggtekst og SaveState beholdes. Ingen av grenene nullstiller nykontaktutkast eller lagrede kanaler |
+| Aktørens hovedutkast | onChange endrer draft; onSubmit→submitOrganizationDraft lager tags først ved behov, deretter createOrganization/patchOrganization og reload/tagghenting. Inkluderer profilfelter, taksonomikoblinger, legacy note, publiseringsvalg | saveState=saved etter hele frontendsekvensen, ikke etter bare første200. For eksisterende profil setter reset utkast/taggtekst fra sist innlastet valgt profil og state=idle. For ny profil gjenopprettes draft med aktiv tenants standardregion, taggtekst/feltfeil tømmes og SaveState=idle; samme standardregion brukes i dirty-baseline. Reset er sperret under hovedsubmit og utfører ingen API-write. Ingen rollback av tags eller andre allerede fullførte kall. Feil kan komme etter persistens |
+| Personens hovedutkast | onChange endrer personDraft; onSubmitPerson→submitPersonDraft oppretter/patcher profil etter taggresolusjon og henter kontakter/tags. Primærkontaktkompatibilitet kan berøres av backend | personSaveState/personLastSavedAt gjelder hovedsubmit, ikke alle kontakt-/koblingshandlinger. For eksisterende profil tilbakestilles personutkast/taggtekst og state=idle; for ny profil gjenopprettes draft med aktiv tenants standardregion, taggtekst/feltfeil tømmes og SaveState=idle. Dirty-baseline bruker samme region; reset er sperret under hovedsubmit og utfører ingen API-write. Ingen av grenene nullstiller nykontaktutkast eller lagrede kanaler |
 | Ny kontaktkanal | Knappen «Legg til kontakt» er type=button og kaller createContactFromDraft etter ID; separat POST. Ved primær oppdateres lokale kompatibilitetsfelt/baseline. Hovedknappen Lagre person kaller ikke dette | Må opprettes separat; ingen eksisterende egen SaveState for hver kanal. Global error/field errors og retur fra POST er dagens respons. Slett/angre via profilreset finnes ikke |
 | Eksisterende kontaktverdi | Ukontrollert input/defaultValue; onBlur sender PATCH bare når trimmet verdi er ikke-tom og forskjellig. Telefonnummer sender valgt region; regionselect endrer alene bare lokal kontekst | Tom input på blur sletter ikke kontakt og inngår ikke som vanlig personDraft-dirty. Ikke vis «profilutkast lagret» som bekreftelse på en slik redigering |
 | Eksisterende kontaktvalg/sletting | is_primary/is_public onChange→updateContact PATCH; Slett→bekreftelse→removeContact DELETE | Umiddelbare, separate writes. Tilbakestilling/forlat uten å lagre kan ikke angre dem. Kanalens globale is_public er dagens mellommodell, ikke6B-valg per kobling |
@@ -148,7 +149,7 @@ ikke en transaksjonsgaranti på tvers av API-kall.
 | Knytt eksisterende person | onCreateLink med egen submit→POST relasjon→reload | Eget kall/resultat; valg før submit er lokalt. Ingen profilsubmit eller automatisk publisering utover uttrykkelige lagrede valg |
 | Opprett og knytt ny kontaktperson | onCreateLinkedPerson: POST person, hent/opprett/patch kontakter, POST kobling og reload; linkedPersonSaveState | Flere kall, ingen samlet klient-/API-transaksjon. Delvis resultat kan bestå ved feil; ikke blindt gjenta create eller love «ingenting lagret».6B-målet om atomisk person/kontakt/kobling/publisering er ikke levert |
 | Bilde og preview-refresh | Egen processing/godkjenning med expected_revision og egen busy/error. onRefreshOrganizationPreview har separat serverkall/previewRefreshState og oppdaterer lagret metadata | Profilreset/navigasjonsforkasting opphever ikke godkjent bilde, behandlet grunnlag eller fullført preview-refresh. Ikke generell autosave eller samlet publiseringsknapp |
-| Lagre og fortsett i navigasjonsdialog | saveAllPendingChanges prøver aktørutkast, personutkast, ny kontakt i rekkefølge og stopper ved false | Flere kall; første kan være lagret selv om senere feiler. Ved feil bli igjen. Forkast kaller reset av profil-/kontakt-/linked-personutkast; profilreset har nyprofil-unntaket for taggtekst ovenfor. Allerede lagrede writes blir stående |
+| Lagre og fortsett i navigasjonsdialog | saveAllPendingChanges prøver aktørutkast, personutkast, ny kontakt i rekkefølge og stopper ved false | Flere kall; første kan være lagret selv om senere feiler. Ved feil bli igjen. Forkast kaller reset av profil-/kontakt-/linked-personutkast; Allerede lagrede writes blir stående |
 
 **K-dekning av dirty/vern:** organizationHasUnsavedChanges omfatter hovedutkast/
 taggtekst. peopleHasUnsavedChanges omfatter personutkast/taggtekst og ny kontakt
@@ -176,7 +177,7 @@ før shared/overlay-UI. **6C:** typed stedstjeneste før typed stedslagring.
 | Laster | Behold shell/kontekst, vis «Henter aktør/person…» i berørt område, aria-busy på området. Ikke vis «0 treff» eller Ny som om data var ferdig hentet |
 | Tomt arbeidsutvalg / søk uten treff | Skill ingen profiler i innlastet scope fra filtrert0. Tillatt Ny ved tomt scope; «Ingen treff – endre/nullstill filtre» ved søk. Feil ved lasting er ikke tomtilstand |
 | Manglende verdi / ugyldig felt | Read-only «Ikke oppgitt»/«—»; krev bare backendens faktiske felter. Synlig label og lokal feiltekst knyttes til input; ved submitfeil fokus på første ugyldige felt/oppsummering, ikke på et annet skjema |
-| Ulagret profil | «Ulagrede profilfelt» fra riktig dirty, ikke fra generell SaveState alene. Nytt tomt objekt: «Ikke opprettet». Ingen lagret-timestamp fremstilles som bekreftelse på nyere utkast |
+| Ulagret profil | «Ulagrede profilfelt» fra riktig dirty, ikke fra generell SaveState alene. Nytt tomt utkast: «Nytt profilutkast»; teksten lover ikke at et tidligere feilet serverkall opprettet ingenting. Ingen lagret-timestamp fremstilles som bekreftelse på nyere utkast |
 | Lagrer | «Lagrer aktørskjema…»/«Lagrer personskjema…», disable duplikat-submit/utkastforkasting i området; behold tekst/status utover farge. Ikke global arbeidsflate-spinner |
 | Lagret | «Aktørskjema lagret»/«Personskjema lagret», tidspunkt for sist vellykket hovedsubmit når tilgjengelig. Dirty overstyrer gammel saved etter nye endringer. Kontakt-/bilde-/koblingsscope bekreftes ikke av teksten |
 | Feil / ukjent utfall | «Lagring ikke bekreftet» + eksisterende konkret feil/feltpekere. Ingen påstand om at alle writes rullet tilbake. Ved mulig persistens/reloadfeil kontroller lagret resultat før ny create; ikke automatisk/blind retry |
@@ -218,24 +219,46 @@ bundet til faktisk versjon og scope. Fersk browserkontroll før implementering
 må spesielt se footerens scrollcontainer/fokusdekning, personkontaktblur ved
 klikk på lagre, modalfokus/retur og hva aktuell backend faktisk har lagret.
 
-## 8. Anbefalt første implementeringsbestilling – skjemabundet handling/status
+## 8. Første bestilte kodepakke – skjemabundet handling/status og korrekt reset
 
-**Anbefaling, ikke startet/godkjent som kodeleveranse:** lever én liten pakke for
-aktør-/personhovedskjemaets lagre-/forkast-/statuspresentasjon. Behovet er
-kodepåvist: hovedhandlinger nederst i lange former, generisk Lagret i header,
-og blandede writes i samme arbeidsflate. En kompakt shell-ombygging ville berøre
-alle ruter og løser ikke lagringsuklarheten; en global lagrelinje ville overdrive
-scope. Derfor velges en lokal handlingsrad før NAV-/kort-/tabellombygging.
+**Besluttet av prosjekteier 2026-10-24:** første kodepakke omfatter hovedformenes
+handlingsrad/status og målrettet reset-/baseline-retting. Den tidligere anbefalingen
+om å beholde nyprofilens taggtekst og lagringsstate ved reset er uttrykkelig erstattet.
+Dette godkjenner ikke øvrige layout-/navigasjons-/kort-/tabellmål eller full UI-6.
 
-**Ferdig formulert bestilling til senere bruk:**
+**Implementert i kodeleveransen:**
 
-> Implementer skjemabundet handlingsrad i OrganizationEditorPanel og PeopleEditorPanel etter denne spesifikasjonen §§3,5–6/8. Behold eksisterende hovedformsubmit/reset/API-/tagg-/publiserings-/telefonkontrakter. Flytt eksisterende hovedactions til en scope-avgrenset sticky rad, uten dupliserte submitknapper eller ny global handler. Bruk «Lagre aktør»/«Lagre person» og eksisterende Opprett-varianter, «Forkast profilutkast» for eksisterende profil og «Nullstill profilfelt» for ny profil, profilspesifikk status/tid og kort forklaring om separate writes. Personstatus bygger på personDraftHasUnsavedChanges, ikke hele peopleHasUnsavedChanges; ny kontakt er separat. Gjenbruk lagringsstates, men la pågående request ha prioritet, deretter nye dirty felt fremfor gammel saved; idle alene betyr ikke lagret. Bevar dagens resetgren for ny profil og forklar synlig at taggtekst beholdes; ikke lov at hele nyutkastet forkastes. Ingen generell autosave/undo/atomisk lagring, ingen API-/hook-/rolle-/navigasjons-/kontakt-/bilde-/PUBLIC-/importendring. Før kodeendring: browser-aktiv Codex og relevant visuell baseline mot ekte backend. Test og lever gjennom separat review/ordinær merge/CI og relevant bestilt staging-/eierkontroll. Stopp etter denne pakken; den ferdigstiller ikke hele UI-6-PROFIL eller andre UI-6-leveranser.
+- `ProfileFormActions` gjenbruker eksisterende knapper/save-pill og har én hovedsubmit, scopeforklaring, lokal reset og tekstlig status. Aktør: Opprett/Lagre aktør; person: Opprett/Lagre person. Ny profil: Nullstill profilutkast; eksisterende: Forkast profilutkast. Separate bilde-/preview-/kontakt-/koblingswrites og payloads består.
+- Raden er sticky bottom:0 innen hovedformen, z-index 2, ugjennomsiktig bakgrunn og naturlig omslag. På viewport-høyde <=600 CSS-piksler går den i normal flyt; faktisk 200 % browserzoom gir denne tilstanden. Scoped scroll-margin og browser-/tastaturkontroll beskytter siste felt/handling. Dette er en nødvendig avgrensning for korte visningsflater.
+- Ny aktør/person bruker samme tenantstandardregion i initiering, reset og dirty-baseline. Reset tømmer lokal taggtekst/feltfeil, setter hovedstate=idle og blir ren uten profilendringer. Eksisterende reset gjenoppretter innlastede profilfelt/tags. Aktiv tenant og separate kontaktutkast bevares. Begge reset-handlere og knappene sperrer reset under hovedsubmit. Ingen reset-write, sletting eller generell undo.
+- `profileStatus` brukes av toppstatus og rad: saving → error → nye dirty felt → saved → idle. Feil/ukjent utfall overstyres ikke av dirty; global feil ryddes ikke ved reset. «Nytt profilutkast» og «Ingen ulagrede profilfelt» er lokale tilstander, ikke servergarantier. Ingen lagringstid vises fordi tidligere tidsstate ikke er sikkert profilbundet.
+- Personstatus bruker bare `personDraftHasUnsavedChanges`; separat kontaktutkast har egen banner/fortsatt navigasjonsvern. Ekte browserkontroll avdekket at profilreload tømte kontaktutkast etter Lagre person. Den direkte lokale rettingen knytter tømming til person-/tenant-/standardregionbytte, ikke ny respons for samme profil. Ingen kontaktwrite legges til profilsubmit.
+- Ingen API-/backend-/migrerings-/rolle-/publiserings-/telefon-/image-/PUBLIC-/importendring. 6A–6C, notat-/taggautoritet, kart og bredt navigasjonsvern har egne leveranser.
 
-- **Filer:** `frontend/src/pages/OrganizationsPage.tsx`, `PeoplePage.tsx`, scoped tillegg i `styles.css`; målrettede tester i eksisterende frontend-teststruktur. Ingen omfattende uttrekk eller ny generell komponentmotor.
-- **Detaljregel:** raden er del av riktig hovedform. Profilsubmit skaper ikke ny kontaktkanal eller kobling; ved personkontaktområdet og aktørens senere separate områder vises scopeforklaring. Ny kontakt som ikke er opprettet kan fortsatt utløse dagens navigasjonsvern selv om profilfeltene nettopp er lagret. Ikke skjul dette med «alt lagret».
-- **Aksept:** samme payloads/kall og uendrede onBlur-/onChange-writes; nøyaktig én hovedsubmit per form; korrekt navn/mode/status ved ny/eksisterende, dirty/saving/saved/error; ingen gammel Lagret over nye profilendringer; ingen generell retry ved ukjent create-resultat. Retur/reset/guards fungerer som før, med presis tekst om hva forkasting betyr, særlig beholdt taggtekst/dirty ved nyprofil-reset. Målrettet endring av resetfunksjonen krever separat valg, ikke skjult hook-retting i denne pakken. Sticky slutter ved hovedformens grense og dekker ikke felt/feil, bilde- eller koblingshandlinger.
-- **Tester:** gjenbruk [App.test.tsx](../../frontend/src/App.test.tsx), [navigasjonsverntest](../../frontend/src/hooks/useUnsavedChangesGuard.test.tsx) og [dialogtest](../../frontend/src/components/ConfirmNavigationModal.test.tsx). Legg bare til målrettet scope/status-test for hovedformene, særlig personkontaktutkast versus profil-dirty, gammel saved etter ny endring, og ny aktør/person med taggtekst → reset → taggtekst/dirty fortsatt synlig med riktig knapp/forklaring. Bevar [bildeprøvene](../../frontend/src/pages/OrganizationsPage.image.test.tsx), telefon/publication-kontrakter og relevante eksisterende Playwright-reiser for CRUD/preview/ulagret navigasjon. Ikke gjør brede backend-/DB-testrunder til ny gate for denne presentasjonsendringen.
-- **Senere browser/staging:** faktisk lang aktør-/personform på1440×900,1366×768,1024×768 og smal Editor390×844, tastatur og200%zoom; kontrollér save-area/fokus/siste feil, isolert kontaktwrite/nykontaktutkast, feil og retur med ekte backend. Smal Editor-kontroll bestiller ikke mobilimport. Visuell eiergodkjenning gjelder faktisk endret scope etter teknisk bevis; ingen ny formell brukertest/prototype-/kollegarunde.
-- **Avhengigheter/valg:** ingen6A–6C-aktivering trengs når kontraktene beholdes. Prosjekteier må separat bestille pakken; nye vesentlige valg eller målt blocker eskaleres da. Radvis kontaktstate, dekkende navigasjonsvern og full6B atomisk kontaktreise ligger utenfor.
-- **Tilbakeføring:** revert de avgrensede frontend-/CSS-endringene og bygg/deploy forrige verifiserte frontend etter relevant mandat. Ingen schema/datareversering; allerede lagrede separate writes står fortsatt.
-- **Bidrag:** konkret del av U3/UI-6-PROFIL og tydelig grense mot U4; ikke fullført UI-6-NAV/OVERSIKT/PROFIL/PRIVAT,6B eller samlet Editor-v1.
+**Kontrollgrunnlag:** 51 frontendtester, inkludert 10 nye målrettede tester av
+faktisk hook/reset og status/handling. Eksisterende testfiler gjenbrukes for bilde,
+telefon, publication, App og navigasjonsdialog. 13 eksisterende Editor-Playwright-
+reiser dekker CRUD/preview, koblinger, kontaktpublisering, sletting og navigasjon.
+Fire separate PUBLIC-tester krever CI-ens egne image-fixtures/flagg; en lokal
+bred kjøring feilet på manglende testaktører i UI6-basen, ikke på Editor-kontrollene.
+Full påkrevd CI beholdes. TypeScript og produksjonsbuild kontrolleres.
+
+**Ekte lokal browserbaseline og kontroll:** isolert PostgreSQL 16 og eksisterende
+Django/Vite-oppsett med syntetiske profiler/bruker, uten API-mocks. Chromium via
+Playwright var aktiv før kodeendring. Før: feil dirty på begge tomme NO-profiler;
+etter: ren profil, tags/reset, oppretting/lagret/nye endringer/forkasting, separat
+kontaktutkast og navigasjonsdialog. Skjermbredder 1440×900, 1366×768, 1024×768 og
+390×844; faktisk Chromium-zoom 200 % kontrolleres separat fra viewport-emulering.
+Lokal verifikasjon er ikke staging eller eieraksept.
+
+**Leveranse og tilbakeføring:** separat review av base/head, ordinær merge og
+grønn main-CI før frontend-only staging etter gjeldende runbook. Ingen API-recreate,
+migrasjon eller flaggendring. Sanitert stagingevidens beskriver faktisk versjon,
+bundleidentitet, kontrollert syntetisk reise, bredder/fokus/zoom og teknisk resultat.
+Tilbakeføring er forrige verifiserte webimage/frontend; ingen schema/datareversering.
+Allerede lagrede separate writes står fortsatt. Visuell eieraksept av de faktisk
+endrede skjemaene innhentes etter teknisk verifikasjon; ingen ny formell brukertest.
+
+**Bidrag/stopp:** avgrenset del av U3/UI-6-PROFIL, med tydelig grense mot U4.
+Ingen fullført NAV/OVERSIKT/PROFIL/PRIVAT, 6B eller samlet Editor-v1. Stopp etter
+bestilt kode-/stagingleveranse og eierkontrollinstruks; ikke start neste produktpakke.

@@ -34,15 +34,15 @@ test("create organization and verify preview updates", async ({ page }) => {
   });
 
   await expect(page.getByLabel(/Navn/)).toHaveValue("Ny Kulturaktør");
-  await expect(page.getByText(/Sist lagret/)).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Aktørskjema lagret" })).toBeVisible();
   await expect(page.locator(".panel.editor .editor-header h2")).toHaveText("Ny Kulturaktør");
 
   const organizationForm = page.locator(".panel.editor form").first();
   await organizationForm.getByRole("textbox", { name: "Telefon" }).fill("+4711111111");
   await expect(organizationForm.getByLabel("Land/region for telefonnummer")).toHaveValue("");
   await page.getByRole("checkbox", { name: /Publiser telefon/ }).check();
-  await page.getByRole("button", { name: "Lagre endringer" }).click();
+  await page.getByRole("button", { name: "Lagre aktør" }).click();
 
   await expect(preview.getByText("+4711111111")).toBeVisible();
-  await expect(page.getByText(/Sist lagret/)).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Aktørskjema lagret" })).toBeVisible();
 });
