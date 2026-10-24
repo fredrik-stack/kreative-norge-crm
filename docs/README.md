@@ -3,7 +3,8 @@
 **UI-6 førstepakke 2026-10-24:** [Profilhandlinger/status og valgt resetretting](features/UI_6_FELLES_SPEC.md#8-første-bestilte-kodepakke--skjemabundet-handlingstatus-og-korrekt-reset)
 er implementert i kodeleveransen. Den erstatter tidligere anbefalt bevaring av
 nyprofilens taggtekst ved reset; øvrige utformingsmål er fortsatt anbefalinger.
-Merge, staging og eieraksept rapporteres separat.
+[Teknisk stagingevidens](status/STAGING_UI_6_PROFILE_ACTIONS_2026-10-24.md) bekrefter
+frontend `3ede68f`, resize/fokus og faktisk 200 % zoom. Visuell eieraksept gjenstår.
 
 
 **Historisk spesifikasjonspublisering 2026-10-24:** [Kodeforankret utforming og første pakke](features/UI_6_FELLES_SPEC.md)
