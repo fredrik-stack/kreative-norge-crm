@@ -17,6 +17,7 @@ test("create organization and verify preview updates", async ({ page }) => {
   await expect(page.getByLabel("Land/region for telefonnummer")).toHaveValue("NO");
   await page.getByLabel("Kommune(r)").fill("Bergen");
 
+  await page.getByText("Forhåndsvisning", {exact:true}).click();
   const preview = page.locator(".panel.preview");
   await expect(preview.getByRole("heading", { name: "Ny Kulturaktør" })).toBeVisible();
   await expect(preview.getByText("987654321")).toBeVisible();

@@ -120,6 +120,7 @@ test("shows confirm dialogs for deleting link and person", async ({ page }) => {
   await expect(page.getByText("Ada Editor")).toBeVisible();
 
   await page.goto("/people");
+  await page.getByRole("searchbox",{name:"Søk personer"}).fill("Ada");
   await page.getByRole("button", { name: "Ada Editor" }).click();
   await page.getByRole("button", { name: "Rediger" }).click();
   await expect(page.getByLabel("Fullt navn")).toHaveValue("Ada Editor");

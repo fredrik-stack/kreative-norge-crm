@@ -1,6 +1,8 @@
 # UI-6-FELLES – felles utforming av eksisterende Editor-flater
 
-**Dato:** 2026-10-24. **Status:** §§3–7 er anbefalt mål. Første avgrensede kodepakke i §8 er merget og teknisk stagingverifisert på frontendkilde `3ede68f`; [datert evidens](../status/STAGING_UI_6_PROFILE_ACTIONS_2026-10-24.md). Visuell eieraksept er ikke mottatt.
+**Gjeldende eierføring 2026-10-24:** §9 overstyrer motstridende anbefalinger i §§3–8. Ny kompakt Editor er implementert på leveransebranch, med visuell beslutning før merge. Ingen ny staging-/eieraksept er registrert.
+
+**Historisk status før ny bestilling:** §§3–7 er anbefalt mål. Første avgrensede kodepakke i §8 er merget og teknisk stagingverifisert på frontendkilde `3ede68f`; [datert evidens](../status/STAGING_UI_6_PROFILE_ACTIONS_2026-10-24.md). Visuell eieraksept er ikke mottatt.
 **Baseline:** `00ac0d9fcc78656ca1144baf893beb65e003c8d1` etter PR #87.
 
 ## 1. Mandat, bevis og avgrensning
@@ -262,3 +264,58 @@ endrede skjemaene innhentes etter teknisk verifikasjon; ingen ny formell brukert
 **Bidrag/stopp:** avgrenset del av U3/UI-6-PROFIL, med tydelig grense mot U4.
 Ingen fullført NAV/OVERSIKT/PROFIL/PRIVAT, 6B eller samlet Editor-v1. Stopp etter
 bestilt kode-/stagingleveranse og eierkontrollinstruks; ikke start neste produktpakke.
+
+
+## 9. Samordnet Editor – ny eierføring og kodeleveranse 2026-10-24
+
+**Mandat:** kompakt aktøroversikt, aktørmodal, opprett/rediger aktør,
+søk-først-personoversikt/detalj og opprett/rediger person. Utgangspunkt er
+main `4e9340f0f606e95e0bc8603916b7acd4f7e93008`. Godkjent Import 2.0 v6
+revisjon 4/O-24 er konkret designreferanse; Editor-fontene beholdes. Originalen
+på 200869 byte med SHA-256
+`938a40ea725772d96a70fb660a228652070047e3d1d6b3eeebe24aa324499628`
+er kontrollert og åpnet i Chromium gjennom ordinær kilde→analyse→review-reise.
+Den eldre lokale kopien på 199864 byte ble avvist. Ingen rekonstruksjon er brukt.
+Sju eierbilder i `Desktop/Editor baseline UI design/241026` er lest som
+avviksgrunnlag; nye leveransebilder bruker bare syntetiske data.
+
+**Besluttet av eier:** gammel skjermoppbygning, ni faste personkolonner og stor
+sticky-bunnrad videreføres ikke. Godkjent importfunksjon/5E, øvrige ADR-er og
+begge Google Maps-aktørkart i v1 består. Ingen ny formell brukertest.
+
+**Implementert anbefalt utforming, avventer visuell godkjenning:**
+
+- Felles kompakt kontekstlinje, oversiktens eget søke-/filterområde og tydelig
+  aktiv seksjon også på profilruter. IBM Plex Sans/Space Grotesk/fallbacks beholdes.
+  Avstandsskala 4/8/12/16/24 px, brødtekst14, støtte11–12, seksjon14–16,
+  profilnavn23. Kontroller40 px på laptop,44 px og inputtekst16 på mobil.
+- Aktørkort har responsivt grid, navn→sted→kategorisering→handlinger, omslag
+  innen kortet og initialfallback ved manglende/ødelagt bilde. Lesemodaler har
+  én navneoverskrift, færre rammer, kompakte kontaktlinjer og Escape/fokusvern.
+- Hovedformens Lagre/Opprett/Forkast ligger ved profilhodet i normal dokumentflyt.
+  Ren profil har tom, rolig status og deaktivert redundant lagring. Endret,
+  lagrer, lagret og vedvarende feil følger eksisterende profilstatusprioritet.
+  Ingen fast rad kan dekke felter; fokus kontrolleres også ved resize/200 % zoom.
+- Vanlige profilfelt vises direkte. Native details gir oppsummering/åpning for
+  kategorisering, notat, lenker, bildeflyt og opprett/knytt kontakt. Feltene
+  forblir montert; lukking kaster ikke utkast eller flytter fokus fra åpneren.
+  Native validering åpner lukket seksjon; feltfeil åpnes og får lenker fra en
+  navngitt feilsammendrag til riktig felt, også ved like feilmeldinger.
+- Eksisterende kontaktkanaler og aktørkoblinger vises før opprett/knytt.
+  Kontakt-blur, primær/offentlig, koblingsvalg og bildehandlinger beholder sine
+  separate writes. Profilreset, standardregion/dirty, kontaktutkast ved reload
+  og navigasjonsvern fra #89/#90 består. Ingen Lagre alt-/autosavekontrakt.
+- Personoversikten viser ingen rader uten søk eller aktivt filter. Fire grupper:
+  navn/tittel, aktører, kontakt og sted; øvrige felt ligger i detalj. Inngang,
+  pågående lesing/søk, ingen treff og lesefeil er forskjellige tilstander.
+  Tømming returnerer inngangen. Klientens søk/filter og valgt person består ved
+  retur fra profil. Eksisterende innlasting/filtrering brukes; dette er ikke
+  serverbasert søk, ny paginering eller endret tilgang.
+
+**Leveransegrense:** frontendkode, målrettede tester/dokumentasjon, draft PR og
+faktisk separat skrivebeskyttet review er bestilt. Samlet visuell leveranse med
+laptop/mobil, lagringstilstander, eksakt kode og miljø skal godkjennes av eier
+**før merge**. Deretter gjelder ordinær grønn PR-/main-CI og separat kontrollert
+frontend-only staging etter runbook innen samme mandat. Lokal browserverifikasjon
+er ikke stagingaksept. Ingen backend/API/migrasjon, delingsaktivering, taggpolicy,
+6B/6C, PUBLIC- eller kartimplementering inngår. Hele UI-6 er ikke ferdigmeldt.

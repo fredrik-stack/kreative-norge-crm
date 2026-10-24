@@ -63,7 +63,7 @@ describe("App integration", () => {
     await userEvent.type(nameInput, "Kreativ Demo AS (endret)");
 
     await waitFor(() => {
-      expect(screen.getByText("Du har ulagrede endringer i aktørskjemaet.")).toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent("Ulagrede profilfelt");
     });
     expect(screen.getByRole("link", { name: /^Aktører/ })).toBeInTheDocument();
   });

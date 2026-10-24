@@ -192,6 +192,7 @@ export function useEditorData() {
   const [organizationLastSavedAt, setOrganizationLastSavedAt] = useState<string | null>(null);
   const [personLastSavedAt, setPersonLastSavedAt] = useState<string | null>(null);
   const [previewRefreshState, setPreviewRefreshState] = useState<SaveState>("idle");
+  const [tenantDataError, setTenantDataError] = useState<string | null>(null);
   const [tenantDataLoaded, setTenantDataLoaded] = useState(false);
   const [tenantDataLoading, setTenantDataLoading] = useState(false);
   const [personContactsLoading, setPersonContactsLoading] = useState(false);
@@ -209,7 +210,10 @@ export function useEditorData() {
         if (tenantData.length > 0) setTenantId((current) => current ?? tenantData[0].id);
       })
       .catch((err: Error) => {
-        if (!cancelled) setError(err.message);
+        if (!cancelled) {
+          setError(err.message);
+          setTenantDataError(err.message);
+        }
       });
 
     return () => {
@@ -223,6 +227,7 @@ export function useEditorData() {
 
     setError(null);
     setSaveState("idle");
+    setTenantDataError(null);
     setTenantDataLoaded(false);
     setTenantDataLoading(true);
 
@@ -258,6 +263,7 @@ export function useEditorData() {
       .catch((err: Error) => {
         if (!cancelled) {
           setError(err.message);
+          setTenantDataError(err.message);
           setTenantDataLoaded(true);
           setTenantDataLoading(false);
         }
@@ -1297,6 +1303,8 @@ export function useEditorData() {
     hasUnsavedChanges,
     saveAllPendingChanges,
     discardAllPendingChanges,
+    overviewSearchPending: overviewQuery !== deferredOverviewQuery,
+    tenantDataError,
     tenantDataLoaded,
     tenantDataLoading,
     personContactsLoading,
