@@ -1,5 +1,20 @@
 # Project Status Current
 
+## Samordnet Editor – kodeleveranse 2026-10-24, visuell godkjenning gjenstår
+
+[Samlet visuell leveranse / browserbilder](EDITOR_COMPACT_VISUAL_REVIEW_2026-10-24.md) gjelder kode `caccd8b` og draft PR #92.
+
+Prosjekteiers nye føring bruker den eksakt kontrollerte Import v6 rev.4/O-24 som
+visuell referanse og overstyrer gammel oppbygning/ni personkolonner/sticky-bunnrad.
+[UI-6 §9](../features/UI_6_FELLES_SPEC.md#9-samordnet-editor--ny-eierføring-og-kodeleveranse-2026-10-24)
+beskriver implementert kompakt oversikt/modal/profil, søk først for personer,
+bevarte separate writes/reset/utkast og stopp før merge. Leveransen er på
+`feat/editor-compact-profiles`; PR, review og CI følger GitHub. Ingen merge,
+ny stagingdeploy eller visuell eieraksept er registrert for denne leveransen.
+Tidligere teknisk staging på `3ede68f` er historisk baseline, ikke godkjenning
+av den nye utformingen. Resten av UI-6/6A–6C/PUBLIC/kart/import er ikke ferdigmeldt.
+
+
 ## UI-6 første kodepakke – 2026-10-24
 
 Profilhandlingsrad, sann profilstatus og uttrykkelig valgt nyprofil-reset er

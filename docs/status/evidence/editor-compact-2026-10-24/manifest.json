@@ -1,0 +1,158 @@
+{
+  "runtime_commit": "caccd8b71f83bf3896393c5bbcb8116f2041023f",
+  "environment": "isolated local synthetic Django/PostgreSQL; no staging",
+  "files": {
+    "01-actors-1440.png": {
+      "bytes": 270236,
+      "sha256": "87342cb0d9268844f4d722009dad453b007bcf542b8fd20fc6c87ebccb78b9b1"
+    },
+    "01-actors-390.png": {
+      "bytes": 183242,
+      "sha256": "c64762d561b61a1a033070b50ea10e2c4a98553c5ec9dde8890e0b76e2b0bff2"
+    },
+    "02-actor-reading-1440.png": {
+      "bytes": 219436,
+      "sha256": "7c381bb4dd435b30f89f717041e209e57fb52651037f9f798117961727450981"
+    },
+    "02-actor-reading-390.png": {
+      "bytes": 178263,
+      "sha256": "1995ad624c379fa8ae0e26ece9f3509be7038c9691cdff6206be876784681ab6"
+    },
+    "03-actor-edit-1440.png": {
+      "bytes": 451790,
+      "sha256": "30327a50f56aa451c5b2bb5ca6c3bfd54fdebeaf57a62a0f9250a13ee03e375f"
+    },
+    "03-actor-edit-390.png": {
+      "bytes": 328117,
+      "sha256": "e223af388532704aacbbb53bee201819017c0643f6e5366b7d69bb98102fab92"
+    },
+    "04-image-open-1440.png": {
+      "bytes": 493130,
+      "sha256": "5db94ed3fcd68c199e142a7fdaa8ce5e20676460ff7c1c303da787ea449a7a2d"
+    },
+    "04-image-open-390.png": {
+      "bytes": 346022,
+      "sha256": "db46f0a78d679a522868c05bc79d4f6e947414fa0d8d2fda6c10fb9bb28e4ebd"
+    },
+    "05-actor-new-1440.png": {
+      "bytes": 295728,
+      "sha256": "e27213851be5502823adfa494c3d277a5ccee0fdad508051369bb1d577b57056"
+    },
+    "05-actor-new-390.png": {
+      "bytes": 198360,
+      "sha256": "99f618be0677c5129fcd2d00b48cec62fd01bc94faf83387cd651bf48a3d2def"
+    },
+    "06-people-entry-1440.png": {
+      "bytes": 254664,
+      "sha256": "ce27ab92fd38eb81819fb90a33ed52507ecf1d46bc8435bc7b34cf9dc3438cbc"
+    },
+    "06-people-entry-390.png": {
+      "bytes": 115288,
+      "sha256": "a619439ad981de0c9b78ea4819bce8afd02469aa50b73e701c9d29b42fc6b590"
+    },
+    "07-people-results-1440.png": {
+      "bytes": 296014,
+      "sha256": "758ac4bcf9c51c606b50a90d127471f24081b85489813c130cf9ee55290531fc"
+    },
+    "07-people-results-390.png": {
+      "bytes": 149164,
+      "sha256": "f1e4b26552e11aed6e1cb889b3cd30f6833793bf06ff56db0c5e91389b615fc3"
+    },
+    "08-person-reading-1440.png": {
+      "bytes": 150365,
+      "sha256": "52fa750d42a206267e9bd877fea1618b1a5c27635eb0c363137a18377e3671f2"
+    },
+    "08-person-reading-390.png": {
+      "bytes": 101596,
+      "sha256": "d145eeded1459b14f891206eeda1e903aa921a3d6d99ef9243f6d7a01df48524"
+    },
+    "09-person-edit-1440.png": {
+      "bytes": 394136,
+      "sha256": "48bf29b2946c6cf8e4ced25e956db188fc5f01cf369f268e1836d20e6331fa82"
+    },
+    "09-person-edit-390.png": {
+      "bytes": 253351,
+      "sha256": "ea934aeeed8b466c1d67744af89fae2f4b1f5ef989b0451e680fcbb6f8ae385c"
+    },
+    "10-person-new-1440.png": {
+      "bytes": 303228,
+      "sha256": "bba46855ed2f50cdbe8aeaae9236822e9b77cb71406ea1cb101410d3b8fc8e12"
+    },
+    "10-person-new-390.png": {
+      "bytes": 182940,
+      "sha256": "7eca7a3fac3b7aaaf1c3445001ecb2a00d274cd975912f83c48f780d83aaf45b"
+    },
+    "11-image-approved-1440.png": {
+      "bytes": 635930,
+      "sha256": "d3c551e5683149a279c7f319cf2029b5d96209b8ad321bc98196b5d2bac26787"
+    },
+    "actor-changed-1440.png": {
+      "bytes": 266825,
+      "sha256": "5cdc6753bc840b07d1f184ffea12b402d7e38eaec0976e27ef237510c23eb017"
+    },
+    "actor-changed-390.png": {
+      "bytes": 109480,
+      "sha256": "e470ce2ab7da84cec333584bd658926713d78aa1c4ad5f926a0e7c85077426dc"
+    },
+    "actor-error-1440.png": {
+      "bytes": 305037,
+      "sha256": "cd37a4c74fdc5a579fd199ffbd8e6aea531f40af3437d0448ff6a7985177673f"
+    },
+    "actor-error-390.png": {
+      "bytes": 106026,
+      "sha256": "876349146d494d1569df0bd13d7d75263201b57a13d7968f969e4f362e6e8684"
+    },
+    "actor-saved-1440.png": {
+      "bytes": 265143,
+      "sha256": "9668b4abfffa78800f5824165ecf1f056d9d56e4a4d10840d6dc5535d5feba8b"
+    },
+    "actor-saving-1440.png": {
+      "bytes": 265453,
+      "sha256": "72072f90eb12b3d88a8cc49e88d6f14403fb37618603658ae785182eb3490ee7"
+    },
+    "actor-zoom200.png": {
+      "bytes": 124342,
+      "sha256": "44308b2cc6546328723f3f2f1d4660643beb6cab1bc67e4bc4adb4787cc0a455"
+    },
+    "checks.json": {
+      "bytes": 2001,
+      "sha256": "4bf26f7736822a9eef8524e62ecaa7cd6322ea0cd0161856063c5811ea2a7423"
+    },
+    "index.html": {
+      "bytes": 8914,
+      "sha256": "70bac3e8c510be2c226413b05ea63e315a7cc5599498e9aecd5bb6dde49f115f"
+    },
+    "person-changed-1440.png": {
+      "bytes": 303113,
+      "sha256": "50d1312ac9004d37ac6722e72802b6035f20dd0908ad74af23de012eb77d413b"
+    },
+    "person-changed-390.png": {
+      "bytes": 110834,
+      "sha256": "6f9a59517db32761900b85e6eeec977bb288457d7b303f7ecb0d56e79d37b7c7"
+    },
+    "person-error-1440.png": {
+      "bytes": 337612,
+      "sha256": "8b9aae93c13dca7886526c9a43b9f8268df1b7ea9672987e8e8ff1441023540b"
+    },
+    "person-error-390.png": {
+      "bytes": 126406,
+      "sha256": "efe5cfe456e757d0703a432c30b2da6b7b14b7b5f090db1dec9ba2f11d6f72a5"
+    },
+    "person-saved-1440.png": {
+      "bytes": 301173,
+      "sha256": "163dd4e1b147f183dcdb2e14188153a66128815dfa746312157dc62e45b490f8"
+    },
+    "person-saving-1440.png": {
+      "bytes": 301455,
+      "sha256": "274424e352876463bb14e7aee511b33364fd0001fadfd9f141aa4d9e429cc8af"
+    },
+    "person-zoom200.png": {
+      "bytes": 183705,
+      "sha256": "f265a9a153861e3d1fcbd0d7a7dcefaea921aec1afcc0949a059cb93cfeb20c8"
+    },
+    "zoom.json": {
+      "bytes": 228,
+      "sha256": "bd7115fd77f69ef77ee37eefb82341a014245edf23236079e6fccc1ee65377a5"
+    }
+  }
+}

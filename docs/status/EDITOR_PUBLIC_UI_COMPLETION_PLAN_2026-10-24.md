@@ -1,5 +1,14 @@
 # Editor og PUBLIC – samlet UI/UX-ferdigstilling
 
+**Ny styrende eierføring og kodeleveranse 2026-10-24:**
+[UI-6 §9](../features/UI_6_FELLES_SPEC.md#9-samordnet-editor--ny-eierføring-og-kodeleveranse-2026-10-24)
+overstyrer tidligere anbefalt skjermoppbygning, ni personkolonner og stor sticky-
+bunnrad. Kompakt Editor på de fem bestilte flatene er implementert på branch;
+visuell eiergodkjenning kreves før merge, deretter teknisk frontend-only staging.
+Dette er avgrenset U1–U4-arbeid, ikke ferdigmelding av hele leveransematrisen,
+6B/6C eller PUBLIC/kart/import. Daterte beskrivelser nedenfor er historisk grunnlag.
+
+
 **Første kodepakke 2026-10-24:** U3 får avgrenset profilhandlingsrad/status og
 uttrykkelig valgt nyprofil-reset etter [spesifikasjonen §8](../features/UI_6_FELLES_SPEC.md#8-første-bestilte-kodepakke--skjemabundet-handlingstatus-og-korrekt-reset).
 Dette ferdigstiller ikke hele U3/U4 eller øvrig UI-6. [Datert evidens](STAGING_UI_6_PROFILE_ACTIONS_2026-10-24.md)

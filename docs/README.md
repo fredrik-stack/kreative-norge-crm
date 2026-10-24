@@ -1,5 +1,15 @@
 # Kreative Norge CRM – dokumentasjon
 
+**Samordnet Editor, kodeleveranse 2026-10-24:**
+[Ny styrende eierføring / UI-6 §9](features/UI_6_FELLES_SPEC.md#9-samordnet-editor--ny-eierføring-og-kodeleveranse-2026-10-24)
+bruker kontrollert Import v6 rev.4/O-24 som konkret designreferanse med Editor-
+fonter beholdt. Kompakt oversikt/modal/profil og søk først for personer er
+implementert på branch. Samlet visuell godkjenning før merge gjenstår; ingen
+ny stagingaksept eller ferdigmelding av hele UI-6. Eldre avsnitt er daterte bevis.
+
+[Samlet visuell leveranse / browserbilder](status/EDITOR_COMPACT_VISUAL_REVIEW_2026-10-24.md) gjelder kode `caccd8b` og draft PR #92.
+
+
 **UI-6 førstepakke 2026-10-24:** [Profilhandlinger/status og valgt resetretting](features/UI_6_FELLES_SPEC.md#8-første-bestilte-kodepakke--skjemabundet-handlingstatus-og-korrekt-reset)
 er implementert i kodeleveransen. Den erstatter tidligere anbefalt bevaring av
 nyprofilens taggtekst ved reset; øvrige utformingsmål er fortsatt anbefalinger.

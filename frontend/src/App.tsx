@@ -98,7 +98,7 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
   }, [overviewTagQuery, editor.tags]);
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${location.pathname.startsWith("/import-export") ? "" : "compact-editor"}`}>
       <header className="hero">
         <div>
           <p className="eyebrow">Kreative Norge</p>
@@ -114,17 +114,63 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
               Editor CRM
             </Link>
           </h1>
+        </div>
+        <div className="hero-card">
+          <label className="field-label" htmlFor="tenant-select">
+            Aktivt Musikkontor
+          </label>
+          <select
+            id="tenant-select"
+            value={editor.tenantId ?? ""}
+            onChange={(e) => {
+              const next = Number(e.target.value);
+              const nextTenantId = Number.isNaN(next) ? null : next;
+              unsavedGuard.requestTenantSelection(nextTenantId);
+            }}
+          >
+            {editor.tenants.length === 0 ? <option value="">Ingen tenants funnet</option> : null}
+            {editor.tenants.map((tenant) => (
+              <option key={tenant.id} value={tenant.id}>
+                {tenant.name} ({tenant.slug})
+              </option>
+            ))}
+          </select>
+          <p className="meta">Rolle: {editor.currentTenantRole ?? "Ingen tilgang"}</p>
+          <nav className="top-nav" aria-label="Hovednavigasjon">
+            <NavLink to="/organizations" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
+              Aktører{editor.organizationHasUnsavedChanges && !onPeoplePage ? " *" : ""}
+            </NavLink>
+            <NavLink to="/people" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
+              Personer{editor.peopleHasUnsavedChanges ? " *" : ""}
+            </NavLink>
+            {editor.canImportExport ? (
+              <NavLink to="/import-export" end className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
+                Import / eksport
+              </NavLink>
+            ) : null}
+          </nav>
+          <div className="session-bar">
+            <span className="meta">Innlogget som {username}</span>
+            <button type="button" className="ghost-button" onClick={onLogout}>
+              Logg ut
+            </button>
+          </div>
+        </div>
+      </header>
+      {onOverviewPage ? <section className="overview-tools" aria-label={isPeopleOverview ? "Søk og filtrer personer" : "Søk og filtrer aktører"}>
           {onOverviewPage ? (
             <div className="hero-controls">
               <input
                 className="search-input"
                 type="search"
-                placeholder="Søk navn, kommune, kategori eller tag..."
+                aria-label={isPeopleOverview ? "Søk personer" : "Søk aktører"}
+                placeholder={isPeopleOverview ? "Søk personer, aktører, kontaktinfo eller sted" : "Søk navn, sted, kategori eller tag"}
                 value={editor.overviewQuery}
                 onChange={(e) => editor.setOverviewQuery(e.target.value)}
               />
               <div className="hero-filter-grid">
                 <select
+                  aria-label="Hovedkategori"
                   className="overview-select"
                   value={editor.overviewCategorySlug}
                   onChange={(e) => {
@@ -141,6 +187,7 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
                 </select>
                 <select
                   className="overview-select"
+                  aria-label="Underkategori"
                   value={editor.overviewSubcategorySlug}
                   onChange={(e) => editor.setOverviewSubcategorySlug(e.target.value)}
                   disabled={!editor.overviewCategorySlug}
@@ -158,6 +205,7 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
                   <input
                     className="search-input"
                     value={overviewTagQuery}
+                    aria-label="Søk tag"
                     placeholder="Søk tag"
                     onFocus={() => setTagSearchFocused(true)}
                     onBlur={() => {
@@ -211,55 +259,14 @@ function EditorShell({ username, onLogout }: { username: string; onLogout: () =>
                     {isPeopleOverview ? "Ny person" : "Ny aktør"}
                   </button>
                 ) : null}
-                <button type="button" className="ghost-button" onClick={goToEditorHome}>
-                  Nullstill
+                <button type="button" className="ghost-button" onClick={editor.resetOverviewFilters}>
+                  Nullstill filtre
                 </button>
               </div>
             </div>
           ) : null}
-        </div>
-        <div className="hero-card">
-          <label className="field-label" htmlFor="tenant-select">
-            Aktiv tenant
-          </label>
-          <select
-            id="tenant-select"
-            value={editor.tenantId ?? ""}
-            onChange={(e) => {
-              const next = Number(e.target.value);
-              const nextTenantId = Number.isNaN(next) ? null : next;
-              unsavedGuard.requestTenantSelection(nextTenantId);
-            }}
-          >
-            {editor.tenants.length === 0 ? <option value="">Ingen tenants funnet</option> : null}
-            {editor.tenants.map((tenant) => (
-              <option key={tenant.id} value={tenant.id}>
-                {tenant.name} ({tenant.slug})
-              </option>
-            ))}
-          </select>
-          <p className="meta">Rolle: {editor.currentTenantRole ?? "Ingen tilgang"}</p>
-          <nav className="top-nav" aria-label="Hovednavigasjon">
-            <NavLink to="/organizations" end className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
-              Aktører{editor.organizationHasUnsavedChanges && !onPeoplePage ? " *" : ""}
-            </NavLink>
-            <NavLink to="/people" end className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
-              Personer{editor.peopleHasUnsavedChanges ? " *" : ""}
-            </NavLink>
-            {editor.canImportExport ? (
-              <NavLink to="/import-export" end className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>
-                Import / eksport
-              </NavLink>
-            ) : null}
-          </nav>
-          <div className="session-bar">
-            <span className="meta">Innlogget som {username}</span>
-            <button type="button" className="ghost-button" onClick={onLogout}>
-              Logg ut
-            </button>
-          </div>
-        </div>
-      </header>
+
+      </section> : null}
 
       {editor.error ? <div className="banner error">{editor.error}</div> : null}
 

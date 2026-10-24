@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-24 – samordnet kompakt Editor (kodeleveranse, før visuell godkjenning)
+
+- Aktørkort/lesemodaler og aktør-/personskjema har felles kompakt hierarki etter
+  godkjent Import v6 rev.4/O-24, med eksisterende Editor-fonter.
+- Profilhandlinger ved profilhodet erstatter stor sticky-bunnrad; sekundære
+  oppgaver åpnes med bevart utkast og tilgjengelig feltvalidering.
+- Personoversikten starter med søk/filter og fire kompakte informasjonsgrupper.
+- Eksisterende profilreset, dirty/status, kontaktutkast og separate writes består.
+- Branchleveranse; merge, frontend-only staging og eieraksept gjenstår. Se UI-6 §9.
+
+
 ## 2026-10-17 – første eiergodkjente 6A.2-legacybackfill i staging
 
 - Eksakt godkjent plan anvendt én gang: 578 semantiske endringer; én COMMITTED_VERIFIED-batch, frisk read-back og no-op uten restendringer.

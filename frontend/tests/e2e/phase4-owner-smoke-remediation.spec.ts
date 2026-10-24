@@ -185,6 +185,7 @@ test("canonical dial targets, internal actor phones and effective PUBLIC state s
   await page.goto("/people");
   await loginAsEditor(page);
 
+  await page.getByRole("searchbox",{name:"Søk personer"}).fill("Svensk");
   const overviewPhone = page.getByRole("link", { name: "070 123 45 67 (+46)" }).first();
   await expect(overviewPhone).toHaveAttribute("href", "tel:+46701234567");
   await page.getByRole("button", { name: "Svensk Kontakt", exact: true }).click();
@@ -194,6 +195,7 @@ test("canonical dial targets, internal actor phones and effective PUBLIC state s
   );
   await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
   await expect(page.getByLabel("Telefon", { exact: true })).toHaveValue("070 123 45 67");
+  await page.getByLabel("Tittel",{exact:true}).fill("Produsent endret");
   await page.getByRole("button", { name: "Lagre person" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Personskjema lagret" })).toBeVisible();
   await expect(page.getByText(/Koblet til 1 aktør: 0 viser personen offentlig, 1 skjuler personen/)).toBeVisible();
@@ -202,6 +204,7 @@ test("canonical dial targets, internal actor phones and effective PUBLIC state s
   await expect(savedContactCard.getByText(/vises bare på aktører der personen også er satt til/)).toBeVisible();
 
   await page.getByRole("link", { name: /^Aktører/ }).click();
+  await page.getByRole("searchbox",{name:"Søk aktører"}).fill("");
   const internalActor = page.locator("article.editor-card").filter({ hasText: "Svensk kontaktaktør" });
   await expect(internalActor.getByText("Telefon · Kun intern")).toHaveCount(0);
   await expect(internalActor.getByText("08-505 103 00")).toHaveCount(0);

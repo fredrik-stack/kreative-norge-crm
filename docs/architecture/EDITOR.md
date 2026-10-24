@@ -1,5 +1,23 @@
 # Editor
 
+## Samordnet kompakt Editor – kodeleveranse 2026-10-24
+
+[Ny eierføring og implementering i UI-6 §9](../features/UI_6_FELLES_SPEC.md#9-samordnet-editor--ny-eierføring-og-kodeleveranse-2026-10-24)
+er gjeldende for de berørte oversiktene, lesemodalene og profilskjemaene.
+Personoversikten krever søk/filter før rader vises og bruker fire informasjonsgrupper;
+initial backendinnlasting og klientfilter består. `tenantDataError` og utsatt søk
+skiller feil/pågående arbeid fra tom inngang/ingen treff. Ingen ny API-kontrakt.
+Profilhandlingene er inne i riktig hovedform ved profilhodet, i normal flyt.
+`ProfileSection` beholder monterte felter; `Field` navngir enkeltkontroller og
+sammensatte grupper separat. Feilsammendrag åpner seksjon og fokuserer riktig felt.
+Lesedialoger har Escape, fokusavgrensning og retur til tilgjengelig åpner.
+Koblings-/kontakt-/bildehandlinger har sine eksisterende writes. Foregående
+sticky-fokusmekanisme er erstattet av en layout uten overliggende handlingsrad;
+fokus-/resize-/zoomgarantien beholdes og kontrolleres i browser.
+Visuell godkjenning før merge og senere teknisk staging gjenstår. Eldre avsnitt
+nedenfor beskriver foregående leveranser og historiske anbefalinger.
+
+
 ## UI-6 førstepakke – profilhandlinger og lokal reset
 
 [Spesifikasjonen §8](../features/UI_6_FELLES_SPEC.md#8-første-bestilte-kodepakke--skjemabundet-handlingstatus-og-korrekt-reset)
