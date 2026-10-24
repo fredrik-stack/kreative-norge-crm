@@ -358,6 +358,8 @@ funksjon aktivert og stagingverifisert skal rapporteres hver for seg.
 Første avgrensede U3-kodepakke omfatter profilhandlingsrad/status og eksplisitt
 valgt nyprofil-reset. [Detaljer og bevisgrenser](../features/UI_6_FELLES_SPEC.md#8-første-bestilte-kodepakke--skjemabundet-handlingstatus-og-korrekt-reset);
 øvrig UI-6 og visuell eieraksept er fortsatt egne steg.
+[Førstepakkens tekniske stagingbevis](STAGING_UI_6_PROFILE_ACTIONS_2026-10-24.md)
+gjelder frontend `3ede68f`; ingen full UI-6- eller eieraksept er ferdigmeldt.
 
 [UI-6-FELLES-spesifikasjonen](../features/UI_6_FELLES_SPEC.md) konkretiserer
 skjerm-/komponent-/handlingsregler og faktiske lagringsscope. Den anbefaler én

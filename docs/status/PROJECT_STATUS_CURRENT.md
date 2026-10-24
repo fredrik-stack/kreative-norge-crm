@@ -6,8 +6,10 @@ Profilhandlingsrad, sann profilstatus og uttrykkelig valgt nyprofil-reset er
 implementert i leveransen etter [spesifikasjonen §8](../features/UI_6_FELLES_SPEC.md#8-første-bestilte-kodepakke--skjemabundet-handlingstatus-og-korrekt-reset).
 Nyprofilens tags/state tømmes lokalt, standardregion og dirty-baseline samsvarer.
 Separat kontaktutkast bevares ved samme profils lagring og har eget varsel/vern.
-Ingen backend-/API-/data-/flaggomlegging. Merge/deploy/teknisk stagingbevis følger
-leveranse-PR/evidens; visuell eieraksept og øvrig UI-6 er ikke ferdigmeldt.
+Ingen backend-/API-/data-/flaggomlegging. [PR #89/#90 og datert evidens](STAGING_UI_6_PROFILE_ACTIONS_2026-10-24.md)
+dokumenterer merget kode og frontend-only staging på `3ede68f`, inklusive fokusretting,
+ekte backend/bredder/200 % zoom og ryddede syntetiske testdata. Teknisk staging er
+verifisert; visuell eieraksept er ikke mottatt og øvrig UI-6 er ikke ferdigmeldt.
 
 
 ## Historisk UI-6-FELLES-spesifikasjonspublisering 2026-10-24

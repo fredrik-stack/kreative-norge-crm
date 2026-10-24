@@ -2,8 +2,9 @@
 
 **Første kodepakke 2026-10-24:** U3 får avgrenset profilhandlingsrad/status og
 uttrykkelig valgt nyprofil-reset etter [spesifikasjonen §8](../features/UI_6_FELLES_SPEC.md#8-første-bestilte-kodepakke--skjemabundet-handlingstatus-og-korrekt-reset).
-Dette ferdigstiller ikke hele U3/U4 eller øvrig UI-6. Kode, merge, teknisk staging
-og visuell eieraksept rapporteres separat i leveranse-PR/evidens.
+Dette ferdigstiller ikke hele U3/U4 eller øvrig UI-6. [Datert evidens](STAGING_UI_6_PROFILE_ACTIONS_2026-10-24.md)
+skiller merget/deployet frontend `3ede68f` og grønn teknisk staging fra visuell
+eieraksept, som ikke er mottatt. Øvrige utformingsmål er fortsatt anbefalinger.
 
 
 **Konkretisering 2026-10-24:** [UI-6-FELLES-spesifikasjonen](../features/UI_6_FELLES_SPEC.md)

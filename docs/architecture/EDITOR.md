@@ -7,6 +7,8 @@ beskriver implementert rad/status, konsistent nyprofil-baseline og valgt resetre
 Personens kontaktutkast bevares ved profilreload, med separat banner/navigasjonsvern.
 Profilreset endrer ikke globale feil eller allerede lagrede/separate områder.
 Ingen tidspunkt vises uten sikker profilbinding. Ingen endret API-/writekontrakt.
+[Datert teknisk stagingbevis](../status/STAGING_UI_6_PROFILE_ACTIONS_2026-10-24.md)
+dekker rettet sticky-fokus/resize og 200 % zoom på `3ede68f`; eieraksept gjenstår.
 
 
 ## Historisk UI-6-FELLES-spesifikasjonspublisering 2026-10-24
