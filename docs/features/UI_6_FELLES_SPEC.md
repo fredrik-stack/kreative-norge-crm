@@ -229,13 +229,13 @@ Dette godkjenner ikke øvrige layout-/navigasjons-/kort-/tabellmål eller full U
 **Implementert i kodeleveransen:**
 
 - `ProfileFormActions` gjenbruker eksisterende knapper/save-pill og har én hovedsubmit, scopeforklaring, lokal reset og tekstlig status. Aktør: Opprett/Lagre aktør; person: Opprett/Lagre person. Ny profil: Nullstill profilutkast; eksisterende: Forkast profilutkast. Separate bilde-/preview-/kontakt-/koblingswrites og payloads består.
-- Raden er sticky bottom:0 innen hovedformen, z-index 2, ugjennomsiktig bakgrunn og naturlig omslag. På viewport-høyde <=600 CSS-piksler går den i normal flyt; faktisk 200 % browserzoom gir denne tilstanden. Scoped scroll-margin og browser-/tastaturkontroll beskytter siste felt/handling. Dette er en nødvendig avgrensning for korte visningsflater.
+- Raden er sticky bottom:0 innen hovedformen, z-index 2, ugjennomsiktig bakgrunn og naturlig omslag. På viewport-høyde <=600 CSS-piksler går den i normal flyt; faktisk 200 % browserzoom gir denne tilstanden. Stagingkontroll avdekket at fokus kunne skjules ved viewport-/radhøydeendring. En avgrenset focusin-/resize-/ResizeObserver-kontroll i raden sentrerer bare et fokusert felt i samme hovedform når det faktisk overlapper sticky-raden; andre områder og radens egne knapper berøres ikke. Scoped scroll-margin og ny browser-/tastaturkontroll supplerer dette. Dette er en nødvendig avgrensning for korte visningsflater.
 - Ny aktør/person bruker samme tenantstandardregion i initiering, reset og dirty-baseline. Reset tømmer lokal taggtekst/feltfeil, setter hovedstate=idle og blir ren uten profilendringer. Eksisterende reset gjenoppretter innlastede profilfelt/tags. Aktiv tenant og separate kontaktutkast bevares. Begge reset-handlere og knappene sperrer reset under hovedsubmit. Ingen reset-write, sletting eller generell undo.
 - `profileStatus` brukes av toppstatus og rad: saving → error → nye dirty felt → saved → idle. Feil/ukjent utfall overstyres ikke av dirty; global feil ryddes ikke ved reset. «Nytt profilutkast» og «Ingen ulagrede profilfelt» er lokale tilstander, ikke servergarantier. Ingen lagringstid vises fordi tidligere tidsstate ikke er sikkert profilbundet.
 - Personstatus bruker bare `personDraftHasUnsavedChanges`; separat kontaktutkast har egen banner/fortsatt navigasjonsvern. Ekte browserkontroll avdekket at profilreload tømte kontaktutkast etter Lagre person. Den direkte lokale rettingen knytter tømming til person-/tenant-/standardregionbytte, ikke ny respons for samme profil. Ingen kontaktwrite legges til profilsubmit.
 - Ingen API-/backend-/migrerings-/rolle-/publiserings-/telefon-/image-/PUBLIC-/importendring. 6A–6C, notat-/taggautoritet, kart og bredt navigasjonsvern har egne leveranser.
 
-**Kontrollgrunnlag:** 51 frontendtester, inkludert 10 nye målrettede tester av
+**Kontrollgrunnlag:** 52 frontendtester, inkludert 11 nye målrettede tester av
 faktisk hook/reset og status/handling. Eksisterende testfiler gjenbrukes for bilde,
 telefon, publication, App og navigasjonsdialog. 13 eksisterende Editor-Playwright-
 reiser dekker CRUD/preview, koblinger, kontaktpublisering, sletting og navigasjon.
