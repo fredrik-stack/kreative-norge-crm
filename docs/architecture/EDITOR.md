@@ -1,5 +1,37 @@
 # Editor
 
+## Gjeldende layoutretting, runde 2 – 2026-10-25
+
+[UI-6 §11](../features/UI_6_FELLES_SPEC.md#11-andre-visuelle-retting-av-pr-92--2026-10-25) overstyrer eldre kort-/kolonne-
+og handlingsplasseringer. Aktørkort er 148 px høye, lik bredde i samme responsive
+grid, min 300 px når plass finnes; thumbnail 76×100 px, navn 13/17 px på inntil
+tre linjer og sted øverst høyre. Ekstreme verdier avkortes kontrollert; full
+informasjon finnes i modal. Personoversikten har fem kolonner: navn/tittel,
+aktører, kontakt, sted, kategorier/tags. På mobil stables de samme gruppene.
+
+Aktørens øvre Save er ved starten av profilhodet; nedre Save ligger etter alle
+seksjoner, også bilde, koblinger og forhåndsvisning. Ytre submit peker med native
+`form="organization-profile-form"` til samme hovedform; separat bilde-/koblings-
+form og eksisterende native/feltvalidering beholdes. Ny aktør har samme footer
+med Opprett og luft rundt knappen. Ny enkel koblingstekst er implementert som
+forslag til samlet visuell godkjenning.
+
+Slett aktør er gjenopprettet til høyre for nedre Save på lagret profil. UI og
+hook krever dagens canDelete (superadmin/gruppeadmin), eksplisitt confirm og
+bruker eksisterende tenantavgrensede DELETE. Felles ref-lås hindrer samtidige
+profilwrites; navigasjonsvernet venter under sletting. Kun bekreftet DELETE
+fjerner aktør/koblinger fra lokal cache, tømmer utkast og returnerer til oversikten;
+personer beholdes. 403/409/ukjent resultat beholder profil/utkast og synlig feil,
+ingen lokal sletting eller ny backendkontrakt. Serverens beskyttelse består.
+
+Ulagrede profilfelt får `dirty`-tone (oransje med tekst); saving/error prioriteres
+som før. Den lange forklaringen om offentlige kontakter på skjult person er
+fjernet; eksisterende enkel skjult-status og faktiske publiseringsvilkår består.
+Profiler er midtstilt innen maks 1080 px i arbeidsområdet; oversikter og Import
+bruker tilgjengelig bredde. Dette viderefører eksisterende responsive ramme.
+[Ny viewport-evidens](../status/EDITOR_LAYOUT_VISUAL_REVIEW_2026-10-25.md) er lokal,
+ikke stagingaksept eller samlet eiergodkjenning.
+
 ## Gjeldende rettingsleveranse – 2026-10-25
 
 [UI-6 §10](../features/UI_6_FELLES_SPEC.md#10-eierbestilt-retting-av-pr-92--2026-10-25)

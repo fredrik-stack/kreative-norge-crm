@@ -1,0 +1,7 @@
+{
+  "checks": [
+    "Real API: create via footer, cancel delete no write, confirm one DELETE, return to overview and DB absence",
+    "Actual redigerer membership cannot use actor Delete; gruppeadmin can"
+  ],
+  "errors": []
+}

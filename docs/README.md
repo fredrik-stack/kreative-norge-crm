@@ -1,5 +1,14 @@
 # Kreative Norge CRM – dokumentasjon
 
+**Siste visuelle retting av PR #92 – 25.10.2026, runde 2:**
+[UI-6 §11](features/UI_6_FELLES_SPEC.md#11-andre-visuelle-retting-av-pr-92--2026-10-25) overstyrer tidligere kortdybde,
+plassering av nedre aktørhandling og fire personkolonner.
+[Nytt vurderingsgrunnlag](status/EDITOR_LAYOUT_VISUAL_REVIEW_2026-10-25.md) har
+29 nye browserbilder, primært hele desktopflaten i 1920 × 1080, mobil og faktisk
+200 % zoom. Lavere like kort, sted øverst høyre, fem personkolonner, oransje dirty
+og Lagre/Slett helt nederst er implementert på branch. Samlet visuell godkjenning,
+merge og staging gjenstår; senere deployscope er fortsatt API + frontend.
+
 **Eierbestilt retting av PR #92 – 2026-10-25:**
 [UI-6 §10](features/UI_6_FELLES_SPEC.md#10-eierbestilt-retting-av-pr-92--2026-10-25) styrer venstremeny, like store aktørkort og manuell
 personlagring med lokale kontaktutkast. Dette overstyrer eldre meny-/kort-/reset-

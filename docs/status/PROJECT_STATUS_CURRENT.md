@@ -1,5 +1,24 @@
 # Project Status Current
 
+## PR #92 – andre visuelle retting 2026-10-25
+
+Eiers nye kommentarer er implementert i runtime `213219085c3e6da214d372729a1ec91c247a0c6e`:
+148 px like høye aktørkort, mindre navn på inntil tre linjer og sted øverst høyre;
+fem desktopkolonner med egen kategorier/tags; oransje Ulagrede profilfelt.
+Aktørens nederste Lagre/Opprett ligger etter bilde, personkoblinger og preview,
+med Slett aktør til høyre for lagrede profiler under eksisterende rettigheter og
+confirm. Samme hovedform, validering og innsendinglås; backend-409 ved beskyttet
+profil består. Ny forklaring av personkoblinger er et implementert tekstforslag.
+
+[UI-6 §11](../features/UI_6_FELLES_SPEC.md#11-andre-visuelle-retting-av-pr-92--2026-10-25) er gjeldende overstyring;
+[29 nye bilder og kontrollrapport](EDITOR_LAYOUT_VISUAL_REVIEW_2026-10-25.md)
+skiller full desktop-viewport fra supplerende fullsidebilder. Profilene er
+midtstilt innen maks 1080 px; oversikter/Import bruker arbeidsbredden. 66 frontend-
+tester, 20 Editor-e2e, TS/build, to målrettede PostgreSQL-tester og reell lokal
+browser/API-kontroll er grønne. Separat review og siste publiserte CI spores i PR.
+Ingen merge/staging; samlet eiergodkjenning kreves først. Senere API + frontend,
+ingen migrasjon, backfill eller aktivering. Tidligere bilder nedenfor er historiske.
+
 ## PR #92 – eierbestilt retting 2026-10-25, før visuell godkjenning
 
 Den nye [styrende bestillingen / UI-6 §10](../features/UI_6_FELLES_SPEC.md#10-eierbestilt-retting-av-pr-92--2026-10-25)

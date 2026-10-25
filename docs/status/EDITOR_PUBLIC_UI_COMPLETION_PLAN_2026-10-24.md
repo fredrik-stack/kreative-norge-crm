@@ -1,5 +1,14 @@
 # Editor og PUBLIC – samlet UI/UX-ferdigstilling
 
+**Siste eierføring 25.10.2026, visuell runde 2:**
+[UI-6 §11](../features/UI_6_FELLES_SPEC.md#11-andre-visuelle-retting-av-pr-92--2026-10-25) er implementert i samme PR #92:
+lavere faste kort, mindre navn/sted øverst høyre, egen femte personkolonne,
+oransje dirty og aktørens Lagre/Slett helt nederst etter separate seksjoner.
+[Hele desktop-viewporten, mobil og zoom](EDITOR_LAYOUT_VISUAL_REVIEW_2026-10-25.md)
+er nytt vurderingsgrunnlag. Tidligere visuelle forslag nedenfor er historikk.
+Samlet eiergodkjenning før merge/staging består. Ingen ny UX-/brukertestrunde;
+API + frontend ved senere godkjent staging. Begge kart og øvrig v1-scope består.
+
 **Overstyrende eierbestilt retting 2026-10-25:**
 [UI-6 §10](../features/UI_6_FELLES_SPEC.md#10-eierbestilt-retting-av-pr-92--2026-10-25)
 leverer venstremeny, like kortmål og lokale/manuelt lagrede personkontakter på

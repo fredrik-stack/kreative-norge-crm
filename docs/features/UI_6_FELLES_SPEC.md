@@ -393,3 +393,44 @@ skriving for profilen krever fersk ordinær innlasting. Dette hindrer at cache
 bekrefter en slettet kontakt som Lagret, også etter internt bytte tilbake.
 Fjern→Angre før writes gjenoppretter opprinnelig lokalt hovedfelt, uten å reparere
 et eksisterende avvik mellom hovedfelt og kontakt. Ingen ny DB-/writepolicy.
+
+
+## 11. Andre visuelle retting av PR #92 – 2026-10-25
+
+**Besluttet av eier:** Nyeste visuelle kommentarer overstyrer eldre krav om
+kortdybde, at navneskrift ikke kan reduseres, fire persongrupper og nedre
+aktørhandling før bilde. Ingen ny generell UX-/planleggingsrunde.
+
+**Implementert anbefalt detaljutforming, avventer samlet visuell godkjenning:**
+
+- Like aktørkort på 148 px høyde (før 208), responsivt antall kolonner/bredde,
+  thumbnail 76×100 px, sted øverst til høyre. Navn bruker 13 px/17 px linjehøyde,
+  inntil tre linjer. Representative lange navn brytes; ekstreme verdier/steder
+  avkortes kontrollert og finnes fullt i modal. Én faktisk tagg +N og eksisterende
+  taggsemantikk består. Ingen PUBLIC-kodeendring.
+- Aktørens grønne Save står øverst ved profilhodet og helt nederst til venstre
+  etter bilde, personkoblinger og preview. Nedre knapp har native formassosiasjon
+  til samme hovedform, validering, status og umiddelbare lock. Separat bilde-/
+  koblingslagring består. Rød Slett aktør står til høyre på lagret profil;
+  eksisterende canDelete, confirm, DELETE og beskyttet 409 består. Kun bekreftet
+  sletting tømmer cache/utkast og returnerer til oversikt. Personer slettes ikke.
+- Opprett aktør bruker samme nederste plassering med fri luft. Tekstforslaget
+  er implementert: «Opprett aktøren først. Deretter kan du knytte til personer
+  eller opprette en ny kontaktperson.» Endelig tekstaksept inngår i samlet review.
+- Den lange skjult-person/kontakt-forklaringen fjernes. Enkel status og faktiske
+  publiserings-/kontaktregler endres ikke.
+- Personresultater har fem kolonner på desktop: navn/tittel, aktører, kontakt,
+  sted, kategorier og tags. Metadata flyttes ut av navnecellen. På mobil stables
+  samme informasjon. Søk-først, retur/filtre, lenker og modalvern består.
+- Ulagrede profilfelt vises oransje med tekst. Profiler er midtstilt innen maks
+  1080 px i arbeidsområdet; oversikter og Import bruker tilgjengelig bredde.
+  Primære vurderingsbilder viser hele desktop-viewporten i 1920×1080, med
+  supplerende fullsidebilder, 1440/1366/1024, 390/320 og faktisk 200 % zoom.
+
+[Ny visuell leveranse](../status/EDITOR_LAYOUT_VISUAL_REVIEW_2026-10-25.md)
+gjelder runtime `213219085c3e6da214d372729a1ec91c247a0c6e`. Tidligere datert
+evidens beholdes; den er ikke bevis for ny layout. Samme PR #92, separat review,
+nødvendig siste-head CI og stopp før merge/staging for samlet eiergodkjenning.
+Senere deployscope API + frontend uten migrasjon. Import v6 rev.4/O-24, godkjent
+5E og begge v1-kart består. Ingen ny kontakt-/primær-/publiserings-/taggpolicy,
+backfill/catch-up, shared-aktivering eller ferdigmelding av hele UI-6/6B/6C.

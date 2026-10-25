@@ -1,5 +1,10 @@
 # Security and Roles
 
+**Visuell rettingsrunde 2, 25.10.2026:** Slett aktør er gjenopprettet i Editor med
+eksisterende superadmin/gruppeadmin, eksplisitt confirm og serverens tenant-/
+DELETE-beskyttelse. Tildelt/beskyttet profil gir fortsatt 409 og beholdes. Ingen
+ny rolle eller livssyklus; redigerer kan ikke slette. Se [UI-6 §11](../features/UI_6_FELLES_SPEC.md#11-andre-visuelle-retting-av-pr-92--2026-10-25).
+
 ## Editor-brukerpanel – avgrenset kodeleveranse 2026-10-25
 
 Session/Login leverer navn fra eksisterende navnefelt med username-fallback og

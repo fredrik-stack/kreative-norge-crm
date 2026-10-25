@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-10-25 – andre visuelle retting av PR #92 (før eiergodkjenning)
+
+- Aktørkort reduseres fra 208 til 148 px, med mindre navnetekst/linjebryting,
+  sted øverst høyre og fortsatt like mål i responsivt grid.
+- Aktørens nedre submit flyttes etter alle seksjoner; native formassosiasjon
+  bevarer samme validering/submit. Slett aktør gjenopprettes ved siden av med
+  eksisterende roller, confirm, innsendinglås og serverbeskyttelse.
+- Ny enkel tekst ved personkoblinger på ny aktør, og god luft rundt Opprett.
+  Den lange forklaringen om offentlige kontakter på skjult person fjernes.
+- Personresultater får egen femte metadata-kolonne; dirty-status blir oransje.
+- 29 nye viewport-/fullside-/zoombilder; 66 frontendtester og 20 Editor-reiser
+  grønne. UI-6 §11 og ny datert kontrollrapport beskriver scope og bevisgrenser.
+  Ingen merge/staging eller samlet visuell godkjenning.
+
 ## 2026-10-25 – eierbestilt retting av PR #92 (før samlet visuell godkjenning)
 
 - Fast desktop-venstremeny/kompakt mobilmeny, faktisk bruker-/rolle-/kontorpanel,

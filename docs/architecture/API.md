@@ -1,5 +1,10 @@
 # API
 
+**Editor-layout, runde 2 (25.10.2026):** Gjenopprettet Slett aktør bruker dagens
+`DELETE /api/tenants/{tenant_id}/organizations/{id}/`. Eksisterende autorisasjon
+og `profile_delete_protected`/409 består. Kun bekreftet DELETE fjerner aktør
+og koblinger fra Editor-cache; personer beholdes. Ingen ny backend-writekontrakt.
+
 ## Additiv Editor-auth og eksisterende personwrites – 2026-10-25
 
 `GET /api/auth/session/` og `POST /api/auth/login/` returnerer additivt
