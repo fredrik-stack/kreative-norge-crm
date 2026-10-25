@@ -69,7 +69,7 @@
       "file": "people-320.png",
       "caption": "Personoversikt – brun kategori, blå underkategori og grønn tagg · 320px",
       "width": 320,
-      "height": 1091,
+      "height": 1117,
       "group": "mobil",
       "bytes": 108176,
       "sha256": "175046e07a9c7ed32d50ff29d246aa0209772ad095674353acecf2c91dff7d7a"
@@ -108,7 +108,7 @@
     {
       "file": "index.html",
       "bytes": 4887,
-      "sha256": "92e85089054e2f96f3d1377b6dcb9835f869d5ba81f8438f1bde3746063778c7"
+      "sha256": "8c302cd7d04b067f25a9bcb0206c68806005e43b4c3ae008703f4bb52c945916"
     },
     {
       "file": "people-1920.png",
