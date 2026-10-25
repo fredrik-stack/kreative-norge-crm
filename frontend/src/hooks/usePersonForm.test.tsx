@@ -19,7 +19,7 @@ const contact = (id: number, type: "EMAIL" | "PHONE", value: string, is_primary 
 
 it("keeps unchanged region baselines clean and blocks region-only saves for primary and extra phones before writes", async()=>{
   server.use(http.get('/api/tenants/',()=>HttpResponse.json([{id:1,name:'Test',slug:'test',default_phone_region:'NO',current_user_role:'gruppeadmin'}])));
-  const person={id:20,tenant:1,full_name:'Region Test',title:'',email:null,phone:'070 123 45 67',phone_region_used:'SE',municipality:'',tags:[],categories:[],subcategories:[],contacts:[{...contact(31,'PHONE','070 123 45 67',true),phone_region_used:'SE'},{...contact(32,'PHONE','070 123 45 68'),phone_region_used:'SE'}]};
+  const person={id:20,tenant:1,full_name:'Region Test',title:'',email:null,phone:'070 123 45 67',phone_region_used:'SE',municipality:'',tags:[],categories:[],subcategories:[],contacts:[{...contact(31,'PHONE',' 070 123 45 67 ',true),phone_region_used:'SE'},{...contact(32,'PHONE','070 123 45 68'),phone_region_used:'SE'}]};
   server.use(http.get('/api/tenants/1/persons/',()=>HttpResponse.json([person])));
   const {result}=renderHook(()=>useEditorData());
   await waitFor(()=>expect(result.current.personDraft.full_name).toBe('Region Test'));
@@ -50,6 +50,21 @@ it("keeps all contact edits local, includes them in dirty state, and discards lo
   expect(result.current.personContactRows.some(row => row.value === "extra@example.invalid")).toBe(false);
   expect(result.current.peopleHasUnsavedChanges).toBe(false);
   expect(writes).toBe(0);
+});
+
+it('blocks region-only edits on an existing legacy main phone without creating or repairing a contact',async()=>{
+  server.use(http.get('/api/tenants/',()=>HttpResponse.json([{id:1,name:'Test',slug:'test',default_phone_region:'NO',current_user_role:'gruppeadmin'}])));
+  server.use(http.get('/api/tenants/1/persons/',()=>HttpResponse.json([{id:20,tenant:1,full_name:'Legacy Phone',title:'',email:null,phone:' 90012345 ',phone_region_used:null,municipality:'',tags:[],categories:[],subcategories:[],contacts:[]}])));
+  const {result}=renderHook(()=>useEditorData());
+  await waitFor(()=>expect(result.current.personDraft.full_name).toBe('Legacy Phone'));
+  expect(result.current.peopleHasUnsavedChanges).toBe(false);
+  let writes=0;
+  server.use(http.patch('/api/tenants/1/persons/20/',()=>{writes++;return HttpResponse.json({});}));
+  act(()=>result.current.updatePersonContact('main-PHONE',{phone_region:'SE'}));
+  let ok=true; await act(async()=>{ok=await result.current.saveAllPendingChanges();});
+  expect(ok).toBe(false); expect(writes).toBe(0);
+  expect(result.current.personFieldErrors['main-PHONE']).toMatch(/nummeret endres/);
+  expect(result.current.personContactRows.find(row=>row.key==='main-PHONE')?.id).toBeUndefined();
 });
 
 for(const uncertain of [false,true]) it(`does not undo ${uncertain?'unknown':'confirmed'} DELETE after a later failure or local discard`,async()=>{

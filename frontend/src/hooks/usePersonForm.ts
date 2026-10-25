@@ -9,6 +9,7 @@ export type PersonContactRow = {
   phone_region: string | null; is_primary: boolean; is_public: boolean;
   removed?: boolean; removedMainValue?: string | null; deleted?: boolean; mainClearPending?: boolean;
   deleteUncertain?: boolean; unknown?: boolean; baseline?: PersonContact;
+  legacyMain?: { value: string; phone_region: string };
 };
 
 // A session-local write ledger. Confirmed identities survive every later failure.
@@ -57,6 +58,7 @@ export function usePersonForm(options: {
         // Empty entry preserves the existing Person main-field create contract.
         rows.unshift({ key: `main-${type}`, type, value: value?.[field] ?? "",
           phone_region: type === "PHONE" ? initialPhoneRegion(value?.phone, value?.phone_region_used, region) || null : null,
+          ...(type === "PHONE" && value?.phone ? { legacyMain: { value: value.phone, phone_region: initialPhoneRegion(value.phone, value.phone_region_used, region) } } : {}),
           is_primary: true, is_public: false });
       }
     }
@@ -111,10 +113,11 @@ export function usePersonForm(options: {
     setRows(rows => [...rows, { key: `new-${++sequence.current}`, type, value: "", phone_region: type === "PHONE" ? region : null, is_primary: false, is_public: false }]);
   }
 
-  const regionChanged = (row: PersonContactRow) => row.type === "PHONE" && Boolean(row.baseline) &&
-    (row.phone_region ?? "") !== initialPhoneRegion(row.baseline?.value, row.baseline?.phone_region_used, region);
+  const originalPhoneValue = (row: PersonContactRow) => (row.baseline?.value ?? row.legacyMain?.value)?.trim();
+  const regionChanged = (row: PersonContactRow) => row.type === "PHONE" && Boolean(row.baseline || row.legacyMain) &&
+    (row.phone_region ?? "") !== (row.baseline ? initialPhoneRegion(row.baseline.value, row.baseline.phone_region_used, region) : row.legacyMain?.phone_region);
   const rowDirty = (row: PersonContactRow) => row.unknown || row.removed || (row.baseline
-    ? row.value.trim() !== row.baseline.value || row.is_public !== row.baseline.is_public || regionChanged(row)
+    ? row.value.trim() !== row.baseline.value.trim() || row.is_public !== row.baseline.is_public || regionChanged(row)
     : Boolean((!row.is_primary && row.value.trim()) || row.is_public));
   const personDraftHasUnsavedChanges = unknownCreate || personSaveState === "error" ||
     JSON.stringify(normalize(personDraft)) !== JSON.stringify(baseline.current) ||
@@ -124,7 +127,7 @@ export function usePersonForm(options: {
     if (!tenantId || selectedId === null || writing.current || unknownPost.current || unknownCreate || personContactRows.some(row => row.unknown)) return false;
     const errors = validate(personDraft);
     for (const row of personContactRows.filter(row => !row.removed)) {
-      if (regionChanged(row) && row.value.trim() === row.baseline?.value) errors[row.key] = "Land/region brukes når nummeret endres. Behold lagret region eller endre nummeret før du lagrer.";
+      if (regionChanged(row) && row.value.trim() === originalPhoneValue(row)) errors[row.key] = "Land/region brukes når nummeret endres. Behold lagret region eller endre nummeret før du lagrer.";
       if (row.baseline && !row.value.trim()) errors[row.key] = "Tom verdi fjerner ikke en lagret kontakt. Fyll inn verdien eller velg Fjern.";
       if (row.is_public && !row.value.trim()) errors[row.key] = "Fyll inn en kontaktverdi før du velger offentlig visning.";
       if (row.value.trim() && row.type === "EMAIL" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.value.trim())) errors[row.key] = "Ugyldig e-postadresse.";
@@ -193,7 +196,7 @@ export function usePersonForm(options: {
         let confirmed: PersonContact;
         if (row.id) {
           const patch: { value?: string; phone_region?: string | null; is_public?: boolean } = {};
-          if (row.value.trim() !== row.baseline?.value) { patch.value = row.value.trim(); if (row.type === "PHONE") patch.phone_region = row.phone_region; }
+          if (row.value.trim() !== row.baseline?.value.trim()) { patch.value = row.value.trim(); if (row.type === "PHONE") patch.phone_region = row.phone_region; }
           if (row.is_public !== row.baseline?.is_public) patch.is_public = row.is_public;
           if (!Object.keys(patch).length) continue;
           confirmed = await patchPersonContact(tenantId, row.id, patch);
