@@ -742,7 +742,7 @@ function InlineReviewEditor(props: {
             <div>
               <strong>Hovedkategori</strong>
               <SuggestionPills
-                values={categorySuggestions}
+                kind="category" values={categorySuggestions}
                 emptyLabel="Ingen forslag"
                 state={draft.suggestionStates.suggested_categories ?? "pending"}
                 onAccept={(value) => applyCategorySuggestion(value)}
@@ -758,7 +758,7 @@ function InlineReviewEditor(props: {
             <div>
               <strong>Underkategori</strong>
               <SuggestionPills
-                values={subcategorySuggestions}
+                kind="subcategory" values={subcategorySuggestions}
                 emptyLabel="Ingen forslag"
                 state={draft.suggestionStates.suggested_subcategories ?? "pending"}
                 onAccept={(value) => applySubcategorySuggestion(value)}
@@ -774,7 +774,7 @@ function InlineReviewEditor(props: {
             <div>
               <strong>Tags</strong>
               <SuggestionPills
-                values={tagSuggestions}
+                kind="tag" values={tagSuggestions}
                 emptyLabel="Ingen forslag"
                 state={draft.suggestionStates.suggested_tags ?? "pending"}
                 onAccept={(value) => applySingleTagSuggestion(value)}
@@ -1291,6 +1291,7 @@ function ReviewTextCell(props: { value?: string; emptyLabel: string; onClick?: (
 }
 
 function SuggestionPills(props: {
+  kind: "category" | "subcategory" | "tag";
   values: string[];
   emptyLabel: string;
   state: SuggestionState;
@@ -1304,7 +1305,7 @@ function SuggestionPills(props: {
     <div className="suggestion-pill-block">
       <div className="review-pill-stack">
         {props.values.map((value) => (
-          <button key={value} type="button" className="suggestion-pill" onClick={() => props.onAccept(value)}>
+          <button key={value} type="button" className={`suggestion-pill mini-pill ${props.kind} suggested`} onClick={() => props.onAccept(value)}>
             {value}
           </button>
         ))}

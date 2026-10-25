@@ -1747,15 +1747,14 @@ select,
 
 .suggestion-pill {
   border: 1px solid rgba(12, 122, 91, 0.18);
-  background: rgba(12, 122, 91, 0.08);
-  color: #0a6a4f;
+  color: white;
   border-radius: 999px;
   padding: 0.35rem 0.58rem;
   cursor: pointer;
 }
 
 .suggestion-pill:hover {
-  background: rgba(12, 122, 91, 0.13);
+  filter: brightness(0.95);
 }
 
 .suggestion-list.compact {

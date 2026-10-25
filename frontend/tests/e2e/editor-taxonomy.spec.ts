@@ -52,4 +52,12 @@ test('existing import metadata and suggestions retain distinct taxonomy colors',
   await expectTaxonomyColors(page.locator('.import-review-table'));
   await expect(page.locator('.import-review-table .mini-pill.suggested')).toHaveCount(3);
   for(const pill of await page.locator('.import-review-table .mini-pill.suggested').all()) await expect(pill).toHaveCSS('border-top-style','dashed');
+  await page.getByRole('button',{name:'Review',exact:true}).click();
+  const editor=page.locator('.inline-review-editor');
+  for(const [kind,color] of Object.entries(colors)) {
+    const button=editor.locator(`.suggestion-pill.${kind}`);
+    await expect(button).toHaveCSS('background-color',color);
+    await expect(button).toHaveCSS('border-top-style','dashed');
+  }
+  await expect(editor.locator('.tag-chip-edit')).toHaveCSS('background-color',colors.tag);
 });
