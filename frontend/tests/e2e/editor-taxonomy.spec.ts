@@ -25,15 +25,25 @@ for (const width of [1920,390,320]) test(`square thumbnails, fixed cards and sem
   await page.goto('/organizations');await loginAsEditor(page);
   const grid=page.locator('.editor-card-grid');await expect(grid.locator('article')).toHaveCount(10);
   await expect.poll(()=>grid.locator('img').evaluate((e:HTMLImageElement)=>e.complete&&e.naturalWidth>0)).toBe(true);
-  const cards=await grid.locator('article').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();return{width:Math.round(r.width),height:r.height};}));
+  const cards=await grid.locator('article').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();return{width:Math.round(r.width),height:Math.round(r.height)};}));
   expect(new Set(cards.map(e=>e.width)).size).toBe(1);expect(cards.every(e=>e.height===148)).toBe(true);
   for(const thumb of await grid.locator('.editor-card-thumb').all()) {
-    const r=await thumb.boundingBox();expect(r?.width).toBe(76);expect(r?.height).toBe(76);
+    const r=await thumb.boundingBox();expect(r?.width).toBeCloseTo(90,2);expect(r?.height).toBeCloseTo(90,2);
+    expect(await thumb.evaluate(e=>{const image=e.getBoundingClientRect(),card=e.closest('article')!.getBoundingClientRect();return Math.abs((image.top+image.height/2)-(card.top+card.height/2));})).toBeLessThan(0.5);
   }
   await expectTaxonomyColors(grid);
+  for(const category of await grid.locator('.mini-pill.category').all()) expect(await category.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:info.outputPath(`actors-${width}.png`)});
-  await grid.getByRole('button',{name:names[0],exact:true}).click();await expectTaxonomyColors(page.getByRole('dialog'));await page.keyboard.press('Escape');
+  await grid.getByRole('button',{name:names[0],exact:true}).click();
+  const dialog=page.getByRole('dialog');await expectTaxonomyColors(dialog);
+  const edit=dialog.getByRole('button',{name:'Rediger',exact:true});
+  await edit.scrollIntoViewIfNeeded();await expect(edit).toBeVisible();
+  await expect(edit).toHaveCSS('background-image','linear-gradient(135deg, rgb(12, 122, 91), rgb(21, 150, 111))');
+  expect(await edit.evaluate(e=>{const r=e.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight&&e.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2));})).toBe(true);
+  await page.screenshot({path:info.outputPath(`actor-modal-${width}.png`)});
+  await edit.click();await expect(page).toHaveURL(/\/organizations\/10$/);
+  await page.getByRole('button',{name:'← Til aktøroversikt',exact:true}).click();
   await page.getByRole('link',{name:'Personer',exact:true}).click();await page.getByRole('searchbox',{name:'Søk personer'}).fill('Alexandra');
   const results=page.locator('.person-results');await expect(results.locator('tbody tr')).toHaveCount(1);await expectTaxonomyColors(results);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

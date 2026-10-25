@@ -2405,8 +2405,8 @@ fieldset.field > legend { padding: 0; margin: 0 0 5px; }
 .result-taxonomy { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .overview-hint { margin: 5px 0 0; font-size: 12px; }
 .compact-editor .editor-card-grid { grid-template-columns: repeat(auto-fill,minmax(min(300px,100%),1fr)); }
-.compact-editor .editor-card-grid > .editor-card { height: 148px; min-width: 0; display: grid; grid-template-columns: 76px minmax(0,1fr); gap: 10px; padding: 12px; overflow: hidden; }
-.compact-editor .editor-card-grid .editor-card-thumb { width: 76px; height: 76px; border-radius: 10px; object-fit: cover; }
+.compact-editor .editor-card-grid > .editor-card { height: 148px; min-width: 0; display: grid; grid-template-columns: 90px minmax(0,1fr); gap: 10px; padding: 12px; overflow: hidden; align-content: stretch; }
+.compact-editor .editor-card-grid .editor-card-thumb { width: 90px; height: 90px; border-radius: 10px; object-fit: cover; align-self: center; }
 .compact-editor .editor-card-grid .editor-card-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .compact-editor .editor-card-grid .editor-card-head { position: relative; display: block; padding-top: 18px; min-width: 0; }
 .compact-editor .editor-card-grid .editor-card-head h3 { margin: 0; line-height: 17px; }
@@ -2414,6 +2414,7 @@ fieldset.field > legend { padding: 0; margin: 0 0 5px; }
 .compact-editor .editor-card-grid .editor-card-head .meta { position: absolute; top: 0; right: 0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; line-height: 14px; }
 .compact-editor .editor-card-grid .meta-row { flex-wrap: nowrap; overflow: hidden; margin: 0; gap: 4px; align-items: start; flex-shrink: 0; }
 .compact-editor .editor-card-grid .mini-pill { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; font-size: 10px; line-height: 14px; padding: 3px 5px; }
+.compact-editor .editor-card-grid .mini-pill.category { flex-shrink: 0; }
 .card-tags { display: flex; gap: 4px; align-items: start; min-width: 0; }.card-tags .mini-pill { min-width: 0; }.tag-count { border: 0; border-radius: 6px; background: #e4ece6; color: #315f45; padding: 3px 6px; font-size: 11px; font-weight: 700; flex-shrink: 0; cursor: pointer; }
 @media(max-width:900px) {
   .editor-sidebar { position: static; width: auto; padding: 12px; gap: 12px; border: 0; border-bottom: 1px solid var(--line); }
