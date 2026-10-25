@@ -1189,15 +1189,15 @@ select,
   line-height: 1;
 }
 
-.mini-pill.category {
+.mini-pill.category, .suggestion-pill.category {
   background: #6b493d;
 }
 
-.mini-pill.subcategory {
+.mini-pill.subcategory, .suggestion-pill.subcategory {
   background: #38a8ec;
 }
 
-.mini-pill.tag {
+.mini-pill.tag, .suggestion-pill.tag {
   background: #4a8755;
 }
 
@@ -1721,7 +1721,7 @@ select,
   align-items: center;
 }
 
-.mini-pill.suggested {
+.mini-pill.suggested, .suggestion-pill.suggested {
   border: 1px dashed currentColor;
 }
 

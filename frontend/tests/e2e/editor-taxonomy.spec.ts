@@ -58,6 +58,8 @@ test('existing import metadata and suggestions retain distinct taxonomy colors',
     const button=editor.locator(`.suggestion-pill.${kind}`);
     await expect(button).toHaveCSS('background-color',color);
     await expect(button).toHaveCSS('border-top-style','dashed');
+    await expect(button).toHaveCSS('font-size',await button.evaluate(e=>getComputedStyle(e.parentElement!).fontSize));
+    expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(30);
   }
   await expect(editor.locator('.tag-chip-edit')).toHaveCSS('background-color',colors.tag);
 });

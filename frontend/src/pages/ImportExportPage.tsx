@@ -1305,7 +1305,7 @@ function SuggestionPills(props: {
     <div className="suggestion-pill-block">
       <div className="review-pill-stack">
         {props.values.map((value) => (
-          <button key={value} type="button" className={`suggestion-pill mini-pill ${props.kind} suggested`} onClick={() => props.onAccept(value)}>
+          <button key={value} type="button" className={`suggestion-pill ${props.kind} suggested`} onClick={() => props.onAccept(value)}>
             {value}
           </button>
         ))}
