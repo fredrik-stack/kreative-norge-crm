@@ -1,5 +1,22 @@
 # Project Status Current
 
+## Editor PR #92 – sluttgodkjent og teknisk stagingverifisert 2026-10-25
+
+Prosjekteier har gitt **samlet visuell sluttgodkjenning** av siste grunnlag på
+`4cdff63`. PR #92 er ordinært merget som `d698888ee851bd884e148b0bca8ae0b4f3219704`;
+main-CI40234720716 er SUCCESS6/6. Eksakt API+frontend er deployet og teknisk
+stagingverifisert med ekte HTTPS/browser og syntetiske testprofiler. Ti kontroller,
+åtte viewportbilder, manuell kontaktlagring/read-back og90px sentrert thumbnail
+på samme148px kort er grønne. Eksisterende CRM-rader er bevart med eksakte
+fingeravtrykk etter cleanup; media/static/miljø/safety er uendret. Tre ferske
+backup-/restorecheckpoints er grønne og timere aktive. Ingen migrasjon eller ny
+aktivering. [Sanitert stagingevidens](STAGING_EDITOR_COMPACT_2026-10-25.md).
+
+Dette lukker bestilt PR-leveranse, ikke hele UI-6/6A/6B/6C/Import2.0 eller begge
+kart. Godkjent Import v6 rev.4/O-24/5E består. Eldre ventestatuser nedenfor er
+historikk og overstyres av denne godkjenningen/leveransen. Ingen neste etappe.
+
+
 ## PR #92 – thumbnailbalanse og aktørmodal 2026-10-25
 
 [UI-6 §13](../features/UI_6_FELLES_SPEC.md#13-thumbnail-som-public-og-aktørens-mobilmodal--2026-10-25) er siste eierføring.

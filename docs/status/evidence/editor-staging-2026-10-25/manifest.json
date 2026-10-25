@@ -1,0 +1,97 @@
+{
+  "runtime_commit": "d698888ee851bd884e148b0bca8ae0b4f3219704",
+  "image_count": 8,
+  "files": [
+    {
+      "path": "actor-modal-1920.png",
+      "bytes": 167885,
+      "sha256": "3654972789c8006c5fd7c8418c222e0a722fc95833d0b31a18f1533b2a7bce4a",
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "path": "actor-modal-320.png",
+      "bytes": 55534,
+      "sha256": "36270e33769d6b282a4f0b50318de99fc494c966ef979d188e47bf0d4a104639",
+      "width": 320,
+      "height": 844
+    },
+    {
+      "path": "actor-modal-390.png",
+      "bytes": 61104,
+      "sha256": "fb8c92bb0f960c676d705d2a584e56cb8a0099f740acfea954f7715fa0fecde7",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "path": "actors-1920.png",
+      "bytes": 404162,
+      "sha256": "c99b0538ca1d431e97423396014dc38f82827943f07573f6d8861d535d4ea2e7",
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "path": "actors-320.png",
+      "bytes": 84993,
+      "sha256": "ae01f140bca63da614b174f92db476ca413b99f7f4fe61e579159f80ec383ad6",
+      "width": 320,
+      "height": 844
+    },
+    {
+      "path": "actors-390.png",
+      "bytes": 96244,
+      "sha256": "c51ef98bf913dbabf33a472a012aa7764155e64fb591c57a0f740f097d0c149d",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "path": "checks.json",
+      "bytes": 1542,
+      "sha256": "4cc274f27fdbc00aa740170855f342c75362d569b7c8cbe521cc0e18b99867dc"
+    },
+    {
+      "path": "cleanup.json",
+      "bytes": 74,
+      "sha256": "f5a5b749bff811091d2a8640091434fd799db163c14f9700ef73aad1a6f4b46f"
+    },
+    {
+      "path": "https-bundle.json",
+      "bytes": 402,
+      "sha256": "9e6e4d4ab368d3d6f2715d6ab9bbda7d8d066994cb3aa44ad8a3caee266f2b2b"
+    },
+    {
+      "path": "index.html",
+      "bytes": 2376,
+      "sha256": "aeb499068468306b82b02fc4aa7671416a0be1858ba40c2983f6243d8ba86e37"
+    },
+    {
+      "path": "people-1920.png",
+      "bytes": 452800,
+      "sha256": "076def6b37be356b1c1f59030096179993d41c071c73ff3c444a7b781eb2f513",
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "path": "people-390.png",
+      "bytes": 94952,
+      "sha256": "7d32a56b9636998ceff8b4b523604dc01ee5b6acdb04bb58036f388110dc2227",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "path": "preservation.json",
+      "bytes": 1360,
+      "sha256": "32db6513bfd75c933c93967d29f0e2928bdbae8439b8cb1afe4153a1e7d1d2de"
+    },
+    {
+      "path": "public-comparison.json",
+      "bytes": 3403,
+      "sha256": "84d4a4fde3960304c40885f1d36594f940655074feaacfd00961d22aa6b8ef57"
+    },
+    {
+      "path": "runtime.json",
+      "bytes": 3196,
+      "sha256": "bd3e1e83cfacc3a4cf235e1a5f2715672bbc46e66d35200bb04e56a98244c205"
+    }
+  ]
+}

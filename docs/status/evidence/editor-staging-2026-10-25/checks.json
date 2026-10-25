@@ -1,0 +1,28 @@
+{
+  "source": "d698888ee851bd884e148b0bca8ae0b4f3219704",
+  "transport": "real HTTPS via local CONNECT and SSH to Caddy origin; no mocks",
+  "browser": "145.0.7632.6",
+  "checks": [
+    "Real HTTPS login/session, actual display name, tenant role and no Admin for nonstaff group admin",
+    "1920px: fixed148px cards,90px centered square, semantic colors/no overflow; green visible uncovered modal edit navigates; two Save and one Delete",
+    "390px: fixed148px cards,90px centered square, semantic colors/no overflow; green visible uncovered modal edit navigates; two Save and one Delete",
+    "320px: fixed148px cards,90px centered square, semantic colors/no overflow; green visible uncovered modal edit navigates; two Save and one Delete",
+    "Actual lower native-form actor Save persists synthetic description and read-back",
+    "Real UI Person create with4contacts, private defaults; contact blur/local edits make zero writes, manual Save persists and preserves exact IDs",
+    "Explicit contact removal stays local until Save; exact extra-contact ID deleted",
+    "Five desktop person columns and typed brown/blue/green metadata; mobile has no horizontal page overflow",
+    "Group-admin test user cannot read another tenant",
+    "Existing Import and Export routes load; no import/export writes"
+  ],
+  "images": [
+    "actors-1920.png",
+    "actor-modal-1920.png",
+    "actors-390.png",
+    "actor-modal-390.png",
+    "actors-320.png",
+    "actor-modal-320.png",
+    "people-1920.png",
+    "people-390.png"
+  ],
+  "status": "PASS"
+}
