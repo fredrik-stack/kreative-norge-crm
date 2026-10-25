@@ -1,5 +1,13 @@
 # Editor og PUBLIC – samlet UI/UX-ferdigstilling
 
+**Eieravklaring 25.10.2026, runde3:** Kortformatet fra runde2 er godkjent;
+thumbnails skal være kvadratiske. Eksisterende kategori-/underkategori-/taggfarger
+skal følge metadataene på desktop/mobil. [UI-6 §12](../features/UI_6_FELLES_SPEC.md#12-låst-kortformat-og-metadatafarger--2026-10-25)
+og [tilleggsgalleriet](EDITOR_COLOR_VISUAL_REVIEW_2026-10-25.md) beskriver avgrenset
+retting. Importbilde15 er avvist som misvisende; det er ikke et nytt designforslag
+eller alternativ til godkjent Import v6 rev.4/O-24. Importplanen/5E, begge kart,
+premerge-godkjenning og øvrig omfang består.
+
 **Siste eierføring 25.10.2026, visuell runde 2:**
 [UI-6 §11](../features/UI_6_FELLES_SPEC.md#11-andre-visuelle-retting-av-pr-92--2026-10-25) er implementert i samme PR #92:
 lavere faste kort, mindre navn/sted øverst høyre, egen femte personkolonne,

@@ -1,5 +1,11 @@
 # PR #92 – andre visuelle retting, hele desktopflaten
 
+**Eieravklaring, runde3:** Importbilde15 er avvist som misvisende og er ikke
+vurderingsgrunnlag eller godkjent Importdesign. Godkjent v6 rev.4/O-24 styrer.
+Kortformatet er godkjent med kvadratiske thumbnails; fargene er rettet i
+[nytt avgrenset tillegg](EDITOR_COLOR_VISUAL_REVIEW_2026-10-25.md). Rapporten
+nedenfor beskriver historisk runde2 og må leses med denne overstyringen.
+
 **25.10.2026 · IMPLEMENTERT PÅ BRANCH / LOKALT VERIFISERT · SAMLET EIERGODKJENNING GJENSTÅR**
 
 [Åpne det nye bildegalleriet](evidence/editor-layout-2026-10-25/index.html) ·

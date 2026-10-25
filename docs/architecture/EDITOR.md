@@ -1,5 +1,22 @@
 # Editor
 
+## Siste farge-/thumbnailretting, runde 3 – 2026-10-25
+
+[UI-6 §12](../features/UI_6_FELLES_SPEC.md#12-låst-kortformat-og-metadatafarger--2026-10-25)
+låser eiers godkjente kortformat fra runde2: 148 px høyde og eksisterende
+responsive bredde/kolonner. Kun thumbnail/fallback endres fra 76×100 til 76×76.
+Personoversiktens metadata beholder typeklasser category/subcategory/tag og de
+samme brune/blå/grønne fargene som øvrige aktør-/personchips, på desktop og mobil.
+Flat palegrønn metadata-overstyring er fjernet. I eksisterende importtabell har
+faktiske verdier og forslag samme typefarge; forslag har stiplet kant og beholder
+sin separate kolonne/handling/status. Valgte tags er grønne. Dette er bare
+fargeretting, ingen Import-UX-endring eller implementering av godkjent v6.
+PUBLIC-detaljens eldre variant får samme eksisterende grønne tagg som liste og
+cutovervariant. Ingen publiserings-/taggpolicy eller dataendring.
+
+Forrige Importbilde15 er avvist av eier, ikke godkjent Importdesign.
+Import v6 rev.4/O-24 er fortsatt styrende. [Nye avgrensede bilder og bevisgrenser](../status/EDITOR_COLOR_VISUAL_REVIEW_2026-10-25.md).
+
 ## Gjeldende layoutretting, runde 2 – 2026-10-25
 
 [UI-6 §11](../features/UI_6_FELLES_SPEC.md#11-andre-visuelle-retting-av-pr-92--2026-10-25) overstyrer eldre kort-/kolonne-

@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-25 – låst kortformat og metadatafarger i PR #92
+
+- Eiers godkjente kortstørrelse beholdes; thumbnail/fallback blir 76×76.
+- Personoversiktens kategori-/underkategori-/taggmetadata får sine eksisterende
+  brune/blå/grønne farger på desktop/mobil. Samme konkrete fargefeil rettes i
+  eksisterende importchips og eldre PUBLIC-detaljvariant, uten ny UX/policy.
+- Forrige Importbilde15 markeres avvist som misvisende og beholdes kun historisk;
+  godkjent v6 rev.4/O-24 er styrende. Ni nye avgrensede browserbilder.
+- 66 frontendtester, 24 Editor-reiser, TS/build og 8 DB-frie PUBLIC-template-
+  browserkontroller grønne. Samme draft PR; ingen merge/staging.
+
 ## 2026-10-25 – andre visuelle retting av PR #92 (før eiergodkjenning)
 
 - Aktørkort reduseres fra 208 til 148 px, med mindre navnetekst/linjebryting,

@@ -1,0 +1,24 @@
+{
+  "runtime": "2b4ca8eb96e9e74920b3af5a1ccc6cabf59da24f",
+  "environment": "Local Vite/Chromium with explicit synthetic Playwright API fixtures; no real backend/DB/staging",
+  "unit_tests": 66,
+  "editor_e2e": 24,
+  "new_regressions": 4,
+  "viewports": [
+    1920,
+    390,
+    320
+  ],
+  "card_height": 148,
+  "thumbnail_dimensions": [
+    76,
+    76
+  ],
+  "colors": {
+    "category": "#6b493d",
+    "subcategory": "#38a8ec",
+    "tag": "#4a8755"
+  },
+  "public_cases": 8,
+  "import_image_included": false
+}

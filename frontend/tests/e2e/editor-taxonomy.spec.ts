@@ -13,7 +13,10 @@ async function expectTaxonomyColors(scope: Locator) {
 for (const width of [1920,390,320]) test(`square thumbnails, fixed cards and semantic taxonomy colors at ${width}px`,async({page},info)=>{
   await page.setViewportSize({width,height:width===1920?1080:844});
   const state=await setupMockEditorApi(page);
-  const category=state.categories[0],subcategory=state.subcategories[0],tag=state.tags[0];
+  const category=state.categories[0];
+  const subcategory={...state.subcategories[0],name:'Konsertarrangører',slug:'konsertarrangorer'};
+  const tag={...state.tags[0],name:'Kammermusikk',slug:'kammermusikk'};
+  state.subcategories[0]=subcategory;state.tags[0]=tag;
   const source=state.organizations[0];
   const names=['Fjordfestivalen','Lofoten Internasjonale Kammermusikkfestival','Nordlys kulturverksted og internasjonale produksjonssamarbeid','Kulturfabrikken Meløy','Kultursamarbeidet i Vesterålen','Made Management AS','Meieriet Kultursenter','Kysten Jazzklubb','Kunnskapsparken Helgeland AS','Lydteamet'];
   state.organizations=names.map((name,i)=>({...source,id:10+i,name,municipalities:i===2?'Kautokeino / Guovdageaidnu og Porsanger':'Vestvågøy',categories:[category],subcategories:[subcategory],tags:[tag],preview_image_url:i===0?'/synthetic-square-thumbnail.svg':null}));

@@ -1,5 +1,27 @@
 # Project Status Current
 
+## PR #92 – siste fargeretting / låst kortformat 2026-10-25
+
+Eier har godkjent aktørkortenes størrelse fra runde2. Samme 148 px høyde,
+responsive bredde og kolonner beholdes; bilde/fallback er nå 76×76 px.
+Personoversikten bruker metadataenes faktiske type og eksisterende farger:
+#6b493d hovedkategori, #38a8ec underkategori, #4a8755 tagg. Samme fargeføring er
+kontrollert i aktør-/personmodaler og PUBLIC liste/detalj; konkrete fargefeil
+rettet i eksisterende importchips og eldre PUBLIC-detaljvariant. Ingen ny policy.
+
+[UI-6 §12](../features/UI_6_FELLES_SPEC.md#12-låst-kortformat-og-metadatafarger--2026-10-25)
+og [nytt tilleggsgalleri/kontrollrapport](EDITOR_COLOR_VISUAL_REVIEW_2026-10-25.md)
+gjelder runtime `2b4ca8eb96e9e74920b3af5a1ccc6cabf59da24f`. 66 frontendtester, TS/build, 24 Editor-reiser og
+8 DB-frie PUBLIC-template/browsertilfeller er grønne. Nye bilder bruker eksplisitt
+syntetiske API-fixtures, ikke lokal/stagingdatabase. Ingen Docker/DB nødvendig
+eller kjørt i denne runden. Siste review/CI spores i PR.
+
+Importbilde15 fra forrige galleri er avvist som misvisende; PNG beholdes kun som
+historikk med tydelig merking. Ingen Importvisning foreslås/godkjennes her:
+Import-prototype v6 rev.4/O-24 og godkjent 5E består. Samlet sluttgodkjenning
+kreves før merge/staging; senere deployscope API + frontend og malendringen,
+ingen migrasjon eller neste produktetappe.
+
 ## PR #92 – andre visuelle retting 2026-10-25
 
 Eiers nye kommentarer er implementert i runtime `213219085c3e6da214d372729a1ec91c247a0c6e`:

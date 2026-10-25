@@ -130,7 +130,7 @@
     },
     {
       "file": "15-import-full-width-desktop.png",
-      "caption": "Import – hele tilgjengelige arbeidsbredden",
+      "caption": "AVVIST IMPORTBILDE – kun historikk, ikke forslag til Import v6",
       "width": 1920,
       "height": 1080,
       "group": "desktop",
@@ -417,8 +417,8 @@
     },
     {
       "file": "index.html",
-      "bytes": 14115,
-      "sha256": "0851ca85f019d5ab10a90331bd08df97d2dec7f4c2c60228246b4212909b5315"
+      "bytes": 14377,
+      "sha256": "0a946d7f334c95e0cd04cd8c76206e4584176a4f1e77c9d1acef2a4792e4c386"
     },
     {
       "file": "person-zoom200.png",
@@ -430,5 +430,6 @@
       "bytes": 92,
       "sha256": "2416a90fd080ebdc15cce2b889a06abd4867a4a71c14eb8b5362e240921deccc"
     }
-  ]
+  ],
+  "owner_clarification": "Round3: image15 rejected as misleading; approved Import v6 governs. PNGs unchanged."
 }

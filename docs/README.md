@@ -1,5 +1,13 @@
 # Kreative Norge CRM – dokumentasjon
 
+**Siste eierføring 25.10.2026, runde 3:** Kortformatet er godkjent og beholdes;
+thumbnails er kvadratiske. [UI-6 §12](features/UI_6_FELLES_SPEC.md#12-låst-kortformat-og-metadatafarger--2026-10-25)
+styrer fargene brun hovedkategori / blå underkategori / grønn tagg på desktop og
+mobil. [Nytt kort tilleggsgalleri](status/EDITOR_COLOR_VISUAL_REVIEW_2026-10-25.md)
+viser rettelsene. Tidligere Importbilde15 er avvist som misvisende og inngår ikke
+i gjeldende vurdering. Godkjent Import v6 rev.4/O-24 styrer; ingen ny Import-UX.
+Samlet sluttgodkjenning, merge og staging gjenstår.
+
 **Siste visuelle retting av PR #92 – 25.10.2026, runde 2:**
 [UI-6 §11](features/UI_6_FELLES_SPEC.md#11-andre-visuelle-retting-av-pr-92--2026-10-25) overstyrer tidligere kortdybde,
 plassering av nedre aktørhandling og fire personkolonner.

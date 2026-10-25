@@ -434,3 +434,30 @@ nødvendig siste-head CI og stopp før merge/staging for samlet eiergodkjenning.
 Senere deployscope API + frontend uten migrasjon. Import v6 rev.4/O-24, godkjent
 5E og begge v1-kart består. Ingen ny kontakt-/primær-/publiserings-/taggpolicy,
 backfill/catch-up, shared-aktivering eller ferdigmelding av hele UI-6/6B/6C.
+
+
+## 12. Låst kortformat og metadatafarger – 2026-10-25
+
+**Besluttet av eier:** Aktørkortenes størrelse i runde2 er godkjent og skal
+beholdes. Thumbnails skal være kvadratiske. Kategorier og tags skal ha sine
+respektive eksisterende farger i hele applikasjonen på desktop og mobil.
+Importbilde15 fra runde2 er avvist som misvisende. Det er ikke et nytt forslag
+eller godkjent design; Import-prototype v6 rev.4/O-24 og godkjent 5E styrer fortsatt.
+
+**Implementert:** Kort148 px / uendret responsive bredde/kolonner; thumbnail og
+fallback76×76 px. Typeklasser og palett bevares: hovedkategori #6b493d, underkategori
+#38a8ec, tagg #4a8755. Personoversikten mister den flate palegrønne overstyringen.
+Modaler/aktørkort og PUBLIC-liste/detalj er kontrollert. En eldre PUBLIC-detalj-
+variant hadde brun tagg og får samme grønne som øvrige flater. Importens eksisterende
+metadata/forslag får riktig typefarge; stiplet forslagskant og eksisterende
+kolonner/handlinger/status består. Valgte tags er grønne. Bare fargebevaring,
+ingen implementering/nytolking av v6 eller ny Import-UX. Ingen offentlig/intern
+klassifisering; legacytagger og publiseringsvilkår består.
+
+[Ni nye avgrensede bilder](../status/EDITOR_COLOR_VISUAL_REVIEW_2026-10-25.md)
+gjelder runtime `2b4ca8eb96e9e74920b3af5a1ccc6cabf59da24f` med syntetiske API-fixtures og tydelig DB-fri
+bevisgrense. Import er ikke med i det nye vurderingsgrunnlaget. Tidligere PNG-er
+beholdes som historikk; Import15 er tydelig markert avvist også i gammelt galleri.
+Samme PR #92, separat review og siste-head CI; stopp før merge/staging for samlet
+sluttgodkjenning. Senere deployscope API + frontend (PUBLIC-mal inkludert), uten
+migrasjon. Ingen API-/data-/kontakt-/primær-/taggpolicyendring eller neste etappe.
