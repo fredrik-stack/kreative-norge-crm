@@ -319,3 +319,77 @@ laptop/mobil, lagringstilstander, eksakt kode og miljø skal godkjennes av eier
 frontend-only staging etter runbook innen samme mandat. Lokal browserverifikasjon
 er ikke stagingaksept. Ingen backend/API/migrasjon, delingsaktivering, taggpolicy,
 6B/6C, PUBLIC- eller kartimplementering inngår. Hele UI-6 er ikke ferdigmeldt.
+
+
+## 10. Eierbestilt retting av PR #92 – 2026-10-25
+
+**Besluttet:** Prosjekteiers visuelle gjennomgang overstyrer tidligere meny-,
+aktørkort-, resetknapp- og personlagringsføring i §§8–9. Aktørmodalen, åpen
+bildeflyt desktop/mobil, søk-først-inngangen og sann statusutforming videreføres
+innen uttrykkelig eiergodkjenning. Fem nye referansebilder ligger lokalt i
+`Desktop/Editor baseline UI design/referanser til design 251026`; to er merket
+IKKE GODKJENT og brukes bare som avviksgrunnlag. Import v6 rev.4/O-24, kontrollert
+SHA-256 fra §9 og Editor-fontene består. PUBLIC-kort er visuell inspirasjon,
+ikke ny PUBLIC-leveranse. Ingen ny prototype-/brukertestrunde.
+
+**Implementert i rettingsleveransen:**
+
+- Fast desktop-venstremeny: Aktører, Personer, Import, Eksport, Admin; aktiv også
+  på profiler. Mobil har kompakt meny. Importfasene er lokale. Ekte bruker-/rolle-/
+  kontorpanel med autorisert tenantbytte. Admin vises bare ved faktisk Django-
+  adminadgang. Session/Login får bare additive display_name/can_access_admin.
+- Like brede/høye responsive aktørkort, thumbnail til venstre, navn/sted/
+  kategorisering og én faktisk tagg +N. Kontrollerte tekstgrenser; full data i
+  modal. Ingen publiseringsstatus eller Rediger på kort. Eksisterende taggfarger
+  og betydning beholdes. Grønn offentlig/gul intern er et framtidig ønske uten
+  vedtatt/implementert taggklassifisering.
+- Ingen stående Forkast/Nullstill profilutkast. Identisk Lagre/Opprett øverst og
+  nederst i samme form med innsendinglås og samme validering/status. Personens
+  nedre grønnknapp står til venstre for Slett person. Ny person kan ikke slettes;
+  eksisterende sletterettigheter/confirm består. Normal dokumentflyt, ingen
+  sticky-footer. Internt reset brukes fortsatt ved eksplisitt forlatvalg.
+- Mindre vertikale mellomrom, bevarte kontroll-/skriftstørrelser. Lukket preview
+  tar ingen egen bred kolonne. Region før nummer i alle berørte telefonrader.
+- Personens e-post-/telefongrupper viser hver verdi én gang, offentlige valg
+  under raden og lokale ekstra rader. Ingen Kontaktkanaler-/Primær-presentasjon,
+  blur-/checkbox-/tillegg-writes. Alt lagres med personskjemaet gjennom eksisterende
+  sekvensielle kall. Primærflagg og eksisterende offentlige valg beholdes; nye
+  verdier er interne som standard. Name/title-only PATCH utelater uendret kontakt.
+- Person-ID og hver kontakt-ID beholdes før senere kall/lesinger. Delvis feil
+  beholder utkast og bekreftelser; retry gjenskaper ikke kjente identiteter.
+  Ukjent POST-resultat sperrer blind retry og krever kontroll av faktisk resultat,
+  uten navne-/verdigjetning. Lagret vises først etter alle bekreftelser. Eksplisitt
+  fjerning er lokalt inntil DELETE av faktisk ID, med nødvendig etterfølgende
+  tømming av hovedfelt. Ingen automatisk opprykk eller ny primær-/writepolicy.
+- Kontakt-dirty inngår i rute-/meny-/tenant-/logout- og beforeunload-vern.
+  Bli her / Lagre og fortsett / Forlat uten å lagre bruker samme lagringsresultat.
+  Feil stanser videreføring; forkasting gjør ingen undo av allerede lagrede kall.
+- Personresultater beholder fire grupper, med kompakt kategori-/taggmetadata,
+  lyspærehint og bevarte filtre/valg/retur. Modalens Knyttet-indikator er fjernet;
+  Knyttet til, kategorier, tags, lenker og fokusvern består. Misvisende kortkopi
+  er fjernet. Field-label støtter også innpakket input i eksisterende Import.
+
+**Bevis og stopp:** målrettet PostgreSQL-/Django, frontendtester, browserreiser og
+[ny samlet visuell leveranse](../status/EDITOR_REVISION_VISUAL_REVIEW_2026-10-25.md)
+skiller faktisk runtime, syntetiske data, kontrollerte transportfeil, review og
+uavklart samlet eieraksept. Grønn CI er ingen visuell godkjenning. Samme PR #92,
+faktisk separat review og nødvendige kontroller; stopp før merge/staging for
+ny samlet godkjenning. Etter godkjenning er deployscope API + frontend, uten ny
+migrasjon. Ingen full 6B/6C, eksportmotor, deling/backfill eller PUBLIC-endring.
+Begge avtalte Google Maps-aktørkart består som v1-omfang.
+
+**Regionvalg uten nummerendring (25.10):** Dagens API lagrer ikke region-only.
+På lagret persontelefon spores dette som dirty og avvises med feltmelding før
+noen writes eller Lagre og fortsett. Lagret effektiv region er baseline; urørt
+fallbackregion blokkerer ikke navn/tittel. Nummerendring bruker valgt region
+som før. Dette er eksplisitt kontraktgrense, ingen ny normaliseringspolicy.
+
+**Delvis fjerning (25.10):** Angre gjelder bare en ennå uskrevet Fjern-markering.
+Bekreftet DELETE kan ikke angres lokalt. Ved ukjent DELETE beholdes kontakt-ID-en;
+retry bruker samme DELETE (404 bekrefter fravær), aldri POST. Ved forkasting før
+ukjent DELETE eller hovedfeltklarering er avklart, beholdes en liten session-ref
+per tenant/person. Uavklarte rader og gammel hovedfeltfallback skjules; videre
+skriving for profilen krever fersk ordinær innlasting. Dette hindrer at cache
+bekrefter en slettet kontakt som Lagret, også etter internt bytte tilbake.
+Fjern→Angre før writes gjenoppretter opprinnelig lokalt hovedfelt, uten å reparere
+et eksisterende avvik mellom hovedfelt og kontakt. Ingen ny DB-/writepolicy.

@@ -1,5 +1,15 @@
 # Editor og PUBLIC – samlet UI/UX-ferdigstilling
 
+**Overstyrende eierbestilt retting 2026-10-25:**
+[UI-6 §10](../features/UI_6_FELLES_SPEC.md#10-eierbestilt-retting-av-pr-92--2026-10-25)
+leverer venstremeny, like kortmål og lokale/manuelt lagrede personkontakter på
+eksisterende API-er i samme PR #92. Dette er avgrenset UI-6-arbeid og foregriper
+ikke full 6B. Synlige resetknapper fjernes. Eiers godkjente modal-/bilde-/søk-
+retning videreføres, mens samlet rettet utforming avventer godkjenning før merge
+og staging. Auth-utvidelsen gjør senere deploy til **API + frontend**, uten ny
+migrasjon. [Nye browserbevis](EDITOR_REVISION_VISUAL_REVIEW_2026-10-25.md).
+Resten av leveranseplanen, PUBLIC og begge Google Maps-aktørkart som v1 består.
+
 **Ny styrende eierføring og kodeleveranse 2026-10-24:**
 [UI-6 §9](../features/UI_6_FELLES_SPEC.md#9-samordnet-editor--ny-eierføring-og-kodeleveranse-2026-10-24)
 overstyrer tidligere anbefalt skjermoppbygning, ni personkolonner og stor sticky-

@@ -1,0 +1,522 @@
+{
+  "runtime_head": "2cd0e18ad103d6af694d43335c4293faed26b03a",
+  "image_count": 38,
+  "images": [
+    {
+      "file": "01-desktop-shell-cards.png",
+      "caption": "Desktop: venstremeny, faktisk bruker/rolle/kontor og like kortmål",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 218365,
+      "sha256": "287cfa8e02a41ee895334bf0b3e4d767ccb5ac928707e0bd8f1ab7a7c299739d"
+    },
+    {
+      "file": "02-actor-modal-viewport.png",
+      "caption": "Aktørmodal: faktisk viewport og alle tags",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 226647,
+      "sha256": "793786ba5e010a7ffd791689ef64f4e3eb0afb839af6e82ecf399b95d17ab93e"
+    },
+    {
+      "file": "03-actor-edit-top.png",
+      "caption": "Rediger aktør: topphandling i viewport",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 223901,
+      "sha256": "320a4cc389e4bbe2a7c780c521d2c0f5b23c582a14e9d8420135aba73eed606d"
+    },
+    {
+      "file": "04-actor-edit-full.png",
+      "caption": "Rediger aktør: hele siden uten tom previewkolonne",
+      "width": 1440,
+      "height": 1681,
+      "bytes": 461493,
+      "sha256": "2dd2ca3702497d7dc94099b575790279b6ee8046cb3e48f2626f3e3b41cbc9f9"
+    },
+    {
+      "file": "05-actor-edit-bottom.png",
+      "caption": "Rediger aktør: nedre handling i viewport",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 223883,
+      "sha256": "d3de6dbf5063103b8e719c62860e6c58b4d58092f7e7991d29d3211ac0630766"
+    },
+    {
+      "file": "06-image-workflow-full.png",
+      "caption": "Åpen bildeflyt: desktop, hele siden",
+      "width": 1440,
+      "height": 2020,
+      "bytes": 498226,
+      "sha256": "7c4d9a9ccd875ce6b9a39579973debd210274e2e7a4a7479c1dc36704979c6a4"
+    },
+    {
+      "file": "07-new-actor-full.png",
+      "caption": "Ny aktør: topp og bunn i samme form",
+      "width": 1440,
+      "height": 1151,
+      "bytes": 284225,
+      "sha256": "489ea5a564f1257bbdbfd89506ce9f30db124edc97158131071965c6b27ee8b6"
+    },
+    {
+      "file": "08-people-search-entry.png",
+      "caption": "Personer: søk-først-inngang",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 264290,
+      "sha256": "776eed91dddb03a26c8f51e4d2e34113fe658bfbd0189d188709ca88a7721f28"
+    },
+    {
+      "file": "09-people-results-metadata.png",
+      "caption": "Personer: fire grupper med kategori-/taggmetadata og hint",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 289415,
+      "sha256": "08e517d9b195adba822462201fed557f555bba7b22aeca5e47ef3c0f0ca71493"
+    },
+    {
+      "file": "10-person-modal-viewport.png",
+      "caption": "Personmodal: faktisk viewport uten Knyttet-indikator",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 145118,
+      "sha256": "947e4e092b4daa2f3591f4651bd34aaeed88eae0957d29ce8479fdde0021712d"
+    },
+    {
+      "file": "11-person-edit-full.png",
+      "caption": "Rediger person: 2 e-poster/2 telefoner og ulike offentlige valg",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 227708,
+      "sha256": "a202d74fcb18019640c0814e2b8a6876332dc06a6a04bf27ff3a301c9a01a539"
+    },
+    {
+      "file": "12-person-edit-top.png",
+      "caption": "Rediger person: topphandling i viewport",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 227708,
+      "sha256": "a202d74fcb18019640c0814e2b8a6876332dc06a6a04bf27ff3a301c9a01a539"
+    },
+    {
+      "file": "13-person-edit-bottom.png",
+      "caption": "Rediger person: bunnhandling til venstre for sletting",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 227708,
+      "sha256": "a202d74fcb18019640c0814e2b8a6876332dc06a6a04bf27ff3a301c9a01a539"
+    },
+    {
+      "file": "14-person-changed.png",
+      "caption": "Person: endringer før lagring",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 232475,
+      "sha256": "bded87f3fc4cceabb7297c98cec27b649c4b639a1a43fe4aeb5c0537bdf700ec"
+    },
+    {
+      "file": "15-person-saving.png",
+      "caption": "Person: lagring pågår",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 233439,
+      "sha256": "aaebeeac7e2f43b31d8ed90fc3d37411c2242e1336dbc0d739f675cd13510664"
+    },
+    {
+      "file": "16-person-saved.png",
+      "caption": "Person: hele lagringen bekreftet",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 232364,
+      "sha256": "a1bd9f1de73d6dfdd2850f49bf2943c42ed12e93d78546f0dfeec0d368916bbf"
+    },
+    {
+      "file": "17-person-partial-error.png",
+      "caption": "Person: profilwrite bekreftet, kontaktwrite avvist",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 279936,
+      "sha256": "1bb20b165120fb9642d7dc09aea3c867da8901889cb2c0aa04df4d7763fa93a3"
+    },
+    {
+      "file": "18-new-person-multicontact-full.png",
+      "caption": "Ny person: lokale ekstra e-post-/telefonrader",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 224044,
+      "sha256": "a9cb2099210aa9fdef9c5e2c159fc56cec52741acbacda516dd6498d48594cf1"
+    },
+    {
+      "file": "19-new-person-partial-error.png",
+      "caption": "Ny person: ID-er beholdt etter senere kontaktfeil",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 277467,
+      "sha256": "ca4c67ccdf33bdf0c022e5ec049267cfb969880c0cef4aa1060a637a299d1dd2"
+    },
+    {
+      "file": "20-actor-changed.png",
+      "caption": "Aktør: endringer før lagring",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 229204,
+      "sha256": "54de6a95672b6d764d62a9a7c81a5c3a28fb9f1c8ce039001639d1c68af6356d"
+    },
+    {
+      "file": "21-actor-saving.png",
+      "caption": "Aktør: lagring pågår",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 228318,
+      "sha256": "cc2dc5687ec9607fbb985c8df642758a175a2d14bf2f19d7074e4169073898c9"
+    },
+    {
+      "file": "22-actor-saved.png",
+      "caption": "Aktør: lagring bekreftet",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 227812,
+      "sha256": "fcbe76a6820ef70dba733391ae3af136310fd076f261d2dfaff7fbc44a26832e"
+    },
+    {
+      "file": "23-actor-error.png",
+      "caption": "Aktør: lagring ikke bekreftet",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 260864,
+      "sha256": "fa7fb0b4ea0fd3a1ee345ea49689a7978eb07e3b7b840db56ccbcfe85d89e43d"
+    },
+    {
+      "file": "24-mobile-shell-cards.png",
+      "caption": "Mobil: kompakt meny og like kortmål",
+      "width": 390,
+      "height": 1514,
+      "bytes": 138254,
+      "sha256": "da34f7b9d2509fc3dc630d95b521882e6fde9d88e4a70c05fc5649ce3f511f55"
+    },
+    {
+      "file": "25-mobile-actor-modal-viewport.png",
+      "caption": "Mobil aktørmodal: faktisk viewport",
+      "width": 390,
+      "height": 844,
+      "bytes": 77291,
+      "sha256": "06daa7f5fc9c20fc655e7895996494382381e8609eec9ddd21cb7fde9fcebb66"
+    },
+    {
+      "file": "26-mobile-actor-edit-full.png",
+      "caption": "Mobil: rediger aktør, hele siden",
+      "width": 390,
+      "height": 2807,
+      "bytes": 309153,
+      "sha256": "e52880408191d50a1a57ee825737c62b36e0be4318362628d28bd188e82927b7"
+    },
+    {
+      "file": "27-mobile-image-workflow-full.png",
+      "caption": "Mobil: åpen bildeflyt, hele siden",
+      "width": 390,
+      "height": 3196,
+      "bytes": 322000,
+      "sha256": "d17e3d12c0b6f6a944cf3c54b8a257d53ce26cd8dd31db36355288ada743521a"
+    },
+    {
+      "file": "28-mobile-person-edit-full.png",
+      "caption": "Mobil: rediger person med ekstra rader",
+      "width": 390,
+      "height": 1739,
+      "bytes": 177475,
+      "sha256": "3ea14d09909783ec187b08ba4c8d00a5c0fd7d6ac4b28c04b70ebb514a34ac56"
+    },
+    {
+      "file": "29-mobile-people-results.png",
+      "caption": "Mobil: personresultater med metadata",
+      "width": 390,
+      "height": 1074,
+      "bytes": 122280,
+      "sha256": "fd3afcbefd8593ec9c2587105750faa1ca8965c6afc87fac961c0261b2c1f194"
+    },
+    {
+      "file": "30-mobile-person-modal-viewport.png",
+      "caption": "Mobil personmodal: faktisk viewport",
+      "width": 390,
+      "height": 844,
+      "bytes": 75036,
+      "sha256": "2c513ab46f65c78535bbc2f82ef547fcb7f84995d6b71500de30e2e92fca0b9e"
+    },
+    {
+      "file": "31-mobile-new-person-full.png",
+      "caption": "Mobil: ny person med lokale ekstra rader",
+      "width": 390,
+      "height": 1710,
+      "bytes": 153439,
+      "sha256": "b65d274efeb8e5a5b2c380a02d62e6980a29bff87a8db76c753129b73ffce22e"
+    },
+    {
+      "file": "34-import-desktop.png",
+      "caption": "Import: egen eksisterende arbeidsflate",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 355639,
+      "sha256": "42df1a68adaa125ed4e76a1991d137ff2ee693cfbf6f9876eb1fcf3813346328"
+    },
+    {
+      "file": "35-export-desktop.png",
+      "caption": "Eksport: egen arbeidsflate med ærlig funksjonsstatus",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 305279,
+      "sha256": "0374ec1b6671aa7880114e34e5e074a03621038c57b3aae9c95de2a627e55762"
+    },
+    {
+      "file": "36-cards-image-extreme-fixture-desktop.png",
+      "caption": "Kort: kontrollert bildeprojeksjon og ekstremt navn, desktop",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 228084,
+      "sha256": "7fbcb68f699c27bb78e7d76da7b14dc07c4d49b3138a5716d0cc5c4bec302e84"
+    },
+    {
+      "file": "37-cards-image-extreme-fixture-mobile.png",
+      "caption": "Kort: kontrollert bildeprojeksjon og ekstremt navn, mobil",
+      "width": 390,
+      "height": 1514,
+      "bytes": 142897,
+      "sha256": "2b9139c3237f88bb1f68b802629e5301724d31469cc7525931a3253707950a8f"
+    },
+    {
+      "file": "38-reader-role-desktop.png",
+      "caption": "Faktisk ikke-staff leser: navn/rolle og fravær av Admin/skrivevalg",
+      "width": 1440,
+      "height": 1000,
+      "bytes": 214218,
+      "sha256": "6eaa96ad13b455663c1220ce6beec21b9165f1966b32e4e179b170dd844bccc7"
+    },
+    {
+      "file": "actor-zoom200.png",
+      "caption": "Aktør: faktisk 200 % zoom, fokus og region/nummer i viewport",
+      "width": 1440,
+      "height": 913,
+      "bytes": 132010,
+      "sha256": "0001b89808648853aacd689986b48ceda9118159f60923dc35051431ddc2f34c"
+    },
+    {
+      "file": "person-zoom200.png",
+      "caption": "Person: faktisk 200 % zoom, fokus og region/nummer i viewport",
+      "width": 1440,
+      "height": 913,
+      "bytes": 158647,
+      "sha256": "91de896b8298fa8878587bb9f544cbcf279f4516c0659bbfb253f1209dde4f2b"
+    }
+  ],
+  "files": [
+    {
+      "file": "01-desktop-shell-cards.png",
+      "bytes": 218365,
+      "sha256": "287cfa8e02a41ee895334bf0b3e4d767ccb5ac928707e0bd8f1ab7a7c299739d"
+    },
+    {
+      "file": "02-actor-modal-viewport.png",
+      "bytes": 226647,
+      "sha256": "793786ba5e010a7ffd791689ef64f4e3eb0afb839af6e82ecf399b95d17ab93e"
+    },
+    {
+      "file": "03-actor-edit-top.png",
+      "bytes": 223901,
+      "sha256": "320a4cc389e4bbe2a7c780c521d2c0f5b23c582a14e9d8420135aba73eed606d"
+    },
+    {
+      "file": "04-actor-edit-full.png",
+      "bytes": 461493,
+      "sha256": "2dd2ca3702497d7dc94099b575790279b6ee8046cb3e48f2626f3e3b41cbc9f9"
+    },
+    {
+      "file": "05-actor-edit-bottom.png",
+      "bytes": 223883,
+      "sha256": "d3de6dbf5063103b8e719c62860e6c58b4d58092f7e7991d29d3211ac0630766"
+    },
+    {
+      "file": "06-image-workflow-full.png",
+      "bytes": 498226,
+      "sha256": "7c4d9a9ccd875ce6b9a39579973debd210274e2e7a4a7479c1dc36704979c6a4"
+    },
+    {
+      "file": "07-new-actor-full.png",
+      "bytes": 284225,
+      "sha256": "489ea5a564f1257bbdbfd89506ce9f30db124edc97158131071965c6b27ee8b6"
+    },
+    {
+      "file": "08-people-search-entry.png",
+      "bytes": 264290,
+      "sha256": "776eed91dddb03a26c8f51e4d2e34113fe658bfbd0189d188709ca88a7721f28"
+    },
+    {
+      "file": "09-people-results-metadata.png",
+      "bytes": 289415,
+      "sha256": "08e517d9b195adba822462201fed557f555bba7b22aeca5e47ef3c0f0ca71493"
+    },
+    {
+      "file": "10-person-modal-viewport.png",
+      "bytes": 145118,
+      "sha256": "947e4e092b4daa2f3591f4651bd34aaeed88eae0957d29ce8479fdde0021712d"
+    },
+    {
+      "file": "11-person-edit-full.png",
+      "bytes": 227708,
+      "sha256": "a202d74fcb18019640c0814e2b8a6876332dc06a6a04bf27ff3a301c9a01a539"
+    },
+    {
+      "file": "12-person-edit-top.png",
+      "bytes": 227708,
+      "sha256": "a202d74fcb18019640c0814e2b8a6876332dc06a6a04bf27ff3a301c9a01a539"
+    },
+    {
+      "file": "13-person-edit-bottom.png",
+      "bytes": 227708,
+      "sha256": "a202d74fcb18019640c0814e2b8a6876332dc06a6a04bf27ff3a301c9a01a539"
+    },
+    {
+      "file": "14-person-changed.png",
+      "bytes": 232475,
+      "sha256": "bded87f3fc4cceabb7297c98cec27b649c4b639a1a43fe4aeb5c0537bdf700ec"
+    },
+    {
+      "file": "15-person-saving.png",
+      "bytes": 233439,
+      "sha256": "aaebeeac7e2f43b31d8ed90fc3d37411c2242e1336dbc0d739f675cd13510664"
+    },
+    {
+      "file": "16-person-saved.png",
+      "bytes": 232364,
+      "sha256": "a1bd9f1de73d6dfdd2850f49bf2943c42ed12e93d78546f0dfeec0d368916bbf"
+    },
+    {
+      "file": "17-person-partial-error.png",
+      "bytes": 279936,
+      "sha256": "1bb20b165120fb9642d7dc09aea3c867da8901889cb2c0aa04df4d7763fa93a3"
+    },
+    {
+      "file": "18-new-person-multicontact-full.png",
+      "bytes": 224044,
+      "sha256": "a9cb2099210aa9fdef9c5e2c159fc56cec52741acbacda516dd6498d48594cf1"
+    },
+    {
+      "file": "19-new-person-partial-error.png",
+      "bytes": 277467,
+      "sha256": "ca4c67ccdf33bdf0c022e5ec049267cfb969880c0cef4aa1060a637a299d1dd2"
+    },
+    {
+      "file": "20-actor-changed.png",
+      "bytes": 229204,
+      "sha256": "54de6a95672b6d764d62a9a7c81a5c3a28fb9f1c8ce039001639d1c68af6356d"
+    },
+    {
+      "file": "21-actor-saving.png",
+      "bytes": 228318,
+      "sha256": "cc2dc5687ec9607fbb985c8df642758a175a2d14bf2f19d7074e4169073898c9"
+    },
+    {
+      "file": "22-actor-saved.png",
+      "bytes": 227812,
+      "sha256": "fcbe76a6820ef70dba733391ae3af136310fd076f261d2dfaff7fbc44a26832e"
+    },
+    {
+      "file": "23-actor-error.png",
+      "bytes": 260864,
+      "sha256": "fa7fb0b4ea0fd3a1ee345ea49689a7978eb07e3b7b840db56ccbcfe85d89e43d"
+    },
+    {
+      "file": "24-mobile-shell-cards.png",
+      "bytes": 138254,
+      "sha256": "da34f7b9d2509fc3dc630d95b521882e6fde9d88e4a70c05fc5649ce3f511f55"
+    },
+    {
+      "file": "25-mobile-actor-modal-viewport.png",
+      "bytes": 77291,
+      "sha256": "06daa7f5fc9c20fc655e7895996494382381e8609eec9ddd21cb7fde9fcebb66"
+    },
+    {
+      "file": "26-mobile-actor-edit-full.png",
+      "bytes": 309153,
+      "sha256": "e52880408191d50a1a57ee825737c62b36e0be4318362628d28bd188e82927b7"
+    },
+    {
+      "file": "27-mobile-image-workflow-full.png",
+      "bytes": 322000,
+      "sha256": "d17e3d12c0b6f6a944cf3c54b8a257d53ce26cd8dd31db36355288ada743521a"
+    },
+    {
+      "file": "28-mobile-person-edit-full.png",
+      "bytes": 177475,
+      "sha256": "3ea14d09909783ec187b08ba4c8d00a5c0fd7d6ac4b28c04b70ebb514a34ac56"
+    },
+    {
+      "file": "29-mobile-people-results.png",
+      "bytes": 122280,
+      "sha256": "fd3afcbefd8593ec9c2587105750faa1ca8965c6afc87fac961c0261b2c1f194"
+    },
+    {
+      "file": "30-mobile-person-modal-viewport.png",
+      "bytes": 75036,
+      "sha256": "2c513ab46f65c78535bbc2f82ef547fcb7f84995d6b71500de30e2e92fca0b9e"
+    },
+    {
+      "file": "31-mobile-new-person-full.png",
+      "bytes": 153439,
+      "sha256": "b65d274efeb8e5a5b2c380a02d62e6980a29bff87a8db76c753129b73ffce22e"
+    },
+    {
+      "file": "34-import-desktop.png",
+      "bytes": 355639,
+      "sha256": "42df1a68adaa125ed4e76a1991d137ff2ee693cfbf6f9876eb1fcf3813346328"
+    },
+    {
+      "file": "35-export-desktop.png",
+      "bytes": 305279,
+      "sha256": "0374ec1b6671aa7880114e34e5e074a03621038c57b3aae9c95de2a627e55762"
+    },
+    {
+      "file": "36-cards-image-extreme-fixture-desktop.png",
+      "bytes": 228084,
+      "sha256": "7fbcb68f699c27bb78e7d76da7b14dc07c4d49b3138a5716d0cc5c4bec302e84"
+    },
+    {
+      "file": "37-cards-image-extreme-fixture-mobile.png",
+      "bytes": 142897,
+      "sha256": "2b9139c3237f88bb1f68b802629e5301724d31469cc7525931a3253707950a8f"
+    },
+    {
+      "file": "38-reader-role-desktop.png",
+      "bytes": 214218,
+      "sha256": "6eaa96ad13b455663c1220ce6beec21b9165f1966b32e4e179b170dd844bccc7"
+    },
+    {
+      "file": "actor-zoom200.png",
+      "bytes": 132010,
+      "sha256": "0001b89808648853aacd689986b48ceda9118159f60923dc35051431ddc2f34c"
+    },
+    {
+      "file": "checks.json",
+      "bytes": 2580,
+      "sha256": "a8282f5c780c6560052794146897db56326891d06aa284e7739367819fc216aa"
+    },
+    {
+      "file": "extra-checks.json",
+      "bytes": 680,
+      "sha256": "2cd5a81cd4cc3aabb59985e37c9a080ec7fba3d935b359eaef37208dfc32ee39"
+    },
+    {
+      "file": "index.html",
+      "bytes": 15811,
+      "sha256": "9290b5f1375a987bc1ccd0478dfe9cb90c906133dbae17471ce07db5496622e2"
+    },
+    {
+      "file": "person-zoom200.png",
+      "bytes": 158647,
+      "sha256": "91de896b8298fa8878587bb9f544cbcf279f4516c0659bbfb253f1209dde4f2b"
+    },
+    {
+      "file": "zoom.json",
+      "bytes": 155,
+      "sha256": "0969e085abca877e11913789093c915553277ea837c5d81c1621437849e67f64"
+    }
+  ]
+}

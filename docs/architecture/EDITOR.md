@@ -1,5 +1,56 @@
 # Editor
 
+## Gjeldende rettingsleveranse – 2026-10-25
+
+[UI-6 §10](../features/UI_6_FELLES_SPEC.md#10-eierbestilt-retting-av-pr-92--2026-10-25)
+overstyrer de daterte beskrivelsene av toppmeny, kortenes handlinger, resetknapper
+og umiddelbare kontaktwrites nedenfor. Desktop har venstremenyen Aktører →
+Personer → Import → Eksport → Admin (sistnevnte bare ved faktisk adminadgang).
+Mobil bruker kompakt meny i dokumentflyten. Brukerpanelet viser faktisk navn,
+plattformrolle separat fra aktiv tenantrolle og autorisert kontorvalg.
+`/import` og `/export` viser hver sin eksisterende arbeidsflate;
+`/import-export` er kompatibel Import-inngang. Ingen ny eksportmotor.
+
+Aktørkort har samme mål per responsiv layout, bilde/fallback til venstre,
+begrenset navn/sted/kategorisering og én tagg med faktisk +N. Status og Rediger
+finnes i lesemodalen. Hele verdier beholdes der. Eksisterende taggsemantikk og
+farger består. Lukket forhåndsvisning reserverer ingen egen bred profilkolonne.
+Profilene har samme submit øverst og nederst, én umiddelbar innsendinglås og
+ingen stående forkast-/nullstillknapp. Internt reset brukes av navigasjonsvernet.
+Region står før nummer i DOM/tab-rekkefølge. Kontroll- og skriftstørrelser består;
+vertikale mellomrom er redusert. `Field` binder også innpakket enkeltinput til
+synlig label; sammensatte kontroller beholder egne tilgjengelige navn.
+
+Personprofilen bruker `usePersonForm`: hver e-post/telefon vises én gang,
+med lokal verdi/region/offentligvalg og ekstra rader også før oppretting.
+Ingen skriver ved blur, avkrysning eller radtillegg. Person og alle kontaktrader
+lagres sekvensielt med Lagre/Opprett person. Lagret vises først etter alle
+bekreftelser. POST-ID-er beholdes umiddelbart, også om senere kall feiler;
+retry bruker kjente ID-er. Ukjent POST-resultat låser nye opprettingsforsøk,
+og må avklares ved kontroll av faktisk lagret resultat. Ingen navne-/verdimatching.
+Ved delvis lagring viser meldingen hva som er bekreftet og hva som gjenstår;
+forkasting endrer bare lokale utkast, ikke vellykkede writes. Bekreftede kontakt-
+endringer oppdaterer også den lokale lagrede baselinen før neste kall.
+
+Nye hovedkontakter oppstår gjennom dagens Person-feltkontrakt, ID-ene leses fra
+samme write-respons. Uendrede email/phone utelates fra PATCH; teknisk is_primary
+beholdes uten synlig primærvalg. Ekstra kontakter skrives med faktisk ID eller
+eksplisitt POST. Eksisterende offentlige valg beholdes; nye er interne som standard.
+Tom lagret verdi avvises og betyr aldri fjerning. Fjern er lokalt inntil lagring,
+med dagens sletterettigheter; ny uskrevet ekstrarad fjernes bare lokalt.
+Hovedkontakt fjernes ved DELETE av kjent ID før Person-feltet tømmes. Det er
+flere kall, uten atomisk garanti eller automatisk opprykk av andre kontakter.
+
+Kontaktendringer inngår i samme dirty-/beforeunload-vern. Meny, rute, tenant og
+utlogging gir Bli her / Lagre og fortsett / Forlat uten å lagre. Ingen autosave.
+En blokkert rute videreføres maksimalt én gang selv når lagringsbekreftelse og
+routeroppdatering ankommer samtidig. Avviste muterende JSON-kall returnerer feil
+til montert skjema fremfor automatisk logout; eksisterende lesebaserte auth-
+kontroller og bildeflytens separate feilbehandling består.
+
+Dette er kodeleveranse før samlet eiergodkjenning, merge og staging. Senere deploy
+må ha API + frontend, ingen ny migrasjon. [Datert vurderingsgrunnlag](../status/EDITOR_REVISION_VISUAL_REVIEW_2026-10-25.md).
+
 ## Samordnet kompakt Editor – kodeleveranse 2026-10-24
 
 [Ny eierføring og implementering i UI-6 §9](../features/UI_6_FELLES_SPEC.md#9-samordnet-editor--ny-eierføring-og-kodeleveranse-2026-10-24)
@@ -128,13 +179,11 @@ Editor CRM er intern og viser kontaktinformasjon også når `PersonContact.is_pu
 
 På personens redigeringsside kan redaktøren:
 
-- se primær e-post og telefon i kompatibilitetsfeltene `Person.email` og `Person.phone`
-- se alle lagrede `PersonContact` for personen
-- se hvilke kontakter som er primære
-- endre kontaktverdi
-- styre `is_primary`
-- styre `is_public` med teksten `Kan vises offentlig` og en presisering om at
-  kontaktkanalen bare vises på aktører der `Vis person offentlig` også er valgt
+- se og endre hver e-post/telefon én gang i lokale grupper
+- velge `Kan vises offentlig` uten umiddelbar write
+- legge til ekstra rader lokalt og fjerne eksplisitt ved lagring
+- lagre profil og kontakter med samme skjemahandling, uten atomisk løfte
+- beholde tekniske primærflagg uten å presentere et nytt primærvalg
 
 Organization-, Person- og PHONE-kontaktskjemaene har et synlig
 land-/regionvalg. Tenantens nullable default forhåndsvelges når den finnes,
@@ -183,7 +232,7 @@ Editor-tekstene skiller mellom å vise personen som kontaktperson på aktørside
 
 Editor skal senere presentere kontaktinformasjon som én sammenhengende funksjon:
 
-- flere e-poster og telefonnumre i én kontaktseksjon
+- videreført samlet kontaktopplevelse på ny 6B-kontrakt; manuelle grupper finnes allerede i denne avgrensede Editor-leveransen
 - tydelig intern primærkontakt
 - offentlig kontaktvalg per aktør–person-kobling
 - relasjonsspesifikke kontaktvalg slått av som standard
@@ -191,3 +240,19 @@ Editor skal senere presentere kontaktinformasjon som én sammenhengende funksjon
 - preview fra samme offentlige projeksjon som HTML og API
 
 Detaljert komponent- og dataflyt dokumenteres i neste fase.
+
+**Regionvalg uten nummerendring (25.10):** Dagens API lagrer ikke region-only.
+På lagret persontelefon spores dette som dirty og avvises med feltmelding før
+noen writes eller Lagre og fortsett. Lagret effektiv region er baseline; urørt
+fallbackregion blokkerer ikke navn/tittel. Nummerendring bruker valgt region
+som før. Dette er eksplisitt kontraktgrense, ingen ny normaliseringspolicy.
+
+**Delvis fjerning (25.10):** Angre gjelder bare en ennå uskrevet Fjern-markering.
+Bekreftet DELETE kan ikke angres lokalt. Ved ukjent DELETE beholdes kontakt-ID-en;
+retry bruker samme DELETE (404 bekrefter fravær), aldri POST. Ved forkasting før
+ukjent DELETE eller hovedfeltklarering er avklart, beholdes en liten session-ref
+per tenant/person. Uavklarte rader og gammel hovedfeltfallback skjules; videre
+skriving for profilen krever fersk ordinær innlasting. Dette hindrer at cache
+bekrefter en slettet kontakt som Lagret, også etter internt bytte tilbake.
+Fjern→Angre før writes gjenoppretter opprinnelig lokalt hovedfelt, uten å reparere
+et eksisterende avvik mellom hovedfelt og kontakt. Ingen ny DB-/writepolicy.

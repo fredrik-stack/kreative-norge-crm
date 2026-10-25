@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-10-25 – eierbestilt retting av PR #92 (før samlet visuell godkjenning)
+
+- Fast desktop-venstremeny/kompakt mobilmeny, faktisk bruker-/rolle-/kontorpanel,
+  separate Import-/Eksport-ruter og betinget eksisterende Django-adminlenke.
+- Additivt display_name/can_access_admin i Session/Login; senere deployscope
+  er API + frontend, uten ny migrasjon.
+- Like kortmål, thumbnail, én tagg +N; status/Rediger beholdes bare i modal.
+- Samme submit øverst/nederst, ingen stående resetknapp, mindre vertikale gap,
+  ingen tom previewkolonne og region før nummer.
+- Personkontakter er lokale til Lagre/Opprett; sekvensielle eksisterende API-er,
+  bevarte ID-er ved delvis feil, sperre ved ukjent POST og eksplisitt utsatt fjerning.
+- Kontakt-dirty verner også logout. Feilwrites beholder montert skjema; blokkert
+  rute konsumeres bare én gang ved samtidige save-/routeroppdateringer.
+- Personresultater får metadata/hint, modalens Knyttet-indikator fjernes, og Field
+  navngir også innpakket Import-input. PUBLIC/primær-/taggpolicy er uendret.
+- Se UI-6 §10 og datert nytt visuelt grunnlag. Ingen merge/staging eller fullført
+  UI-6/6B/6C i denne rettingsrunden.
+
 ## 2026-10-24 – samordnet kompakt Editor (kodeleveranse, før visuell godkjenning)
 
 - Aktørkort/lesemodaler og aktør-/personskjema har felles kompakt hierarki etter

@@ -1,5 +1,17 @@
 # Security and Roles
 
+## Editor-brukerpanel – avgrenset kodeleveranse 2026-10-25
+
+Session/Login leverer navn fra eksisterende navnefelt med username-fallback og
+`can_access_admin = is_active and is_staff`, som dagens standard Django-admin.
+Tenantens superadmin/gruppeadmin innebærer ingen adminadgang. Plattform-
+superbruker og aktiv tenantrolle vises separat; kontorvalget viser bare dagens
+autoriserte tenantliste, uten påstått hjemmekontor. Admin-lenken går til `/admin/`;
+ingen ny administrasjonsflate eller tilgang er opprettet. Backend håndhever
+fortsatt alle rettigheter. Lagret kontakt kan bare fjernes med eksisterende
+sletterettigheter; nye lokale rader krever ingen DELETE. Ingen 6A-/6B-endring.
+Kode på PR #92 er ikke deployet av denne rettingsrunden.
+
 ## Tenantprivate notater – inaktiv grunnmur stagingverifisert 2026-10-24
 
 [Kode-PR #85](https://github.com/fredrik-stack/kreative-norge-crm/pull/85) er separat

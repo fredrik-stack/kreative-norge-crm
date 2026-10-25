@@ -1,5 +1,14 @@
 # Kreative Norge CRM – dokumentasjon
 
+**Eierbestilt retting av PR #92 – 2026-10-25:**
+[UI-6 §10](features/UI_6_FELLES_SPEC.md#10-eierbestilt-retting-av-pr-92--2026-10-25) styrer venstremeny, like store aktørkort og manuell
+personlagring med lokale kontaktutkast. Dette overstyrer eldre meny-/kort-/reset-
+og lagringsføringer nedenfor. Lesemodaler, bildeflyt og søk først videreføres
+innen eiers avgrensede godkjenning. Rettet runtime er ikke samlet visuelt godkjent.
+[Nytt samlet vurderingsgrunnlag](status/EDITOR_REVISION_VISUAL_REVIEW_2026-10-25.md)
+skiller kode, lokale tester, browserbevis og utestående godkjenning. Ingen merge
+eller staging i rettingsrunden; senere deploy må omfatte **API og frontend**.
+
 **Samordnet Editor, kodeleveranse 2026-10-24:**
 [Ny styrende eierføring / UI-6 §9](features/UI_6_FELLES_SPEC.md#9-samordnet-editor--ny-eierføring-og-kodeleveranse-2026-10-24)
 bruker kontrollert Import v6 rev.4/O-24 som konkret designreferanse med Editor-

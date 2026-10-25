@@ -1,5 +1,12 @@
 # Phone normalization domain
 
+**Editor-retting 2026-10-25:** Regionvelger står før telefonfelt i visuell/DOM-/
+tab-rekkefølge, også på ekstra personrader og aktørens kontaktoppretting.
+Personrader holdes lokale til Lagre/Opprett person. Uendrede hovedtelefonfelt
+utelates fra PATCH; regionbytte alene skal ikke reparere/renormalisere et
+uendret nummer. Eksisterende regiondefault, råverdi, canonical identitet og
+`+`-uavhengighet består. Ingen ny nummerpolicy eller migrasjon.
+
 Telefonnormalisering er implementert som én ren intern domenegrense i
 `crm/services/phone_normalization.py`. Den presiserer fase 4C i
 [ADR-010](../decisions/ADR-010-INTERNATIONAL_PHONE_IDENTITY_AND_NORMALIZATION.md).
@@ -201,3 +208,9 @@ public shape og rå/canonical kontrakt uten persistente testdata.
 [Endelig owner-smoke](../status/PHASE_4_OWNER_APPROVAL_2026-08-29.md)
 godkjente de tre siste UI-punktene 2026-08-29. Status er
 `PHASE 4 = CLOSED / VERIFIED`.
+
+**Regionvalg uten nummerendring (25.10):** Dagens API lagrer ikke region-only.
+På lagret persontelefon spores dette som dirty og avvises med feltmelding før
+noen writes eller Lagre og fortsett. Lagret effektiv region er baseline; urørt
+fallbackregion blokkerer ikke navn/tittel. Nummerendring bruker valgt region
+som før. Dette er eksplisitt kontraktgrense, ingen ny normaliseringspolicy.

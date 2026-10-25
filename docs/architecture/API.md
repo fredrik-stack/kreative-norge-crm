@@ -1,5 +1,27 @@
 # API
 
+## Additiv Editor-auth og eksisterende personwrites – 2026-10-25
+
+`GET /api/auth/session/` og `POST /api/auth/login/` returnerer additivt
+`user.display_name` (eksisterende fullt navn, ellers username) og
+`user.can_access_admin` (aktiv Django-staff, samme adgangskrav som standard
+AdminSite). `is_superuser` og memberships består. Ingen nye brukerfelt,
+roller, tillatelser eller adminflater. Frontend skjuler Admin når indikatoren
+mangler/er false; selve admin beskytter fortsatt sine ruter.
+
+Personens `contacts` er read-only i Person-payload. Manuell samlet Editor-lagring
+orkestrerer dagens Person- og PersonContact-endepunkter sekvensielt. Person POST/
+PATCH synkroniserer oppgitte hovedfelt til tekniske primærkontakter; uendrede
+email/phone utelates. Kontakt-ID-er fra vellykkede write-responser beholdes før
+senere kall. Ingen transaksjon/idempotencykey eller ny backend-writekontrakt er
+innført. Ukjent POST-resultat skal ikke blindt gjentas eller gjenfinnes ved verdi.
+DELETE kontakt tømmer ikke Person-feltet; Editor må derfor eksplisitt tømme
+hovedfeltet etter sletting av kjent hovedkontakt-ID. Delvis gjennomført sekvens
+kan etterlate gammelt hovedfelt inntil retry lykkes. Ingen automatisk opprykk.
+Telefonens eksisterende clear-/normaliseringskontrakt består.
+
+Kodeleveranse før merge/staging; senere deploy omfatter API + frontend.
+
 **Status:** implementert grunn-API; 3E.2 public image projection/API shadow er `CLOSED / SHADOW VERIFIED`; 3E.3-targetschemaet er `CLOSED / ACTIVE` i staging; 3E.4-takedownaction er `CLOSED / ACTIVE` i staging med kode-/eksempelstandard fortsatt av; 3F legacy-/Import-kontrakten er `CLOSED / VERIFIED` med Import-gaten av i shared staging; fase 4 API-/Editor-/Import-telefonkontrakt, kontrollert backfill og siste additive read-only UI-polish er eiergodkjent og `PHASE 4 = CLOSED / VERIFIED`
 
 API-et omfatter autentisering, tenants, taksonomi, aktører, personer, koblinger, kontaktkanaler, interne bildekandidathandlinger, public actors, importjobber og eksportjobber.

@@ -1,5 +1,23 @@
 # Project Status Current
 
+## PR #92 – eierbestilt retting 2026-10-25, før visuell godkjenning
+
+Den nye [styrende bestillingen / UI-6 §10](../features/UI_6_FELLES_SPEC.md#10-eierbestilt-retting-av-pr-92--2026-10-25)
+er implementert på samme branch: venstremeny/brukerpanel, separate Import-/Eksport-
+ruter, like store kort uten status/redigeringsknapp, to skjemabundne lagreknapper,
+region før nummer og samlet manuell personlagring. Kontakter har lokale utkast,
+eksplisitt utsatt fjerning og bevarte server-ID-er ved delvis feil. Ukjent POST-
+resultat blokkerer blind retry. Ingen ny kontakt-/primær-/publiseringskontrakt.
+Session/Login gir additivt visningsnavn og faktisk Django-adminindikator.
+
+[Nytt samlet visuelt grunnlag](EDITOR_REVISION_VISUAL_REVIEW_2026-10-25.md)
+binder bilder til faktisk rettet runtime og beskriver isolert lokal PostgreSQL-/
+browserverifikasjon, review og begrensninger. GitHub viser siste PR-head og CI.
+**Stopp før merge/staging for samlet eiergodkjenning.** Etter uttrykkelig godkjenning
+krever samme mandat API + frontend, ordinær merge/main-CI og runbook. Ingen
+migrasjon, ny backfill, shared-aktivering eller ferdigmelding av UI-6/6B/6C.
+24.10-evidensen nedenfor er historisk og gjelder ikke rettet runtime.
+
 ## Samordnet Editor – kodeleveranse 2026-10-24, visuell godkjenning gjenstår
 
 [Samlet visuell leveranse / browserbilder](EDITOR_COMPACT_VISUAL_REVIEW_2026-10-24.md) gjelder kode `caccd8b` og draft PR #92.
