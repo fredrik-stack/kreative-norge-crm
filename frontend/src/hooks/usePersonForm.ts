@@ -7,7 +7,8 @@ import { initialPhoneRegion } from "../components/PhoneRegionSelect";
 export type PersonContactRow = {
   key: string; id?: number; type: "EMAIL" | "PHONE"; value: string;
   phone_region: string | null; is_primary: boolean; is_public: boolean;
-  removed?: boolean; deleted?: boolean; unknown?: boolean; baseline?: PersonContact;
+  removed?: boolean; removedMainValue?: string | null; deleted?: boolean; mainClearPending?: boolean;
+  deleteUncertain?: boolean; unknown?: boolean; baseline?: PersonContact;
 };
 
 // A session-local write ledger. Confirmed identities survive every later failure.
@@ -38,16 +39,19 @@ export function usePersonForm(options: {
   const knownPerson = useRef<Person | null>(null);
   const writing = useRef(false);
   const unknownPost = useRef(false);
+  const unresolvedDeletes = useRef(new Map<string, { ids: number[]; mainTypes: Array<"EMAIL" | "PHONE"> }>());
   const sequence = useRef(0);
 
   function rowsFor(value: Person | null): PersonContactRow[] {
-    const contacts = value?.contacts ?? [];
+    const unresolved = value ? unresolvedDeletes.current.get(`${tenantId}:${value.id}`) : undefined;
+    const contacts = (value?.contacts ?? []).filter(contact => !unresolved?.ids.includes(contact.id));
     const rows: PersonContactRow[] = contacts.map(contact => ({
       key: `contact-${contact.id}`, id: contact.id, type: contact.type, value: contact.value,
       phone_region: initialPhoneRegion(contact.value, contact.phone_region_used, region) || null,
       is_primary: contact.is_primary, is_public: contact.is_public, baseline: contact,
     }));
     for (const type of ["EMAIL", "PHONE"] as const) {
+      if (unresolved?.mainTypes.includes(type)) continue;
       if (!rows.some(row => row.type === type && row.is_primary)) {
         const field = type === "EMAIL" ? "email" : "phone";
         // Empty entry preserves the existing Person main-field create contract.
@@ -71,7 +75,10 @@ export function usePersonForm(options: {
     baselineTags.current = (value?.tags ?? []).map(tag => tag.name).join(", ");
     knownPerson.current = value; setPersistedId(value?.id ?? null);
     setPersonDraft(payload); setPersonTagInput(baselineTags.current); setRows(rowsFor(value));
-    setState("idle"); setErrors({}); setMessage(null); setUnknownCreate(false); unknownPost.current = false;
+    const needsRead = Boolean(value && unresolvedDeletes.current.has(`${tenantId}:${value.id}`));
+    setState(needsRead ? "error" : "idle"); setErrors({});
+    setMessage(needsRead ? "En tidligere fjerning er delvis gjennomført eller ikke bekreftet. Oppdater siden for å lese faktisk lagret resultat før du redigerer videre." : null);
+    setUnknownCreate(needsRead); unknownPost.current = needsRead;
   }
 
   useEffect(() => {
@@ -84,13 +91,17 @@ export function usePersonForm(options: {
   }, [tenantId, selectedId, person]);
 
   function updatePersonContact(key: string, patch: Partial<PersonContactRow>) {
-    setRows(rows => rows.flatMap(row => row.key === key ? (patch.removed && !row.id && !row.is_primary ? [] : [{ ...row, ...patch }]) : [row]));
     const row = personContactRows.find(item => item.key === key);
+    if (patch.removed === false && (row?.deleted || row?.deleteUncertain)) return;
+    if (row?.type === "PHONE" && patch.value?.trim().startsWith("+")) patch = { ...patch, phone_region: null };
+    if (patch.removed && row?.is_primary) patch = { ...patch, removedMainValue: personDraft[row.type === "EMAIL" ? "email" : "phone"] };
+    setRows(rows => rows.flatMap(row => row.key === key ? (patch.removed && !row.id && !row.is_primary ? [] : [{ ...row, ...patch }]) : [row]));
     if (row?.is_primary) {
       const field = row.type === "EMAIL" ? "email" : "phone";
       setPersonDraft(draft => ({ ...draft,
         ...(patch.value !== undefined ? { [field]: patch.value } : {}),
         ...(patch.removed ? { [field]: "" } : {}),
+        ...(patch.removed === false ? { [field]: row.removedMainValue ?? "" } : {}),
         ...(row.type === "PHONE" && patch.phone_region !== undefined ? { phone_region: patch.phone_region } : {}),
       }));
     }
@@ -100,8 +111,10 @@ export function usePersonForm(options: {
     setRows(rows => [...rows, { key: `new-${++sequence.current}`, type, value: "", phone_region: type === "PHONE" ? region : null, is_primary: false, is_public: false }]);
   }
 
+  const regionChanged = (row: PersonContactRow) => row.type === "PHONE" && Boolean(row.baseline) &&
+    (row.phone_region ?? "") !== initialPhoneRegion(row.baseline?.value, row.baseline?.phone_region_used, region);
   const rowDirty = (row: PersonContactRow) => row.unknown || row.removed || (row.baseline
-    ? row.value.trim() !== row.baseline.value || row.is_public !== row.baseline.is_public
+    ? row.value.trim() !== row.baseline.value || row.is_public !== row.baseline.is_public || regionChanged(row)
     : Boolean((!row.is_primary && row.value.trim()) || row.is_public));
   const personDraftHasUnsavedChanges = unknownCreate || personSaveState === "error" ||
     JSON.stringify(normalize(personDraft)) !== JSON.stringify(baseline.current) ||
@@ -111,6 +124,7 @@ export function usePersonForm(options: {
     if (!tenantId || selectedId === null || writing.current || unknownPost.current || unknownCreate || personContactRows.some(row => row.unknown)) return false;
     const errors = validate(personDraft);
     for (const row of personContactRows.filter(row => !row.removed)) {
+      if (regionChanged(row) && row.value.trim() === row.baseline?.value) errors[row.key] = "Land/region brukes når nummeret endres. Behold lagret region eller endre nummeret før du lagrer.";
       if (row.baseline && !row.value.trim()) errors[row.key] = "Tom verdi fjerner ikke en lagret kontakt. Fyll inn verdien eller velg Fjern.";
       if (row.is_public && !row.value.trim()) errors[row.key] = "Fyll inn en kontaktverdi før du velger offentlig visning.";
       if (row.value.trim() && row.type === "EMAIL" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.value.trim())) errors[row.key] = "Ugyldig e-postadresse.";
@@ -131,8 +145,14 @@ export function usePersonForm(options: {
       for (const row of rows.filter(row => row.removed && row.id && !row.deleted)) {
         stage = "fjerning av kontakt";
         try { await deletePersonContact(tenantId, row.id!); }
-        catch (error) { if (!(error instanceof ApiError && error.status === 404)) throw error; }
-        row.deleted = true; publishRows(); progress += ` Kontakt #${row.id} er fjernet.`;
+        catch (error) {
+          if (!(error instanceof ApiError && error.status === 404)) {
+            if (!(error instanceof ApiError && error.status >= 400 && error.status < 500)) row.deleteUncertain = true;
+            publishRows(); throw error;
+          }
+        }
+        row.deleted = true; row.mainClearPending = row.is_primary; row.deleteUncertain = false;
+        publishRows(); progress += ` Kontakt #${row.id} er fjernet.`;
         if (knownPerson.current) {
           knownPerson.current = { ...knownPerson.current, contacts: (knownPerson.current.contacts ?? []).filter(contact => contact.id !== row.id) };
           remember(knownPerson.current);
@@ -164,6 +184,7 @@ export function usePersonForm(options: {
         const contact = result.contacts?.find(contact => contact.type === row.type && contact.is_primary);
         if (contact) { row.id = contact.id; row.baseline = contact; }
       }
+      for (const row of rows) if (row.deleted) row.mainClearPending = false;
       baseline.current = fullPayload; baselineTags.current = personTagInput;
       setPersonDraft(draft => ({ ...draft, tag_ids: tagIds })); publishRows();
       for (const row of rows.filter(row => !row.removed && row.value.trim())) {
@@ -219,7 +240,15 @@ export function usePersonForm(options: {
     } finally { writing.current = false; }
   }
 
-  function onResetPersonDraft() { if (!writing.current) hydrate(knownPerson.current); }
+  function onResetPersonDraft() {
+    if (writing.current) return;
+    const incomplete = personContactRows.filter(row => row.deleteUncertain || row.mainClearPending);
+    if (knownPerson.current && incomplete.length) unresolvedDeletes.current.set(`${tenantId}:${knownPerson.current.id}`, {
+      ids: incomplete.flatMap(row => row.id ? [row.id] : []),
+      mainTypes: incomplete.filter(row => row.is_primary).map(row => row.type),
+    });
+    hydrate(knownPerson.current);
+  }
   async function onSubmitPerson(event: FormEvent) { event.preventDefault(); await submitPersonDraft(); }
   return { persistedPersonId, personDraft, setPersonDraft, personTagInput, setPersonTagInput, personContactRows,
     startNewPerson: () => { if (!writing.current) { identity.current = `${tenantId}:new`; hydrate(null); } },

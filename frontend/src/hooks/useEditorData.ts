@@ -156,6 +156,7 @@ export function useEditorData() {
   const deferredOverviewQuery = useDeferredValue(overviewQuery);
   const deferredQuery = useDeferredValue(query);
   const deferredPersonQuery = useDeferredValue(personQuery);
+  const organizationWriting = useRef(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [linkPersonId, setLinkPersonId] = useState<number | null>(null);
@@ -275,7 +276,7 @@ export function useEditorData() {
     if (selectedOrgId === "new") {
       setDraft({ ...emptyDraft, phone_region: selectedTenant?.default_phone_region ?? null });
       setOrganizationTagInput("");
-      setSaveState("idle");
+      if (!organizationWriting.current) setSaveState("idle");
       setOrganizationFieldErrors({});
       return;
     }
@@ -307,7 +308,7 @@ export function useEditorData() {
       subcategory_ids: (selectedOrganization.subcategories ?? []).map((item) => item.id),
     });
     setOrganizationTagInput(formatTagInput(selectedOrganization.tags ?? []));
-    setSaveState("idle");
+    if (!organizationWriting.current) setSaveState("idle");
     setOrganizationFieldErrors({});
   }, [selectedOrgId, selectedOrganization, selectedTenant?.default_phone_region]);
 
@@ -505,7 +506,6 @@ export function useEditorData() {
     });
   }
 
-  const organizationWriting = useRef(false);
   async function submitOrganizationDraft(): Promise<boolean> {
     if (organizationWriting.current) return false;
     if (!tenantId) return false;

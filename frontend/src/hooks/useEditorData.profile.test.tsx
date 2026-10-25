@@ -16,6 +16,25 @@ async function editor() {
 }
 const event = { preventDefault() {} } as React.FormEvent;
 
+it('keeps actor saving state and immediate lock through the final metadata read',async()=>{
+  const {result}=await editor();let stored=result.current.selectedOrganization!;
+  let release!:()=>void; const gate=new Promise<void>(resolve=>{release=resolve;});
+  let metadataRead=false, writes=0;
+  server.use(
+    http.patch('/api/tenants/1/organizations/10/',async({request})=>{writes++;stored={...stored,...await request.json() as object};return HttpResponse.json(stored);}),
+    http.get('/api/tenants/1/organizations/',()=>HttpResponse.json([stored])),
+    http.get('/api/tenants/1/tags/',async()=>{metadataRead=true;await gate;return HttpResponse.json([]);}),
+  );
+  act(()=>result.current.setDraft(draft=>({...draft,name:'Saved while reading metadata'})));
+  let save!:Promise<void>;act(()=>{save=result.current.onSubmit(event);});
+  await waitFor(()=>expect(metadataRead).toBe(true));
+  expect(result.current.saveState).toBe('saving');
+  await act(async()=>{await result.current.onSubmit(event);});
+  expect(writes).toBe(1);
+  await act(async()=>{release();await save;});
+  expect(result.current.saveState).toBe('saved');
+});
+
 for (const model of ['organization'] as const) {
   const org = model === 'organization';
   it(`${model}: new/reset share tenant region, clear tags/errors/state, preserve separate drafts and issue no writes`, async () => {

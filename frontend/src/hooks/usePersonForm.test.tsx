@@ -17,6 +17,26 @@ const contact = (id: number, type: "EMAIL" | "PHONE", value: string, is_primary 
   id, type, value, is_primary, is_public: false, phone_region_used: null, phone_dial_uri: null, phone_country_calling_code_hint: null, created_at: "2026-10-25T12:00:00Z",
 });
 
+it("keeps unchanged region baselines clean and blocks region-only saves for primary and extra phones before writes", async()=>{
+  server.use(http.get('/api/tenants/',()=>HttpResponse.json([{id:1,name:'Test',slug:'test',default_phone_region:'NO',current_user_role:'gruppeadmin'}])));
+  const person={id:20,tenant:1,full_name:'Region Test',title:'',email:null,phone:'070 123 45 67',phone_region_used:'SE',municipality:'',tags:[],categories:[],subcategories:[],contacts:[{...contact(31,'PHONE','070 123 45 67',true),phone_region_used:'SE'},{...contact(32,'PHONE','070 123 45 68'),phone_region_used:'SE'}]};
+  server.use(http.get('/api/tenants/1/persons/',()=>HttpResponse.json([person])));
+  const {result}=renderHook(()=>useEditorData());
+  await waitFor(()=>expect(result.current.personDraft.full_name).toBe('Region Test'));
+  expect(result.current.peopleHasUnsavedChanges).toBe(false);
+  let writes=0;
+  server.use(http.patch('/api/tenants/1/persons/20/',()=>{writes++;return HttpResponse.json(person);}));
+  for(const id of [31,32]){
+    act(()=>result.current.updatePersonContact(`contact-${id}`,{phone_region:'NO'}));
+    expect(result.current.peopleHasUnsavedChanges).toBe(true);
+    let ok=true;await act(async()=>{ok=await result.current.saveAllPendingChanges();});
+    expect(ok).toBe(false); expect(writes).toBe(0);
+    expect(result.current.personFieldErrors[`contact-${id}`]).toMatch(/nummeret endres/);
+    act(()=>result.current.onResetPersonDraft());
+    expect(result.current.peopleHasUnsavedChanges).toBe(false);
+  }
+});
+
 it("keeps all contact edits local, includes them in dirty state, and discards locally", async () => {
   const { result } = await setup();
   let writes = 0;
@@ -30,6 +50,46 @@ it("keeps all contact edits local, includes them in dirty state, and discards lo
   expect(result.current.personContactRows.some(row => row.value === "extra@example.invalid")).toBe(false);
   expect(result.current.peopleHasUnsavedChanges).toBe(false);
   expect(writes).toBe(0);
+});
+
+for(const uncertain of [false,true]) it(`does not undo ${uncertain?'unknown':'confirmed'} DELETE after a later failure or local discard`,async()=>{
+  const {result}=await setup(); const base=result.current.persons[0];
+  let saved={...base,id:77,full_name:'Kontakt Test',email:'one@example.invalid',phone:null,contacts:[contact(91,'EMAIL','one@example.invalid',true)]};
+  let failed=false, deletes=0, posts=0;
+  server.use(
+    http.post('/api/tenants/1/persons/',()=>HttpResponse.json(saved,{status:201})),
+    http.delete('/api/tenants/1/person-contacts/91/',()=>{deletes++;saved.contacts=[];return uncertain?HttpResponse.error():new HttpResponse(null,{status:204});}),
+    http.patch('/api/tenants/1/persons/77/',async({request})=>{if(!failed){failed=true;return HttpResponse.json({title:['Avvist']},{status:400});}saved={...saved,...await request.json() as object};return HttpResponse.json(saved);}),
+    http.post('/api/tenants/1/person-contacts/',()=>{posts++;return HttpResponse.json({});}),
+  );
+  const key=result.current.personContactRows.find(row=>row.type==='EMAIL')!.key;
+  act(()=>result.current.updatePersonContact(key,{value:'one@example.invalid'}));
+  await act(async()=>{await result.current.onSubmitPerson(event);});
+  act(()=>result.current.updatePersonContact(key,{removed:true}));
+  await act(async()=>{await result.current.onSubmitPerson(event);});
+  expect(result.current.personSaveState).toBe('error'); expect(deletes).toBe(1);
+  act(()=>result.current.updatePersonContact(key,{removed:false}));
+  expect(result.current.personContactRows.find(row=>row.key===key)?.removed).toBe(true);
+  act(()=>result.current.onResetPersonDraft());
+  expect(result.current.personContactRows.some(row=>row.id===91||row.value==='one@example.invalid')).toBe(false);
+  expect(result.current.personSaveBlocked).toBe(true);
+  act(()=>result.current.setSelectedPersonId('new'));
+  act(()=>result.current.setSelectedPersonId(77));
+  await waitFor(()=>expect(result.current.persistedPersonId).toBe(77));
+  expect(result.current.personSaveBlocked).toBe(true);
+  await act(async()=>{await result.current.onSubmitPerson(event);});
+  expect(posts).toBe(0); expect(result.current.personSaveState).toBe('error');
+});
+
+it('undoing a staged primary removal preserves an existing legacy mismatch without repairing it',async()=>{
+  server.use(http.get('/api/tenants/',()=>HttpResponse.json([{id:1,name:'Test',slug:'test',default_phone_region:'NO',current_user_role:'gruppeadmin'}])));
+  server.use(http.get('/api/tenants/1/persons/',()=>HttpResponse.json([{id:20,tenant:1,full_name:'Legacy Test',title:'',email:'legacy@example.invalid',phone:null,municipality:'',tags:[],categories:[],subcategories:[],contacts:[contact(31,'EMAIL','contact@example.invalid',true)]}])));
+  const {result}=renderHook(()=>useEditorData());
+  await waitFor(()=>expect(result.current.personDraft.email).toBe('legacy@example.invalid'));
+  act(()=>result.current.updatePersonContact('contact-31',{removed:true}));
+  act(()=>result.current.updatePersonContact('contact-31',{removed:false}));
+  expect(result.current.personDraft.email).toBe('legacy@example.invalid');
+  expect(result.current.peopleHasUnsavedChanges).toBe(false);
 });
 
 it("retains Person and contact IDs after a later failure; retry creates neither again", async () => {

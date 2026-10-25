@@ -13,7 +13,7 @@ export function useUnsavedChangesGuard(params: {
 }) {
   const { hasUnsavedChanges, tenants, dirtySummary, applyTenantSelection, saveAllPendingChanges, discardAllPendingChanges } =
     params;
-  const blocker = useBlocker(hasUnsavedChanges);
+  const blocker = useBlocker(hasUnsavedChanges || Boolean(params.isSaving));
   const continuedLocation = useRef<unknown>(null);
   const [pendingTenantId, setPendingTenantId] = useState<number | null>(null);
   const [continuing, setBusy] = useState(false);
@@ -126,7 +126,7 @@ export function useUnsavedChangesGuard(params: {
   }
 
   function requestTenantSelection(nextTenantId: number | null) {
-    if (hasUnsavedChanges) {
+    if (hasUnsavedChanges || params.isSaving) {
       setPendingTenantId(nextTenantId);
       return;
     }
@@ -135,7 +135,7 @@ export function useUnsavedChangesGuard(params: {
 
   return {
     requestAction(label: string, run: () => void) {
-      if (hasUnsavedChanges) setPendingAction({ label, run });
+      if (hasUnsavedChanges || params.isSaving) setPendingAction({ label, run });
       else run();
     },
     modal: {

@@ -348,7 +348,7 @@ function PeopleEditorPanel(props: {
             <div className="grid two person-contact-groups">
               {(["EMAIL", "PHONE"] as const).map(type => <section key={type} className="person-contact-group" aria-label={type === "EMAIL" ? "E-postadresser" : "Telefonnumre"}>
                 <h3>{type === "EMAIL" ? "E-post" : "Telefon"}</h3>
-                {editor.personContactRows.filter(row => row.type === type).map((row, index) => row.removed ? <div className="contact-removal" key={row.key}><span>{row.value} · fjernes ved lagring</span><button type="button" className="table-link" onClick={() => editor.updatePersonContact(row.key, { removed: false, value: row.value })}>Angre fjerning</button></div> : <div key={row.key} className="person-contact-row">
+                {editor.personContactRows.filter(row => row.type === type).map((row, index) => row.removed ? <div className="contact-removal" key={row.key}><span>{row.value} · {row.deleted ? "er fjernet" : row.deleteUncertain ? "fjerning er ikke bekreftet; prøv lagring igjen med samme kontakt" : "fjernes ved lagring"}</span>{!row.deleted && !row.deleteUncertain ? <button type="button" className="table-link" onClick={() => editor.updatePersonContact(row.key, { removed: false })}>Angre fjerning</button> : null}</div> : <div key={row.key} className="person-contact-row">
                   <Field label={`${type === "EMAIL" ? "E-post" : "Telefon"}${index ? ` ${index + 1}` : ""}`} name={row.key} error={editor.personFieldErrors[row.key]}>
                     <div className={type === "PHONE" ? "contact-inline-input" : undefined}>
                       {type === "PHONE" ? <PhoneRegionSelect value={row.phone_region ?? ""} ariaLabel={`Land/region for telefon ${index + 1}`} onChange={phone_region => editor.updatePersonContact(row.key, { phone_region: phone_region || null })} /> : null}
@@ -361,6 +361,7 @@ function PeopleEditorPanel(props: {
                   </div>
                 </div>)}
                 <button type="button" className="table-link add-contact" onClick={() => editor.addPersonContact(type)}>+ Legg til ekstra {type === "EMAIL" ? "e-post" : "telefon"}</button>
+                {type === "PHONE" ? <small className="meta">Land/region brukes når et nasjonalt nummer endres. Nummer med + trenger ikke region.</small> : null}
               </section>)}
             </div>
             <p className="meta contact-public-context">Offentlige kontaktverdier vises bare på aktører der personen også er satt til «Vis person offentlig». {typeof editor.selectedPersonId === "number" ? `${publicPersonLinks} av ${selectedPersonLinks.length} aktørkoblinger viser personen offentlig.` : "Nye kontaktverdier er interne inntil du velger noe annet."}</p>
