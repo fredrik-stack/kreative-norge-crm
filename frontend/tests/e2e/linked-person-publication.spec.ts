@@ -10,7 +10,10 @@ function linkedPersonForm(page: Page) {
 async function openFirstOrganization(page: Page) {
   await page.goto("/organizations");
   await loginAsEditor(page);
-  await page.getByRole("button", { name: "Rediger" }).first().click();
+  await page.locator(".editor-card-grid").getByRole("button", { name: "Kreativ Demo AS" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
+  await page.locator("summary").filter({hasText:"Opprett kontaktperson"}).click();
+  await page.locator("summary").filter({hasText:"Knytt eksisterende person"}).click();
   await expect(page.getByRole("heading", { name: "Opprett ny kontaktperson for denne aktøren" })).toBeVisible();
 }
 
@@ -109,8 +112,9 @@ test("switching organization clears linked-person draft, errors, status and publ
     .check();
   await existingLinkForm.getByRole("combobox").selectOption("INACTIVE");
 
-  await page.getByRole("button", { name: "Lagre aktør" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Aktørskjema lagret" })).toBeVisible();
+  await page.locator(".profile-form").getByLabel("Navn",{exact:false}).fill("Kreativ Demo AS endret");
+  await page.getByRole("button", { name: "Lagre aktør" }).first().click();
+  await expect(page.getByRole("status").filter({ hasText: "Aktørskjema lagret" }).first()).toBeVisible();
   await expect(firstForm.getByLabel(/^Fullt navn/)).toHaveValue("Skal ikke følge med");
   await expect(firstForm.getByRole("checkbox", { name: /Vis ny person som kontaktperson offentlig/ })).toBeChecked();
   await expect(
@@ -121,8 +125,11 @@ test("switching organization clears linked-person draft, errors, status and publ
   await expect(page.getByText("Ugyldig telefonnummer.", { exact: true })).toBeVisible();
 
   await page.getByRole("link", { name: "Aktører", exact: true }).click();
-  await page.getByRole("button", { name: "Rediger" }).last().click();
+  await page.locator(".editor-card-grid .card-name").last().click();
+  await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
 
+  await page.locator("summary").filter({hasText:"Opprett kontaktperson"}).evaluate(e=>(e.parentElement as HTMLDetailsElement).open=true);
+  await page.locator("summary").filter({hasText:"Knytt eksisterende person"}).evaluate(e=>(e.parentElement as HTMLDetailsElement).open=true);
   const secondForm = linkedPersonForm(page);
   await expect(secondForm.getByLabel(/^Fullt navn/)).toHaveValue("");
   await expect(secondForm.getByLabel("Tittel", { exact: true })).toHaveValue("");

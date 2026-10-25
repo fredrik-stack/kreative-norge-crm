@@ -1,3 +1,5 @@
+import { ProfileSection, ProfileValidationSummary, revealInvalidProfileField } from "../components/ProfileSection";
+import { useReadDialog } from "../hooks/useReadDialog";
 import { ProfileFormActions } from "../components/ProfileFormActions";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
@@ -6,7 +8,6 @@ import { PhoneLink } from "../components/PhoneLink";
 import { PhoneRegionSelect } from "../components/PhoneRegionSelect";
 import { useEditor } from "../context/EditorContext";
 import { filterSubcategoriesForCategory, sortedCategories as sortCategoriesByTaxonomy } from "../editorTaxonomy";
-import { profileStatus } from "../editor-utils";
 import { useRouteSyncedSelection } from "../hooks/useRouteSyncedSelection";
 
 export function PeoplePage() {
@@ -34,10 +35,10 @@ export function PeoplePage() {
   const filterSummary = editor.overviewFilterSummary;
 
   useEffect(() => {
-    if (!inOverviewMode && !editor.canWrite) {
+    if (editor.tenantDataLoaded && !inOverviewMode && !editor.canWrite) {
       navigate("/people");
     }
-  }, [editor.canWrite, inOverviewMode, navigate]);
+  }, [editor.canWrite, editor.tenantDataLoaded, inOverviewMode, navigate]);
 
   if (inOverviewMode) {
     return (
@@ -78,139 +79,40 @@ function PeopleOverviewPanel(props: {
   }, [editor.organizationPeople, organizationsById]);
   const activePerson = modalPersonId ? persons.find((person) => person.id === modalPersonId) ?? null : null;
 
+  const constrained = Boolean(editor.overviewQuery.trim() || editor.overviewCategorySlug || editor.overviewSubcategorySlug || editor.overviewTagSlug);
   return (
     <section className="panel overview-panel">
-      <div className="sidebar-header">
-        <div>
-          <p className="eyebrow small">Oversikt</p>
-          <h2>Personer</h2>
-        </div>
-        <span className="meta">{persons.length} synlige</span>
+      <div className="sidebar-header"><div><p className="eyebrow small">Kontaktoversikt</p><h2>Personer</h2><p className="meta overview-hint"><span aria-hidden="true">💡</span> Klikk på navn for utfyllende info</p></div>
+        {constrained && !editor.tenantDataLoading && !editor.tenantDataError && !editor.overviewSearchPending ? <span className="meta">{persons.length} treff i innlastet utvalg</span> : null}
       </div>
-      <p className="muted">
-        Her ser du alle personer i en tabellvisning som gjør det enklere å skanne mange navn, organisasjoner og kontaktpunkter.
-      </p>
-      {filterSummary ? <div className="filter-summary">{filterSummary}</div> : null}
-      <div className="overview-table-wrap">
-        <table className="overview-table">
-          <thead>
-            <tr>
-              <th>Navn</th>
-              <th>Tittel</th>
-              <th>Organisasjon / bedrift</th>
-              <th>Primærlenke</th>
-              <th>E-post</th>
-              <th>Telefon</th>
-              <th>Kommune</th>
-              <th>Kategori</th>
-              <th>Tags</th>
-            </tr>
-          </thead>
-          <tbody>
-            {persons.map((person) => {
-              const linkedOrganizations = linkedOrganizationsByPersonId.get(person.id) ?? [];
-              const primaryLink = getPersonPrimaryLink(person);
-              return (
-                <tr key={person.id}>
-                  <td>
-                    <button
-                      type="button"
-                      className="table-link"
-                      onClick={() => setModalPersonId(person.id)}
-                    >
-                      {person.full_name}
-                    </button>
-                  </td>
-                  <td>
-                    {person.title || <span className="meta">—</span>}
-                  </td>
-                  <td>
-                    {linkedOrganizations.length > 0 ? (
-                      <div className="table-linked-items">
-                        {linkedOrganizations.map((organization) => (
-                          <button
-                            key={`${person.id}-${organization.id}`}
-                            type="button"
-                            className="table-link secondary"
-                            onClick={() => {
-                              navigate(`/organizations?openOrg=${organization.id}`);
-                            }}
-                          >
-                            {organization.name}
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="meta">Ikke knyttet til aktør</span>
-                    )}
-                  </td>
-                  <td>
-                    {primaryLink ? (
-                      <a href={primaryLink} target="_blank" rel="noreferrer">
-                        {truncateLink(primaryLink)}
-                      </a>
-                    ) : (
-                      <span className="meta">—</span>
-                    )}
-                  </td>
-                  <td>{person.email ? <a href={`mailto:${person.email}`}>{person.email}</a> : "—"}</td>
-                  <td>
-                    <PhoneLink
-                      value={person.phone}
-                      dialUri={person.phone_dial_uri}
-                      countryCallingCodeHint={person.phone_country_calling_code_hint}
-                    />
-                  </td>
-                  <td>{person.municipality || "—"}</td>
-                  <td>
-                    <div className="table-pill-stack">
-                      {person.categories.map((category) => (
-                        <span key={category.id} className="mini-pill category">{category.name.toUpperCase()}</span>
-                      ))}
-                      {person.subcategories.map((subcategory) => (
-                        <span key={subcategory.id} className="mini-pill subcategory">{subcategory.name}</span>
-                      ))}
-                      {person.categories.length === 0 && person.subcategories.length === 0 ? (
-                        <span className="meta">—</span>
-                      ) : null}
-                    </div>
-                  </td>
-                  <td>
-                    {person.tags && person.tags.length > 0 ? (
-                      <div className="table-pill-stack">
-                        {person.tags.map((tag) => (
-                          <span key={tag.id} className="mini-pill tag">{tag.name}</span>
-                        ))}
-                      </div>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
+      {editor.tenantDataError ? <div className="empty-state" role="alert">Personoversikten kunne ikke lastes. Prøv å laste siden på nytt.</div>
+      : !editor.tenantId ? <div className="empty-state">Velg et Musikkontor for å søke etter personer.</div>
+      : editor.tenantDataLoading ? <div className="empty-state" role="status">Henter persondata…</div>
+      : !constrained ? <div className="search-entry"><span className="search-entry-icon" aria-hidden="true">⌕</span><h3>Finn en person</h3><p>Søk etter navn, kontaktinfo, aktør eller sted, eller velg et filter ovenfor.</p><p className="meta">Personer vises når du har avgrenset utvalget.</p></div>
+      : editor.overviewSearchPending ? <div className="empty-state" role="status">Oppdaterer utvalget…</div>
+      : persons.length === 0 ? <div className="empty-state">Ingen personer matcher søket eller filtrene.</div>
+      : <div className="overview-table-wrap person-results">
+        <table className="overview-table"><caption className="sr-only">Personer som matcher søk og filtre</caption>
+          <thead><tr><th>Navn og tittel</th><th>Aktører</th><th>Kontakt</th><th>Sted</th><th>Kategorier og tags</th></tr></thead>
+          <tbody>{persons.map(person => {
+            const linkedOrganizations = linkedOrganizationsByPersonId.get(person.id) ?? [];
+            return <tr key={person.id} className={editor.selectedPersonId === person.id ? "selected-result" : undefined}>
+              <td data-label="Navn og tittel"><button type="button" className="table-link person-name" onClick={() => { editor.setSelectedPersonId(person.id); setModalPersonId(person.id); }}>{person.full_name}</button>{person.title ? <span className="result-secondary">{person.title}</span> : null}</td>
+              <td data-label="Aktører">{linkedOrganizations.length ? <div className="table-linked-items">{linkedOrganizations.map(organization => <button key={organization.id} type="button" className="table-link secondary" onClick={() => navigate(`/organizations?openOrg=${organization.id}`)}>{organization.name}</button>)}</div> : <span className="meta">Ingen aktørtilknytning</span>}</td>
+              <td data-label="Kontakt"><div className="result-contact">{person.email ? <a href={`mailto:${person.email}`}>{person.email}</a> : null}<PhoneLink value={person.phone} dialUri={person.phone_dial_uri} countryCallingCodeHint={person.phone_country_calling_code_hint} empty={person.email ? null : "Ingen kontaktinfo"}/></div></td>
+              <td data-label="Sted">{person.municipality || "—"}</td>
+              <td data-label="Kategorier og tags"><div className="result-taxonomy">
+                {person.categories.map(item => <span key={`category:${item.id}`} className="mini-pill category">{item.name.toUpperCase()}</span>)}
+                {person.subcategories.map(item => <span key={`subcategory:${item.id}`} className="mini-pill subcategory">{item.name}</span>)}
+                {person.tags.map(item => <span key={`tag:${item.id}`} className="mini-pill tag">{item.name}</span>)}
+              </div></td>
+            </tr>;
+          })}</tbody>
         </table>
-      </div>
-      {persons.length === 0 ? <div className="empty-state">Ingen personer matcher filtreringen.</div> : null}
-      {activePerson ? (
-        <PersonOverviewModal
-          person={activePerson}
-          linkedOrganizations={linkedOrganizationsByPersonId.get(activePerson.id) ?? []}
-          onClose={() => setModalPersonId(null)}
-          onEdit={
-            editor.canWrite
-              ? () => {
-                  editor.setSelectedPersonId(activePerson.id);
-                  navigate(`/people/${activePerson.id}`);
-                }
-              : null
-          }
-          onOpenOrganization={(organizationId) => {
-            navigate(`/organizations?openOrg=${organizationId}`);
-          }}
-        />
-      ) : null}
+      </div>}
+      {activePerson && constrained ? <PersonOverviewModal person={activePerson} linkedOrganizations={linkedOrganizationsByPersonId.get(activePerson.id) ?? []} onClose={() => setModalPersonId(null)}
+        onEdit={editor.canWrite ? () => { editor.setSelectedPersonId(activePerson.id); navigate(`/people/${activePerson.id}`); } : null}
+        onOpenOrganization={id => navigate(`/organizations?openOrg=${id}`)} /> : null}
     </section>
   );
 }
@@ -224,12 +126,13 @@ function PersonOverviewModal(props: {
 }) {
   const { person, linkedOrganizations, onClose, onEdit, onOpenOrganization } = props;
   const externalLinks = getPersonLinkRows(person);
+  const dialogRef = useReadDialog(onClose);
   const modal = (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <div className="detail-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+      <div ref={dialogRef} className="detail-modal" role="dialog" aria-modal="true" aria-label={person.full_name} tabIndex={-1} onClick={(event) => event.stopPropagation()}>
         <div className="sidebar-header modal-header">
           <div>
-            <p className="eyebrow small">Personkort</p>
+            <p className="eyebrow small">Personinformasjon</p>
             <h2>{person.full_name}</h2>
           </div>
           <button type="button" className="ghost-button" onClick={onClose}>
@@ -240,15 +143,12 @@ function PersonOverviewModal(props: {
           <div className="editor-card-body">
             <div className="editor-card-head person-modal-head">
               <div>
-                <h3>{person.full_name}</h3>
+
                 <div className="person-modal-meta">
                   <span className="person-modal-role">{person.title || "Ingen tittel"}</span>
                   {person.municipality ? <span className="meta">{person.municipality}</span> : null}
                 </div>
               </div>
-              <span className={`save-pill ${linkedOrganizations.length > 0 ? "saved" : "idle"}`}>
-                {linkedOrganizations.length > 0 ? "Knyttet" : "Frittstående"}
-              </span>
             </div>
             <div className="meta-row">
               {person.categories.map((category) => (
@@ -264,7 +164,7 @@ function PersonOverviewModal(props: {
             <div className="modal-sections">
               <section className="editor-detail-section modal-section-card">
                 <div className="modal-section-header">
-                  <h4>Profil</h4>
+                  <h4>Internt notat</h4>
                 </div>
                 <p className="muted editor-card-copy">{person.note || "Ingen notat lagt inn ennå."}</p>
               </section>
@@ -372,7 +272,6 @@ function PeopleEditorPanel(props: {
     (link) => link.status === "ACTIVE" && link.publish_person,
   ).length;
 
-  const status = profileStatus(editor.personSaveState, editor.personDraftHasUnsavedChanges, editor.selectedPersonId === "new", "person");
 
   return (
     <section className="panel people-editor">
@@ -409,24 +308,24 @@ function PeopleEditorPanel(props: {
         </div>
       ) : (
         <>
-          {editor.personDraftHasUnsavedChanges && editor.personSaveState !== "saving" && editor.personSaveState !== "error" ? (
-            <div className="inline-banner warn">Du har ulagrede endringer i personskjemaet.</div>
-          ) : null}
-          {editor.personSaveState === "error" ? <div className="inline-banner warn">Lagring ikke bekreftet. Kontroller feilmeldingen og lagret resultat før du prøver igjen.</div> : null}
-          {editor.contactDraftHasUnsavedChanges ? <div className="inline-banner warn">Du har et ulagret kontaktutkast. Bruk «Legg til kontakt»; profilknappen lagrer ikke dette.</div> : null}
-          <div className="editor-header">
-            <div>
-              <p className="eyebrow small">
-                {editor.selectedPersonId === "new" ? "Ny person" : `Person #${editor.selectedPersonId ?? "-"}`}
-              </p>
-              <h2>{editor.personDraft.full_name || "Person"}</h2>
+          {editor.personSaveMessage ? <div className="inline-banner warn" role="alert">{editor.personSaveMessage}</div> : null}
+          <form onSubmit={editor.onSubmitPerson} onInvalidCapture={revealInvalidProfileField} className="editor-form profile-form"><fieldset className="profile-fields" disabled={editor.personSaveState === "saving"}>
+            <div className="editor-header profile-header">
+              <div className="profile-heading">
+                <button type="button" className="profile-back" onClick={() => navigate("/people")}>← Til personoversikt</button>
+                <p className="eyebrow small">{!editor.persistedPersonId ? "Ny person" : `Person #${editor.persistedPersonId}`}</p>
+                <h2>{editor.personDraft.full_name || "Ny person"}</h2>
+                <p className="meta profile-scope">Endringer lagres når du velger Lagre person.</p>
+              </div>
+              <ProfileFormActions
+                model="person" isNew={!editor.persistedPersonId}
+                state={editor.personSaveState} dirty={editor.personDraftHasUnsavedChanges}
+                disabled={!editor.tenantId || editor.personSaveBlocked}
+              />
             </div>
-            <div className={`save-pill ${status.kind}`}>{status.label}</div>
-          </div>
-
-          <form onSubmit={editor.onSubmitPerson} className="editor-form profile-form">
+            <ProfileValidationSummary errors={editor.personFieldErrors} />
             <div className="grid two">
-              <Field label="Fullt navn" required>
+              <Field label="Fullt navn" name="full_name" error={editor.personFieldErrors.full_name} required>
                 <input
                   value={editor.personDraft.full_name}
                   onChange={(e) => editor.setPersonDraft((s) => ({ ...s, full_name: e.target.value }))}
@@ -451,197 +350,28 @@ function PeopleEditorPanel(props: {
               </Field>
             </div>
 
-            <div className="grid two">
-              <Field label="E-post" error={editor.personFieldErrors.email}>
-                <input
-                  type="email"
-                  value={editor.personDraft.email ?? ""}
-                  onChange={(e) => editor.setPersonDraft((s) => ({ ...s, email: e.target.value }))}
-                />
-              </Field>
-              <Field label="Telefon" error={editor.personFieldErrors.phone}>
-                <div className="contact-inline-input">
-                  <input
-                    aria-label="Telefon"
-                    value={editor.personDraft.phone ?? ""}
-                    onChange={(e) =>
-                      editor.setPersonDraft((state) => ({
-                        ...state,
-                        phone: e.target.value,
-                        ...(e.target.value.trim().startsWith("+") ? { phone_region: null } : {}),
-                      }))
-                    }
-                  />
-                  <PhoneRegionSelect
-                    value={editor.personDraft.phone_region ?? ""}
-                    onChange={(phoneRegion) =>
-                      editor.setPersonDraft((state) => ({ ...state, phone_region: phoneRegion || null }))
-                    }
-                  />
-                </div>
-                <small className="meta">Land/region kreves bare for nasjonalt skrevne numre.</small>
-              </Field>
-            </div>
-
-            <section className="link-section">
-              <div className="sidebar-header">
-                <h2>Kontaktkanaler</h2>
-                <span className="meta">
-                  {editor.personContactsLoading ? "Laster" : `${editor.personContacts.length} lagret`}
-                </span>
-              </div>
-              {typeof editor.selectedPersonId === "number" ? (
-                <p className="muted publication-context-copy">
-                  Koblet til {selectedPersonLinks.length} aktør{selectedPersonLinks.length === 1 ? "" : "er"}: {publicPersonLinks}{" "}
-                  viser personen offentlig, {selectedPersonLinks.length - publicPersonLinks} skjuler personen. Den enkelte
-                  aktørkoblingen styrer om offentlige kontaktkanaler faktisk vises.
-                </p>
-              ) : null}
-
-              <p className="meta">Endrede, ikke-tomme verdier i eksisterende kontaktkanaler sendes til lagring når du forlater feltet. Tom verdi sletter ikke kanalen; bruk Slett. Primær-/offentlig-valg sendes separat. Ny kontakt krever «Legg til kontakt». Profilknappen og profilreset omfatter ikke dette området.</p>
-              <div className="contact-list">
-                {editor.personContacts.map((contact) => (
-                  <article key={contact.id} className="modal-contact-card">
-                    <div className="modal-contact-header">
-                      <strong>{contact.type === "EMAIL" ? "E-post" : "Telefon"}</strong>
-                      <span className="meta">
-                        {contact.is_primary ? "Primær" : "Ekstra"} · {contact.is_public ? "Offentlig" : "Intern"}
-                      </span>
+            <div className="grid two person-contact-groups">
+              {(["EMAIL", "PHONE"] as const).map(type => <section key={type} className="person-contact-group" aria-label={type === "EMAIL" ? "E-postadresser" : "Telefonnumre"}>
+                <h3>{type === "EMAIL" ? "E-post" : "Telefon"}</h3>
+                {editor.personContactRows.filter(row => row.type === type).map((row, index) => row.removed ? <div className="contact-removal" key={row.key}><span>{row.value} · {row.deleted ? "er fjernet" : row.deleteUncertain ? "fjerning er ikke bekreftet; prøv lagring igjen med samme kontakt" : "fjernes ved lagring"}</span>{!row.deleted && !row.deleteUncertain ? <button type="button" className="table-link" onClick={() => editor.updatePersonContact(row.key, { removed: false })}>Angre fjerning</button> : null}</div> : <div key={row.key} className="person-contact-row">
+                  <Field label={`${type === "EMAIL" ? "E-post" : "Telefon"}${index ? ` ${index + 1}` : ""}`} name={row.key} error={editor.personFieldErrors[row.key]}>
+                    <div className={type === "PHONE" ? "contact-inline-input" : undefined}>
+                      {type === "PHONE" ? <PhoneRegionSelect value={row.phone_region ?? ""} ariaLabel={`Land/region for telefon ${index + 1}`} onChange={phone_region => editor.updatePersonContact(row.key, { phone_region: phone_region || null })} /> : null}
+                      <input type={type === "EMAIL" ? "email" : "tel"} value={row.value} onChange={event => editor.updatePersonContact(row.key, { value: event.target.value, ...(type === "PHONE" && event.target.value.trim().startsWith("+") ? { phone_region: null } : {}) })} />
                     </div>
-                    <div className="contact-inline-input">
-                      <input
-                        type={contact.type === "EMAIL" ? "email" : "text"}
-                        defaultValue={contact.value}
-                        onBlur={(event) => {
-                          const value = event.currentTarget.value.trim();
-                          if (value && value !== contact.value) {
-                            editor.updateContact(contact.id, {
-                              value,
-                              ...(contact.type === "PHONE"
-                                ? { phone_region: editor.contactPhoneRegions[contact.id] || null }
-                                : {}),
-                            });
-                          }
-                        }}
-                      />
-                      {contact.type === "PHONE" ? (
-                        <PhoneRegionSelect
-                          value={editor.contactPhoneRegions[contact.id] ?? ""}
-                          onChange={(phoneRegion) => editor.setContactPhoneRegion(contact.id, phoneRegion)}
-                          ariaLabel={`Land/region for ${contact.value}`}
-                        />
-                      ) : null}
-                    </div>
-                    <div className="modal-contact-actions">
-                      <label className="inline-check compact">
-                        <input
-                          type="checkbox"
-                          checked={contact.is_primary}
-                          onChange={(event) => editor.updateContact(contact.id, { is_primary: event.target.checked })}
-                        />
-                        <span>Primær</span>
-                      </label>
-                      <label className="inline-check compact">
-                        <input
-                          type="checkbox"
-                          checked={contact.is_public}
-                          onChange={(event) => editor.updateContact(contact.id, { is_public: event.target.checked })}
-                        />
-                        <span className="contact-public-copy">
-                          <strong>Kan vises offentlig</strong>
-                          <small>
-                            {contact.type === "EMAIL" ? "E-postadressen" : "Telefonnummeret"} vises bare på aktører der
-                            personen også er satt til «Vis person offentlig».
-                          </small>
-                        </span>
-                      </label>
-                      <button
-                        type="button"
-                        className="link-delete"
-                        onClick={() => {
-                          if (window.confirm(`Slette ${contact.value}?`)) {
-                            editor.removeContact(contact.id);
-                          }
-                        }}
-                      >
-                        Slett
-                      </button>
-                    </div>
-                  </article>
-                ))}
-                {editor.personContacts.length === 0 ? (
-                  <div className="empty-state">Ingen kontaktkanaler er lagret.</div>
-                ) : null}
-              </div>
-
-              <div className="contact-create">
-                <Field label="Ny kontaktkanal" error={editor.contactFieldErrors.value}>
-                  <div className="contact-inline-input">
-                    <select
-                      value={editor.contactDraft.type}
-                      onChange={(e) =>
-                        editor.setContactDraft((state) => ({ ...state, type: e.target.value as "EMAIL" | "PHONE" }))
-                      }
-                      disabled={typeof editor.selectedPersonId !== "number"}
-                    >
-                      <option value="EMAIL">E-post</option>
-                      <option value="PHONE">Telefon</option>
-                    </select>
-                    <input
-                      type={editor.contactDraft.type === "EMAIL" ? "email" : "text"}
-                      value={editor.contactDraft.value}
-                      onChange={(e) => editor.setContactDraft((state) => ({ ...state, value: e.target.value }))}
-                      disabled={typeof editor.selectedPersonId !== "number"}
-                    />
-                    {editor.contactDraft.type === "PHONE" ? (
-                      <PhoneRegionSelect
-                        value={editor.contactDraft.phone_region ?? ""}
-                        onChange={(phoneRegion) =>
-                          editor.setContactDraft((state) => ({
-                            ...state,
-                            phone_region: phoneRegion || null,
-                          }))
-                        }
-                        disabled={typeof editor.selectedPersonId !== "number"}
-                      />
-                    ) : null}
+                  </Field>
+                  <div className="person-contact-options">
+                    <label className="inline-check compact"><input type="checkbox" checked={row.is_public} onChange={event => editor.updatePersonContact(row.key, { is_public: event.target.checked })} /><span>Kan vises offentlig</span></label>
+                    {(!row.id || editor.canDelete) && (!row.is_primary || row.id) ? <button type="button" className="table-link contact-remove" onClick={() => editor.updatePersonContact(row.key, { removed: true })}>Fjern</button> : null}
                   </div>
-                </Field>
-                <label className="inline-check compact">
-                  <input
-                    type="checkbox"
-                    checked={editor.contactDraft.is_primary}
-                    onChange={(e) => editor.setContactDraft((state) => ({ ...state, is_primary: e.target.checked }))}
-                    disabled={typeof editor.selectedPersonId !== "number"}
-                  />
-                  <span>Primær</span>
-                </label>
-                <label className="inline-check compact">
-                  <input
-                    type="checkbox"
-                    checked={editor.contactDraft.is_public}
-                    onChange={(e) => editor.setContactDraft((state) => ({ ...state, is_public: e.target.checked }))}
-                    disabled={typeof editor.selectedPersonId !== "number"}
-                  />
-                  <span className="contact-public-copy">
-                    <strong>Kan vises offentlig</strong>
-                    <small>
-                      {editor.contactDraft.type === "EMAIL" ? "E-postadressen" : "Telefonnummeret"} vises bare på aktører
-                      der personen også er satt til «Vis person offentlig».
-                    </small>
-                  </span>
-                </label>
-                <button
-                  type="button"
-                  className="ghost-button"
-                  onClick={() => editor.createContactFromDraft()}
-                  disabled={typeof editor.selectedPersonId !== "number"}
-                >
-                  Legg til kontakt
-                </button>
-              </div>
-            </section>
+                </div>)}
+                <button type="button" className="table-link add-contact" onClick={() => editor.addPersonContact(type)}>+ Legg til ekstra {type === "EMAIL" ? "e-post" : "telefon"}</button>
+                {type === "PHONE" ? <small className="meta">Land/region brukes når et nasjonalt nummer endres. Nummer med + trenger ikke region.</small> : null}
+              </section>)}
+            </div>
+            <p className="meta contact-public-context">Offentlige kontaktverdier vises bare på aktører der personen også er satt til «Vis person offentlig». {typeof editor.selectedPersonId === "number" ? `${publicPersonLinks} av ${selectedPersonLinks.length} aktørkoblinger viser personen offentlig.` : "Nye kontaktverdier er interne inntil du velger noe annet."}</p>
 
+            <ProfileSection title="Internt notat" summary={editor.personDraft.note ? "Notat er lagt inn" : "Ingen notat"}>
             <Field label="Notat">
               <textarea
                 rows={3}
@@ -650,6 +380,8 @@ function PeopleEditorPanel(props: {
               />
             </Field>
 
+            </ProfileSection>
+            <ProfileSection title="Kategorisering og tags" summary={editor.personTagInput || "Kategori, underkategori og tags"}>
             <CategorySelectFields
               title="Kategori og underkategori"
               description="Velg først en hovedkategori, og deretter en underkategori som hører til den."
@@ -682,13 +414,15 @@ function PeopleEditorPanel(props: {
               </p>
             </Field>
 
+            </ProfileSection>
+            <ProfileSection title="Lenker og sosiale medier" summary={editor.personDraft.website_url || "Nettside og sosiale profiler"} errors={Object.entries(editor.personFieldErrors).filter(([key]) => key.endsWith("_url")).map(([,value]) => value)}>
             <div className="link-section">
               <div className="sidebar-header">
                 <h2>Lenker og sosiale medier</h2>
                 <span className="meta">Brukes i offentlig profil senere</span>
               </div>
               <div className="grid two">
-                <Field label="Website URL" error={editor.personFieldErrors.website_url}>
+                <Field label="Website URL" name="website_url" error={editor.personFieldErrors.website_url}>
                   <input
                     type="url"
                     value={editor.personDraft.website_url ?? ""}
@@ -696,7 +430,7 @@ function PeopleEditorPanel(props: {
                     placeholder="https://..."
                   />
                 </Field>
-                <Field label="Instagram URL" error={editor.personFieldErrors.instagram_url}>
+                <Field label="Instagram URL" name="instagram_url" error={editor.personFieldErrors.instagram_url}>
                   <input
                     type="url"
                     value={editor.personDraft.instagram_url ?? ""}
@@ -706,7 +440,7 @@ function PeopleEditorPanel(props: {
                 </Field>
               </div>
               <div className="grid two">
-                <Field label="TikTok URL" error={editor.personFieldErrors.tiktok_url}>
+                <Field label="TikTok URL" name="tiktok_url" error={editor.personFieldErrors.tiktok_url}>
                   <input
                     type="url"
                     value={editor.personDraft.tiktok_url ?? ""}
@@ -714,7 +448,7 @@ function PeopleEditorPanel(props: {
                     placeholder="https://tiktok.com/@..."
                   />
                 </Field>
-                <Field label="LinkedIn URL" error={editor.personFieldErrors.linkedin_url}>
+                <Field label="LinkedIn URL" name="linkedin_url" error={editor.personFieldErrors.linkedin_url}>
                   <input
                     type="url"
                     value={editor.personDraft.linkedin_url ?? ""}
@@ -724,7 +458,7 @@ function PeopleEditorPanel(props: {
                 </Field>
               </div>
               <div className="grid two">
-                <Field label="Facebook URL" error={editor.personFieldErrors.facebook_url}>
+                <Field label="Facebook URL" name="facebook_url" error={editor.personFieldErrors.facebook_url}>
                   <input
                     type="url"
                     value={editor.personDraft.facebook_url ?? ""}
@@ -732,7 +466,7 @@ function PeopleEditorPanel(props: {
                     placeholder="https://facebook.com/..."
                   />
                 </Field>
-                <Field label="YouTube URL" error={editor.personFieldErrors.youtube_url}>
+                <Field label="YouTube URL" name="youtube_url" error={editor.personFieldErrors.youtube_url}>
                   <input
                     type="url"
                     value={editor.personDraft.youtube_url ?? ""}
@@ -743,7 +477,9 @@ function PeopleEditorPanel(props: {
               </div>
             </div>
 
-            <div className="actions">
+            </ProfileSection>
+            <div className="actions profile-bottom-actions">
+              <ProfileFormActions model="person" isNew={!editor.persistedPersonId} state={editor.personSaveState} dirty={editor.personDraftHasUnsavedChanges} disabled={!editor.tenantId || editor.personSaveBlocked} />
               <button
                 type="button"
                 className="link-delete"
@@ -752,20 +488,12 @@ function PeopleEditorPanel(props: {
                     editor.onDeletePerson();
                   }
                 }}
-                disabled={typeof editor.selectedPersonId !== "number"}
+                disabled={typeof editor.selectedPersonId !== "number" || !editor.canDelete || editor.personSaveState === "saving"}
               >
                 Slett person
               </button>
             </div>
-            <ProfileFormActions
-              model="person"
-              isNew={editor.selectedPersonId === "new"}
-              state={editor.personSaveState}
-              dirty={editor.personDraftHasUnsavedChanges}
-              disabled={!editor.tenantId}
-              onReset={editor.onResetPersonDraft}
-            />
-          </form>
+          </fieldset></form>
 
         </>
       )}

@@ -7,7 +7,8 @@ test("login and show unsaved changes modal on internal navigation", async ({ pag
   await page.goto("/organizations");
   await loginAsEditor(page);
 
-  await page.getByRole("button", { name: "Rediger" }).click();
+  await page.locator(".editor-card-grid").getByRole("button", { name: "Kreativ Demo AS" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
   await expect(page.getByLabel(/Navn/)).toHaveValue("Kreativ Demo AS");
   await page.getByLabel(/Navn/).fill("Kreativ Demo AS endret");
   await page.getByRole("link", { name: /Personer/ }).click();

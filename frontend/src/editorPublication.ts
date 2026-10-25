@@ -24,13 +24,6 @@ export function describeEffectivePublication(input: {
       message: "Koblingen er inaktiv, så personen og kontaktkanalene vises ikke på denne aktøren.",
     };
   }
-  if (!input.publishPerson && publicChannels.length > 0) {
-    return {
-      tone: "warning",
-      message:
-        "Kontaktkanaler er markert offentlige på personen, men vises ikke på denne aktøren fordi personen er skjult.",
-    };
-  }
   if (input.publishPerson && publicChannels.length > 0) {
     return {
       tone: "public",

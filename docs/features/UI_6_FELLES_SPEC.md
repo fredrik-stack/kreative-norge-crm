@@ -1,6 +1,8 @@
 # UI-6-FELLES – felles utforming av eksisterende Editor-flater
 
-**Dato:** 2026-10-24. **Status:** §§3–7 er anbefalt mål. Første avgrensede kodepakke i §8 er merget og teknisk stagingverifisert på frontendkilde `3ede68f`; [datert evidens](../status/STAGING_UI_6_PROFILE_ACTIONS_2026-10-24.md). Visuell eieraksept er ikke mottatt.
+**Gjeldende eierføring 2026-10-24:** §9 overstyrer motstridende anbefalinger i §§3–8. Ny kompakt Editor er implementert på leveransebranch, med visuell beslutning før merge. Ingen ny staging-/eieraksept er registrert.
+
+**Historisk status før ny bestilling:** §§3–7 er anbefalt mål. Første avgrensede kodepakke i §8 er merget og teknisk stagingverifisert på frontendkilde `3ede68f`; [datert evidens](../status/STAGING_UI_6_PROFILE_ACTIONS_2026-10-24.md). Visuell eieraksept er ikke mottatt.
 **Baseline:** `00ac0d9fcc78656ca1144baf893beb65e003c8d1` etter PR #87.
 
 ## 1. Mandat, bevis og avgrensning
@@ -262,3 +264,225 @@ endrede skjemaene innhentes etter teknisk verifikasjon; ingen ny formell brukert
 **Bidrag/stopp:** avgrenset del av U3/UI-6-PROFIL, med tydelig grense mot U4.
 Ingen fullført NAV/OVERSIKT/PROFIL/PRIVAT, 6B eller samlet Editor-v1. Stopp etter
 bestilt kode-/stagingleveranse og eierkontrollinstruks; ikke start neste produktpakke.
+
+
+## 9. Samordnet Editor – ny eierføring og kodeleveranse 2026-10-24
+
+**Mandat:** kompakt aktøroversikt, aktørmodal, opprett/rediger aktør,
+søk-først-personoversikt/detalj og opprett/rediger person. Utgangspunkt er
+main `4e9340f0f606e95e0bc8603916b7acd4f7e93008`. Godkjent Import 2.0 v6
+revisjon 4/O-24 er konkret designreferanse; Editor-fontene beholdes. Originalen
+på 200869 byte med SHA-256
+`938a40ea725772d96a70fb660a228652070047e3d1d6b3eeebe24aa324499628`
+er kontrollert og åpnet i Chromium gjennom ordinær kilde→analyse→review-reise.
+Den eldre lokale kopien på 199864 byte ble avvist. Ingen rekonstruksjon er brukt.
+Sju eierbilder i `Desktop/Editor baseline UI design/241026` er lest som
+avviksgrunnlag; nye leveransebilder bruker bare syntetiske data.
+
+**Besluttet av eier:** gammel skjermoppbygning, ni faste personkolonner og stor
+sticky-bunnrad videreføres ikke. Godkjent importfunksjon/5E, øvrige ADR-er og
+begge Google Maps-aktørkart i v1 består. Ingen ny formell brukertest.
+
+**Implementert anbefalt utforming, avventer visuell godkjenning:**
+
+- Felles kompakt kontekstlinje, oversiktens eget søke-/filterområde og tydelig
+  aktiv seksjon også på profilruter. IBM Plex Sans/Space Grotesk/fallbacks beholdes.
+  Avstandsskala 4/8/12/16/24 px, brødtekst14, støtte11–12, seksjon14–16,
+  profilnavn23. Kontroller40 px på laptop,44 px og inputtekst16 på mobil.
+- Aktørkort har responsivt grid, navn→sted→kategorisering→handlinger, omslag
+  innen kortet og initialfallback ved manglende/ødelagt bilde. Lesemodaler har
+  én navneoverskrift, færre rammer, kompakte kontaktlinjer og Escape/fokusvern.
+- Hovedformens Lagre/Opprett/Forkast ligger ved profilhodet i normal dokumentflyt.
+  Ren profil har tom, rolig status og deaktivert redundant lagring. Endret,
+  lagrer, lagret og vedvarende feil følger eksisterende profilstatusprioritet.
+  Ingen fast rad kan dekke felter; fokus kontrolleres også ved resize/200 % zoom.
+- Vanlige profilfelt vises direkte. Native details gir oppsummering/åpning for
+  kategorisering, notat, lenker, bildeflyt og opprett/knytt kontakt. Feltene
+  forblir montert; lukking kaster ikke utkast eller flytter fokus fra åpneren.
+  Native validering åpner lukket seksjon; feltfeil åpnes og får lenker fra en
+  navngitt feilsammendrag til riktig felt, også ved like feilmeldinger.
+- Eksisterende kontaktkanaler og aktørkoblinger vises før opprett/knytt.
+  Kontakt-blur, primær/offentlig, koblingsvalg og bildehandlinger beholder sine
+  separate writes. Profilreset, standardregion/dirty, kontaktutkast ved reload
+  og navigasjonsvern fra #89/#90 består. Ingen Lagre alt-/autosavekontrakt.
+- Personoversikten viser ingen rader uten søk eller aktivt filter. Fire grupper:
+  navn/tittel, aktører, kontakt og sted; øvrige felt ligger i detalj. Inngang,
+  pågående lesing/søk, ingen treff og lesefeil er forskjellige tilstander.
+  Tømming returnerer inngangen. Klientens søk/filter og valgt person består ved
+  retur fra profil. Eksisterende innlasting/filtrering brukes; dette er ikke
+  serverbasert søk, ny paginering eller endret tilgang.
+
+**Leveransegrense:** frontendkode, målrettede tester/dokumentasjon, draft PR og
+faktisk separat skrivebeskyttet review er bestilt. Samlet visuell leveranse med
+laptop/mobil, lagringstilstander, eksakt kode og miljø skal godkjennes av eier
+**før merge**. Deretter gjelder ordinær grønn PR-/main-CI og separat kontrollert
+frontend-only staging etter runbook innen samme mandat. Lokal browserverifikasjon
+er ikke stagingaksept. Ingen backend/API/migrasjon, delingsaktivering, taggpolicy,
+6B/6C, PUBLIC- eller kartimplementering inngår. Hele UI-6 er ikke ferdigmeldt.
+
+
+## 10. Eierbestilt retting av PR #92 – 2026-10-25
+
+**Besluttet:** Prosjekteiers visuelle gjennomgang overstyrer tidligere meny-,
+aktørkort-, resetknapp- og personlagringsføring i §§8–9. Aktørmodalen, åpen
+bildeflyt desktop/mobil, søk-først-inngangen og sann statusutforming videreføres
+innen uttrykkelig eiergodkjenning. Fem nye referansebilder ligger lokalt i
+`Desktop/Editor baseline UI design/referanser til design 251026`; to er merket
+IKKE GODKJENT og brukes bare som avviksgrunnlag. Import v6 rev.4/O-24, kontrollert
+SHA-256 fra §9 og Editor-fontene består. PUBLIC-kort er visuell inspirasjon,
+ikke ny PUBLIC-leveranse. Ingen ny prototype-/brukertestrunde.
+
+**Implementert i rettingsleveransen:**
+
+- Fast desktop-venstremeny: Aktører, Personer, Import, Eksport, Admin; aktiv også
+  på profiler. Mobil har kompakt meny. Importfasene er lokale. Ekte bruker-/rolle-/
+  kontorpanel med autorisert tenantbytte. Admin vises bare ved faktisk Django-
+  adminadgang. Session/Login får bare additive display_name/can_access_admin.
+- Like brede/høye responsive aktørkort, thumbnail til venstre, navn/sted/
+  kategorisering og én faktisk tagg +N. Kontrollerte tekstgrenser; full data i
+  modal. Ingen publiseringsstatus eller Rediger på kort. Eksisterende taggfarger
+  og betydning beholdes. Grønn offentlig/gul intern er et framtidig ønske uten
+  vedtatt/implementert taggklassifisering.
+- Ingen stående Forkast/Nullstill profilutkast. Identisk Lagre/Opprett øverst og
+  nederst i samme form med innsendinglås og samme validering/status. Personens
+  nedre grønnknapp står til venstre for Slett person. Ny person kan ikke slettes;
+  eksisterende sletterettigheter/confirm består. Normal dokumentflyt, ingen
+  sticky-footer. Internt reset brukes fortsatt ved eksplisitt forlatvalg.
+- Mindre vertikale mellomrom, bevarte kontroll-/skriftstørrelser. Lukket preview
+  tar ingen egen bred kolonne. Region før nummer i alle berørte telefonrader.
+- Personens e-post-/telefongrupper viser hver verdi én gang, offentlige valg
+  under raden og lokale ekstra rader. Ingen Kontaktkanaler-/Primær-presentasjon,
+  blur-/checkbox-/tillegg-writes. Alt lagres med personskjemaet gjennom eksisterende
+  sekvensielle kall. Primærflagg og eksisterende offentlige valg beholdes; nye
+  verdier er interne som standard. Name/title-only PATCH utelater uendret kontakt.
+- Person-ID og hver kontakt-ID beholdes før senere kall/lesinger. Delvis feil
+  beholder utkast og bekreftelser; retry gjenskaper ikke kjente identiteter.
+  Ukjent POST-resultat sperrer blind retry og krever kontroll av faktisk resultat,
+  uten navne-/verdigjetning. Lagret vises først etter alle bekreftelser. Eksplisitt
+  fjerning er lokalt inntil DELETE av faktisk ID, med nødvendig etterfølgende
+  tømming av hovedfelt. Ingen automatisk opprykk eller ny primær-/writepolicy.
+- Kontakt-dirty inngår i rute-/meny-/tenant-/logout- og beforeunload-vern.
+  Bli her / Lagre og fortsett / Forlat uten å lagre bruker samme lagringsresultat.
+  Feil stanser videreføring; forkasting gjør ingen undo av allerede lagrede kall.
+- Personresultater beholder fire grupper, med kompakt kategori-/taggmetadata,
+  lyspærehint og bevarte filtre/valg/retur. Modalens Knyttet-indikator er fjernet;
+  Knyttet til, kategorier, tags, lenker og fokusvern består. Misvisende kortkopi
+  er fjernet. Field-label støtter også innpakket input i eksisterende Import.
+
+**Bevis og stopp:** målrettet PostgreSQL-/Django, frontendtester, browserreiser og
+[ny samlet visuell leveranse](../status/EDITOR_REVISION_VISUAL_REVIEW_2026-10-25.md)
+skiller faktisk runtime, syntetiske data, kontrollerte transportfeil, review og
+uavklart samlet eieraksept. Grønn CI er ingen visuell godkjenning. Samme PR #92,
+faktisk separat review og nødvendige kontroller; stopp før merge/staging for
+ny samlet godkjenning. Etter godkjenning er deployscope API + frontend, uten ny
+migrasjon. Ingen full 6B/6C, eksportmotor, deling/backfill eller PUBLIC-endring.
+Begge avtalte Google Maps-aktørkart består som v1-omfang.
+
+**Regionvalg uten nummerendring (25.10):** Dagens API lagrer ikke region-only.
+På lagret persontelefon spores dette som dirty og avvises med feltmelding før
+noen writes eller Lagre og fortsett. Lagret effektiv region er baseline; urørt
+fallbackregion blokkerer ikke navn/tittel. Nummerendring bruker valgt region
+som før. Dette er eksplisitt kontraktgrense, ingen ny normaliseringspolicy.
+
+**Delvis fjerning (25.10):** Angre gjelder bare en ennå uskrevet Fjern-markering.
+Bekreftet DELETE kan ikke angres lokalt. Ved ukjent DELETE beholdes kontakt-ID-en;
+retry bruker samme DELETE (404 bekrefter fravær), aldri POST. Ved forkasting før
+ukjent DELETE eller hovedfeltklarering er avklart, beholdes en liten session-ref
+per tenant/person. Uavklarte rader og gammel hovedfeltfallback skjules; videre
+skriving for profilen krever fersk ordinær innlasting. Dette hindrer at cache
+bekrefter en slettet kontakt som Lagret, også etter internt bytte tilbake.
+Fjern→Angre før writes gjenoppretter opprinnelig lokalt hovedfelt, uten å reparere
+et eksisterende avvik mellom hovedfelt og kontakt. Ingen ny DB-/writepolicy.
+
+
+## 11. Andre visuelle retting av PR #92 – 2026-10-25
+
+**Besluttet av eier:** Nyeste visuelle kommentarer overstyrer eldre krav om
+kortdybde, at navneskrift ikke kan reduseres, fire persongrupper og nedre
+aktørhandling før bilde. Ingen ny generell UX-/planleggingsrunde.
+
+**Implementert anbefalt detaljutforming, avventer samlet visuell godkjenning:**
+
+- Like aktørkort på 148 px høyde (før 208), responsivt antall kolonner/bredde,
+  thumbnail 76×100 px, sted øverst til høyre. Navn bruker 13 px/17 px linjehøyde,
+  inntil tre linjer. Representative lange navn brytes; ekstreme verdier/steder
+  avkortes kontrollert og finnes fullt i modal. Én faktisk tagg +N og eksisterende
+  taggsemantikk består. Ingen PUBLIC-kodeendring.
+- Aktørens grønne Save står øverst ved profilhodet og helt nederst til venstre
+  etter bilde, personkoblinger og preview. Nedre knapp har native formassosiasjon
+  til samme hovedform, validering, status og umiddelbare lock. Separat bilde-/
+  koblingslagring består. Rød Slett aktør står til høyre på lagret profil;
+  eksisterende canDelete, confirm, DELETE og beskyttet 409 består. Kun bekreftet
+  sletting tømmer cache/utkast og returnerer til oversikt. Personer slettes ikke.
+- Opprett aktør bruker samme nederste plassering med fri luft. Tekstforslaget
+  er implementert: «Opprett aktøren først. Deretter kan du knytte til personer
+  eller opprette en ny kontaktperson.» Endelig tekstaksept inngår i samlet review.
+- Den lange skjult-person/kontakt-forklaringen fjernes. Enkel status og faktiske
+  publiserings-/kontaktregler endres ikke.
+- Personresultater har fem kolonner på desktop: navn/tittel, aktører, kontakt,
+  sted, kategorier og tags. Metadata flyttes ut av navnecellen. På mobil stables
+  samme informasjon. Søk-først, retur/filtre, lenker og modalvern består.
+- Ulagrede profilfelt vises oransje med tekst. Profiler er midtstilt innen maks
+  1080 px i arbeidsområdet; oversikter og Import bruker tilgjengelig bredde.
+  Primære vurderingsbilder viser hele desktop-viewporten i 1920×1080, med
+  supplerende fullsidebilder, 1440/1366/1024, 390/320 og faktisk 200 % zoom.
+
+[Ny visuell leveranse](../status/EDITOR_LAYOUT_VISUAL_REVIEW_2026-10-25.md)
+gjelder runtime `213219085c3e6da214d372729a1ec91c247a0c6e`. Tidligere datert
+evidens beholdes; den er ikke bevis for ny layout. Samme PR #92, separat review,
+nødvendig siste-head CI og stopp før merge/staging for samlet eiergodkjenning.
+Senere deployscope API + frontend uten migrasjon. Import v6 rev.4/O-24, godkjent
+5E og begge v1-kart består. Ingen ny kontakt-/primær-/publiserings-/taggpolicy,
+backfill/catch-up, shared-aktivering eller ferdigmelding av hele UI-6/6B/6C.
+
+
+## 12. Låst kortformat og metadatafarger – 2026-10-25
+
+**Besluttet av eier:** Aktørkortenes størrelse i runde2 er godkjent og skal
+beholdes. Thumbnails skal være kvadratiske. Kategorier og tags skal ha sine
+respektive eksisterende farger i hele applikasjonen på desktop og mobil.
+Importbilde15 fra runde2 er avvist som misvisende. Det er ikke et nytt forslag
+eller godkjent design; Import-prototype v6 rev.4/O-24 og godkjent 5E styrer fortsatt.
+
+**Implementert:** Kort148 px / uendret responsive bredde/kolonner; thumbnail og
+fallback76×76 px. Typeklasser og palett bevares: hovedkategori #6b493d, underkategori
+#38a8ec, tagg #4a8755. Personoversikten mister den flate palegrønne overstyringen.
+Modaler/aktørkort og PUBLIC-liste/detalj er kontrollert. En eldre PUBLIC-detalj-
+variant hadde brun tagg og får samme grønne som øvrige flater. Importens eksisterende
+metadata/forslag får riktig typefarge; stiplet forslagskant og eksisterende
+kolonner/handlinger/status består. Valgte tags er grønne. Bare fargebevaring,
+ingen implementering/nytolking av v6 eller ny Import-UX. Ingen offentlig/intern
+klassifisering; legacytagger og publiseringsvilkår består.
+
+[Ni nye avgrensede bilder](../status/EDITOR_COLOR_VISUAL_REVIEW_2026-10-25.md)
+gjelder runtime `2b4ca8eb96e9e74920b3af5a1ccc6cabf59da24f` med syntetiske API-fixtures og tydelig DB-fri
+bevisgrense. Import er ikke med i det nye vurderingsgrunnlaget. Tidligere PNG-er
+beholdes som historikk; Import15 er tydelig markert avvist også i gammelt galleri.
+Samme PR #92, separat review og siste-head CI; stopp før merge/staging for samlet
+sluttgodkjenning. Senere deployscope API + frontend (PUBLIC-mal inkludert), uten
+migrasjon. Ingen API-/data-/kontakt-/primær-/taggpolicyendring eller neste etappe.
+
+
+## 13. Thumbnail som PUBLIC og aktørens mobilmodal – 2026-10-25
+
+**Besluttet av eier:** Kortstørrelsen er fortsatt godkjent. Thumbnailen skal være
+større og sentrert vertikalt til venstre, som i PUBLIC, også på mobil. Aktørens
+lesemodal må ha grønn Rediger, og mobilmodalen må dokumenteres med eget viewportbilde.
+
+**Implementert/kontrollert:** Oversiktens thumbnail og fallback90×90px, lik faktisk
+PUBLIC-listemal. Kort148px og samme responsive bredde/kolonner, padding/gap og fonter
+beholdes. Gridraden fyller innvendig høyde, bilde/fallback sentreres; tekst/sted
+beholder plassering. Hovedkategori krymper ikke når bildekolonnen tar mer plass.
+Øvrig kontrollert avkorting og full modalinfo videreføres. Dette overstyrer76px i§12.
+
+Modalens eksisterende primary Rediger er allerede grønn; canWrite og handling
+beholdes uten modalkodeendring. Browsertest kontrollerer synlighet, gradient,
+udekket trykkpunkt og åpning av korrekt aktørredigering ved1920/390/320. Ved320px
+rulles dialogen normalt til nederste handling. Ingen sticky-footer eller ny tilgang.
+
+[Seks nye viewportbilder](../status/EDITOR_THUMBNAIL_VISUAL_REVIEW_2026-10-25.md)
+gjelder runtime `7ef04b1646dd7466f69b3494ff507e579553b346` med syntetiske API-fixtures. Eldre76px-bilder er
+historikk. Samme draft PR #92; separat review/siste-head CI og samlet sluttaksept
+før merge/staging består. Import v6 rev.4/O-24 og5E, eksisterende palett/person-
+lagring og begge kart består. Ingen ny PUBLIC-/Import-/API-/data-/policyendring,
+migrasjon/backfill eller neste etappe. Hele PR-ens senere deployscope er API+frontend.

@@ -1,5 +1,49 @@
 # Kreative Norge CRM – dokumentasjon
 
+**Siste eierføring 25.10.2026, runde4:** Godkjent kortformat beholdes, men
+Editor-thumbnailen økes fra76 til90×90px (som PUBLIC) og sentreres vertikalt.
+[UI-6 §13](features/UI_6_FELLES_SPEC.md#13-thumbnail-som-public-og-aktørens-mobilmodal--2026-10-25) og
+[seks nye viewportbilder](status/EDITOR_THUMBNAIL_VISUAL_REVIEW_2026-10-25.md)
+viser aktøroversikt og aktørmodal med synlig grønn Rediger også på mobil.
+Eldre76px-bilder er historikk. Samme draft PR #92; samlet sluttaksept gjenstår.
+Import v6 rev.4/O-24/5E og tidligere farge-/lagringsføring består.
+
+**Siste eierføring 25.10.2026, runde 3:** Kortformatet er godkjent og beholdes;
+thumbnails er kvadratiske. [UI-6 §12](features/UI_6_FELLES_SPEC.md#12-låst-kortformat-og-metadatafarger--2026-10-25)
+styrer fargene brun hovedkategori / blå underkategori / grønn tagg på desktop og
+mobil. [Nytt kort tilleggsgalleri](status/EDITOR_COLOR_VISUAL_REVIEW_2026-10-25.md)
+viser rettelsene. Tidligere Importbilde15 er avvist som misvisende og inngår ikke
+i gjeldende vurdering. Godkjent Import v6 rev.4/O-24 styrer; ingen ny Import-UX.
+Samlet sluttgodkjenning, merge og staging gjenstår.
+
+**Siste visuelle retting av PR #92 – 25.10.2026, runde 2:**
+[UI-6 §11](features/UI_6_FELLES_SPEC.md#11-andre-visuelle-retting-av-pr-92--2026-10-25) overstyrer tidligere kortdybde,
+plassering av nedre aktørhandling og fire personkolonner.
+[Nytt vurderingsgrunnlag](status/EDITOR_LAYOUT_VISUAL_REVIEW_2026-10-25.md) har
+29 nye browserbilder, primært hele desktopflaten i 1920 × 1080, mobil og faktisk
+200 % zoom. Lavere like kort, sted øverst høyre, fem personkolonner, oransje dirty
+og Lagre/Slett helt nederst er implementert på branch. Samlet visuell godkjenning,
+merge og staging gjenstår; senere deployscope er fortsatt API + frontend.
+
+**Eierbestilt retting av PR #92 – 2026-10-25:**
+[UI-6 §10](features/UI_6_FELLES_SPEC.md#10-eierbestilt-retting-av-pr-92--2026-10-25) styrer venstremeny, like store aktørkort og manuell
+personlagring med lokale kontaktutkast. Dette overstyrer eldre meny-/kort-/reset-
+og lagringsføringer nedenfor. Lesemodaler, bildeflyt og søk først videreføres
+innen eiers avgrensede godkjenning. Rettet runtime er ikke samlet visuelt godkjent.
+[Nytt samlet vurderingsgrunnlag](status/EDITOR_REVISION_VISUAL_REVIEW_2026-10-25.md)
+skiller kode, lokale tester, browserbevis og utestående godkjenning. Ingen merge
+eller staging i rettingsrunden; senere deploy må omfatte **API og frontend**.
+
+**Samordnet Editor, kodeleveranse 2026-10-24:**
+[Ny styrende eierføring / UI-6 §9](features/UI_6_FELLES_SPEC.md#9-samordnet-editor--ny-eierføring-og-kodeleveranse-2026-10-24)
+bruker kontrollert Import v6 rev.4/O-24 som konkret designreferanse med Editor-
+fonter beholdt. Kompakt oversikt/modal/profil og søk først for personer er
+implementert på branch. Samlet visuell godkjenning før merge gjenstår; ingen
+ny stagingaksept eller ferdigmelding av hele UI-6. Eldre avsnitt er daterte bevis.
+
+[Samlet visuell leveranse / browserbilder](status/EDITOR_COMPACT_VISUAL_REVIEW_2026-10-24.md) gjelder kode `caccd8b` og draft PR #92.
+
+
 **UI-6 førstepakke 2026-10-24:** [Profilhandlinger/status og valgt resetretting](features/UI_6_FELLES_SPEC.md#8-første-bestilte-kodepakke--skjemabundet-handlingstatus-og-korrekt-reset)
 er implementert i kodeleveransen. Den erstatter tidligere anbefalt bevaring av
 nyprofilens taggtekst ved reset; øvrige utformingsmål er fortsatt anbefalinger.

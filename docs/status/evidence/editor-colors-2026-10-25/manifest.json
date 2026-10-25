@@ -1,0 +1,149 @@
+{
+  "runtime_head": "2b4ca8eb96e9e74920b3af5a1ccc6cabf59da24f",
+  "image_count": 9,
+  "images": [
+    {
+      "file": "actors-1920.png",
+      "caption": "Aktørkort – låst størrelse og kvadratisk thumbnail · 1920px",
+      "width": 1920,
+      "height": 1080,
+      "group": "desktop",
+      "bytes": 411823,
+      "sha256": "e24d54f36c96bc55c217e4b9f7af8df82788c39cf92be985dbdc9ba703b6abd7"
+    },
+    {
+      "file": "people-1920.png",
+      "caption": "Personoversikt – brun kategori, blå underkategori og grønn tagg · 1920px",
+      "width": 1920,
+      "height": 1080,
+      "group": "desktop",
+      "bytes": 445405,
+      "sha256": "edda58ba748ad20dbbfaab9a6b5b9145d1dd1c72db44f185b4410c337b0f5413"
+    },
+    {
+      "file": "person-modal-1920.png",
+      "caption": "Personmodal – samme farger · 1920px",
+      "width": 1920,
+      "height": 1080,
+      "group": "desktop",
+      "bytes": 175149,
+      "sha256": "d03e03b2c9df78d921fd3cc985812b019ba2b8eeae2d92e9fb3c3f4db3f7bcc9"
+    },
+    {
+      "file": "actors-390.png",
+      "caption": "Aktørkort – låst størrelse og kvadratisk thumbnail · 390px",
+      "width": 390,
+      "height": 844,
+      "group": "mobil",
+      "bytes": 89172,
+      "sha256": "bd17205c1c8f44a3fcdb2a4715ba7081da46fed839fef5fe2c0f860ef189e7af"
+    },
+    {
+      "file": "people-390.png",
+      "caption": "Personoversikt – brun kategori, blå underkategori og grønn tagg · 390px",
+      "width": 390,
+      "height": 1013,
+      "group": "mobil",
+      "bytes": 112649,
+      "sha256": "f63586c96b93f09ddb5c518f6293368774329c89e0227de888b25c3f9f80d457"
+    },
+    {
+      "file": "person-modal-390.png",
+      "caption": "Personmodal – samme farger · 390px",
+      "width": 390,
+      "height": 844,
+      "group": "mobil",
+      "bytes": 64841,
+      "sha256": "d443e8d3d4c2988d42ce16795e8f4ccbccc8e2d00e4b6f9e3180e60b931c1f84"
+    },
+    {
+      "file": "actors-320.png",
+      "caption": "Aktørkort – låst størrelse og kvadratisk thumbnail · 320px",
+      "width": 320,
+      "height": 844,
+      "group": "mobil",
+      "bytes": 80184,
+      "sha256": "11b2fc77b4649ed99befaa1408f6db2dd673d3c708fab785f7f3b3522d52965a"
+    },
+    {
+      "file": "people-320.png",
+      "caption": "Personoversikt – brun kategori, blå underkategori og grønn tagg · 320px",
+      "width": 320,
+      "height": 1117,
+      "group": "mobil",
+      "bytes": 108176,
+      "sha256": "175046e07a9c7ed32d50ff29d246aa0209772ad095674353acecf2c91dff7d7a"
+    },
+    {
+      "file": "person-modal-320.png",
+      "caption": "Personmodal – samme farger · 320px",
+      "width": 320,
+      "height": 844,
+      "group": "mobil",
+      "bytes": 58976,
+      "sha256": "5f662bb193f676b29ef2fa3d955afd4d7c5501ca0207b12d12d4cef2e4809c0c"
+    }
+  ],
+  "files": [
+    {
+      "file": "actors-1920.png",
+      "bytes": 411823,
+      "sha256": "e24d54f36c96bc55c217e4b9f7af8df82788c39cf92be985dbdc9ba703b6abd7"
+    },
+    {
+      "file": "actors-320.png",
+      "bytes": 80184,
+      "sha256": "11b2fc77b4649ed99befaa1408f6db2dd673d3c708fab785f7f3b3522d52965a"
+    },
+    {
+      "file": "actors-390.png",
+      "bytes": 89172,
+      "sha256": "bd17205c1c8f44a3fcdb2a4715ba7081da46fed839fef5fe2c0f860ef189e7af"
+    },
+    {
+      "file": "checks.json",
+      "bytes": 779,
+      "sha256": "439386ac8b726ac79d8136ad47ac34aaef1c92d562130bd08606ec3266adbce0"
+    },
+    {
+      "file": "index.html",
+      "bytes": 4887,
+      "sha256": "8c302cd7d04b067f25a9bcb0206c68806005e43b4c3ae008703f4bb52c945916"
+    },
+    {
+      "file": "people-1920.png",
+      "bytes": 445405,
+      "sha256": "edda58ba748ad20dbbfaab9a6b5b9145d1dd1c72db44f185b4410c337b0f5413"
+    },
+    {
+      "file": "people-320.png",
+      "bytes": 108176,
+      "sha256": "175046e07a9c7ed32d50ff29d246aa0209772ad095674353acecf2c91dff7d7a"
+    },
+    {
+      "file": "people-390.png",
+      "bytes": 112649,
+      "sha256": "f63586c96b93f09ddb5c518f6293368774329c89e0227de888b25c3f9f80d457"
+    },
+    {
+      "file": "person-modal-1920.png",
+      "bytes": 175149,
+      "sha256": "d03e03b2c9df78d921fd3cc985812b019ba2b8eeae2d92e9fb3c3f4db3f7bcc9"
+    },
+    {
+      "file": "person-modal-320.png",
+      "bytes": 58976,
+      "sha256": "5f662bb193f676b29ef2fa3d955afd4d7c5501ca0207b12d12d4cef2e4809c0c"
+    },
+    {
+      "file": "person-modal-390.png",
+      "bytes": 64841,
+      "sha256": "d443e8d3d4c2988d42ce16795e8f4ccbccc8e2d00e4b6f9e3180e60b931c1f84"
+    },
+    {
+      "file": "public-template-checks.json",
+      "bytes": 1177,
+      "sha256": "65685244f59652f8789dcd2c8dd623dd5d218b7d365c0dcd8c89fc964f9f7565"
+    }
+  ]
+}

@@ -3,7 +3,7 @@ export function ConfirmNavigationModal(props: {
   busy: boolean;
   canSaveAndContinue: boolean;
   targetLabel: string | null;
-  targetKind: "route" | "tenant" | null;
+  targetKind: "route" | "tenant" | "action" | null;
   dirtySummary: string[];
   onStay: () => void;
   onSaveAndContinue: () => void;

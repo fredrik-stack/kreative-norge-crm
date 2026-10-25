@@ -113,7 +113,7 @@ type ReviewDraft = {
   suggestionStates: Record<string, SuggestionState>;
 };
 
-export function ImportExportPage() {
+export function ImportExportPage({ mode = "import" }: { mode?: "import" | "export" }) {
   const editor = useEditor();
   const importJobs = useImportJobs(editor.tenantId);
   const exportJobs = useExportJobs(editor.tenantId);
@@ -156,7 +156,7 @@ export function ImportExportPage() {
 
   return (
     <main className="import-export-layout">
-      <section className="panel import-export-panel">
+      {mode === "import" ? <section className="panel import-export-panel">
         <div className="sidebar-header">
           <div>
             <p className="eyebrow small">Import</p>
@@ -243,9 +243,9 @@ export function ImportExportPage() {
             )}
           </div>
         </div>
-      </section>
+      </section> : null}
 
-      <ExportPanel
+      {mode === "export" ? <ExportPanel
         exportJobs={exportJobs}
         format={format}
         setFormat={setFormat}
@@ -255,7 +255,7 @@ export function ImportExportPage() {
         setFilterQuery={setFilterQuery}
         fieldSelection={fieldSelection}
         setFieldSelection={setFieldSelection}
-      />
+      /> : null}
     </main>
   );
 }
@@ -478,22 +478,22 @@ function ImportReviewWorkspace(props: {
                       <ReviewValueCell current={municipalitySuggestion} fallback="Ingen forslag" onClick={() => setExpandedRowId(row.id)} clickable={Boolean(municipalitySuggestion)} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_categories, row.raw_payload_json.person_categories))} suggestedValues={[]} />
+                      <ReviewSuggestionCell kind="category" currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_categories, row.raw_payload_json.person_categories))} suggestedValues={[]} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={[]} suggestedValues={categorySuggestions} onClick={() => setExpandedRowId(row.id)} />
+                      <ReviewSuggestionCell kind="category" currentValues={[]} suggestedValues={categorySuggestions} onClick={() => setExpandedRowId(row.id)} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_subcategories, row.raw_payload_json.person_subcategories))} suggestedValues={[]} />
+                      <ReviewSuggestionCell kind="subcategory" currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_subcategories, row.raw_payload_json.person_subcategories))} suggestedValues={[]} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={[]} suggestedValues={subcategorySuggestions} onClick={() => setExpandedRowId(row.id)} />
+                      <ReviewSuggestionCell kind="subcategory" currentValues={[]} suggestedValues={subcategorySuggestions} onClick={() => setExpandedRowId(row.id)} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_tags, row.raw_payload_json.person_tags))} suggestedValues={[]} />
+                      <ReviewSuggestionCell kind="tag" currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_tags, row.raw_payload_json.person_tags))} suggestedValues={[]} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={[]} suggestedValues={tagSuggestions} onClick={() => setExpandedRowId(row.id)} />
+                      <ReviewSuggestionCell kind="tag" currentValues={[]} suggestedValues={tagSuggestions} onClick={() => setExpandedRowId(row.id)} />
                     </td>
                     <td>
                       <ReviewValueCell current={currentWebsite} fallback="Mangler" />
@@ -742,7 +742,7 @@ function InlineReviewEditor(props: {
             <div>
               <strong>Hovedkategori</strong>
               <SuggestionPills
-                values={categorySuggestions}
+                kind="category" values={categorySuggestions}
                 emptyLabel="Ingen forslag"
                 state={draft.suggestionStates.suggested_categories ?? "pending"}
                 onAccept={(value) => applyCategorySuggestion(value)}
@@ -758,7 +758,7 @@ function InlineReviewEditor(props: {
             <div>
               <strong>Underkategori</strong>
               <SuggestionPills
-                values={subcategorySuggestions}
+                kind="subcategory" values={subcategorySuggestions}
                 emptyLabel="Ingen forslag"
                 state={draft.suggestionStates.suggested_subcategories ?? "pending"}
                 onAccept={(value) => applySubcategorySuggestion(value)}
@@ -774,7 +774,7 @@ function InlineReviewEditor(props: {
             <div>
               <strong>Tags</strong>
               <SuggestionPills
-                values={tagSuggestions}
+                kind="tag" values={tagSuggestions}
                 emptyLabel="Ingen forslag"
                 state={draft.suggestionStates.suggested_tags ?? "pending"}
                 onAccept={(value) => applySingleTagSuggestion(value)}
@@ -1097,6 +1097,7 @@ function ExportPanel(props: {
         </div>
         <span className="meta">{exportJobs.jobs.length} jobber</span>
       </div>
+      <p className="muted">Her kan du opprette og følge eksportjobber. Filgenerering er ikke ferdigstilt. En nedlastingslenke vises bare når jobben faktisk har en fil.</p>
       {exportJobs.forbidden ? <div className="banner error">Du har ikke tilgang til eksport for denne tenanten.</div> : null}
       {exportJobs.error ? <div className="banner error">{exportJobs.error}</div> : null}
       <div className="import-actions export-form-grid">
@@ -1219,7 +1220,7 @@ function ReviewValueCell(props: { current?: string; suggested?: string; fallback
   );
 }
 
-function ReviewSuggestionCell(props: { currentValues: string[]; suggestedValues: string[]; onClick?: () => void }) {
+function ReviewSuggestionCell(props: { kind: "category" | "subcategory" | "tag"; currentValues: string[]; suggestedValues: string[]; onClick?: () => void }) {
   const values = props.currentValues.length > 0 ? props.currentValues : props.suggestedValues;
   if (values.length === 0) {
     return <span className="muted">Mangler</span>;
@@ -1227,7 +1228,7 @@ function ReviewSuggestionCell(props: { currentValues: string[]; suggestedValues:
   const content = (
     <div className="review-pill-stack">
       {values.slice(0, 3).map((value) => (
-        <span key={value} className={`mini-pill ${props.currentValues.length > 0 ? "category" : "suggested"}`}>{value}</span>
+        <span key={value} className={`mini-pill ${props.kind}${props.currentValues.length > 0 ? "" : " suggested"}`}>{value}</span>
       ))}
       {values.length > 3 ? <span className="meta">+{values.length - 3}</span> : null}
     </div>
@@ -1290,6 +1291,7 @@ function ReviewTextCell(props: { value?: string; emptyLabel: string; onClick?: (
 }
 
 function SuggestionPills(props: {
+  kind: "category" | "subcategory" | "tag";
   values: string[];
   emptyLabel: string;
   state: SuggestionState;
@@ -1303,7 +1305,7 @@ function SuggestionPills(props: {
     <div className="suggestion-pill-block">
       <div className="review-pill-stack">
         {props.values.map((value) => (
-          <button key={value} type="button" className="suggestion-pill" onClick={() => props.onAccept(value)}>
+          <button key={value} type="button" className={`suggestion-pill ${props.kind} suggested`} onClick={() => props.onAccept(value)}>
             {value}
           </button>
         ))}

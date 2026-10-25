@@ -1,0 +1,45 @@
+{
+  "checks": [
+    {
+      "file": "public_actor_detail-cutover.html",
+      "width": 1920,
+      "result": "category/subcategory/tag colors verified"
+    },
+    {
+      "file": "public_actor_detail-legacy.html",
+      "width": 1920,
+      "result": "category/subcategory/tag colors verified"
+    },
+    {
+      "file": "public_actor_list-cutover.html",
+      "width": 1920,
+      "result": "category/subcategory/tag colors verified"
+    },
+    {
+      "file": "public_actor_list-legacy.html",
+      "width": 1920,
+      "result": "category/subcategory/tag colors verified"
+    },
+    {
+      "file": "public_actor_detail-cutover.html",
+      "width": 390,
+      "result": "category/subcategory/tag colors verified"
+    },
+    {
+      "file": "public_actor_detail-legacy.html",
+      "width": 390,
+      "result": "category/subcategory/tag colors verified"
+    },
+    {
+      "file": "public_actor_list-cutover.html",
+      "width": 390,
+      "result": "category/subcategory/tag colors verified"
+    },
+    {
+      "file": "public_actor_list-legacy.html",
+      "width": 390,
+      "result": "category/subcategory/tag colors verified"
+    }
+  ],
+  "browser": "145.0.7632.6"
+}

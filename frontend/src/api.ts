@@ -25,6 +25,8 @@ export const AUTH_ERROR_EVENT = "editor:auth-error";
 type AuthUser = {
   id: number;
   username: string;
+  display_name?: string;
+  can_access_admin?: boolean;
   is_superuser: boolean;
   memberships: TenantMembership[];
 };
@@ -49,6 +51,7 @@ function isPaginated<T>(data: T[] | Paginated<T>): data is Paginated<T> {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const method = (init?.method ?? "GET").toUpperCase();
+  const writes = !["GET", "HEAD", "OPTIONS"].includes(method);
   const csrfToken = method === "GET" || method === "HEAD" ? null : getCsrfCookie();
   const isFormData = typeof FormData !== "undefined" && init?.body instanceof FormData;
   const response = await fetch(`${API_BASE}${path}`, {
@@ -75,7 +78,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       message = `API ${response.status}: ${text || response.statusText}`;
     }
 
-    if (response.status === 401 || response.status === 403) {
+    // A rejected write must leave the form and its confirmed IDs mounted.
+    // Read-side auth checks still return an expired session to the login flow.
+    if (!writes && (response.status === 401 || response.status === 403)) {
       notifyAuthError({ status: response.status, path });
     }
     throw new ApiError(response.status, message, data);
@@ -212,7 +217,7 @@ export async function createPerson(
 export async function patchPerson(
   tenantId: number,
   personId: number,
-  payload: PersonPayload,
+  payload: Partial<PersonPayload>,
 ): Promise<Person> {
   return request<Person>(`/api/tenants/${tenantId}/persons/${personId}/`, {
     method: "PATCH",
@@ -224,6 +229,10 @@ export async function deletePerson(tenantId: number, personId: number): Promise<
   await request(`/api/tenants/${tenantId}/persons/${personId}/`, {
     method: "DELETE",
   });
+}
+
+export async function deleteOrganization(tenantId: number, organizationId: number): Promise<void> {
+  await request(`/api/tenants/${tenantId}/organizations/${organizationId}/`, { method: "DELETE" });
 }
 
 export async function getOrganizationPeople(tenantId: number): Promise<OrganizationPerson[]> {

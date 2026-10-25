@@ -1,0 +1,24 @@
+{
+  "runtime": "7ef04b1646dd7466f69b3494ff507e579553b346",
+  "environment": "Local Vite/Chromium; explicit synthetic Playwright API fixtures; no real backend/DB/staging",
+  "unit_tests": 66,
+  "editor_e2e": 24,
+  "typescript": "passed",
+  "production_build": "passed",
+  "viewports": [
+    1920,
+    390,
+    320
+  ],
+  "actor_card_height": 148,
+  "thumbnail": [
+    90,
+    90
+  ],
+  "reference": "PUBLIC list thumbnail CSS90x90; no PUBLIC source change",
+  "thumbnail_center_delta_css_px": "<0.5",
+  "thumbnail_measurement_precision": "0.01CSSpx (hover transform float precision)",
+  "actor_modal_edit": "existing green gradient, visible/within viewport/uncovered, click navigates to organizations/10; existing canWrite gate preserved",
+  "mobile_320_modal": "scrolled inside dialog to show footer; no new sticky positioning",
+  "import_image_included": false
+}

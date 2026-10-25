@@ -16,15 +16,15 @@ function contact(type: "EMAIL" | "PHONE", isPublic: boolean): PersonContact {
 }
 
 describe("describeEffectivePublication", () => {
-  it("explains public contacts hidden by publish_person=false", () => {
+  it("keeps the simple hidden status even when contact flags are public", () => {
     const result = describeEffectivePublication({
       linkStatus: "ACTIVE",
       publishPerson: false,
       contacts: [contact("PHONE", true)],
     });
 
-    expect(result.tone).toBe("warning");
-    expect(result.message).toContain("vises ikke på denne aktøren fordi personen er skjult");
+    expect(result.tone).toBe("hidden");
+    expect(result.message).toBe("Personen og kontaktkanalene er skjult på denne aktøren.");
   });
 
   it("lists channels that can be shown when both gates are open", () => {

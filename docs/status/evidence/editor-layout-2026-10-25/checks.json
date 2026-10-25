@@ -1,0 +1,179 @@
+{
+  "browser": "145.0.7632.6",
+  "checks": [
+    "Actor footer follows preview, image and links; Save and Delete ordered left to right; native form association",
+    "Five distinct person columns; taxonomy separate from name/title",
+    "Dirty status uses visible orange and text",
+    "1920px: equal 313×148 cards, top-right place, no card/page overflow",
+    "1440px: equal 370×148 cards, top-right place, no card/page overflow",
+    "1366px: equal 345×148 cards, top-right place, no card/page overflow",
+    "1024px: equal 353×148 cards, top-right place, no card/page overflow",
+    "390px: equal 336×148 cards, top-right place, no card/page overflow",
+    "320px: equal 266×148 cards, top-right place, no card/page overflow"
+  ],
+  "images": [
+    {
+      "name": "01-actors-desktop-1920.png",
+      "width": 1920,
+      "height": 1080,
+      "fullPage": false
+    },
+    {
+      "name": "02-actor-modal-desktop.png",
+      "width": 1920,
+      "height": 1080,
+      "fullPage": false
+    },
+    {
+      "name": "03-edit-actor-top-desktop.png",
+      "width": 1920,
+      "height": 1080,
+      "fullPage": false
+    },
+    {
+      "name": "04-edit-actor-whole-page.png",
+      "width": 1920,
+      "height": 1080,
+      "fullPage": true
+    },
+    {
+      "name": "05-edit-actor-bottom-desktop.png",
+      "width": 1920,
+      "height": 1080,
+      "fullPage": false
+    },
+    {
+      "name": "06-image-workflow-desktop.png",
+      "width": 1920,
+      "height": 1080,
+      "fullPage": false
+    },
+    {
+      "name": "07-create-actor-top-desktop.png",
+      "width": 1920,
+      "height": 1080,
+      "fullPage": false
+    },
+    {
+      "name": "08-create-actor-bottom-desktop.png",
+      "width": 1920,
+      "height": 1080,
+      "fullPage": false
+    },
+    {
+      "name": "09-create-actor-whole-page.png",
+      "width": 1920,
+      "height": 1080,
+      "fullPage": true
+    },
+    {
+      "name": "10-people-entry-desktop.png",
+      "width": 1920,
+      "height": 1080,
+      "fullPage": false
+    },
+    {
+      "name": "11-people-five-columns-desktop.png",
+      "width": 1920,
+      "height": 1080,
+      "fullPage": false
+    },
+    {
+      "name": "12-edit-person-top-desktop.png",
+      "width": 1920,
+      "height": 1080,
+      "fullPage": false
+    },
+    {
+      "name": "13-person-orange-dirty-desktop.png",
+      "width": 1920,
+      "height": 1080,
+      "fullPage": false
+    },
+    {
+      "name": "14-create-person-desktop.png",
+      "width": 1920,
+      "height": 1080,
+      "fullPage": false
+    },
+    {
+      "name": "15-import-full-width-desktop.png",
+      "width": 1920,
+      "height": 1080,
+      "fullPage": false
+    },
+    {
+      "name": "16-actors-image-desktop-1920.png",
+      "width": 1920,
+      "height": 1080,
+      "fullPage": false
+    },
+    {
+      "name": "17-actors-1440.png",
+      "width": 1440,
+      "height": 1080,
+      "fullPage": false
+    },
+    {
+      "name": "17-actors-1366.png",
+      "width": 1366,
+      "height": 1080,
+      "fullPage": false
+    },
+    {
+      "name": "17-actors-1024.png",
+      "width": 1024,
+      "height": 1080,
+      "fullPage": false
+    },
+    {
+      "name": "17-actors-390.png",
+      "width": 390,
+      "height": 844,
+      "fullPage": false
+    },
+    {
+      "name": "18-actor-modal-mobile.png",
+      "width": 390,
+      "height": 844,
+      "fullPage": false
+    },
+    {
+      "name": "19-edit-actor-mobile.png",
+      "width": 390,
+      "height": 844,
+      "fullPage": true
+    },
+    {
+      "name": "20-actor-bottom-mobile.png",
+      "width": 390,
+      "height": 844,
+      "fullPage": false
+    },
+    {
+      "name": "17-actors-320.png",
+      "width": 320,
+      "height": 844,
+      "fullPage": false
+    },
+    {
+      "name": "21-people-mobile.png",
+      "width": 390,
+      "height": 844,
+      "fullPage": true
+    },
+    {
+      "name": "22-person-mobile.png",
+      "width": 390,
+      "height": 844,
+      "fullPage": true
+    },
+    {
+      "name": "23-create-actor-bottom-mobile.png",
+      "width": 390,
+      "height": 844,
+      "fullPage": false
+    }
+  ],
+  "errors": []
+}

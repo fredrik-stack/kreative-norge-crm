@@ -1,0 +1,16 @@
+{
+  "checks": [
+    "Separate actual Import/Export routes; honest export status; Admin shown for actual staff",
+    "Legacy /import-export entry still opens Import",
+    "Controlled display-only image projection and extreme-name fixture: real runtime image/fallback, +N and equal bounds on desktop/mobile",
+    "Real non-staff reader: actual name/tenant role; no Admin, write or Import/Export controls"
+  ],
+  "images": [
+    "34-import-desktop.png",
+    "35-export-desktop.png",
+    "36-cards-image-extreme-fixture-desktop.png",
+    "37-cards-image-extreme-fixture-mobile.png",
+    "38-reader-role-desktop.png"
+  ],
+  "runtime_head": "2cd0e18ad103d6af694d43335c4293faed26b03a"
+}

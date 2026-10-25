@@ -1,5 +1,6 @@
+import { usePersonForm } from "./usePersonForm";
 import type { FormEvent } from "react";
-import { useDeferredValue, useEffect, useMemo, useState, useTransition } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   ApiError,
   createTag,
@@ -11,17 +12,16 @@ import {
   getSubcategories,
   deleteOrganizationPerson,
   deletePerson,
-  deletePersonContact,
+  deleteOrganization,
   getOrganizations,
   getOrganizationPeople,
-  getPersonContacts,
   getPersons,
+  getPersonContacts,
+  patchPersonContact,
   getTags,
   getTenants,
   patchOrganization,
   patchOrganizationPerson,
-  patchPerson,
-  patchPersonContact,
   refreshOrganizationPreview,
   type OrganizationPatch,
   type PersonPayload,
@@ -33,19 +33,11 @@ import type {
   Organization,
   OrganizationPerson,
   Person,
-  PersonContact,
   Subcategory,
   Tag,
   Tenant,
 } from "../types";
 
-export type ContactDraft = {
-  type: "EMAIL" | "PHONE";
-  value: string;
-  phone_region: string | null;
-  is_primary: boolean;
-  is_public: boolean;
-};
 export type LinkedPersonDraft = {
   full_name: string;
   title: string;
@@ -60,6 +52,7 @@ export type LinkedPersonDraft = {
 };
 type FormFieldErrors = Partial<
   Record<
+    | "name"
     | "org_number"
     | "email"
     | "phone"
@@ -74,6 +67,7 @@ type FormFieldErrors = Partial<
 >;
 type PersonFieldErrors = Partial<
   Record<
+    | "full_name"
     | "email"
     | "phone"
     | "website_url"
@@ -85,7 +79,6 @@ type PersonFieldErrors = Partial<
     string
   >
 >;
-type ContactFieldErrors = Partial<Record<"value", string>>;
 type LinkedPersonFieldErrors = Partial<Record<"full_name" | "email" | "phone", string>>;
 
 const emptyDraft: OrganizationPatch = {
@@ -129,14 +122,6 @@ const emptyPersonDraft: PersonPayload = {
   subcategory_ids: [],
 };
 
-const emptyContactDraft: ContactDraft = {
-  type: "EMAIL",
-  value: "",
-  phone_region: null,
-  is_primary: false,
-  is_public: false,
-};
-
 const emptyLinkedPersonDraft: LinkedPersonDraft = {
   full_name: "",
   title: "",
@@ -159,14 +144,10 @@ export function useEditorData() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [organizationPeople, setOrganizationPeople] = useState<OrganizationPerson[]>([]);
-  const [personContacts, setPersonContacts] = useState<PersonContact[]>([]);
-  const [contactPhoneRegions, setContactPhoneRegions] = useState<Record<number, string>>({});
   const [selectedOrgId, setSelectedOrgId] = useState<number | "new" | null>(null);
   const [selectedPersonId, setSelectedPersonId] = useState<number | "new" | null>(null);
   const [draft, setDraft] = useState<OrganizationPatch>(emptyDraft);
-  const [personDraft, setPersonDraft] = useState<PersonPayload>(emptyPersonDraft);
   const [organizationTagInput, setOrganizationTagInput] = useState("");
-  const [personTagInput, setPersonTagInput] = useState("");
   const [overviewQuery, setOverviewQuery] = useState("");
   const [overviewCategorySlug, setOverviewCategorySlug] = useState("");
   const [overviewSubcategorySlug, setOverviewSubcategorySlug] = useState("");
@@ -176,25 +157,22 @@ export function useEditorData() {
   const deferredOverviewQuery = useDeferredValue(overviewQuery);
   const deferredQuery = useDeferredValue(query);
   const deferredPersonQuery = useDeferredValue(personQuery);
+  const organizationWriting = useRef(false);
+  const [organizationDeleting, setOrganizationDeleting] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
-  const [personSaveState, setPersonSaveState] = useState<SaveState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [linkPersonId, setLinkPersonId] = useState<number | null>(null);
   const [linkStatus, setLinkStatus] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
   const [linkPublishPerson, setLinkPublishPerson] = useState(false);
-  const [contactDraft, setContactDraft] = useState<ContactDraft>(emptyContactDraft);
   const [linkedPersonDraft, setLinkedPersonDraft] = useState<LinkedPersonDraft>(emptyLinkedPersonDraft);
   const [linkedPersonSaveState, setLinkedPersonSaveState] = useState<SaveState>("idle");
   const [organizationFieldErrors, setOrganizationFieldErrors] = useState<FormFieldErrors>({});
-  const [personFieldErrors, setPersonFieldErrors] = useState<PersonFieldErrors>({});
-  const [contactFieldErrors, setContactFieldErrors] = useState<ContactFieldErrors>({});
   const [linkedPersonFieldErrors, setLinkedPersonFieldErrors] = useState<LinkedPersonFieldErrors>({});
   const [organizationLastSavedAt, setOrganizationLastSavedAt] = useState<string | null>(null);
-  const [personLastSavedAt, setPersonLastSavedAt] = useState<string | null>(null);
   const [previewRefreshState, setPreviewRefreshState] = useState<SaveState>("idle");
+  const [tenantDataError, setTenantDataError] = useState<string | null>(null);
   const [tenantDataLoaded, setTenantDataLoaded] = useState(false);
   const [tenantDataLoading, setTenantDataLoading] = useState(false);
-  const [personContactsLoading, setPersonContactsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -209,7 +187,10 @@ export function useEditorData() {
         if (tenantData.length > 0) setTenantId((current) => current ?? tenantData[0].id);
       })
       .catch((err: Error) => {
-        if (!cancelled) setError(err.message);
+        if (!cancelled) {
+          setError(err.message);
+          setTenantDataError(err.message);
+        }
       });
 
     return () => {
@@ -223,6 +204,7 @@ export function useEditorData() {
 
     setError(null);
     setSaveState("idle");
+    setTenantDataError(null);
     setTenantDataLoaded(false);
     setTenantDataLoading(true);
 
@@ -258,6 +240,7 @@ export function useEditorData() {
       .catch((err: Error) => {
         if (!cancelled) {
           setError(err.message);
+          setTenantDataError(err.message);
           setTenantDataLoaded(true);
           setTenantDataLoading(false);
         }
@@ -295,7 +278,7 @@ export function useEditorData() {
     if (selectedOrgId === "new") {
       setDraft({ ...emptyDraft, phone_region: selectedTenant?.default_phone_region ?? null });
       setOrganizationTagInput("");
-      setSaveState("idle");
+      if (!organizationWriting.current) setSaveState("idle");
       setOrganizationFieldErrors({});
       return;
     }
@@ -327,85 +310,9 @@ export function useEditorData() {
       subcategory_ids: (selectedOrganization.subcategories ?? []).map((item) => item.id),
     });
     setOrganizationTagInput(formatTagInput(selectedOrganization.tags ?? []));
-    setSaveState("idle");
+    if (!organizationWriting.current) setSaveState("idle");
     setOrganizationFieldErrors({});
   }, [selectedOrgId, selectedOrganization, selectedTenant?.default_phone_region]);
-
-  // Separate contact input belongs to the selected person, not each profile reload.
-  useEffect(() => {
-    setContactDraft({ ...emptyContactDraft, phone_region: selectedTenant?.default_phone_region ?? null });
-    setContactFieldErrors({});
-  }, [tenantId, selectedPersonId, selectedTenant?.default_phone_region]);
-
-  useEffect(() => {
-    if (selectedPersonId === "new") {
-      setPersonDraft({ ...emptyPersonDraft, phone_region: selectedTenant?.default_phone_region ?? null });
-      setPersonTagInput("");
-      setPersonSaveState("idle");
-      setPersonContacts([]);
-      setPersonFieldErrors({});
-      setPersonContactsLoading(false);
-      return;
-    }
-    if (!selectedPerson) return;
-
-    setPersonDraft({
-      full_name: selectedPerson.full_name ?? "",
-      title: selectedPerson.title ?? "",
-      email: selectedPerson.email ?? "",
-      phone: selectedPerson.phone ?? "",
-      phone_region: initialPhoneRegion(
-        selectedPerson.phone,
-        selectedPerson.phone_region_used,
-        selectedTenant?.default_phone_region,
-      ),
-      municipality: selectedPerson.municipality ?? "",
-      note: selectedPerson.note ?? "",
-      website_url: selectedPerson.website_url ?? "",
-      instagram_url: selectedPerson.instagram_url ?? "",
-      tiktok_url: selectedPerson.tiktok_url ?? "",
-      linkedin_url: selectedPerson.linkedin_url ?? "",
-      facebook_url: selectedPerson.facebook_url ?? "",
-      youtube_url: selectedPerson.youtube_url ?? "",
-      tag_ids: (selectedPerson.tags ?? []).map((tag) => tag.id),
-      category_ids: deriveCategoryIds((selectedPerson.categories ?? []), (selectedPerson.subcategories ?? [])),
-      subcategory_ids: (selectedPerson.subcategories ?? []).map((item) => item.id),
-    });
-    setPersonTagInput(formatTagInput(selectedPerson.tags ?? []));
-    setPersonContacts(selectedPerson.contacts ?? []);
-    setContactPhoneRegions(
-      buildContactPhoneRegions(selectedPerson.contacts ?? [], selectedTenant?.default_phone_region),
-    );
-    setPersonSaveState("idle");
-    setPersonFieldErrors({});
-  }, [selectedPersonId, selectedPerson, selectedTenant?.default_phone_region]);
-
-  useEffect(() => {
-    if (!tenantId || typeof selectedPersonId !== "number") return;
-    let cancelled = false;
-    setPersonContactsLoading(true);
-
-    getPersonContacts(tenantId, selectedPersonId)
-      .then((contacts) => {
-        if (!cancelled) {
-          setPersonContacts(contacts);
-          setContactPhoneRegions(
-            buildContactPhoneRegions(contacts, selectedTenant?.default_phone_region),
-          );
-          setPersonContactsLoading(false);
-        }
-      })
-      .catch((err: Error) => {
-        if (!cancelled) {
-          setError(err.message);
-          setPersonContactsLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [tenantId, selectedPersonId, selectedTenant?.default_phone_region]);
 
   const visibleOrganizations = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
@@ -547,84 +454,15 @@ export function useEditorData() {
     );
   }, [draft, organizationTagInput, selectedOrgId, selectedOrganization, selectedTenant?.default_phone_region]);
 
-  const peopleHasUnsavedChanges = useMemo(() => {
-    const baseline =
-      selectedPersonId === "new"
-        ? { ...emptyPersonDraft, phone_region: selectedTenant?.default_phone_region ?? null }
-        : selectedPerson
-          ? {
-              full_name: selectedPerson.full_name ?? "",
-              title: selectedPerson.title ?? "",
-              email: selectedPerson.email ?? "",
-              phone: selectedPerson.phone ?? "",
-              phone_region: initialPhoneRegion(
-                selectedPerson.phone,
-                selectedPerson.phone_region_used,
-                selectedTenant?.default_phone_region,
-              ),
-              municipality: selectedPerson.municipality ?? "",
-              note: selectedPerson.note ?? "",
-              website_url: selectedPerson.website_url ?? "",
-              instagram_url: selectedPerson.instagram_url ?? "",
-              tiktok_url: selectedPerson.tiktok_url ?? "",
-              linkedin_url: selectedPerson.linkedin_url ?? "",
-              facebook_url: selectedPerson.facebook_url ?? "",
-              youtube_url: selectedPerson.youtube_url ?? "",
-              tag_ids: (selectedPerson.tags ?? []).map((tag) => tag.id),
-              category_ids: deriveCategoryIds((selectedPerson.categories ?? []), (selectedPerson.subcategories ?? [])),
-              subcategory_ids: (selectedPerson.subcategories ?? []).map((item) => item.id),
-            }
-          : emptyPersonDraft;
-    const baselineTagInput = formatTagInput(selectedPerson?.tags ?? []);
-    const personDirty =
-      !isEqualShallowPersonDraft(normalizePersonDraft(personDraft), normalizePersonDraft(baseline)) ||
-      isDifferentTagInput(personTagInput, baselineTagInput);
-    const contactDirty =
-      contactDraft.value.trim() !== "" ||
-      contactDraft.type !== emptyContactDraft.type ||
-      contactDraft.is_primary !== emptyContactDraft.is_primary ||
-      contactDraft.is_public !== emptyContactDraft.is_public;
-    return personDirty || contactDirty;
-  }, [contactDraft, personDraft, personTagInput, selectedPerson, selectedPersonId, selectedTenant?.default_phone_region]);
-  const personDraftHasUnsavedChanges = useMemo(() => {
-    const baseline =
-      selectedPersonId === "new"
-        ? { ...emptyPersonDraft, phone_region: selectedTenant?.default_phone_region ?? null }
-        : selectedPerson
-          ? {
-              full_name: selectedPerson.full_name ?? "",
-              title: selectedPerson.title ?? "",
-              email: selectedPerson.email ?? "",
-              phone: selectedPerson.phone ?? "",
-              phone_region: initialPhoneRegion(
-                selectedPerson.phone,
-                selectedPerson.phone_region_used,
-                selectedTenant?.default_phone_region,
-              ),
-              municipality: selectedPerson.municipality ?? "",
-              note: selectedPerson.note ?? "",
-              website_url: selectedPerson.website_url ?? "",
-              instagram_url: selectedPerson.instagram_url ?? "",
-              tiktok_url: selectedPerson.tiktok_url ?? "",
-              linkedin_url: selectedPerson.linkedin_url ?? "",
-              facebook_url: selectedPerson.facebook_url ?? "",
-              youtube_url: selectedPerson.youtube_url ?? "",
-              tag_ids: (selectedPerson.tags ?? []).map((tag) => tag.id),
-              category_ids: deriveCategoryIds((selectedPerson.categories ?? []), (selectedPerson.subcategories ?? [])),
-              subcategory_ids: (selectedPerson.subcategories ?? []).map((item) => item.id),
-            }
-          : emptyPersonDraft;
-    const baselineTagInput = formatTagInput(selectedPerson?.tags ?? []);
-    return (
-      !isEqualShallowPersonDraft(normalizePersonDraft(personDraft), normalizePersonDraft(baseline)) ||
-      isDifferentTagInput(personTagInput, baselineTagInput)
-    );
-  }, [personDraft, personTagInput, selectedPerson, selectedPersonId, selectedTenant?.default_phone_region]);
-  const contactDraftHasUnsavedChanges =
-    contactDraft.value.trim() !== "" ||
-    contactDraft.type !== emptyContactDraft.type ||
-    contactDraft.is_primary !== emptyContactDraft.is_primary ||
-    contactDraft.is_public !== emptyContactDraft.is_public;
+  const personForm = usePersonForm({
+    tenantId, selectedId: selectedPersonId, person: selectedPerson,
+    region: selectedTenant?.default_phone_region ?? null, empty: emptyPersonDraft,
+    normalize: normalizePersonDraft, validate: validatePersonDraft,
+    resolveTags: (id, input) => resolveTagIdsForInput(id, input, setTags), select: setSelectedPersonId, setError,
+    remember: (saved) => setPersons(current => current.some(item => item.id === saved.id)
+      ? current.map(item => item.id === saved.id ? saved : item) : [...current, saved]),
+  });
+  const { peopleHasUnsavedChanges, personDraftHasUnsavedChanges, submitPersonDraft, onResetPersonDraft } = personForm;
 
   const hasUnsavedChanges = organizationHasUnsavedChanges || peopleHasUnsavedChanges;
 
@@ -671,6 +509,7 @@ export function useEditorData() {
   }
 
   async function submitOrganizationDraft(): Promise<boolean> {
+    if (organizationWriting.current) return false;
     if (!tenantId) return false;
     const nextErrors = validateOrganizationDraft(draft);
     setOrganizationFieldErrors(nextErrors);
@@ -679,6 +518,7 @@ export function useEditorData() {
       setError("Rett feltene markert i rødt før du lagrer aktøren.");
       return false;
     }
+    organizationWriting.current = true;
     setSaveState("saving");
     setError(null);
     try {
@@ -720,7 +560,7 @@ export function useEditorData() {
       setSaveState("error");
       setError(apiErrorMessage(err, "Kunne ikke lagre organisasjon"));
       return false;
-    }
+    } finally { organizationWriting.current = false; }
   }
 
   async function onSubmit(event: FormEvent) {
@@ -850,209 +690,41 @@ export function useEditorData() {
     }
   }
 
-  async function submitPersonDraft(): Promise<boolean> {
-    if (!tenantId) return false;
-    const nextErrors = validatePersonDraft(personDraft);
-    setPersonFieldErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) {
-      setPersonSaveState("error");
-      setError("Rett feltene markert i rødt før du lagrer personen.");
-      return false;
-    }
-    setPersonSaveState("saving");
-    setError(null);
-    try {
-      const resolvedTagIds = await resolveTagIdsForInput(tenantId, personTagInput);
-      const payload = normalizePersonDraft({
-        ...personDraft,
-        tag_ids: resolvedTagIds,
-      });
-      if (selectedPersonId === "new") {
-        const created = await createPerson(tenantId, payload);
-        await reloadPeopleAndLinks();
-        setSelectedPersonId(created.id);
-      } else if (typeof selectedPersonId === "number") {
-        const updated = await patchPerson(tenantId, selectedPersonId, payload);
-        setPersons((current) =>
-          current.map((person) => (person.id === updated.id ? { ...person, ...updated } : person)),
-        );
-        setPersonContacts(await getPersonContacts(tenantId, selectedPersonId));
-      } else {
-        throw new Error("Ingen person valgt");
-      }
-      setPersonDraft((current) => ({ ...current, tag_ids: resolvedTagIds }));
-      setTags(await getTags(tenantId));
-      setPersonTagInput(normalizeTagInput(personTagInput));
-      setPersonSaveState("saved");
-      setPersonLastSavedAt(new Date().toISOString());
-      return true;
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 400) {
-        setPersonFieldErrors((current) => ({
-          ...current,
-          ...pickFieldErrors(err.data, ["email", "phone"]),
-          ...pickFieldErrors(err.data, [
-            "website_url",
-            "instagram_url",
-            "tiktok_url",
-            "linkedin_url",
-            "facebook_url",
-            "youtube_url",
-          ]),
-        }));
-      }
-      setPersonSaveState("error");
-      setError(apiErrorMessage(err, "Kunne ikke lagre person"));
-      return false;
-    }
-  }
-
-  async function onSubmitPerson(event: FormEvent) {
-    event.preventDefault();
-    await submitPersonDraft();
-  }
-
   async function onDeletePerson() {
     if (!tenantId || typeof selectedPersonId !== "number") return;
     try {
       setError(null);
       await deletePerson(tenantId, selectedPersonId);
       await reloadPeopleAndLinks();
-      setPersonContacts([]);
+
     } catch (err) {
       setError(apiErrorMessage(err, "Kunne ikke slette person"));
     }
   }
 
-  async function createContactFromDraft(): Promise<boolean> {
-    if (!tenantId || typeof selectedPersonId !== "number") return false;
-    const nextErrors = validateContactDraft(contactDraft);
-    setContactFieldErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) {
-      setError("Rett feltet markert i rødt før du lagrer kontaktkanalen.");
-      return false;
-    }
+  async function onDeleteOrganization(): Promise<boolean> {
+    if (!tenantId || typeof selectedOrgId !== "number" || !canDelete || organizationWriting.current) return false;
+    organizationWriting.current = true;
+    setOrganizationDeleting(true);
+    setError(null);
+    const deletedId = selectedOrgId;
     try {
-      setError(null);
-      const created = await createPersonContact(tenantId, {
-        person: selectedPersonId,
-        ...contactDraft,
-        value: contactDraft.value.trim(),
-        ...(contactDraft.type === "PHONE" ? { phone_region: contactDraft.phone_region } : {}),
-      });
-      if (created.is_primary) {
-        setPersonDraft((current) => ({
-          ...current,
-          ...(created.type === "EMAIL" ? { email: created.value } : {}),
-          ...(created.type === "PHONE" ? { phone: created.value } : {}),
-        }));
-      }
-      setPersonContacts((current) => sortContacts([...current, created]));
-      setPersons((current) =>
-        current.map((person) =>
-          person.id === selectedPersonId
-            ? {
-                ...person,
-                ...(created.is_primary && created.type === "EMAIL" ? { email: created.value } : {}),
-                ...(created.is_primary && created.type === "PHONE" ? { phone: created.value } : {}),
-                contacts: sortContacts([...(person.contacts ?? []), created]),
-              }
-            : person,
-        ),
-      );
-      setContactDraft((prev) => ({
-        ...prev,
-        value: "",
-        phone_region: selectedTenant?.default_phone_region ?? null,
-        is_primary: false,
-        is_public: false,
-      }));
-      setContactFieldErrors({});
+      await deleteOrganization(tenantId, deletedId);
+      // Only a confirmed DELETE clears the profile and its local links.
+      setOrganizations(current => current.filter(org => org.id !== deletedId));
+      setOrganizationPeople(current => current.filter(link => link.organization !== deletedId));
+      setSelectedOrgId(null);
+      setDraft(emptyDraft);
+      setOrganizationTagInput("");
+      setOrganizationFieldErrors({});
+      setSaveState("idle");
       return true;
     } catch (err) {
-      if (err instanceof ApiError && err.status === 400) {
-        setContactFieldErrors((current) => ({
-          ...current,
-          ...pickFieldErrors(err.data, ["value"]),
-        }));
-      }
-      setError(apiErrorMessage(err, "Kunne ikke opprette kontakt"));
+      setError(apiErrorMessage(err, "Sletting ikke bekreftet. Kontroller lagret resultat før du prøver igjen."));
       return false;
-    }
-  }
-
-  async function onCreateContact(event: FormEvent) {
-    event.preventDefault();
-    await createContactFromDraft();
-  }
-
-  async function updateContact(
-    contactId: number,
-    payload: Partial<{
-      type: "EMAIL" | "PHONE";
-      value: string;
-      phone_region: string | null;
-      is_primary: boolean;
-      is_public: boolean;
-    }>,
-  ) {
-    if (!tenantId || typeof selectedPersonId !== "number") return;
-    try {
-      setError(null);
-      const updated = await patchPersonContact(tenantId, contactId, payload);
-      if (updated.is_primary) {
-        setPersonDraft((current) => ({
-          ...current,
-          ...(updated.type === "EMAIL" ? { email: updated.value } : {}),
-          ...(updated.type === "PHONE" ? { phone: updated.value } : {}),
-        }));
-      }
-      setPersonContacts((current) =>
-        sortContacts(current.map((contact) => (contact.id === contactId ? updated : contact))),
-      );
-      setPersons((current) =>
-        current.map((person) =>
-          person.id === selectedPersonId
-            ? {
-                ...person,
-                ...(updated.is_primary && updated.type === "EMAIL" ? { email: updated.value } : {}),
-                ...(updated.is_primary && updated.type === "PHONE" ? { phone: updated.value } : {}),
-                contacts: sortContacts(
-                  (person.contacts ?? []).map((contact) => (contact.id === contactId ? updated : contact)),
-                ),
-              }
-            : person,
-        ),
-      );
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 400) {
-        setContactFieldErrors((current) => ({
-          ...current,
-          ...pickFieldErrors(err.data, ["value"]),
-        }));
-      }
-      setError(apiErrorMessage(err, "Kunne ikke oppdatere kontakt"));
-    }
-  }
-
-  async function removeContact(contactId: number) {
-    if (!tenantId || typeof selectedPersonId !== "number") return;
-    try {
-      setError(null);
-      await deletePersonContact(tenantId, contactId);
-      setPersonContacts((current) => current.filter((contact) => contact.id !== contactId));
-      setPersons((current) =>
-        current.map((person) =>
-          person.id === selectedPersonId
-            ? {
-                ...person,
-                contacts: (person.contacts ?? []).filter((contact) => contact.id !== contactId),
-              }
-            : person,
-        ),
-      );
-    } catch (err) {
-      setError(apiErrorMessage(err, "Kunne ikke slette kontakt"));
+    } finally {
+      organizationWriting.current = false;
+      setOrganizationDeleting(false);
     }
   }
 
@@ -1121,43 +793,6 @@ export function useEditorData() {
     setOrganizationFieldErrors({});
   }
 
-  function onResetPersonDraft() {
-    if (personSaveState === "saving") return;
-    if (selectedPersonId === "new") {
-      setPersonDraft({ ...emptyPersonDraft, phone_region: selectedTenant?.default_phone_region ?? null });
-      setPersonFieldErrors({});
-      setPersonTagInput("");
-      setPersonSaveState("idle");
-      return;
-    }
-    if (!selectedPerson) return;
-    setPersonDraft({
-      full_name: selectedPerson.full_name ?? "",
-      title: selectedPerson.title ?? "",
-      email: selectedPerson.email ?? "",
-      phone: selectedPerson.phone ?? "",
-      phone_region: initialPhoneRegion(
-        selectedPerson.phone,
-        selectedPerson.phone_region_used,
-        selectedTenant?.default_phone_region,
-      ),
-      municipality: selectedPerson.municipality ?? "",
-      note: selectedPerson.note ?? "",
-      website_url: selectedPerson.website_url ?? "",
-      instagram_url: selectedPerson.instagram_url ?? "",
-      tiktok_url: selectedPerson.tiktok_url ?? "",
-      linkedin_url: selectedPerson.linkedin_url ?? "",
-      facebook_url: selectedPerson.facebook_url ?? "",
-      youtube_url: selectedPerson.youtube_url ?? "",
-      tag_ids: (selectedPerson.tags ?? []).map((tag) => tag.id),
-      category_ids: deriveCategoryIds((selectedPerson.categories ?? []), (selectedPerson.subcategories ?? [])),
-      subcategory_ids: (selectedPerson.subcategories ?? []).map((item) => item.id),
-    });
-    setPersonTagInput(formatTagInput(selectedPerson.tags ?? []));
-    setPersonSaveState("idle");
-    setPersonFieldErrors({});
-  }
-
   async function saveAllPendingChanges(): Promise<boolean> {
     let ok = true;
     if (organizationHasUnsavedChanges) {
@@ -1168,21 +803,12 @@ export function useEditorData() {
       ok = (await submitPersonDraft()) && ok;
       if (!ok) return false;
     }
-    if (contactDraftHasUnsavedChanges) {
-      ok = (await createContactFromDraft()) && ok;
-      if (!ok) return false;
-    }
     return ok;
   }
 
   function discardAllPendingChanges() {
     onResetOrganizationDraft();
     onResetPersonDraft();
-    setContactDraft({
-      ...emptyContactDraft,
-      phone_region: selectedTenant?.default_phone_region ?? null,
-    });
-    setContactFieldErrors({});
     setLinkedPersonDraft({
       ...emptyLinkedPersonDraft,
       phone_region: selectedTenant?.default_phone_region ?? null,
@@ -1190,9 +816,7 @@ export function useEditorData() {
     setLinkedPersonFieldErrors({});
     setLinkedPersonSaveState("idle");
     setOrganizationFieldErrors({});
-    setPersonFieldErrors({});
     setSaveState("idle");
-    setPersonSaveState("idle");
     setError(null);
   }
 
@@ -1220,6 +844,8 @@ export function useEditorData() {
   const isReadOnly = currentTenantRole === "leser";
 
   return {
+    ...personForm,
+    personContacts: selectedPerson?.contacts ?? [],
     tenants,
     tenantId,
     currentTenantRole,
@@ -1235,7 +861,6 @@ export function useEditorData() {
     tags,
     categories,
     subcategories,
-    personContacts,
     selectedOrgId,
     setSelectedOrgId,
     selectedPersonId,
@@ -1244,10 +869,6 @@ export function useEditorData() {
     setDraft,
     organizationTagInput,
     setOrganizationTagInput,
-    personDraft,
-    setPersonDraft,
-    personTagInput,
-    setPersonTagInput,
     overviewQuery,
     setOverviewQuery,
     overviewCategorySlug,
@@ -1266,7 +887,6 @@ export function useEditorData() {
     personQuery,
     setPersonQuery,
     saveState,
-    personSaveState,
     previewRefreshState,
     error,
     setError,
@@ -1276,30 +896,20 @@ export function useEditorData() {
     setLinkStatus,
     linkPublishPerson,
     setLinkPublishPerson,
-    contactDraft,
-    setContactDraft,
-    contactPhoneRegions,
-    setContactPhoneRegion: (contactId: number, region: string) =>
-      setContactPhoneRegions((current) => ({ ...current, [contactId]: region })),
     linkedPersonDraft,
     setLinkedPersonDraft,
     linkedPersonSaveState,
     linkedPersonFieldErrors,
     organizationFieldErrors,
-    personFieldErrors,
-    contactFieldErrors,
     organizationLastSavedAt,
-    personLastSavedAt,
     organizationHasUnsavedChanges,
-    personDraftHasUnsavedChanges,
-    contactDraftHasUnsavedChanges,
-    peopleHasUnsavedChanges,
     hasUnsavedChanges,
     saveAllPendingChanges,
     discardAllPendingChanges,
+    overviewSearchPending: overviewQuery !== deferredOverviewQuery,
+    tenantDataError,
     tenantDataLoaded,
     tenantDataLoading,
-    personContactsLoading,
     isPending,
     visibleOrganizations,
     visiblePersons,
@@ -1311,17 +921,12 @@ export function useEditorData() {
     onRefreshOrganizationPreview,
     onCreateLink,
     onCreateLinkedPerson,
-    onSubmitPerson,
     onDeletePerson,
-    createContactFromDraft,
-    onCreateContact,
-    updateContact,
-    removeContact,
+    onDeleteOrganization,
+    organizationDeleting,
     updateLink,
     removeLink,
     onResetOrganizationDraft,
-    onResetPersonDraft,
-    setPersonContacts,
   };
 }
 
@@ -1329,6 +934,7 @@ export type EditorData = ReturnType<typeof useEditorData>;
 
 function validateOrganizationDraft(draft: OrganizationPatch): FormFieldErrors {
   const errors: FormFieldErrors = {};
+  if (!draft.name?.trim()) errors.name = "Navn er påkrevd.";
   const orgNumber = (draft.org_number ?? "").trim();
   const email = (draft.email ?? "").trim();
   const phone = (draft.phone ?? "").trim();
@@ -1371,6 +977,7 @@ function validateOrganizationDraft(draft: OrganizationPatch): FormFieldErrors {
 
 function validatePersonDraft(draft: PersonPayload): PersonFieldErrors {
   const errors: PersonFieldErrors = {};
+  if (!draft.full_name.trim()) errors.full_name = "Fullt navn er påkrevd.";
   const email = (draft.email ?? "").trim();
   const phone = (draft.phone ?? "").trim();
   const websiteUrl = (draft.website_url ?? "").trim();
@@ -1402,22 +1009,6 @@ function validatePersonDraft(draft: PersonPayload): PersonFieldErrors {
   }
   if (youtubeUrl && !isLikelyValidHttpUrl(youtubeUrl)) {
     errors.youtube_url = "Ugyldig URL.";
-  }
-  return errors;
-}
-
-function validateContactDraft(draft: ContactDraft): ContactFieldErrors {
-  const errors: ContactFieldErrors = {};
-  const value = draft.value.trim();
-  if (!value) {
-    errors.value = "Kontaktverdi er påkrevd.";
-    return errors;
-  }
-  if (draft.type === "EMAIL" && !isValidEmail(value)) {
-    errors.value = "Ugyldig e-postadresse.";
-  }
-  if (draft.type === "PHONE" && !isLikelyValidPhone(value)) {
-    errors.value = "Ugyldig telefonnummer.";
   }
   return errors;
 }
@@ -1559,30 +1150,6 @@ function normalizePersonDraft(draft: PersonPayload): PersonPayload {
   };
 }
 
-function sortContacts<T extends { is_primary?: boolean; type?: string; value?: string }>(contacts: T[]): T[] {
-  return [...contacts].sort((a, b) => {
-    const primaryDelta = Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary));
-    if (primaryDelta !== 0) return primaryDelta;
-    const typeCmp = (a.type ?? "").localeCompare(b.type ?? "");
-    if (typeCmp !== 0) return typeCmp;
-    return (a.value ?? "").localeCompare(b.value ?? "");
-  });
-}
-
-function buildContactPhoneRegions(
-  contacts: PersonContact[],
-  tenantDefault: string | null | undefined,
-): Record<number, string> {
-  return Object.fromEntries(
-    contacts
-      .filter((contact) => contact.type === "PHONE")
-      .map((contact) => [
-        contact.id,
-        initialPhoneRegion(contact.value, contact.phone_region_used, tenantDefault),
-      ]),
-  );
-}
-
 function isEqualShallowOrganizationDraft(a: OrganizationPatch, b: OrganizationPatch): boolean {
   return (
     a.name === b.name &&
@@ -1600,27 +1167,6 @@ function isEqualShallowOrganizationDraft(a: OrganizationPatch, b: OrganizationPa
     a.instagram_url === b.instagram_url &&
     a.tiktok_url === b.tiktok_url &&
     a.linkedin_url === b.linkedin_url &&
-    a.youtube_url === b.youtube_url &&
-    isEqualIdList(a.tag_ids, b.tag_ids) &&
-    isEqualIdList(a.category_ids, b.category_ids) &&
-    isEqualIdList(a.subcategory_ids, b.subcategory_ids)
-  );
-}
-
-function isEqualShallowPersonDraft(a: PersonPayload, b: PersonPayload): boolean {
-  return (
-    a.full_name === b.full_name &&
-    a.title === b.title &&
-    a.email === b.email &&
-    a.phone === b.phone &&
-    a.phone_region === b.phone_region &&
-    a.municipality === b.municipality &&
-    a.note === b.note &&
-    a.website_url === b.website_url &&
-    a.instagram_url === b.instagram_url &&
-    a.tiktok_url === b.tiktok_url &&
-    a.linkedin_url === b.linkedin_url &&
-    a.facebook_url === b.facebook_url &&
     a.youtube_url === b.youtube_url &&
     isEqualIdList(a.tag_ids, b.tag_ids) &&
     isEqualIdList(a.category_ids, b.category_ids) &&
@@ -1654,6 +1200,7 @@ function deriveCategoryIds(
 async function resolveTagIdsForInput(
   tenantId: number,
   rawInput: string,
+  onResolved?: (tags: Tag[]) => void,
 ): Promise<number[]> {
   const names = parseTagNames(rawInput);
   if (names.length > 5) {
@@ -1673,10 +1220,12 @@ async function resolveTagIdsForInput(
       continue;
     }
     const created = await createTag(tenantId, { name });
+    existing.push(created);
     byLowerName.set(lower, created);
     resolved.push(created);
   }
 
+  onResolved?.(existing);
   return uniqueSortedIds(resolved.map((tag) => tag.id));
 }
 

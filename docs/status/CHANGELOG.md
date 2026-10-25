@@ -1,5 +1,71 @@
 # Changelog
 
+## 2026-10-25 – thumbnailbalanse og aktørmodal i PR #92
+
+- Oversiktens bilde/fallback økes til90×90px som PUBLIC og sentreres vertikalt;
+  godkjente kortmål/kolonner/fonter beholdes. Hovedkategori krymper ikke på mobil.
+- Eksisterende grønn Rediger i aktørmodalen er verifisert synlig/udekket og
+  funksjonell på desktop/mobil, med samme rettigheter. Ingen modalkodeendring.
+- Seks nye viewportbilder fra syntetiske API-fixtures.66frontendtester,
+  TS/bygg og24Editor-reiser grønne. Ingen ny backend-/DB-/Dockerkjøring.
+  Samme draft PR, ingen merge/staging; se UI-6 §13 og ny datert rapport.
+
+## 2026-10-25 – låst kortformat og metadatafarger i PR #92
+
+- Eiers godkjente kortstørrelse beholdes; thumbnail/fallback blir 76×76.
+- Personoversiktens kategori-/underkategori-/taggmetadata får sine eksisterende
+  brune/blå/grønne farger på desktop/mobil. Samme konkrete fargefeil rettes i
+  eksisterende importchips og eldre PUBLIC-detaljvariant, uten ny UX/policy.
+- Forrige Importbilde15 markeres avvist som misvisende og beholdes kun historisk;
+  godkjent v6 rev.4/O-24 er styrende. Ni nye avgrensede browserbilder.
+- 66 frontendtester, 24 Editor-reiser, TS/build og 8 DB-frie PUBLIC-template-
+  browserkontroller grønne. Etter konkret CI-funn er gammel PUBLIC-fargeforventning
+  oppdatert; 18 eksisterende projeksjonstester grønne i isolert PostgreSQL.
+  Samme draft PR; ingen merge/staging.
+
+## 2026-10-25 – andre visuelle retting av PR #92 (før eiergodkjenning)
+
+- Aktørkort reduseres fra 208 til 148 px, med mindre navnetekst/linjebryting,
+  sted øverst høyre og fortsatt like mål i responsivt grid.
+- Aktørens nedre submit flyttes etter alle seksjoner; native formassosiasjon
+  bevarer samme validering/submit. Slett aktør gjenopprettes ved siden av med
+  eksisterende roller, confirm, innsendinglås og serverbeskyttelse.
+- Ny enkel tekst ved personkoblinger på ny aktør, og god luft rundt Opprett.
+  Den lange forklaringen om offentlige kontakter på skjult person fjernes.
+- Personresultater får egen femte metadata-kolonne; dirty-status blir oransje.
+- 29 nye viewport-/fullside-/zoombilder; 66 frontendtester og 20 Editor-reiser
+  grønne. UI-6 §11 og ny datert kontrollrapport beskriver scope og bevisgrenser.
+  Ingen merge/staging eller samlet visuell godkjenning.
+
+## 2026-10-25 – eierbestilt retting av PR #92 (før samlet visuell godkjenning)
+
+- Fast desktop-venstremeny/kompakt mobilmeny, faktisk bruker-/rolle-/kontorpanel,
+  separate Import-/Eksport-ruter og betinget eksisterende Django-adminlenke.
+- Additivt display_name/can_access_admin i Session/Login; senere deployscope
+  er API + frontend, uten ny migrasjon.
+- Like kortmål, thumbnail, én tagg +N; status/Rediger beholdes bare i modal.
+- Samme submit øverst/nederst, ingen stående resetknapp, mindre vertikale gap,
+  ingen tom previewkolonne og region før nummer.
+- Personkontakter er lokale til Lagre/Opprett; sekvensielle eksisterende API-er,
+  bevarte ID-er ved delvis feil, sperre ved ukjent POST og eksplisitt utsatt fjerning.
+- Kontakt-dirty verner også logout. Feilwrites beholder montert skjema; blokkert
+  rute konsumeres bare én gang ved samtidige save-/routeroppdateringer.
+- Personresultater får metadata/hint, modalens Knyttet-indikator fjernes, og Field
+  navngir også innpakket Import-input. PUBLIC/primær-/taggpolicy er uendret.
+- Se UI-6 §10 og datert nytt visuelt grunnlag. Ingen merge/staging eller fullført
+  UI-6/6B/6C i denne rettingsrunden.
+
+## 2026-10-24 – samordnet kompakt Editor (kodeleveranse, før visuell godkjenning)
+
+- Aktørkort/lesemodaler og aktør-/personskjema har felles kompakt hierarki etter
+  godkjent Import v6 rev.4/O-24, med eksisterende Editor-fonter.
+- Profilhandlinger ved profilhodet erstatter stor sticky-bunnrad; sekundære
+  oppgaver åpnes med bevart utkast og tilgjengelig feltvalidering.
+- Personoversikten starter med søk/filter og fire kompakte informasjonsgrupper.
+- Eksisterende profilreset, dirty/status, kontaktutkast og separate writes består.
+- Branchleveranse; merge, frontend-only staging og eieraksept gjenstår. Se UI-6 §9.
+
+
 ## 2026-10-17 – første eiergodkjente 6A.2-legacybackfill i staging
 
 - Eksakt godkjent plan anvendt én gang: 578 semantiske endringer; én COMMITTED_VERIFIED-batch, frisk read-back og no-op uten restendringer.

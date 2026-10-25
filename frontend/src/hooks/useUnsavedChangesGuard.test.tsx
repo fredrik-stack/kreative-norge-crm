@@ -19,6 +19,40 @@ vi.mock("react-router-dom", async () => {
 import { useUnsavedChangesGuard } from "./useUnsavedChangesGuard";
 
 describe("useUnsavedChangesGuard", () => {
+  it("cannot discard or switch tenant while a profile write is still running", async () => {
+    const apply=vi.fn(), discard=vi.fn(), save=vi.fn();
+    const {result}=renderHook(()=>useUnsavedChangesGuard({hasUnsavedChanges:true,isSaving:true,tenants:[],dirtySummary:[],applyTenantSelection:apply,discardAllPendingChanges:discard,saveAllPendingChanges:save}));
+    act(()=>result.current.requestTenantSelection(2));
+    expect(result.current.modal.busy).toBe(true);
+    act(()=>result.current.modal.onDiscardAndContinue());
+    await act(async()=>{await result.current.modal.onSaveAndContinue();});
+    expect(apply).not.toHaveBeenCalled(); expect(discard).not.toHaveBeenCalled(); expect(save).not.toHaveBeenCalled();
+  });
+  it("guards logout, waits for save, stays on failure and runs once on success", async () => {
+    let release!: (ok: boolean) => void;
+    const save = vi.fn(() => new Promise<boolean>(resolve => { release = resolve; }));
+    const logout = vi.fn();
+    const { result } = renderHook(() => useUnsavedChangesGuard({hasUnsavedChanges:true,tenants:[],dirtySummary:["Personskjema"],applyTenantSelection:vi.fn(),saveAllPendingChanges:save,discardAllPendingChanges:vi.fn()}));
+    act(() => result.current.requestAction("Logg ut", logout));
+    let pending!: Promise<void>;
+    act(() => { pending=result.current.modal.onSaveAndContinue(); });
+    await act(async () => { await result.current.modal.onSaveAndContinue(); });
+    expect(save).toHaveBeenCalledTimes(1); expect(logout).not.toHaveBeenCalled();
+    await act(async () => { release(false); await pending; });
+    expect(result.current.modal.open).toBe(true); expect(logout).not.toHaveBeenCalled();
+    act(() => { pending=result.current.modal.onSaveAndContinue(); });
+    await act(async () => { release(true); await pending; });
+    expect(logout).toHaveBeenCalledTimes(1); expect(result.current.modal.open).toBe(false);
+  });
+
+  it("continues a discarded route only once when local baselines become clean", () => {
+    blockerState.state="blocked"; blockerState.location={pathname:"/people"};
+    const discard=vi.fn();
+    const {result,rerender}=renderHook(({dirty})=>useUnsavedChangesGuard({hasUnsavedChanges:dirty,tenants:[],dirtySummary:[],applyTenantSelection:vi.fn(),saveAllPendingChanges:vi.fn(),discardAllPendingChanges:discard}),{initialProps:{dirty:true}});
+    act(()=>result.current.modal.onDiscardAndContinue());
+    rerender({dirty:false});
+    expect(discard).toHaveBeenCalledTimes(1); expect(blockerState.proceed).toHaveBeenCalledTimes(1);
+  });
   beforeEach(() => {
     blockerState.state = "unblocked";
     blockerState.location = null;

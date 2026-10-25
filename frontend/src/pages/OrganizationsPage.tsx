@@ -1,3 +1,6 @@
+import { ProfileSection, ProfileValidationSummary, revealInvalidProfileField } from "../components/ProfileSection";
+import { useReadDialog } from "../hooks/useReadDialog";
+import { ProfileThumbnail } from "../components/ProfileThumbnail";
 import { ProfileFormActions } from "../components/ProfileFormActions";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -8,7 +11,7 @@ import { PhoneRegionSelect } from "../components/PhoneRegionSelect";
 import { useEditor } from "../context/EditorContext";
 import { describeEffectivePublication } from "../editorPublication";
 import { filterSubcategoriesForCategory, sortedCategories as sortCategoriesByTaxonomy } from "../editorTaxonomy";
-import { profileStatus, saveLabel } from "../editor-utils";
+import { saveLabel } from "../editor-utils";
 import { useRouteSyncedSelection } from "../hooks/useRouteSyncedSelection";
 import {
   ApiError,
@@ -70,10 +73,10 @@ export function OrganizationsPage() {
   }, [location.search, orgId]);
 
   useEffect(() => {
-    if (!inOverviewMode && !editor.canWrite) {
+    if (editor.tenantDataLoaded && !inOverviewMode && !editor.canWrite) {
       navigate("/organizations");
     }
-  }, [editor.canWrite, inOverviewMode, navigate]);
+  }, [editor.canWrite, editor.tenantDataLoaded, inOverviewMode, navigate]);
 
   if (inOverviewMode) {
     return (
@@ -107,7 +110,17 @@ export function OrganizationsPage() {
     <main className="workspace no-sidebar">
       <>
         <OrganizationEditorPanel navigate={navigate} orgId={orgId} invalidOrgRoute={invalidOrgRoute} />
-        <OrganizationPreviewPanel invalidOrgRoute={invalidOrgRoute} />
+        <ProfileSection title="Forhåndsvisning" summary="Utkast og lagret metadata · egen oppdatering"><OrganizationPreviewPanel invalidOrgRoute={invalidOrgRoute} /></ProfileSection>
+        {editor.tenantDataLoaded && !invalidOrgRoute ? <div className="actions profile-bottom-actions actor-profile-footer">
+          <ProfileFormActions form="organization-profile-form" model="aktør" isNew={editor.selectedOrgId === "new"} state={editor.saveState} dirty={editor.organizationHasUnsavedChanges} disabled={!editor.tenantId || editor.organizationDeleting} />
+          {typeof editor.selectedOrgId === "number" ? <button type="button" className="link-delete"
+            disabled={!editor.canDelete || editor.saveState === "saving" || editor.organizationDeleting}
+            onClick={async () => {
+              if (window.confirm("Slette valgt aktør? Dette sletter også aktørens personkoblinger. Personene beholdes.")) {
+                if (await editor.onDeleteOrganization()) navigate("/organizations");
+              }
+            }}>{editor.organizationDeleting ? "Sletter aktør…" : "Slett aktør"}</button> : null}
+        </div> : null}
       </>
     </main>
   );
@@ -122,45 +135,37 @@ function OrganizationOverviewPanel(props: {
 }) {
   const { organizations, navigate, filterSummary, modalOrgId, onModalOrgIdChange } = props;
   const editor = useEditor();
-  const activeOrganization = modalOrgId ? organizations.find((organization) => organization.id === modalOrgId) ?? null : null;
+  // An explicit linked actor can be outside the overview's retained person filters.
+  const activeOrganization = modalOrgId ? editor.organizations.find((organization) => organization.id === modalOrgId) ?? null : null;
 
   return (
     <section className="panel overview-panel">
       <div className="sidebar-header">
         <div>
           <p className="eyebrow small">Oversikt</p>
-          <h2>Aktørkort</h2>
+          <h2>Aktører</h2>
         </div>
         <span className="meta">{organizations.length} synlige</span>
       </div>
       <p className="muted">
-        Her ser du alle aktører i en mer lesbar kortvisning. Klikk på et kort for å åpne all informasjon, og bruk{" "}
-        <strong>Rediger</strong> når du vil åpne skjemaet.
+        Åpne en aktør for kontaktinfo og detaljer.
       </p>
       {filterSummary ? <div className="filter-summary">{filterSummary}</div> : null}
       <div className="editor-card-grid">
         {organizations.map((organization) => {
-          const overviewPills = getOverviewPills(organization);
+          const overviewPills = getOverviewPills(organization).filter(pill => pill.kind !== "tag");
+          const firstTag = organization.tags[0];
           return (
           <article
             key={organization.id}
             className="editor-card public-like"
             onClick={() => onModalOrgIdChange(organization.id)}
           >
-            {organization.preview_image_url ? (
-              <img
-                src={organization.preview_image_url}
-                alt={organization.name}
-                className="editor-card-thumb"
-              />
-            ) : (
-              <div className="editor-card-thumb editor-card-thumb-fallback">
-                <span>{organization.name.slice(0, 2).toUpperCase()}</span>
-              </div>
-            )}
+            <ProfileThumbnail url={organization.preview_image_url} name={organization.name} />
             <div className="editor-card-body">
               <div className="editor-card-head">
-                <h3>{organization.name}</h3>
+                <h3><button type="button" className="card-name" onClick={(event) => { event.stopPropagation(); onModalOrgIdChange(organization.id); }}>{organization.name}</button></h3>
+
                 <span className="meta">{organization.municipalities || "Ingen kommune"}</span>
               </div>
               <div className="meta-row">
@@ -168,24 +173,7 @@ function OrganizationOverviewPanel(props: {
                   <span key={pill.key} className={`mini-pill ${pill.kind}`}>{pill.label}</span>
                 ))}
               </div>
-              <div className="editor-card-actions">
-                <span className={`save-pill ${organization.is_published ? "saved" : "idle"}`}>
-                  {organization.is_published ? "Publisert" : "Kun intern"}
-                </span>
-                {editor.canWrite ? (
-                  <button
-                    type="button"
-                    className="ghost-button compact-button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      editor.setSelectedOrgId(organization.id);
-                      navigate(`/organizations/${organization.id}`);
-                    }}
-                  >
-                    Rediger
-                  </button>
-                ) : null}
-              </div>
+              {firstTag ? <div className="card-tags"><span className="mini-pill tag">{firstTag.name}</span>{organization.tags.length > 1 ? <button type="button" className="tag-count" aria-label={`Vis ${organization.tags.length - 1} flere tags for ${organization.name}`} onClick={event => { event.stopPropagation(); onModalOrgIdChange(organization.id); }}>+{organization.tags.length - 1}</button> : null}</div> : null}
             </div>
           </article>
         )})}
@@ -234,9 +222,10 @@ function OrganizationOverviewModal(props: {
     }
     return grouped;
   }, [editor.personContacts, editor.persons]);
+  const dialogRef = useReadDialog(onClose);
   const modal = (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <div className="detail-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+      <div ref={dialogRef} className="detail-modal" role="dialog" aria-modal="true" aria-label={organization.name} tabIndex={-1} onClick={(event) => event.stopPropagation()}>
         <div className="sidebar-header modal-header">
           <div>
             <p className="eyebrow small">Aktørkort</p>
@@ -247,17 +236,11 @@ function OrganizationOverviewModal(props: {
           </button>
         </div>
         <div className="editor-card modal-card modal-shell">
-          {organization.preview_image_url ? (
-            <img src={organization.preview_image_url} alt={organization.name} className="editor-card-thumb modal-thumb" />
-          ) : (
-            <div className="editor-card-thumb editor-card-thumb-fallback modal-thumb">
-              <span>{organization.name.slice(0, 2).toUpperCase()}</span>
-            </div>
-          )}
+          <ProfileThumbnail url={organization.preview_image_url} name={organization.name} className="modal-thumb" />
           <div className="editor-card-body">
             <div className="editor-card-head">
               <div>
-                <h3>{organization.name}</h3>
+
                 <span className="meta">{organization.municipalities || "Ingen kommune"}</span>
               </div>
               <span className={`save-pill ${organization.is_published ? "saved" : "idle"}`}>
@@ -385,7 +368,6 @@ function OrganizationEditorPanel(props: {
   const { navigate, orgId, invalidOrgRoute } = props;
   const editor = useEditor();
 
-  const status = profileStatus(editor.saveState, editor.organizationHasUnsavedChanges, editor.selectedOrgId === "new", "aktør");
 
   return (
     <section className="panel editor">
@@ -422,30 +404,31 @@ function OrganizationEditorPanel(props: {
         </div>
       ) : (
         <>
-          {editor.organizationHasUnsavedChanges && editor.saveState !== "saving" && editor.saveState !== "error" ? (
-            <div className="inline-banner warn">Du har ulagrede endringer i aktørskjemaet.</div>
-          ) : null}
           {editor.saveState === "error" ? <div className="inline-banner warn">Lagring ikke bekreftet. Kontroller feilmeldingen og lagret resultat før du prøver igjen.</div> : null}
-          <div className="editor-header">
-            <div>
-              <p className="eyebrow small">
-                {editor.selectedOrgId === "new" ? "Ny aktør" : `Aktør #${editor.selectedOrgId ?? "-"}`}
-              </p>
-              <h2>{editor.draft.name || "Organisasjon"}</h2>
+          <form id="organization-profile-form" onSubmit={editor.onSubmit} onInvalidCapture={revealInvalidProfileField} className="editor-form profile-form"><fieldset className="profile-fields" disabled={editor.saveState === "saving" || editor.organizationDeleting}>
+            <div className="editor-header profile-header">
+              <div className="profile-heading">
+                <button type="button" className="profile-back" onClick={() => navigate("/organizations")}>← Til aktøroversikt</button>
+                <p className="eyebrow small">{editor.selectedOrgId === "new" ? "Ny aktør" : `Aktør #${editor.selectedOrgId}`}</p>
+                <h2>{editor.draft.name || "Ny aktør"}</h2>
+                <p className="meta profile-scope">Profilfelt og publiseringsvalg. Bilde og koblinger lagres separat.</p>
+              </div>
+              <ProfileFormActions
+                model="aktør" isNew={editor.selectedOrgId === "new"}
+                state={editor.saveState} dirty={editor.organizationHasUnsavedChanges}
+                disabled={!editor.tenantId || editor.organizationDeleting}
+              />
             </div>
-            <div className={`save-pill ${status.kind}`}>{status.label}</div>
-          </div>
-
-          <form onSubmit={editor.onSubmit} className="editor-form profile-form">
+            <ProfileValidationSummary errors={editor.organizationFieldErrors} />
             <div className="grid two">
-              <Field label="Navn" required>
+              <Field label="Navn" name="name" error={editor.organizationFieldErrors.name} required>
                 <input
                   value={editor.draft.name}
                   onChange={(e) => editor.setDraft((s) => ({ ...s, name: e.target.value }))}
                   required
                 />
               </Field>
-              <Field label="Org.nr" error={editor.organizationFieldErrors.org_number}>
+              <Field label="Org.nr" name="org_number" error={editor.organizationFieldErrors.org_number}>
                 <input
                   value={editor.draft.org_number ?? ""}
                   onChange={(e) => editor.setDraft((s) => ({ ...s, org_number: e.target.value }))}
@@ -455,15 +438,21 @@ function OrganizationEditorPanel(props: {
             </div>
 
             <div className="grid two">
-              <Field label="E-post" error={editor.organizationFieldErrors.email}>
+              <Field label="E-post" name="email" error={editor.organizationFieldErrors.email}>
                 <input
                   type="email"
                   value={editor.draft.email ?? ""}
                   onChange={(e) => editor.setDraft((s) => ({ ...s, email: e.target.value }))}
                 />
               </Field>
-              <Field label="Telefon" error={editor.organizationFieldErrors.phone}>
+              <Field label="Telefon" name="phone" error={editor.organizationFieldErrors.phone}>
                 <div className="contact-inline-input">
+                  <PhoneRegionSelect
+                    value={editor.draft.phone_region ?? ""}
+                    onChange={(phoneRegion) =>
+                      editor.setDraft((state) => ({ ...state, phone_region: phoneRegion || null }))
+                    }
+                  />
                   <input
                     aria-label="Telefon"
                     value={editor.draft.phone ?? ""}
@@ -473,12 +462,6 @@ function OrganizationEditorPanel(props: {
                         phone: e.target.value,
                         ...(e.target.value.trim().startsWith("+") ? { phone_region: null } : {}),
                       }))
-                    }
-                  />
-                  <PhoneRegionSelect
-                    value={editor.draft.phone_region ?? ""}
-                    onChange={(phoneRegion) =>
-                      editor.setDraft((state) => ({ ...state, phone_region: phoneRegion || null }))
                     }
                   />
                 </div>
@@ -494,18 +477,9 @@ function OrganizationEditorPanel(props: {
               />
             </Field>
 
-            <Field label="Notat">
-              <textarea
-                rows={3}
-                value={editor.draft.note ?? ""}
-                onChange={(e) => editor.setDraft((s) => ({ ...s, note: e.target.value }))}
-                placeholder="Interne kommentarer, status eller ting som ikke skal vises offentlig."
-              />
-            </Field>
-
             <Field label="Beskrivelse">
               <textarea
-                rows={5}
+                rows={3}
                 value={editor.draft.description ?? ""}
                 onChange={(e) => editor.setDraft((s) => ({ ...s, description: e.target.value }))}
                 placeholder="Denne teksten vises offentlig under Profil på aktørsiden."
@@ -515,6 +489,7 @@ function OrganizationEditorPanel(props: {
               </p>
             </Field>
 
+            <ProfileSection title="Kategorisering og tags" summary={editor.organizationTagInput || "Kategori, underkategori og tags"}>
             <CategorySelectFields
               title="Kategori og underkategori"
               description="Velg først en hovedkategori, og deretter en underkategori som hører til den."
@@ -547,8 +522,21 @@ function OrganizationEditorPanel(props: {
               </p>
             </Field>
 
+            </ProfileSection>
+            <ProfileSection title="Internt notat" summary={editor.draft.note ? "Notat er lagt inn" : "Ingen notat"}>
+            <Field label="Notat">
+              <textarea
+                rows={3}
+                value={editor.draft.note ?? ""}
+                onChange={(e) => editor.setDraft((s) => ({ ...s, note: e.target.value }))}
+                placeholder="Interne kommentarer, status eller ting som ikke skal vises offentlig."
+              />
+            </Field>
+
+            </ProfileSection>
+            <ProfileSection title="Lenker og sosiale medier" summary={editor.draft.website_url || "Nettside og sosiale profiler"} errors={Object.entries(editor.organizationFieldErrors).filter(([key]) => key.endsWith("_url")).map(([,value]) => value)}>
             <div className="grid two">
-              <Field label="Website URL" error={editor.organizationFieldErrors.website_url}>
+              <Field label="Website URL" name="website_url" error={editor.organizationFieldErrors.website_url}>
                 <input
                   type="url"
                   value={editor.draft.website_url ?? ""}
@@ -556,7 +544,7 @@ function OrganizationEditorPanel(props: {
                   placeholder="https://..."
                 />
               </Field>
-              <Field label="Facebook URL" error={editor.organizationFieldErrors.facebook_url}>
+              <Field label="Facebook URL" name="facebook_url" error={editor.organizationFieldErrors.facebook_url}>
                 <input
                   type="url"
                   value={editor.draft.facebook_url ?? ""}
@@ -567,7 +555,7 @@ function OrganizationEditorPanel(props: {
             </div>
 
             <div className="grid two">
-              <Field label="Instagram URL" error={editor.organizationFieldErrors.instagram_url}>
+              <Field label="Instagram URL" name="instagram_url" error={editor.organizationFieldErrors.instagram_url}>
                 <input
                   type="url"
                   value={editor.draft.instagram_url ?? ""}
@@ -575,7 +563,7 @@ function OrganizationEditorPanel(props: {
                   placeholder="https://instagram.com/..."
                 />
               </Field>
-              <Field label="TikTok URL" error={editor.organizationFieldErrors.tiktok_url}>
+              <Field label="TikTok URL" name="tiktok_url" error={editor.organizationFieldErrors.tiktok_url}>
                 <input
                   type="url"
                   value={editor.draft.tiktok_url ?? ""}
@@ -586,7 +574,7 @@ function OrganizationEditorPanel(props: {
             </div>
 
             <div className="grid two">
-              <Field label="LinkedIn URL" error={editor.organizationFieldErrors.linkedin_url}>
+              <Field label="LinkedIn URL" name="linkedin_url" error={editor.organizationFieldErrors.linkedin_url}>
                 <input
                   type="url"
                   value={editor.draft.linkedin_url ?? ""}
@@ -596,7 +584,7 @@ function OrganizationEditorPanel(props: {
               </Field>
             </div>
 
-            <Field label="YouTube URL" error={editor.organizationFieldErrors.youtube_url}>
+            <Field label="YouTube URL" name="youtube_url" error={editor.organizationFieldErrors.youtube_url}>
               <input
                 type="url"
                 value={editor.draft.youtube_url ?? ""}
@@ -605,6 +593,7 @@ function OrganizationEditorPanel(props: {
               />
             </Field>
 
+            </ProfileSection>
             <div className="toggle-grid">
               <label className="toggle-card">
                 <input
@@ -631,23 +620,20 @@ function OrganizationEditorPanel(props: {
               </label>
             </div>
 
-            <ProfileFormActions
-              model="aktør"
-              isNew={editor.selectedOrgId === "new"}
-              state={editor.saveState}
-              dirty={editor.organizationHasUnsavedChanges}
-              disabled={!editor.tenantId}
-              onReset={editor.onResetOrganizationDraft}
-            />
-          </form>
+          </fieldset></form>
 
           {typeof editor.selectedOrgId === "number" && editor.selectedOrganization?.image_asset_feature_enabled ? (
+            <div className="profile-image-entry">
+              <ProfileThumbnail url={editor.selectedOrganization?.preview_image_url} name={editor.selectedOrganization?.name ?? ""} />
+              <ProfileSection key={`${editor.tenantId}:${editor.selectedOrgId}`} title="Endre bilde" summary="Kilder, forhåndsvisning og godkjenning · lagres separat">
             <OrganizationImagePanel
               key={`${editor.tenantId}:${editor.selectedOrgId}`}
               tenantId={editor.tenantId!}
               organizationId={editor.selectedOrgId}
               organizationName={editor.selectedOrganization.name}
             />
+              </ProfileSection>
+            </div>
           ) : null}
 
           <OrganizationLinksPanel navigate={navigate} />
@@ -1883,203 +1869,6 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
 
       {typeof editor.selectedOrgId === "number" ? (
         <>
-          <div className="link-section">
-            <div className="sidebar-header">
-              <h2>Opprett ny kontaktperson for denne aktøren</h2>
-              <span className={`save-pill ${editor.linkedPersonSaveState}`}>{saveLabel(editor.linkedPersonSaveState)}</span>
-            </div>
-            <p className="muted">
-              Denne flyten oppretter personen, lager første e-post/telefon hvis du fyller det ut, og knytter personen
-              direkte til aktøren.
-            </p>
-            <form className="editor-form" onSubmit={editor.onCreateLinkedPerson}>
-              <div className="grid two">
-                <Field label="Fullt navn" required error={editor.linkedPersonFieldErrors.full_name}>
-                  <input
-                    value={editor.linkedPersonDraft.full_name}
-                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, full_name: e.target.value }))}
-                    required
-                  />
-                </Field>
-                <Field label="Tittel">
-                  <input
-                    value={editor.linkedPersonDraft.title}
-                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, title: e.target.value }))}
-                    placeholder="f.eks. daglig leder, booking eller produsent"
-                  />
-                </Field>
-              </div>
-
-              <div className="grid two">
-                <Field label="Kommune">
-                  <input
-                    value={editor.linkedPersonDraft.municipality}
-                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, municipality: e.target.value }))}
-                  />
-                </Field>
-              </div>
-
-              <div className="grid two">
-                <Field label="E-post" error={editor.linkedPersonFieldErrors.email}>
-                  <input
-                    type="email"
-                    value={editor.linkedPersonDraft.email}
-                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, email: e.target.value }))}
-                  />
-                </Field>
-                <Field label="Telefon" error={editor.linkedPersonFieldErrors.phone}>
-                  <div className="contact-inline-input">
-                    <input
-                      aria-label="Telefon"
-                      value={editor.linkedPersonDraft.phone}
-                      onChange={(e) =>
-                        editor.setLinkedPersonDraft((state) => ({
-                          ...state,
-                          phone: e.target.value,
-                          ...(e.target.value.trim().startsWith("+") ? { phone_region: null } : {}),
-                        }))
-                      }
-                    />
-                    <PhoneRegionSelect
-                      value={editor.linkedPersonDraft.phone_region ?? ""}
-                      onChange={(phoneRegion) =>
-                        editor.setLinkedPersonDraft((state) => ({
-                          ...state,
-                          phone_region: phoneRegion || null,
-                        }))
-                      }
-                    />
-                  </div>
-                </Field>
-              </div>
-
-              <div className="grid two">
-                <label className="toggle-card">
-                  <input
-                    type="checkbox"
-                    checked={editor.linkedPersonDraft.publish_email}
-                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, publish_email: e.target.checked }))}
-                  />
-                  <div>
-                    <strong>Gjør denne e-postadressen offentlig</strong>
-                    <p>Vises i PUBLIC når personen også er publisert som kontaktperson.</p>
-                  </div>
-                </label>
-                <label className="toggle-card">
-                  <input
-                    type="checkbox"
-                    checked={editor.linkedPersonDraft.publish_phone}
-                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, publish_phone: e.target.checked }))}
-                  />
-                  <div>
-                    <strong>Gjør dette telefonnummeret offentlig</strong>
-                    <p>Vises i PUBLIC når personen også er publisert som kontaktperson.</p>
-                  </div>
-                </label>
-              </div>
-
-              <div className="grid two">
-                <label className="toggle-card">
-                  <input
-                    type="checkbox"
-                    checked={editor.linkedPersonDraft.publish_person}
-                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, publish_person: e.target.checked }))}
-                  />
-                  <div>
-                    <strong>Vis ny person som kontaktperson offentlig</strong>
-                    <p>Styrer om navn og eventuell tittel vises på denne aktørsiden.</p>
-                  </div>
-                </label>
-                <Field label="Status på kobling">
-                  <select
-                    value={editor.linkedPersonDraft.status}
-                    onChange={(e) =>
-                      editor.setLinkedPersonDraft((s) => ({ ...s, status: e.target.value as "ACTIVE" | "INACTIVE" }))
-                    }
-                  >
-                    <option value="ACTIVE">ACTIVE</option>
-                    <option value="INACTIVE">INACTIVE</option>
-                  </select>
-                </Field>
-              </div>
-
-              <div className="actions">
-                <button
-                  type="submit"
-                  className="primary-button"
-                  disabled={!editor.linkedPersonDraft.full_name.trim() || editor.linkedPersonSaveState === "saving"}
-                >
-                  Opprett og knytt kontaktperson
-                </button>
-              </div>
-            </form>
-          </div>
-
-          <form className="link-create searchable-link-create" onSubmit={editor.onCreateLink}>
-            <div className="link-search-panel">
-              <input
-                type="search"
-                className="search-input link-search-input"
-                value={linkQuery}
-                onChange={(event) => setLinkQuery(event.target.value)}
-                placeholder="Søk etter person å knytte til aktøren"
-                disabled={editor.availablePersonsForLink.length === 0}
-              />
-              {editor.availablePersonsForLink.length === 0 ? (
-                <div className="empty-state compact">Alle personer er allerede koblet til denne aktøren.</div>
-              ) : !linkQuery.trim() ? (
-                <div className="empty-state compact">Skriv navn, kommune, e-post eller telefon for å finne riktig person.</div>
-              ) : (
-                <div className="link-search-results">
-                  {filteredAvailablePersons.length > 0 ? (
-                    filteredAvailablePersons.map((person) => {
-                      const selected = editor.linkPersonId === person.id;
-                      return (
-                        <button
-                          key={person.id}
-                          type="button"
-                          className={`link-search-result ${selected ? "active" : ""}`}
-                          onClick={() => editor.setLinkPersonId(person.id)}
-                        >
-                          <strong>{person.full_name}</strong>
-                          <span className="meta">
-                            {[person.municipality, person.email, person.phone].filter(Boolean).join(" · ") || "Ingen kontaktinfo"}
-                          </span>
-                        </button>
-                      );
-                    })
-                  ) : (
-                    <div className="empty-state compact">Ingen personer matcher søket.</div>
-                  )}
-                </div>
-              )}
-            </div>
-            <select
-              value={editor.linkStatus}
-              onChange={(e) => editor.setLinkStatus(e.target.value as "ACTIVE" | "INACTIVE")}
-            >
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="INACTIVE">INACTIVE</option>
-            </select>
-
-            <label className="inline-check">
-              <input
-                type="checkbox"
-                checked={editor.linkPublishPerson}
-                onChange={(e) => editor.setLinkPublishPerson(e.target.checked)}
-              />
-              <span>Vis eksisterende person som kontaktperson offentlig</span>
-            </label>
-
-            <button
-              type="submit"
-              className="ghost-button"
-              disabled={!editor.linkPersonId || editor.availablePersonsForLink.length === 0}
-            >
-              Knytt eksisterende person
-            </button>
-          </form>
-
           <div className="link-list">
             {editor.selectedOrganizationLinks.map((link) => {
               const person = editor.personsById.get(link.person);
@@ -2149,9 +1938,212 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
               <div className="empty-state">Ingen personer koblet til denne organisasjonen.</div>
             ) : null}
           </div>
+          <p className="meta">Koblingsstatus og offentlig valg lagres separat når du endrer dem.</p>
+          <ProfileSection title="Knytt eksisterende person" summary="Søk og velg en person · egen lagringshandling">
+          <form className="link-create searchable-link-create" onSubmit={editor.onCreateLink}>
+            <div className="link-search-panel">
+              <input
+                type="search"
+                className="search-input link-search-input"
+                value={linkQuery}
+                onChange={(event) => setLinkQuery(event.target.value)}
+                placeholder="Søk etter person å knytte til aktøren"
+                disabled={editor.availablePersonsForLink.length === 0}
+              />
+              {editor.availablePersonsForLink.length === 0 ? (
+                <div className="empty-state compact">Alle personer er allerede koblet til denne aktøren.</div>
+              ) : !linkQuery.trim() ? (
+                <div className="empty-state compact">Skriv navn, kommune, e-post eller telefon for å finne riktig person.</div>
+              ) : (
+                <div className="link-search-results">
+                  {filteredAvailablePersons.length > 0 ? (
+                    filteredAvailablePersons.map((person) => {
+                      const selected = editor.linkPersonId === person.id;
+                      return (
+                        <button
+                          key={person.id}
+                          type="button"
+                          className={`link-search-result ${selected ? "active" : ""}`}
+                          onClick={() => editor.setLinkPersonId(person.id)}
+                        >
+                          <strong>{person.full_name}</strong>
+                          <span className="meta">
+                            {[person.municipality, person.email, person.phone].filter(Boolean).join(" · ") || "Ingen kontaktinfo"}
+                          </span>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div className="empty-state compact">Ingen personer matcher søket.</div>
+                  )}
+                </div>
+              )}
+            </div>
+            <select
+              value={editor.linkStatus}
+              onChange={(e) => editor.setLinkStatus(e.target.value as "ACTIVE" | "INACTIVE")}
+            >
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="INACTIVE">INACTIVE</option>
+            </select>
+
+            <label className="inline-check">
+              <input
+                type="checkbox"
+                checked={editor.linkPublishPerson}
+                onChange={(e) => editor.setLinkPublishPerson(e.target.checked)}
+              />
+              <span>Vis eksisterende person som kontaktperson offentlig</span>
+            </label>
+
+            <button
+              type="submit"
+              className="ghost-button"
+              disabled={!editor.linkPersonId || editor.availablePersonsForLink.length === 0}
+            >
+              Knytt eksisterende person
+            </button>
+          </form>
+
+          </ProfileSection>
+          <ProfileSection title="Opprett kontaktperson" summary="Ny person og kobling · egen lagringshandling" errors={Object.values(editor.linkedPersonFieldErrors)}>
+          <div className="link-section">
+            <div className="sidebar-header">
+              <h2>Opprett ny kontaktperson for denne aktøren</h2>
+              <span className={`save-pill ${editor.linkedPersonSaveState}`}>{saveLabel(editor.linkedPersonSaveState)}</span>
+            </div>
+            <p className="muted">
+              Denne flyten oppretter personen, lager første e-post/telefon hvis du fyller det ut, og knytter personen
+              direkte til aktøren.
+            </p>
+            <form className="editor-form" onInvalidCapture={revealInvalidProfileField} onSubmit={editor.onCreateLinkedPerson}>
+              <div className="grid two">
+                <Field label="Fullt navn" required name="full_name" error={editor.linkedPersonFieldErrors.full_name}>
+                  <input
+                    value={editor.linkedPersonDraft.full_name}
+                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, full_name: e.target.value }))}
+                    required
+                  />
+                </Field>
+                <Field label="Tittel">
+                  <input
+                    value={editor.linkedPersonDraft.title}
+                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, title: e.target.value }))}
+                    placeholder="f.eks. daglig leder, booking eller produsent"
+                  />
+                </Field>
+              </div>
+
+              <div className="grid two">
+                <Field label="Kommune">
+                  <input
+                    value={editor.linkedPersonDraft.municipality}
+                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, municipality: e.target.value }))}
+                  />
+                </Field>
+              </div>
+
+              <div className="grid two">
+                <Field label="E-post" name="email" error={editor.linkedPersonFieldErrors.email}>
+                  <input
+                    type="email"
+                    value={editor.linkedPersonDraft.email}
+                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, email: e.target.value }))}
+                  />
+                </Field>
+                <Field label="Telefon" name="phone" error={editor.linkedPersonFieldErrors.phone}>
+                  <div className="contact-inline-input">
+                    <PhoneRegionSelect
+                      value={editor.linkedPersonDraft.phone_region ?? ""}
+                      onChange={(phoneRegion) =>
+                        editor.setLinkedPersonDraft((state) => ({
+                          ...state,
+                          phone_region: phoneRegion || null,
+                        }))
+                      }
+                    />
+                  <input
+                      aria-label="Telefon"
+                      value={editor.linkedPersonDraft.phone}
+                      onChange={(e) =>
+                        editor.setLinkedPersonDraft((state) => ({
+                          ...state,
+                          phone: e.target.value,
+                          ...(e.target.value.trim().startsWith("+") ? { phone_region: null } : {}),
+                        }))
+                      }
+                    />
+                  </div>
+                </Field>
+              </div>
+
+              <div className="grid two">
+                <label className="toggle-card">
+                  <input
+                    type="checkbox"
+                    checked={editor.linkedPersonDraft.publish_email}
+                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, publish_email: e.target.checked }))}
+                  />
+                  <div>
+                    <strong>Gjør denne e-postadressen offentlig</strong>
+                    <p>Vises i PUBLIC når personen også er publisert som kontaktperson.</p>
+                  </div>
+                </label>
+                <label className="toggle-card">
+                  <input
+                    type="checkbox"
+                    checked={editor.linkedPersonDraft.publish_phone}
+                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, publish_phone: e.target.checked }))}
+                  />
+                  <div>
+                    <strong>Gjør dette telefonnummeret offentlig</strong>
+                    <p>Vises i PUBLIC når personen også er publisert som kontaktperson.</p>
+                  </div>
+                </label>
+              </div>
+
+              <div className="grid two">
+                <label className="toggle-card">
+                  <input
+                    type="checkbox"
+                    checked={editor.linkedPersonDraft.publish_person}
+                    onChange={(e) => editor.setLinkedPersonDraft((s) => ({ ...s, publish_person: e.target.checked }))}
+                  />
+                  <div>
+                    <strong>Vis ny person som kontaktperson offentlig</strong>
+                    <p>Styrer om navn og eventuell tittel vises på denne aktørsiden.</p>
+                  </div>
+                </label>
+                <Field label="Status på kobling">
+                  <select
+                    value={editor.linkedPersonDraft.status}
+                    onChange={(e) =>
+                      editor.setLinkedPersonDraft((s) => ({ ...s, status: e.target.value as "ACTIVE" | "INACTIVE" }))
+                    }
+                  >
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="INACTIVE">INACTIVE</option>
+                  </select>
+                </Field>
+              </div>
+
+              <div className="actions">
+                <button
+                  type="submit"
+                  className="primary-button"
+                  disabled={!editor.linkedPersonDraft.full_name.trim() || editor.linkedPersonSaveState === "saving"}
+                >
+                  Opprett og knytt kontaktperson
+                </button>
+              </div>
+            </form>
+          </div>
+
+          </ProfileSection>
+
         </>
       ) : (
-        <div className="empty-state">Lagre eller velg en organisasjon for å administrere personkoblinger.</div>
+        <div className="empty-state">Opprett aktøren først. Deretter kan du knytte til personer eller opprette en ny kontaktperson.</div>
       )}
     </div>
   );

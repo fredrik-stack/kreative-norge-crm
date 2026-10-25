@@ -54,6 +54,7 @@ describe("App integration", () => {
     await userEvent.type(screen.getByLabelText("Passord"), "secret123");
     await userEvent.click(screen.getByRole("button", { name: "Logg inn" }));
 
+    await userEvent.click(await screen.findByRole("button", { name: "Kreativ Demo AS" }));
     await userEvent.click(await screen.findByRole("button", { name: "Rediger" }));
     expect(await screen.findByDisplayValue("Kreativ Demo AS")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Aktørbilde" })).not.toBeInTheDocument();
@@ -63,7 +64,7 @@ describe("App integration", () => {
     await userEvent.type(nameInput, "Kreativ Demo AS (endret)");
 
     await waitFor(() => {
-      expect(screen.getByText("Du har ulagrede endringer i aktørskjemaet.")).toBeInTheDocument();
+      expect(screen.getAllByRole("status")[0]).toHaveTextContent("Ulagrede profilfelt");
     });
     expect(screen.getByRole("link", { name: /^Aktører/ })).toBeInTheDocument();
   });
@@ -77,6 +78,7 @@ describe("App integration", () => {
     await userEvent.type(screen.getByLabelText("Brukernavn"), "editor");
     await userEvent.type(screen.getByLabelText("Passord"), "secret123");
     await userEvent.click(screen.getByRole("button", { name: "Logg inn" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Kreativ Demo AS" }));
     await userEvent.click(await screen.findByRole("button", { name: "Rediger" }));
 
     expect(
@@ -98,7 +100,7 @@ describe("App integration", () => {
     await userEvent.type(screen.getByLabelText("Passord"), "secret123");
     await userEvent.click(screen.getByRole("button", { name: "Logg inn" }));
 
-    await userEvent.click(await screen.findByRole("link", { name: "Import / eksport" }));
+    await userEvent.click(await screen.findByRole("link", { name: "Import" }));
     expect(await screen.findByRole("heading", { name: "Importjobber" })).toBeInTheDocument();
 
     await userEvent.selectOptions(
@@ -143,6 +145,7 @@ describe("App integration", () => {
     });
     await userEvent.click(screen.getByRole("button", { name: "Lagre review" }));
 
+    await userEvent.click(screen.getByRole("link", { name: "Eksport" }));
     await userEvent.click(screen.getByRole("button", { name: "Opprett eksportjobb" }));
     expect(await screen.findByText(/SEARCH_RESULTS/)).toBeInTheDocument();
   });

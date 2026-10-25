@@ -1,5 +1,49 @@
 # Editor og PUBLIC – samlet UI/UX-ferdigstilling
 
+**Eieravklaring 25.10.2026, runde4:** Godkjent kortstørrelse består; Editor-
+thumbnail/fallback skal matche PUBLIC-listens90×90px og være sentrert vertikalt,
+også på mobil. Aktørens mobilmodal skal vise grønn Rediger under eksisterende
+rettigheter. [UI-6 §13](../features/UI_6_FELLES_SPEC.md#13-thumbnail-som-public-og-aktørens-mobilmodal--2026-10-25) og
+[seks nye viewportbilder](EDITOR_THUMBNAIL_VISUAL_REVIEW_2026-10-25.md) beskriver
+avgrenset retting/kontroll. Ingen ny Import-/PUBLIC-utforming; v6 rev.4/O-24,
+5E, begge kart og premerge-sluttaksept består.
+
+**Eieravklaring 25.10.2026, runde3:** Kortformatet fra runde2 er godkjent;
+thumbnails skal være kvadratiske. Eksisterende kategori-/underkategori-/taggfarger
+skal følge metadataene på desktop/mobil. [UI-6 §12](../features/UI_6_FELLES_SPEC.md#12-låst-kortformat-og-metadatafarger--2026-10-25)
+og [tilleggsgalleriet](EDITOR_COLOR_VISUAL_REVIEW_2026-10-25.md) beskriver avgrenset
+retting. Importbilde15 er avvist som misvisende; det er ikke et nytt designforslag
+eller alternativ til godkjent Import v6 rev.4/O-24. Importplanen/5E, begge kart,
+premerge-godkjenning og øvrig omfang består.
+
+**Siste eierføring 25.10.2026, visuell runde 2:**
+[UI-6 §11](../features/UI_6_FELLES_SPEC.md#11-andre-visuelle-retting-av-pr-92--2026-10-25) er implementert i samme PR #92:
+lavere faste kort, mindre navn/sted øverst høyre, egen femte personkolonne,
+oransje dirty og aktørens Lagre/Slett helt nederst etter separate seksjoner.
+[Hele desktop-viewporten, mobil og zoom](EDITOR_LAYOUT_VISUAL_REVIEW_2026-10-25.md)
+er nytt vurderingsgrunnlag. Tidligere visuelle forslag nedenfor er historikk.
+Samlet eiergodkjenning før merge/staging består. Ingen ny UX-/brukertestrunde;
+API + frontend ved senere godkjent staging. Begge kart og øvrig v1-scope består.
+
+**Overstyrende eierbestilt retting 2026-10-25:**
+[UI-6 §10](../features/UI_6_FELLES_SPEC.md#10-eierbestilt-retting-av-pr-92--2026-10-25)
+leverer venstremeny, like kortmål og lokale/manuelt lagrede personkontakter på
+eksisterende API-er i samme PR #92. Dette er avgrenset UI-6-arbeid og foregriper
+ikke full 6B. Synlige resetknapper fjernes. Eiers godkjente modal-/bilde-/søk-
+retning videreføres, mens samlet rettet utforming avventer godkjenning før merge
+og staging. Auth-utvidelsen gjør senere deploy til **API + frontend**, uten ny
+migrasjon. [Nye browserbevis](EDITOR_REVISION_VISUAL_REVIEW_2026-10-25.md).
+Resten av leveranseplanen, PUBLIC og begge Google Maps-aktørkart som v1 består.
+
+**Ny styrende eierføring og kodeleveranse 2026-10-24:**
+[UI-6 §9](../features/UI_6_FELLES_SPEC.md#9-samordnet-editor--ny-eierføring-og-kodeleveranse-2026-10-24)
+overstyrer tidligere anbefalt skjermoppbygning, ni personkolonner og stor sticky-
+bunnrad. Kompakt Editor på de fem bestilte flatene er implementert på branch;
+visuell eiergodkjenning kreves før merge, deretter teknisk frontend-only staging.
+Dette er avgrenset U1–U4-arbeid, ikke ferdigmelding av hele leveransematrisen,
+6B/6C eller PUBLIC/kart/import. Daterte beskrivelser nedenfor er historisk grunnlag.
+
+
 **Første kodepakke 2026-10-24:** U3 får avgrenset profilhandlingsrad/status og
 uttrykkelig valgt nyprofil-reset etter [spesifikasjonen §8](../features/UI_6_FELLES_SPEC.md#8-første-bestilte-kodepakke--skjemabundet-handlingstatus-og-korrekt-reset).
 Dette ferdigstiller ikke hele U3/U4 eller øvrig UI-6. [Datert evidens](STAGING_UI_6_PROFILE_ACTIONS_2026-10-24.md)

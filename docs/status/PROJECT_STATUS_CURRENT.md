@@ -1,5 +1,100 @@
 # Project Status Current
 
+## PR #92 – thumbnailbalanse og aktørmodal 2026-10-25
+
+[UI-6 §13](../features/UI_6_FELLES_SPEC.md#13-thumbnail-som-public-og-aktørens-mobilmodal--2026-10-25) er siste eierføring.
+Runtime `7ef04b1646dd7466f69b3494ff507e579553b346` beholder godkjente kort148px og samme responsive bredde/
+kolonner. Thumbnail/fallback er90×90px, lik PUBLIC-listens faktiske størrelse,
+og sentrert vertikalt i kortet på desktop/mobil. Hovedkategori får beholde sin
+bredde på smal skjerm; øvrig tekst/farge/avkorting og full informasjon i modal består.
+Aktørmodalens eksisterende grønne Rediger er beholdt med samme canWrite-port;
+synlighet, udekket trykkpunkt og navigasjon til redigering er browserverifisert.
+
+[Seks nye viewportbilder/kontrollrapport](EDITOR_THUMBNAIL_VISUAL_REVIEW_2026-10-25.md)
+gjelder1920/390/320 med eksplisitte syntetiske API-fixtures.320px-modal er rullet
+inne i dialogen for å vise handlingen.66 frontendtester, TS/bygg og24 Editor-reiser
+er grønne. Kun CSS/regresjon er endret; ingen ny backend-/DB-/Docker-/zoomkjøring.
+Siste review og CI spores i PR-en. Eldre76px-bilder er historikk.
+Samlet sluttgodkjenning kreves før merge/staging. Ingen Import-UX eller PUBLIC-
+endring i denne runden; godkjent v6 rev.4/O-24 og5E består. Senere deployscope
+for hele PR-en er fortsatt API+frontend, uten migrasjon eller neste produktetappe.
+
+## PR #92 – siste fargeretting / låst kortformat 2026-10-25
+
+Eier har godkjent aktørkortenes størrelse fra runde2. Samme 148 px høyde,
+responsive bredde og kolonner beholdes; bilde/fallback er nå 76×76 px.
+Personoversikten bruker metadataenes faktiske type og eksisterende farger:
+#6b493d hovedkategori, #38a8ec underkategori, #4a8755 tagg. Samme fargeføring er
+kontrollert i aktør-/personmodaler og PUBLIC liste/detalj; konkrete fargefeil
+rettet i eksisterende importchips og eldre PUBLIC-detaljvariant. Ingen ny policy.
+
+[UI-6 §12](../features/UI_6_FELLES_SPEC.md#12-låst-kortformat-og-metadatafarger--2026-10-25)
+og [nytt tilleggsgalleri/kontrollrapport](EDITOR_COLOR_VISUAL_REVIEW_2026-10-25.md)
+gjelder runtime `2b4ca8eb96e9e74920b3af5a1ccc6cabf59da24f`. 66 frontendtester, TS/build, 24 Editor-reiser og
+8 DB-frie PUBLIC-template/browsertilfeller er grønne. Etter ett konkret CI-funn
+er også 18 eksisterende PUBLIC-projeksjonstester grønne mot isolert lokal PostgreSQL:
+testens gamle brune fargeforventning er oppdatert til bestilt grønn, øvrig API-/
+bildekontrakt beholdt. Nye bilder bruker fortsatt eksplisitte syntetiske API-
+fixtures, ikke lokal/stagingdatabase. Siste review/CI spores i PR.
+
+Importbilde15 fra forrige galleri er avvist som misvisende; PNG beholdes kun som
+historikk med tydelig merking. Ingen Importvisning foreslås/godkjennes her:
+Import-prototype v6 rev.4/O-24 og godkjent 5E består. Samlet sluttgodkjenning
+kreves før merge/staging; senere deployscope API + frontend og malendringen,
+ingen migrasjon eller neste produktetappe.
+
+## PR #92 – andre visuelle retting 2026-10-25
+
+Eiers nye kommentarer er implementert i runtime `213219085c3e6da214d372729a1ec91c247a0c6e`:
+148 px like høye aktørkort, mindre navn på inntil tre linjer og sted øverst høyre;
+fem desktopkolonner med egen kategorier/tags; oransje Ulagrede profilfelt.
+Aktørens nederste Lagre/Opprett ligger etter bilde, personkoblinger og preview,
+med Slett aktør til høyre for lagrede profiler under eksisterende rettigheter og
+confirm. Samme hovedform, validering og innsendinglås; backend-409 ved beskyttet
+profil består. Ny forklaring av personkoblinger er et implementert tekstforslag.
+
+[UI-6 §11](../features/UI_6_FELLES_SPEC.md#11-andre-visuelle-retting-av-pr-92--2026-10-25) er gjeldende overstyring;
+[29 nye bilder og kontrollrapport](EDITOR_LAYOUT_VISUAL_REVIEW_2026-10-25.md)
+skiller full desktop-viewport fra supplerende fullsidebilder. Profilene er
+midtstilt innen maks 1080 px; oversikter/Import bruker arbeidsbredden. 66 frontend-
+tester, 20 Editor-e2e, TS/build, to målrettede PostgreSQL-tester og reell lokal
+browser/API-kontroll er grønne. Separat review og siste publiserte CI spores i PR.
+Ingen merge/staging; samlet eiergodkjenning kreves først. Senere API + frontend,
+ingen migrasjon, backfill eller aktivering. Tidligere bilder nedenfor er historiske.
+
+## PR #92 – eierbestilt retting 2026-10-25, før visuell godkjenning
+
+Den nye [styrende bestillingen / UI-6 §10](../features/UI_6_FELLES_SPEC.md#10-eierbestilt-retting-av-pr-92--2026-10-25)
+er implementert på samme branch: venstremeny/brukerpanel, separate Import-/Eksport-
+ruter, like store kort uten status/redigeringsknapp, to skjemabundne lagreknapper,
+region før nummer og samlet manuell personlagring. Kontakter har lokale utkast,
+eksplisitt utsatt fjerning og bevarte server-ID-er ved delvis feil. Ukjent POST-
+resultat blokkerer blind retry. Ingen ny kontakt-/primær-/publiseringskontrakt.
+Session/Login gir additivt visningsnavn og faktisk Django-adminindikator.
+
+[Nytt samlet visuelt grunnlag](EDITOR_REVISION_VISUAL_REVIEW_2026-10-25.md)
+binder bilder til faktisk rettet runtime og beskriver isolert lokal PostgreSQL-/
+browserverifikasjon, review og begrensninger. GitHub viser siste PR-head og CI.
+**Stopp før merge/staging for samlet eiergodkjenning.** Etter uttrykkelig godkjenning
+krever samme mandat API + frontend, ordinær merge/main-CI og runbook. Ingen
+migrasjon, ny backfill, shared-aktivering eller ferdigmelding av UI-6/6B/6C.
+24.10-evidensen nedenfor er historisk og gjelder ikke rettet runtime.
+
+## Samordnet Editor – kodeleveranse 2026-10-24, visuell godkjenning gjenstår
+
+[Samlet visuell leveranse / browserbilder](EDITOR_COMPACT_VISUAL_REVIEW_2026-10-24.md) gjelder kode `caccd8b` og draft PR #92.
+
+Prosjekteiers nye føring bruker den eksakt kontrollerte Import v6 rev.4/O-24 som
+visuell referanse og overstyrer gammel oppbygning/ni personkolonner/sticky-bunnrad.
+[UI-6 §9](../features/UI_6_FELLES_SPEC.md#9-samordnet-editor--ny-eierføring-og-kodeleveranse-2026-10-24)
+beskriver implementert kompakt oversikt/modal/profil, søk først for personer,
+bevarte separate writes/reset/utkast og stopp før merge. Leveransen er på
+`feat/editor-compact-profiles`; PR, review og CI følger GitHub. Ingen merge,
+ny stagingdeploy eller visuell eieraksept er registrert for denne leveransen.
+Tidligere teknisk staging på `3ede68f` er historisk baseline, ikke godkjenning
+av den nye utformingen. Resten av UI-6/6A–6C/PUBLIC/kart/import er ikke ferdigmeldt.
+
+
 ## UI-6 første kodepakke – 2026-10-24
 
 Profilhandlingsrad, sann profilstatus og uttrykkelig valgt nyprofil-reset er

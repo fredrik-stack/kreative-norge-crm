@@ -5,9 +5,9 @@ import { server } from "../test/server";
 import { profileStatus } from "../editor-utils";
 import { useEditorData } from "./useEditorData";
 
-async function editor() {
+async function editor(role = "redigerer") {
   server.use(http.get('/api/tenants/', () => HttpResponse.json([
-    { id: 1, name: 'Test', slug: 'test', default_phone_region: 'NO', current_user_role: 'redigerer' },
+    { id: 1, name: 'Test', slug: 'test', default_phone_region: 'NO', current_user_role: role },
   ])));
   const hook = renderHook(() => useEditorData());
   await waitFor(() => expect(hook.result.current.tenantDataLoaded).toBe(true));
@@ -16,7 +16,26 @@ async function editor() {
 }
 const event = { preventDefault() {} } as React.FormEvent;
 
-for (const model of ['organization', 'person'] as const) {
+it('keeps actor saving state and immediate lock through the final metadata read',async()=>{
+  const {result}=await editor();let stored=result.current.selectedOrganization!;
+  let release!:()=>void; const gate=new Promise<void>(resolve=>{release=resolve;});
+  let metadataRead=false, writes=0;
+  server.use(
+    http.patch('/api/tenants/1/organizations/10/',async({request})=>{writes++;stored={...stored,...await request.json() as object};return HttpResponse.json(stored);}),
+    http.get('/api/tenants/1/organizations/',()=>HttpResponse.json([stored])),
+    http.get('/api/tenants/1/tags/',async()=>{metadataRead=true;await gate;return HttpResponse.json([]);}),
+  );
+  act(()=>result.current.setDraft(draft=>({...draft,name:'Saved while reading metadata'})));
+  let save!:Promise<void>;act(()=>{save=result.current.onSubmit(event);});
+  await waitFor(()=>expect(metadataRead).toBe(true));
+  expect(result.current.saveState).toBe('saving');
+  await act(async()=>{await result.current.onSubmit(event);});
+  expect(writes).toBe(1);
+  await act(async()=>{release();await save;});
+  expect(result.current.saveState).toBe('saved');
+});
+
+for (const model of ['organization'] as const) {
   const org = model === 'organization';
   it(`${model}: new/reset share tenant region, clear tags/errors/state, preserve separate drafts and issue no writes`, async () => {
     const { result } = await editor();
@@ -24,7 +43,7 @@ for (const model of ['organization', 'person'] as const) {
     await waitFor(() => expect(org ? result.current.draft.phone_region : result.current.personDraft.phone_region).toBe('NO'));
     expect(org ? result.current.organizationHasUnsavedChanges : result.current.personDraftHasUnsavedChanges).toBe(false);
     act(() => {
-      result.current.setContactDraft(s => ({ ...s, value: 'separat@example.invalid' }));
+
       if (org) {
         result.current.setDraft(s => ({ ...s, email: 'invalid', phone_region: 'SE' }));
         result.current.setOrganizationTagInput('new tag');
@@ -46,7 +65,7 @@ for (const model of ['organization', 'person'] as const) {
     expect(org ? result.current.saveState : result.current.personSaveState).toBe('idle');
     expect(org ? result.current.organizationFieldErrors : result.current.personFieldErrors).toEqual({});
     expect(org ? result.current.organizationHasUnsavedChanges : result.current.personDraftHasUnsavedChanges).toBe(false);
-    expect(result.current.contactDraft.value).toBe('separat@example.invalid');
+
     expect(result.current.error).toBe(globalError);
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
@@ -65,14 +84,14 @@ for (const model of ['organization', 'person'] as const) {
         result.current.setPersonDraft(s => ({ ...s, full_name: 'changed' }));
         result.current.setPersonTagInput('changed');
       }
-      result.current.setContactDraft(s => ({ ...s, value: 'draft@example.invalid' }));
+
     });
     act(() => org ? result.current.onResetOrganizationDraft() : result.current.onResetPersonDraft());
     expect(org ? result.current.draft : result.current.personDraft).toEqual(original);
     expect(org ? result.current.organizationTagInput : result.current.personTagInput).toBe(tags);
     expect(result.current.personDraftHasUnsavedChanges).toBe(false);
-    expect(result.current.contactDraftHasUnsavedChanges).toBe(true);
-    expect(result.current.peopleHasUnsavedChanges).toBe(true);
+    expect(result.current.contactDraftHasUnsavedChanges).toBe(false);
+    expect(result.current.peopleHasUnsavedChanges).toBe(false);
     expect(profileStatus(result.current.personSaveState, result.current.personDraftHasUnsavedChanges, false, 'person').label).toBe('Ingen ulagrede profilfelt');
   });
 
@@ -121,17 +140,35 @@ it('successful save, new edits and profile switch never reuse an old confirmatio
   expect(profileStatus(result.current.saveState, result.current.organizationHasUnsavedChanges, true, 'aktør').label).toBe('Nytt profilutkast');
 });
 
-it('saving the same person preserves a separate contact draft and its navigation guard', async () => {
-  const { result } = await editor();
-  await waitFor(() => expect(result.current.personDraft.full_name).not.toBe(''));
-  const id = result.current.selectedPersonId;
-  const stored = result.current.persons.find(p => p.id === id)!;
-  server.use(http.patch(`/api/tenants/1/persons/${id}/`, async ({ request }) =>
-    HttpResponse.json({ ...stored, ...await request.json() as object })));
-  act(() => result.current.setContactDraft(s => ({ ...s, value: 'separate@example.invalid' })));
-  await act(async () => { await result.current.onSubmitPerson(event); });
-  expect(result.current.personDraftHasUnsavedChanges).toBe(false);
-  expect(result.current.contactDraft.value).toBe('separate@example.invalid');
-  expect(result.current.peopleHasUnsavedChanges).toBe(true);
-  expect(result.current.contactDraftHasUnsavedChanges).toBe(true);
+it('actor deletion requires the existing delete role and never clears a rejected profile', async () => {
+  let deletes=0;
+  server.use(http.delete('/api/tenants/1/organizations/10/', () => { deletes++; return HttpResponse.json({detail:'Profilen har beskyttet tilhørighet eller historikk og kan ikke slettes.'}, {status:409}); }));
+  const denied=await editor();
+  await act(async()=>{expect(await denied.result.current.onDeleteOrganization()).toBe(false);});
+  expect(deletes).toBe(0); denied.unmount();
+  const {result}=await editor('gruppeadmin');
+  act(()=>result.current.setDraft(draft=>({...draft,name:'Ulagret navn'})));
+  await act(async()=>{expect(await result.current.onDeleteOrganization()).toBe(false);});
+  expect(deletes).toBe(1); expect(result.current.draft.name).toBe('Ulagret navn');
+  expect(result.current.selectedOrgId).toBe(10);
+  expect(result.current.error).toContain('beskyttet tilhørighet');
+  expect(result.current.organizationDeleting).toBe(false);
+});
+it('confirmed actor deletion clears only its cache/links, retains people and excludes competing writes', async () => {
+  const {result}=await editor('gruppeadmin');
+  const people=result.current.persons;
+  let release!:()=>void; const gate=new Promise<void>(resolve=>{release=resolve;}); let deletes=0,patches=0;
+  server.use(http.delete('/api/tenants/1/organizations/10/', async()=>{deletes++;await gate;return new HttpResponse(null,{status:204});}),
+    http.patch('/api/tenants/1/organizations/10/',()=>{patches++;return HttpResponse.json({});}));
+  act(()=>result.current.setDraft(draft=>({...draft,name:'Lokalt utkast'})));
+  let deletion!:Promise<boolean>;act(()=>{deletion=result.current.onDeleteOrganization();});
+  await waitFor(()=>expect(deletes).toBe(1));
+  expect(result.current.organizationDeleting).toBe(true);
+  await act(async()=>{await result.current.onSubmit(event);expect(await result.current.onDeleteOrganization()).toBe(false);});
+  expect(deletes).toBe(1);expect(patches).toBe(0);
+  await act(async()=>{release();expect(await deletion).toBe(true);});
+  expect(result.current.organizations.some(org=>org.id===10)).toBe(false);
+  expect(result.current.organizationPeople.some(link=>link.organization===10)).toBe(false);
+  expect(result.current.persons).toEqual(people);
+  expect(result.current.organizationHasUnsavedChanges).toBe(false);
 });

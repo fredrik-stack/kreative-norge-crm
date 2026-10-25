@@ -44,7 +44,9 @@ test("legacy candidates are listed without network preview until explicit select
 
   await page.goto("/organizations");
   await loginAsEditor(page);
-  await page.getByRole("button", { name: "Rediger" }).click();
+  await page.locator(".editor-card-grid").getByRole("button", { name: "Kreativ Demo AS" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
+  await page.locator("summary").filter({hasText:"Endre bilde"}).click();
   await expect(page.getByText("Tidligere lagrede bilder")).toBeVisible();
   await expect(page.getByText("Ingen automatisk forhåndshenting")).toBeVisible();
   expect(previewRequests).toBe(0);
@@ -145,7 +147,9 @@ test("official candidate can be processed, previewed, and explicitly locked", as
 
   await page.goto("/organizations");
   await loginAsEditor(page);
-  await page.getByRole("button", { name: "Rediger" }).click();
+  await page.locator(".editor-card-grid").getByRole("button", { name: "Kreativ Demo AS" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
+  await page.locator("summary").filter({hasText:"Endre bilde"}).click();
   await expect(page.getByRole("heading", { name: "Aktørbilde" })).toBeVisible();
   await page.getByRole("button", { name: "Finn bilder" }).click();
   await expect(page.getByText("official.example")).toBeVisible();
@@ -157,6 +161,7 @@ test("official candidate can be processed, previewed, and explicitly locked", as
   await page.getByRole("button", { name: "Godkjenn og lås bilde" }).click();
   await expect(page.getByText("Aktivt bilde")).toBeVisible();
   await expect(page.getByText("Revisjon 1")).toBeVisible();
+  await page.locator("summary").filter({hasText:/^Forhåndsvisning/}).click();
   await expect(page.getByRole("heading", { name: "Public Preview (legacy)" })).toBeVisible();
 });
 
@@ -267,7 +272,9 @@ test("direct URL can be previewed, cropped live, processed, and approved with bl
 
   await page.goto("/organizations");
   await loginAsEditor(page);
-  await page.getByRole("button", { name: "Rediger" }).click();
+  await page.locator(".editor-card-grid").getByRole("button", { name: "Kreativ Demo AS" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
+  await page.locator("summary").filter({hasText:"Endre bilde"}).click();
   await page.getByRole("button", { name: "Finn bilder" }).click();
   await page.getByRole("button", { name: "Lim inn bilde-URL" }).click();
   await page.getByRole("textbox", { name: "Direkte bilde-URL" }).fill("https://images.example/scene.png");
@@ -379,7 +386,9 @@ test("local upload can be processed as a complete uncropped logo without changin
 
   await page.goto("/organizations");
   await loginAsEditor(page);
-  await page.getByRole("button", { name: "Rediger" }).click();
+  await page.locator(".editor-card-grid").getByRole("button", { name: "Kreativ Demo AS" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
+  await page.locator("summary").filter({hasText:"Endre bilde"}).click();
   await page.getByRole("button", { name: "Finn bilder" }).click();
   await page.getByRole("button", { name: "Last opp bilde" }).click();
   await page.getByLabel("Velg JPEG-, PNG- eller WebP-bilde").setInputFiles({
@@ -404,6 +413,7 @@ test("local upload can be processed as a complete uncropped logo without changin
 
   await expect(page.getByText("Aktivt bilde")).toBeVisible();
   await expect(page.getByText("Ingen alt-tekst")).toBeVisible();
+  await page.locator("summary").filter({hasText:/^Forhåndsvisning/}).click();
   await expect(page.getByRole("heading", { name: "Public Preview (legacy)" })).toBeVisible();
   expect(state.organizations[0].is_published).toBe(true);
   expect(state.organizations[0].og_image_url).toBeNull();
@@ -502,7 +512,9 @@ test("Brave search is mocked with exact manual query, privacy copy, private prev
 
   await page.goto("/organizations");
   await loginAsEditor(page);
-  await page.getByRole("button", { name: "Rediger" }).click();
+  await page.locator(".editor-card-grid").getByRole("button", { name: "Kreativ Demo AS" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
+  await page.locator("summary").filter({hasText:"Endre bilde"}).click();
   await page.getByRole("button", { name: "Finn bilder" }).click();
   await page.getByRole("button", { name: "Søk etter flere bilder" }).click();
   await expect(page.getByText(/Bildesøket utføres via Brave Search/)).toBeVisible();
@@ -515,5 +527,6 @@ test("Brave search is mocked with exact manual query, privacy copy, private prev
   await page.getByRole("button", { name: /Festspillene Helgeland/ }).click();
   await page.getByRole("button", { name: "Prosesser valgt bilde" }).click();
   await expect(page.getByLabel("Serverens bildeformater").getByRole("img")).toHaveCount(3);
+  await page.locator("summary").filter({hasText:/^Forhåndsvisning/}).click();
   await expect(page.getByRole("heading", { name: "Public Preview (legacy)" })).toBeVisible();
 });
