@@ -1,5 +1,13 @@
 # Kreative Norge CRM – dokumentasjon
 
+**Siste eierføring 25.10.2026, runde4:** Godkjent kortformat beholdes, men
+Editor-thumbnailen økes fra76 til90×90px (som PUBLIC) og sentreres vertikalt.
+[UI-6 §13](features/UI_6_FELLES_SPEC.md#13-thumbnail-som-public-og-aktørens-mobilmodal--2026-10-25) og
+[seks nye viewportbilder](status/EDITOR_THUMBNAIL_VISUAL_REVIEW_2026-10-25.md)
+viser aktøroversikt og aktørmodal med synlig grønn Rediger også på mobil.
+Eldre76px-bilder er historikk. Samme draft PR #92; samlet sluttaksept gjenstår.
+Import v6 rev.4/O-24/5E og tidligere farge-/lagringsføring består.
+
 **Siste eierføring 25.10.2026, runde 3:** Kortformatet er godkjent og beholdes;
 thumbnails er kvadratiske. [UI-6 §12](features/UI_6_FELLES_SPEC.md#12-låst-kortformat-og-metadatafarger--2026-10-25)
 styrer fargene brun hovedkategori / blå underkategori / grønn tagg på desktop og

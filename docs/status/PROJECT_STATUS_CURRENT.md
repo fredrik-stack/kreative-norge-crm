@@ -1,5 +1,24 @@
 # Project Status Current
 
+## PR #92 – thumbnailbalanse og aktørmodal 2026-10-25
+
+[UI-6 §13](../features/UI_6_FELLES_SPEC.md#13-thumbnail-som-public-og-aktørens-mobilmodal--2026-10-25) er siste eierføring.
+Runtime `7ef04b1646dd7466f69b3494ff507e579553b346` beholder godkjente kort148px og samme responsive bredde/
+kolonner. Thumbnail/fallback er90×90px, lik PUBLIC-listens faktiske størrelse,
+og sentrert vertikalt i kortet på desktop/mobil. Hovedkategori får beholde sin
+bredde på smal skjerm; øvrig tekst/farge/avkorting og full informasjon i modal består.
+Aktørmodalens eksisterende grønne Rediger er beholdt med samme canWrite-port;
+synlighet, udekket trykkpunkt og navigasjon til redigering er browserverifisert.
+
+[Seks nye viewportbilder/kontrollrapport](EDITOR_THUMBNAIL_VISUAL_REVIEW_2026-10-25.md)
+gjelder1920/390/320 med eksplisitte syntetiske API-fixtures.320px-modal er rullet
+inne i dialogen for å vise handlingen.66 frontendtester, TS/bygg og24 Editor-reiser
+er grønne. Kun CSS/regresjon er endret; ingen ny backend-/DB-/Docker-/zoomkjøring.
+Siste review og CI spores i PR-en. Eldre76px-bilder er historikk.
+Samlet sluttgodkjenning kreves før merge/staging. Ingen Import-UX eller PUBLIC-
+endring i denne runden; godkjent v6 rev.4/O-24 og5E består. Senere deployscope
+for hele PR-en er fortsatt API+frontend, uten migrasjon eller neste produktetappe.
+
 ## PR #92 – siste fargeretting / låst kortformat 2026-10-25
 
 Eier har godkjent aktørkortenes størrelse fra runde2. Samme 148 px høyde,

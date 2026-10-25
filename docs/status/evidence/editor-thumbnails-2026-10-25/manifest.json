@@ -1,0 +1,102 @@
+{
+  "runtime_head": "7ef04b1646dd7466f69b3494ff507e579553b346",
+  "image_count": 6,
+  "images": [
+    {
+      "file": "actors-1920.png",
+      "caption": "Aktøroversikt – samme kortmål, sentrert90×90 thumbnail · viewport1920px",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 412707,
+      "sha256": "d0916261752203fe3e13c360ff3f45397608c1e1176d0393a5db4639dae3d002",
+      "group": "desktop"
+    },
+    {
+      "file": "actor-modal-1920.png",
+      "caption": "Aktørens lesemodal – grønn Rediger · viewport1920px",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 218284,
+      "sha256": "9d7199d625d47a359b80c8dc576997d973364673248c00a30a8b66563041257a",
+      "group": "desktop"
+    },
+    {
+      "file": "actors-390.png",
+      "caption": "Aktøroversikt – samme kortmål, sentrert90×90 thumbnail · viewport390px",
+      "width": 390,
+      "height": 844,
+      "bytes": 89203,
+      "sha256": "bb6bc0dc107615584bafd49495d12a1f98434a5ef9316284aa58c70a75d2a57b",
+      "group": "mobil"
+    },
+    {
+      "file": "actor-modal-390.png",
+      "caption": "Aktørens lesemodal – grønn Rediger · viewport390px",
+      "width": 390,
+      "height": 844,
+      "bytes": 64426,
+      "sha256": "6ca24d4aafc7d5067c2fe2e6a07f44ab6c145bbb35e5d138ee9ca7b256e41702",
+      "group": "mobil"
+    },
+    {
+      "file": "actors-320.png",
+      "caption": "Aktøroversikt – samme kortmål, sentrert90×90 thumbnail · viewport320px",
+      "width": 320,
+      "height": 844,
+      "bytes": 78084,
+      "sha256": "03f3655b0dd2445b72ccc6badb04f4e94c6faa9ad419cda1ba201bffa883a55c",
+      "group": "mobil"
+    },
+    {
+      "file": "actor-modal-320.png",
+      "caption": "Aktørens lesemodal – grønn Rediger · viewport320px · dialog rullet til nederste handling",
+      "width": 320,
+      "height": 844,
+      "bytes": 59659,
+      "sha256": "7b5359b41fee66b86e7b46cce3d17f847a70ab96bd5ce005124fc34e0afebb66",
+      "group": "mobil"
+    }
+  ],
+  "files": [
+    {
+      "file": "actor-modal-1920.png",
+      "bytes": 218284,
+      "sha256": "9d7199d625d47a359b80c8dc576997d973364673248c00a30a8b66563041257a"
+    },
+    {
+      "file": "actor-modal-320.png",
+      "bytes": 59659,
+      "sha256": "7b5359b41fee66b86e7b46cce3d17f847a70ab96bd5ce005124fc34e0afebb66"
+    },
+    {
+      "file": "actor-modal-390.png",
+      "bytes": 64426,
+      "sha256": "6ca24d4aafc7d5067c2fe2e6a07f44ab6c145bbb35e5d138ee9ca7b256e41702"
+    },
+    {
+      "file": "actors-1920.png",
+      "bytes": 412707,
+      "sha256": "d0916261752203fe3e13c360ff3f45397608c1e1176d0393a5db4639dae3d002"
+    },
+    {
+      "file": "actors-320.png",
+      "bytes": 78084,
+      "sha256": "03f3655b0dd2445b72ccc6badb04f4e94c6faa9ad419cda1ba201bffa883a55c"
+    },
+    {
+      "file": "actors-390.png",
+      "bytes": 89203,
+      "sha256": "bb6bc0dc107615584bafd49495d12a1f98434a5ef9316284aa58c70a75d2a57b"
+    },
+    {
+      "file": "checks.json",
+      "bytes": 864,
+      "sha256": "6e36712c52b03389a642d0254837bba01bb44bf33f8aaeacadd161c52b8fabca"
+    },
+    {
+      "file": "index.html",
+      "bytes": 3970,
+      "sha256": "e23c1264fe1175065ffccc60f8bab964eaa07227bb198a1939169b5fcd32e2b3"
+    }
+  ]
+}

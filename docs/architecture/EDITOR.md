@@ -1,5 +1,21 @@
 # Editor
 
+## Siste thumbnailretting, runde4 – 2026-10-25
+
+[UI-6 §13](../features/UI_6_FELLES_SPEC.md#13-thumbnail-som-public-og-aktørens-mobilmodal--2026-10-25) erstatter76px-thumbnailen
+med90×90px, samme mål som PUBLIC-listen. Oversiktskortets godkjente148px høyde,
+responsive bredde/kolonner, gap, padding og fonter beholdes. Gridraden fyller
+kortets innvendige høyde (`align-content:stretch`), og kun bilde/fallback sentreres
+vertikalt med `align-self:center`. Tekst/sted beholder sin plassering. Hovedkategori
+krymper ikke på smal skjerm; annen kontrollert avkorting/full modalinfo består.
+
+Aktørmodalens Rediger er allerede grønn primary-knapp under eksisterende canWrite.
+Ingen modalkode eller ny tilgang/posisjonering er innført; browsertest kontrollerer
+grønn gradient, synlig/udekket knapp og faktisk redigeringsnavigasjon ved1920/390/320.
+Ved320px rulles dialogen for å vise footeren. [Nye viewportbilder](../status/EDITOR_THUMBNAIL_VISUAL_REVIEW_2026-10-25.md)
+bruker syntetiske API-fixtures; de er ikke stagingaksept. Tidligere76px-bilder er
+historikk. Import og PUBLIC er ikke endret i denne runden.
+
 ## Siste farge-/thumbnailretting, runde 3 – 2026-10-25
 
 [UI-6 §12](../features/UI_6_FELLES_SPEC.md#12-låst-kortformat-og-metadatafarger--2026-10-25)

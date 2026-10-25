@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-25 – thumbnailbalanse og aktørmodal i PR #92
+
+- Oversiktens bilde/fallback økes til90×90px som PUBLIC og sentreres vertikalt;
+  godkjente kortmål/kolonner/fonter beholdes. Hovedkategori krymper ikke på mobil.
+- Eksisterende grønn Rediger i aktørmodalen er verifisert synlig/udekket og
+  funksjonell på desktop/mobil, med samme rettigheter. Ingen modalkodeendring.
+- Seks nye viewportbilder fra syntetiske API-fixtures.66frontendtester,
+  TS/bygg og24Editor-reiser grønne. Ingen ny backend-/DB-/Dockerkjøring.
+  Samme draft PR, ingen merge/staging; se UI-6 §13 og ny datert rapport.
+
 ## 2026-10-25 – låst kortformat og metadatafarger i PR #92
 
 - Eiers godkjente kortstørrelse beholdes; thumbnail/fallback blir 76×76.

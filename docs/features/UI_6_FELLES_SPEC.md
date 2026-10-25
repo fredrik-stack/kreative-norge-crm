@@ -461,3 +461,28 @@ beholdes som historikk; Import15 er tydelig markert avvist også i gammelt galle
 Samme PR #92, separat review og siste-head CI; stopp før merge/staging for samlet
 sluttgodkjenning. Senere deployscope API + frontend (PUBLIC-mal inkludert), uten
 migrasjon. Ingen API-/data-/kontakt-/primær-/taggpolicyendring eller neste etappe.
+
+
+## 13. Thumbnail som PUBLIC og aktørens mobilmodal – 2026-10-25
+
+**Besluttet av eier:** Kortstørrelsen er fortsatt godkjent. Thumbnailen skal være
+større og sentrert vertikalt til venstre, som i PUBLIC, også på mobil. Aktørens
+lesemodal må ha grønn Rediger, og mobilmodalen må dokumenteres med eget viewportbilde.
+
+**Implementert/kontrollert:** Oversiktens thumbnail og fallback90×90px, lik faktisk
+PUBLIC-listemal. Kort148px og samme responsive bredde/kolonner, padding/gap og fonter
+beholdes. Gridraden fyller innvendig høyde, bilde/fallback sentreres; tekst/sted
+beholder plassering. Hovedkategori krymper ikke når bildekolonnen tar mer plass.
+Øvrig kontrollert avkorting og full modalinfo videreføres. Dette overstyrer76px i§12.
+
+Modalens eksisterende primary Rediger er allerede grønn; canWrite og handling
+beholdes uten modalkodeendring. Browsertest kontrollerer synlighet, gradient,
+udekket trykkpunkt og åpning av korrekt aktørredigering ved1920/390/320. Ved320px
+rulles dialogen normalt til nederste handling. Ingen sticky-footer eller ny tilgang.
+
+[Seks nye viewportbilder](../status/EDITOR_THUMBNAIL_VISUAL_REVIEW_2026-10-25.md)
+gjelder runtime `7ef04b1646dd7466f69b3494ff507e579553b346` med syntetiske API-fixtures. Eldre76px-bilder er
+historikk. Samme draft PR #92; separat review/siste-head CI og samlet sluttaksept
+før merge/staging består. Import v6 rev.4/O-24 og5E, eksisterende palett/person-
+lagring og begge kart består. Ingen ny PUBLIC-/Import-/API-/data-/policyendring,
+migrasjon/backfill eller neste etappe. Hele PR-ens senere deployscope er API+frontend.

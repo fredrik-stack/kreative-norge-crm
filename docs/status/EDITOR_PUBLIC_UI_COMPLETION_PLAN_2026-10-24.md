@@ -1,5 +1,13 @@
 # Editor og PUBLIC – samlet UI/UX-ferdigstilling
 
+**Eieravklaring 25.10.2026, runde4:** Godkjent kortstørrelse består; Editor-
+thumbnail/fallback skal matche PUBLIC-listens90×90px og være sentrert vertikalt,
+også på mobil. Aktørens mobilmodal skal vise grønn Rediger under eksisterende
+rettigheter. [UI-6 §13](../features/UI_6_FELLES_SPEC.md#13-thumbnail-som-public-og-aktørens-mobilmodal--2026-10-25) og
+[seks nye viewportbilder](EDITOR_THUMBNAIL_VISUAL_REVIEW_2026-10-25.md) beskriver
+avgrenset retting/kontroll. Ingen ny Import-/PUBLIC-utforming; v6 rev.4/O-24,
+5E, begge kart og premerge-sluttaksept består.
+
 **Eieravklaring 25.10.2026, runde3:** Kortformatet fra runde2 er godkjent;
 thumbnails skal være kvadratiske. Eksisterende kategori-/underkategori-/taggfarger
 skal følge metadataene på desktop/mobil. [UI-6 §12](../features/UI_6_FELLES_SPEC.md#12-låst-kortformat-og-metadatafarger--2026-10-25)
