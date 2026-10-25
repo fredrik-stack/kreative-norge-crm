@@ -44,7 +44,8 @@ test("legacy candidates are listed without network preview until explicit select
 
   await page.goto("/organizations");
   await loginAsEditor(page);
-  await page.getByRole("button", { name: "Rediger" }).click();
+  await page.locator(".editor-card-grid").getByRole("button", { name: "Kreativ Demo AS" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
   await page.locator("summary").filter({hasText:"Endre bilde"}).click();
   await expect(page.getByText("Tidligere lagrede bilder")).toBeVisible();
   await expect(page.getByText("Ingen automatisk forhåndshenting")).toBeVisible();
@@ -146,7 +147,8 @@ test("official candidate can be processed, previewed, and explicitly locked", as
 
   await page.goto("/organizations");
   await loginAsEditor(page);
-  await page.getByRole("button", { name: "Rediger" }).click();
+  await page.locator(".editor-card-grid").getByRole("button", { name: "Kreativ Demo AS" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
   await page.locator("summary").filter({hasText:"Endre bilde"}).click();
   await expect(page.getByRole("heading", { name: "Aktørbilde" })).toBeVisible();
   await page.getByRole("button", { name: "Finn bilder" }).click();
@@ -270,7 +272,8 @@ test("direct URL can be previewed, cropped live, processed, and approved with bl
 
   await page.goto("/organizations");
   await loginAsEditor(page);
-  await page.getByRole("button", { name: "Rediger" }).click();
+  await page.locator(".editor-card-grid").getByRole("button", { name: "Kreativ Demo AS" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
   await page.locator("summary").filter({hasText:"Endre bilde"}).click();
   await page.getByRole("button", { name: "Finn bilder" }).click();
   await page.getByRole("button", { name: "Lim inn bilde-URL" }).click();
@@ -383,7 +386,8 @@ test("local upload can be processed as a complete uncropped logo without changin
 
   await page.goto("/organizations");
   await loginAsEditor(page);
-  await page.getByRole("button", { name: "Rediger" }).click();
+  await page.locator(".editor-card-grid").getByRole("button", { name: "Kreativ Demo AS" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
   await page.locator("summary").filter({hasText:"Endre bilde"}).click();
   await page.getByRole("button", { name: "Finn bilder" }).click();
   await page.getByRole("button", { name: "Last opp bilde" }).click();
@@ -508,7 +512,8 @@ test("Brave search is mocked with exact manual query, privacy copy, private prev
 
   await page.goto("/organizations");
   await loginAsEditor(page);
-  await page.getByRole("button", { name: "Rediger" }).click();
+  await page.locator(".editor-card-grid").getByRole("button", { name: "Kreativ Demo AS" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
   await page.locator("summary").filter({hasText:"Endre bilde"}).click();
   await page.getByRole("button", { name: "Finn bilder" }).click();
   await page.getByRole("button", { name: "Søk etter flere bilder" }).click();

@@ -113,7 +113,7 @@ type ReviewDraft = {
   suggestionStates: Record<string, SuggestionState>;
 };
 
-export function ImportExportPage() {
+export function ImportExportPage({ mode = "import" }: { mode?: "import" | "export" }) {
   const editor = useEditor();
   const importJobs = useImportJobs(editor.tenantId);
   const exportJobs = useExportJobs(editor.tenantId);
@@ -156,7 +156,7 @@ export function ImportExportPage() {
 
   return (
     <main className="import-export-layout">
-      <section className="panel import-export-panel">
+      {mode === "import" ? <section className="panel import-export-panel">
         <div className="sidebar-header">
           <div>
             <p className="eyebrow small">Import</p>
@@ -243,9 +243,9 @@ export function ImportExportPage() {
             )}
           </div>
         </div>
-      </section>
+      </section> : null}
 
-      <ExportPanel
+      {mode === "export" ? <ExportPanel
         exportJobs={exportJobs}
         format={format}
         setFormat={setFormat}
@@ -255,7 +255,7 @@ export function ImportExportPage() {
         setFilterQuery={setFilterQuery}
         fieldSelection={fieldSelection}
         setFieldSelection={setFieldSelection}
-      />
+      /> : null}
     </main>
   );
 }
@@ -1097,6 +1097,7 @@ function ExportPanel(props: {
         </div>
         <span className="meta">{exportJobs.jobs.length} jobber</span>
       </div>
+      <p className="muted">Her kan du opprette og følge eksportjobber. Filgenerering er ikke ferdigstilt. En nedlastingslenke vises bare når jobben faktisk har en fil.</p>
       {exportJobs.forbidden ? <div className="banner error">Du har ikke tilgang til eksport for denne tenanten.</div> : null}
       {exportJobs.error ? <div className="banner error">{exportJobs.error}</div> : null}
       <div className="import-actions export-form-grid">

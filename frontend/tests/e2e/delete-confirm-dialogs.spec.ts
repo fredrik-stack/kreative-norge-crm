@@ -45,7 +45,7 @@ test("shows confirm dialogs for deleting link and person", async ({ page }) => {
     };
   });
 
-  await setupMockEditorApi(page, {
+  const state = await setupMockEditorApi(page, {
     organizationPeople: [
       {
         id: 30,
@@ -106,9 +106,11 @@ test("shows confirm dialogs for deleting link and person", async ({ page }) => {
     ],
   });
 
+  state.tenants[0].current_user_role = "gruppeadmin";
   await page.goto("/organizations");
   await loginAsEditor(page);
-  await page.getByRole("button", { name: "Rediger" }).click();
+  await page.locator(".editor-card-grid").getByRole("button", { name: "Kreativ Demo AS" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
 
   const linkRow = page.locator(".link-row").filter({ hasText: "Ada Editor" }).first();
   let count = await confirmMessageCount(page);
@@ -122,7 +124,7 @@ test("shows confirm dialogs for deleting link and person", async ({ page }) => {
   await page.goto("/people");
   await page.getByRole("searchbox",{name:"Søk personer"}).fill("Ada");
   await page.getByRole("button", { name: "Ada Editor" }).click();
-  await page.getByRole("button", { name: "Rediger" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
   await expect(page.getByLabel("Fullt navn")).toHaveValue("Ada Editor");
   count = await clickUntilConfirmIncrements(page, async () => {
     await page.evaluate(() => {

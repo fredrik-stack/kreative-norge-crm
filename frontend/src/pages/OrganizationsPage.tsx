@@ -73,10 +73,10 @@ export function OrganizationsPage() {
   }, [location.search, orgId]);
 
   useEffect(() => {
-    if (!inOverviewMode && !editor.canWrite) {
+    if (editor.tenantDataLoaded && !inOverviewMode && !editor.canWrite) {
       navigate("/organizations");
     }
-  }, [editor.canWrite, inOverviewMode, navigate]);
+  }, [editor.canWrite, editor.tenantDataLoaded, inOverviewMode, navigate]);
 
   if (inOverviewMode) {
     return (
@@ -138,12 +138,13 @@ function OrganizationOverviewPanel(props: {
         <span className="meta">{organizations.length} synlige</span>
       </div>
       <p className="muted">
-        Åpne en aktør for kontaktinfo og detaljer, eller velg Rediger.
+        Åpne en aktør for kontaktinfo og detaljer.
       </p>
       {filterSummary ? <div className="filter-summary">{filterSummary}</div> : null}
       <div className="editor-card-grid">
         {organizations.map((organization) => {
-          const overviewPills = getOverviewPills(organization);
+          const overviewPills = getOverviewPills(organization).filter(pill => pill.kind !== "tag");
+          const firstTag = organization.tags[0];
           return (
           <article
             key={organization.id}
@@ -162,24 +163,7 @@ function OrganizationOverviewPanel(props: {
                   <span key={pill.key} className={`mini-pill ${pill.kind}`}>{pill.label}</span>
                 ))}
               </div>
-              <div className="editor-card-actions">
-                <span className={`save-pill ${organization.is_published ? "saved" : "idle"}`}>
-                  {organization.is_published ? "Publisert" : "Kun intern"}
-                </span>
-                {editor.canWrite ? (
-                  <button
-                    type="button"
-                    className="ghost-button compact-button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      editor.setSelectedOrgId(organization.id);
-                      navigate(`/organizations/${organization.id}`);
-                    }}
-                  >
-                    Rediger
-                  </button>
-                ) : null}
-              </div>
+              {firstTag ? <div className="card-tags"><span className="mini-pill tag">{firstTag.name}</span>{organization.tags.length > 1 ? <button type="button" className="tag-count" aria-label={`Vis ${organization.tags.length - 1} flere tags for ${organization.name}`} onClick={event => { event.stopPropagation(); onModalOrgIdChange(organization.id); }}>+{organization.tags.length - 1}</button> : null}</div> : null}
             </div>
           </article>
         )})}
@@ -411,7 +395,7 @@ function OrganizationEditorPanel(props: {
       ) : (
         <>
           {editor.saveState === "error" ? <div className="inline-banner warn">Lagring ikke bekreftet. Kontroller feilmeldingen og lagret resultat før du prøver igjen.</div> : null}
-          <form onSubmit={editor.onSubmit} onInvalidCapture={revealInvalidProfileField} className="editor-form profile-form">
+          <form onSubmit={editor.onSubmit} onInvalidCapture={revealInvalidProfileField} className="editor-form profile-form"><fieldset className="profile-fields" disabled={editor.saveState === "saving"}>
             <div className="editor-header profile-header">
               <div className="profile-heading">
                 <button type="button" className="profile-back" onClick={() => navigate("/organizations")}>← Til aktøroversikt</button>
@@ -422,12 +406,12 @@ function OrganizationEditorPanel(props: {
               <ProfileFormActions
                 model="aktør" isNew={editor.selectedOrgId === "new"}
                 state={editor.saveState} dirty={editor.organizationHasUnsavedChanges}
-                disabled={!editor.tenantId} onReset={editor.onResetOrganizationDraft}
+                disabled={!editor.tenantId}
               />
             </div>
             <ProfileValidationSummary errors={editor.organizationFieldErrors} />
             <div className="grid two">
-              <Field label="Navn" required>
+              <Field label="Navn" name="name" error={editor.organizationFieldErrors.name} required>
                 <input
                   value={editor.draft.name}
                   onChange={(e) => editor.setDraft((s) => ({ ...s, name: e.target.value }))}
@@ -453,6 +437,12 @@ function OrganizationEditorPanel(props: {
               </Field>
               <Field label="Telefon" name="phone" error={editor.organizationFieldErrors.phone}>
                 <div className="contact-inline-input">
+                  <PhoneRegionSelect
+                    value={editor.draft.phone_region ?? ""}
+                    onChange={(phoneRegion) =>
+                      editor.setDraft((state) => ({ ...state, phone_region: phoneRegion || null }))
+                    }
+                  />
                   <input
                     aria-label="Telefon"
                     value={editor.draft.phone ?? ""}
@@ -462,12 +452,6 @@ function OrganizationEditorPanel(props: {
                         phone: e.target.value,
                         ...(e.target.value.trim().startsWith("+") ? { phone_region: null } : {}),
                       }))
-                    }
-                  />
-                  <PhoneRegionSelect
-                    value={editor.draft.phone_region ?? ""}
-                    onChange={(phoneRegion) =>
-                      editor.setDraft((state) => ({ ...state, phone_region: phoneRegion || null }))
                     }
                   />
                 </div>
@@ -626,7 +610,8 @@ function OrganizationEditorPanel(props: {
               </label>
             </div>
 
-          </form>
+            <ProfileFormActions model="aktør" isNew={editor.selectedOrgId === "new"} state={editor.saveState} dirty={editor.organizationHasUnsavedChanges} disabled={!editor.tenantId} />
+          </fieldset></form>
 
           {typeof editor.selectedOrgId === "number" && editor.selectedOrganization?.image_asset_feature_enabled ? (
             <div className="profile-image-entry">
@@ -2059,7 +2044,16 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
                 </Field>
                 <Field label="Telefon" name="phone" error={editor.linkedPersonFieldErrors.phone}>
                   <div className="contact-inline-input">
-                    <input
+                    <PhoneRegionSelect
+                      value={editor.linkedPersonDraft.phone_region ?? ""}
+                      onChange={(phoneRegion) =>
+                        editor.setLinkedPersonDraft((state) => ({
+                          ...state,
+                          phone_region: phoneRegion || null,
+                        }))
+                      }
+                    />
+                  <input
                       aria-label="Telefon"
                       value={editor.linkedPersonDraft.phone}
                       onChange={(e) =>
@@ -2067,15 +2061,6 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
                           ...state,
                           phone: e.target.value,
                           ...(e.target.value.trim().startsWith("+") ? { phone_region: null } : {}),
-                        }))
-                      }
-                    />
-                    <PhoneRegionSelect
-                      value={editor.linkedPersonDraft.phone_region ?? ""}
-                      onChange={(phoneRegion) =>
-                        editor.setLinkedPersonDraft((state) => ({
-                          ...state,
-                          phone_region: phoneRegion || null,
                         }))
                       }
                     />

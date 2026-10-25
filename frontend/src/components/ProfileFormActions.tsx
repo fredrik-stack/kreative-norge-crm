@@ -1,9 +1,9 @@
 import { profileStatus, type SaveState } from "../editor-utils";
 
 /** Inside the profile's main form; separate writes keep their own controls. */
-export function ProfileFormActions({ model, isNew, state, dirty, disabled, onReset }: {
+export function ProfileFormActions({ model, isNew, state, dirty, disabled }: {
   model: "aktør" | "person"; isNew: boolean; state: SaveState;
-  dirty: boolean; disabled: boolean; onReset: () => void;
+  dirty: boolean; disabled: boolean;
 }) {
   const status = profileStatus(state, dirty, isNew, model);
   return (
@@ -12,10 +12,6 @@ export function ProfileFormActions({ model, isNew, state, dirty, disabled, onRes
         {state !== "idle" || dirty ? status.label : ""}
       </span>
       <div className="actions">
-        <button type="button" className="ghost-button" onClick={onReset}
-          disabled={state === "saving" || (!dirty && state !== "error")}>
-          {isNew ? "Nullstill profilutkast" : "Forkast profilutkast"}
-        </button>
         <button type="submit" className="primary-button"
           disabled={disabled || state === "saving" || (!isNew && !dirty && state !== "error")}>
           {isNew ? `Opprett ${model}` : `Lagre ${model}`}

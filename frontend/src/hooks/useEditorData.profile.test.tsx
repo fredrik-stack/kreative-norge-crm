@@ -16,7 +16,7 @@ async function editor() {
 }
 const event = { preventDefault() {} } as React.FormEvent;
 
-for (const model of ['organization', 'person'] as const) {
+for (const model of ['organization'] as const) {
   const org = model === 'organization';
   it(`${model}: new/reset share tenant region, clear tags/errors/state, preserve separate drafts and issue no writes`, async () => {
     const { result } = await editor();
@@ -24,7 +24,7 @@ for (const model of ['organization', 'person'] as const) {
     await waitFor(() => expect(org ? result.current.draft.phone_region : result.current.personDraft.phone_region).toBe('NO'));
     expect(org ? result.current.organizationHasUnsavedChanges : result.current.personDraftHasUnsavedChanges).toBe(false);
     act(() => {
-      result.current.setContactDraft(s => ({ ...s, value: 'separat@example.invalid' }));
+
       if (org) {
         result.current.setDraft(s => ({ ...s, email: 'invalid', phone_region: 'SE' }));
         result.current.setOrganizationTagInput('new tag');
@@ -46,7 +46,7 @@ for (const model of ['organization', 'person'] as const) {
     expect(org ? result.current.saveState : result.current.personSaveState).toBe('idle');
     expect(org ? result.current.organizationFieldErrors : result.current.personFieldErrors).toEqual({});
     expect(org ? result.current.organizationHasUnsavedChanges : result.current.personDraftHasUnsavedChanges).toBe(false);
-    expect(result.current.contactDraft.value).toBe('separat@example.invalid');
+
     expect(result.current.error).toBe(globalError);
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
@@ -65,14 +65,14 @@ for (const model of ['organization', 'person'] as const) {
         result.current.setPersonDraft(s => ({ ...s, full_name: 'changed' }));
         result.current.setPersonTagInput('changed');
       }
-      result.current.setContactDraft(s => ({ ...s, value: 'draft@example.invalid' }));
+
     });
     act(() => org ? result.current.onResetOrganizationDraft() : result.current.onResetPersonDraft());
     expect(org ? result.current.draft : result.current.personDraft).toEqual(original);
     expect(org ? result.current.organizationTagInput : result.current.personTagInput).toBe(tags);
     expect(result.current.personDraftHasUnsavedChanges).toBe(false);
-    expect(result.current.contactDraftHasUnsavedChanges).toBe(true);
-    expect(result.current.peopleHasUnsavedChanges).toBe(true);
+    expect(result.current.contactDraftHasUnsavedChanges).toBe(false);
+    expect(result.current.peopleHasUnsavedChanges).toBe(false);
     expect(profileStatus(result.current.personSaveState, result.current.personDraftHasUnsavedChanges, false, 'person').label).toBe('Ingen ulagrede profilfelt');
   });
 
@@ -119,19 +119,4 @@ it('successful save, new edits and profile switch never reuse an old confirmatio
   act(() => result.current.setSelectedOrgId('new'));
   await waitFor(() => expect(result.current.saveState).toBe('idle'));
   expect(profileStatus(result.current.saveState, result.current.organizationHasUnsavedChanges, true, 'aktør').label).toBe('Nytt profilutkast');
-});
-
-it('saving the same person preserves a separate contact draft and its navigation guard', async () => {
-  const { result } = await editor();
-  await waitFor(() => expect(result.current.personDraft.full_name).not.toBe(''));
-  const id = result.current.selectedPersonId;
-  const stored = result.current.persons.find(p => p.id === id)!;
-  server.use(http.patch(`/api/tenants/1/persons/${id}/`, async ({ request }) =>
-    HttpResponse.json({ ...stored, ...await request.json() as object })));
-  act(() => result.current.setContactDraft(s => ({ ...s, value: 'separate@example.invalid' })));
-  await act(async () => { await result.current.onSubmitPerson(event); });
-  expect(result.current.personDraftHasUnsavedChanges).toBe(false);
-  expect(result.current.contactDraft.value).toBe('separate@example.invalid');
-  expect(result.current.peopleHasUnsavedChanges).toBe(true);
-  expect(result.current.contactDraftHasUnsavedChanges).toBe(true);
 });

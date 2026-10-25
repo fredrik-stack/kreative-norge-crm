@@ -36,7 +36,8 @@ test("create, update and remove organization-person link", async ({ page }) => {
   await page.goto("/organizations");
   await loginAsEditor(page);
 
-  await page.getByRole("button", { name: "Rediger" }).click();
+  await page.locator(".editor-card-grid").getByRole("button", { name: "Kreativ Demo AS" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
   await expect(page.getByRole("heading", { name: "Personkoblinger" })).toBeVisible();
   await page.locator("summary").filter({hasText:"Knytt eksisterende person"}).click();
   await page.locator("summary").filter({hasText:"Opprett kontaktperson"}).click();

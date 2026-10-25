@@ -196,12 +196,12 @@ test("canonical dial targets, internal actor phones and effective PUBLIC state s
   await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
   await expect(page.getByLabel("Telefon", { exact: true })).toHaveValue("070 123 45 67");
   await page.getByLabel("Tittel",{exact:true}).fill("Produsent endret");
-  await page.getByRole("button", { name: "Lagre person" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Personskjema lagret" })).toBeVisible();
-  await expect(page.getByText(/Koblet til 1 aktør: 0 viser personen offentlig, 1 skjuler personen/)).toBeVisible();
-  const savedContactCard = page.locator("article.modal-contact-card").first();
+  await page.getByRole("button", { name: "Lagre person" }).first().click();
+  await expect(page.getByRole("status").filter({ hasText: "Personskjema lagret" }).first()).toBeVisible();
+  await expect(page.getByText(/0 av 1 aktørkoblinger viser personen offentlig/)).toBeVisible();
+  const savedContactCard = page.locator(".person-contact-row").first();
   await expect(savedContactCard.getByText("Kan vises offentlig", { exact: true })).toBeVisible();
-  await expect(savedContactCard.getByText(/vises bare på aktører der personen også er satt til/)).toBeVisible();
+  await expect(page.getByText(/Offentlige kontaktverdier vises bare på aktører/)).toBeVisible();
 
   await page.getByRole("link", { name: /^Aktører/ }).click();
   await page.getByRole("searchbox",{name:"Søk aktører"}).fill("");

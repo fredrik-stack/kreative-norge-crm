@@ -112,21 +112,27 @@ class CsrfTokenView(APIView):
         return Response({"csrfToken": get_token(request)})
 
 
+def editor_session_user(user):
+    memberships = TenantMembership.objects.filter(user=user).select_related("tenant").order_by("tenant__name")
+    return {
+        "id": user.id,
+        "username": user.get_username(),
+        "display_name": user.get_full_name().strip() or user.get_username(),
+        "is_superuser": user.is_superuser,
+        "can_access_admin": bool(user.is_active and user.is_staff),
+        "memberships": TenantMembershipSerializer(memberships, many=True).data,
+    }
+
+
 class SessionView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
         if request.user.is_authenticated:
-            memberships = TenantMembership.objects.filter(user=request.user).select_related("tenant").order_by("tenant__name")
             return Response(
                 {
                     "authenticated": True,
-                    "user": {
-                        "id": request.user.id,
-                        "username": request.user.get_username(),
-                        "is_superuser": request.user.is_superuser,
-                        "memberships": TenantMembershipSerializer(memberships, many=True).data,
-                    },
+                    "user": editor_session_user(request.user),
                 }
             )
         return Response({"authenticated": False, "user": None})
@@ -153,16 +159,10 @@ class LoginView(APIView):
             )
 
         login(request, user)
-        memberships = TenantMembership.objects.filter(user=user).select_related("tenant").order_by("tenant__name")
         return Response(
             {
                 "authenticated": True,
-                "user": {
-                    "id": user.id,
-                    "username": user.get_username(),
-                    "is_superuser": user.is_superuser,
-                    "memberships": TenantMembershipSerializer(memberships, many=True).data,
-                },
+                "user": editor_session_user(user),
             }
         )
 

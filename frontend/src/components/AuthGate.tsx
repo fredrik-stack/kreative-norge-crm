@@ -10,7 +10,7 @@ import {
 import { LoginForm } from "./LoginForm";
 
 export function AuthGate(props: {
-  children: (auth: { username: string; onLogout: () => Promise<void> }) => React.ReactNode;
+  children: (auth: { username: string; user: AuthSession["user"]; onLogout: () => Promise<void> }) => React.ReactNode;
 }) {
   const { children } = props;
   const [authLoading, setAuthLoading] = useState(true);
@@ -106,5 +106,5 @@ export function AuthGate(props: {
     );
   }
 
-  return <>{children({ username: session.user?.username ?? "", onLogout })}</>;
+  return <>{children({ username: session.user?.username ?? "", user: session.user, onLogout })}</>;
 }

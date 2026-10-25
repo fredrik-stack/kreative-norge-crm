@@ -15,12 +15,29 @@ export function Field({
 }) {
   const id = useId();
   const items = Children.toArray(children);
-  const control = items.find((item) => isValidElement(item) && ["input", "select", "textarea"].includes(String(item.type)));
-  const content = items.map((item) => item === control ? cloneElement(item as ReactElement, {
-    id,
+  const controls: ReactElement[] = [];
+  function findControls(nodes: ReactNode) {
+    Children.forEach(nodes, item => {
+      if (!isValidElement(item)) return;
+      if (["input", "select", "textarea"].includes(String(item.type))) controls.push(item);
+      else findControls(item.props.children);
+    });
+  }
+  findControls(items);
+  const control = controls.length === 1 ? controls[0] : undefined;
+  const controlId = control?.props.id ?? id;
+  function bindControl(nodes: ReactNode): ReactNode {
+    return Children.map(nodes, item => {
+      if (!isValidElement(item)) return item;
+      if (item === control) return cloneElement(item, {
+    id: controlId,
     "aria-invalid": error ? true : undefined,
-    "aria-describedby": error ? `${id}-error` : undefined,
-  }) : item);
+    "aria-describedby": [item.props["aria-describedby"], error ? `${id}-error` : null].filter(Boolean).join(" ") || undefined,
+      });
+      return item.props.children ? cloneElement(item, {}, bindControl(item.props.children)) : item;
+    });
+  }
+  const content = bindControl(items);
   if (!control) return (
     <fieldset className={`field ${error ? "has-error" : ""}`} data-field={name} aria-describedby={error ? `${id}-error` : undefined}>
       <legend className="field-label">{label}{required ? " *" : ""}</legend>
@@ -30,7 +47,7 @@ export function Field({
   );
   return (
     <div className={`field ${error ? "has-error" : ""}`} data-field={name}>
-      <label className="field-label" htmlFor={id}>{label}{required ? " *" : ""}</label>
+      <label className="field-label" htmlFor={controlId}>{label}{required ? " *" : ""}</label>
       {content}
       {error ? <span className="field-error" id={`${id}-error`}>{error}</span> : null}
     </div>

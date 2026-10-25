@@ -3,14 +3,13 @@ import { vi } from 'vitest';
 import { ProfileFormActions } from './ProfileFormActions';
 import { profileStatus } from '../editor-utils';
 
-it('has exactly one form submit and blocks reset while saving', () => {
- const submit=vi.fn(e=>e.preventDefault()); const reset=vi.fn();
- const { rerender }=render(<form onSubmit={submit}><ProfileFormActions model="person" isNew={false} state="saving" dirty disabled={false} onReset={reset}/></form>);
+it('has exactly one form submit while saving', () => {
+ const submit=vi.fn(e=>e.preventDefault());
+ const { rerender }=render(<form onSubmit={submit}><ProfileFormActions model="person" isNew={false} state="saving" dirty disabled={false}/></form>);
  expect(screen.getByRole('button',{name:'Lagre person'})).toBeDisabled();
- fireEvent.click(screen.getByRole('button',{name:'Forkast profilutkast'}));
- expect(reset).not.toHaveBeenCalled();
+ expect(screen.queryByRole('button', {name: /profilutkast/})).not.toBeInTheDocument();
  expect(document.querySelectorAll('button[type="submit"]')).toHaveLength(1);
- rerender(<form onSubmit={submit}><ProfileFormActions model="person" isNew={false} state="idle" dirty={true} disabled={false} onReset={reset}/></form>);
+ rerender(<form onSubmit={submit}><ProfileFormActions model="person" isNew={false} state="idle" dirty={true} disabled={false}/></form>);
  fireEvent.click(screen.getByRole('button',{name:'Lagre person'}));
  expect(submit).toHaveBeenCalledTimes(1);
  expect(screen.getByRole('status')).toHaveTextContent('Ulagrede profilfelt');
@@ -26,8 +25,8 @@ it('prioritizes active request/error, then new edits over old saved',()=>{
 
 
 it('keeps a clean profile quiet and disables redundant writes', () => {
- render(<form><ProfileFormActions model="aktør" isNew={false} state="idle" dirty={false} disabled={false} onReset={()=>{}}/></form>);
+ render(<form><ProfileFormActions model="aktør" isNew={false} state="idle" dirty={false} disabled={false}/></form>);
  expect(screen.getByRole('status')).toBeEmptyDOMElement();
  expect(screen.getByRole('button',{name:'Lagre aktør'})).toBeDisabled();
- expect(screen.getByRole('button',{name:'Forkast profilutkast'})).toBeDisabled();
+ expect(screen.queryByRole('button', {name: /profilutkast/})).not.toBeInTheDocument();
 });
