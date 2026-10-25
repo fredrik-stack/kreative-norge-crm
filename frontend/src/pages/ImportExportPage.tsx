@@ -478,22 +478,22 @@ function ImportReviewWorkspace(props: {
                       <ReviewValueCell current={municipalitySuggestion} fallback="Ingen forslag" onClick={() => setExpandedRowId(row.id)} clickable={Boolean(municipalitySuggestion)} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_categories, row.raw_payload_json.person_categories))} suggestedValues={[]} />
+                      <ReviewSuggestionCell kind="category" currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_categories, row.raw_payload_json.person_categories))} suggestedValues={[]} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={[]} suggestedValues={categorySuggestions} onClick={() => setExpandedRowId(row.id)} />
+                      <ReviewSuggestionCell kind="category" currentValues={[]} suggestedValues={categorySuggestions} onClick={() => setExpandedRowId(row.id)} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_subcategories, row.raw_payload_json.person_subcategories))} suggestedValues={[]} />
+                      <ReviewSuggestionCell kind="subcategory" currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_subcategories, row.raw_payload_json.person_subcategories))} suggestedValues={[]} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={[]} suggestedValues={subcategorySuggestions} onClick={() => setExpandedRowId(row.id)} />
+                      <ReviewSuggestionCell kind="subcategory" currentValues={[]} suggestedValues={subcategorySuggestions} onClick={() => setExpandedRowId(row.id)} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_tags, row.raw_payload_json.person_tags))} suggestedValues={[]} />
+                      <ReviewSuggestionCell kind="tag" currentValues={splitCsvText(getFirstText(row.raw_payload_json.organization_tags, row.raw_payload_json.person_tags))} suggestedValues={[]} />
                     </td>
                     <td>
-                      <ReviewSuggestionCell currentValues={[]} suggestedValues={tagSuggestions} onClick={() => setExpandedRowId(row.id)} />
+                      <ReviewSuggestionCell kind="tag" currentValues={[]} suggestedValues={tagSuggestions} onClick={() => setExpandedRowId(row.id)} />
                     </td>
                     <td>
                       <ReviewValueCell current={currentWebsite} fallback="Mangler" />
@@ -1220,7 +1220,7 @@ function ReviewValueCell(props: { current?: string; suggested?: string; fallback
   );
 }
 
-function ReviewSuggestionCell(props: { currentValues: string[]; suggestedValues: string[]; onClick?: () => void }) {
+function ReviewSuggestionCell(props: { kind: "category" | "subcategory" | "tag"; currentValues: string[]; suggestedValues: string[]; onClick?: () => void }) {
   const values = props.currentValues.length > 0 ? props.currentValues : props.suggestedValues;
   if (values.length === 0) {
     return <span className="muted">Mangler</span>;
@@ -1228,7 +1228,7 @@ function ReviewSuggestionCell(props: { currentValues: string[]; suggestedValues:
   const content = (
     <div className="review-pill-stack">
       {values.slice(0, 3).map((value) => (
-        <span key={value} className={`mini-pill ${props.currentValues.length > 0 ? "category" : "suggested"}`}>{value}</span>
+        <span key={value} className={`mini-pill ${props.kind}${props.currentValues.length > 0 ? "" : " suggested"}`}>{value}</span>
       ))}
       {values.length > 3 ? <span className="meta">+{values.length - 3}</span> : null}
     </div>

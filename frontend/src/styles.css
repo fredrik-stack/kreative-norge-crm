@@ -1632,15 +1632,15 @@ select,
   align-items: center;
   gap: 0.35rem;
   border: 1px solid rgba(12, 122, 91, 0.18);
-  background: rgba(12, 122, 91, 0.08);
-  color: #0a6a4f;
+  background: #4a8755;
+  color: white;
   border-radius: 999px;
   padding: 0.3rem 0.55rem;
   cursor: pointer;
 }
 
 .tag-chip-edit:hover {
-  background: rgba(12, 122, 91, 0.14);
+  background: #35653e;
 }
 
 .review-inline-actions {
@@ -1722,9 +1722,7 @@ select,
 }
 
 .mini-pill.suggested {
-  background: rgba(10, 106, 79, 0.12);
-  color: #0a6a4f;
-  border: 1px solid rgba(10, 106, 79, 0.2);
+  border: 1px dashed currentColor;
 }
 
 .suggestion-pill-block {
@@ -2405,11 +2403,11 @@ fieldset.field > legend { padding: 0; margin: 0 0 5px; }
 .person-contact-options .inline-check { margin: 0; font-size: 12px; }.contact-remove { color: var(--danger); font-size: 12px; }
 .contact-removal { display: grid; gap: 4px; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .add-contact { justify-self: start; padding: 4px 0; font-size: 12px; }.contact-public-context { margin: 0; font-size: 11px; }
-.result-taxonomy { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }.result-taxonomy .mini-pill { background: #e8efea; color: #355a49; }
+.result-taxonomy { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .overview-hint { margin: 5px 0 0; font-size: 12px; }
 .compact-editor .editor-card-grid { grid-template-columns: repeat(auto-fill,minmax(min(300px,100%),1fr)); }
 .compact-editor .editor-card-grid > .editor-card { height: 148px; min-width: 0; display: grid; grid-template-columns: 76px minmax(0,1fr); gap: 10px; padding: 12px; overflow: hidden; }
-.compact-editor .editor-card-grid .editor-card-thumb { width: 76px; height: 100px; border-radius: 10px; object-fit: cover; }
+.compact-editor .editor-card-grid .editor-card-thumb { width: 76px; height: 76px; border-radius: 10px; object-fit: cover; }
 .compact-editor .editor-card-grid .editor-card-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .compact-editor .editor-card-grid .editor-card-head { position: relative; display: block; padding-top: 18px; min-width: 0; }
 .compact-editor .editor-card-grid .editor-card-head h3 { margin: 0; line-height: 17px; }

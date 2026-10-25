@@ -101,7 +101,11 @@ function PeopleOverviewPanel(props: {
               <td data-label="Aktører">{linkedOrganizations.length ? <div className="table-linked-items">{linkedOrganizations.map(organization => <button key={organization.id} type="button" className="table-link secondary" onClick={() => navigate(`/organizations?openOrg=${organization.id}`)}>{organization.name}</button>)}</div> : <span className="meta">Ingen aktørtilknytning</span>}</td>
               <td data-label="Kontakt"><div className="result-contact">{person.email ? <a href={`mailto:${person.email}`}>{person.email}</a> : null}<PhoneLink value={person.phone} dialUri={person.phone_dial_uri} countryCallingCodeHint={person.phone_country_calling_code_hint} empty={person.email ? null : "Ingen kontaktinfo"}/></div></td>
               <td data-label="Sted">{person.municipality || "—"}</td>
-              <td data-label="Kategorier og tags"><div className="result-taxonomy">{[...person.categories.map(item => item.name), ...person.subcategories.map(item => item.name), ...person.tags.map(item => item.name)].map((name, index) => <span key={`${index}:${name}`} className="mini-pill">{name}</span>)}</div></td>
+              <td data-label="Kategorier og tags"><div className="result-taxonomy">
+                {person.categories.map(item => <span key={`category:${item.id}`} className="mini-pill category">{item.name.toUpperCase()}</span>)}
+                {person.subcategories.map(item => <span key={`subcategory:${item.id}`} className="mini-pill subcategory">{item.name}</span>)}
+                {person.tags.map(item => <span key={`tag:${item.id}`} className="mini-pill tag">{item.name}</span>)}
+              </div></td>
             </tr>;
           })}</tbody>
         </table>
