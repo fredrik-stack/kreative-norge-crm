@@ -231,6 +231,10 @@ export async function deletePerson(tenantId: number, personId: number): Promise<
   });
 }
 
+export async function deleteOrganization(tenantId: number, organizationId: number): Promise<void> {
+  await request(`/api/tenants/${tenantId}/organizations/${organizationId}/`, { method: "DELETE" });
+}
+
 export async function getOrganizationPeople(tenantId: number): Promise<OrganizationPerson[]> {
   const data = await request<OrganizationPerson[] | Paginated<OrganizationPerson>>(
     `/api/tenants/${tenantId}/organization-people/`,

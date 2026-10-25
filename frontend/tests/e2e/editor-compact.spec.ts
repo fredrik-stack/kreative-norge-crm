@@ -8,7 +8,7 @@ test("people starts with search, preserves query/selection on profile return and
   await expect(page.locator('.person-results tr')).toHaveCount(0);
   const search=page.getByRole('searchbox',{name:'Søk personer'});
   await search.fill('Ada');
-  await expect(page.locator('.person-results th')).toHaveCount(4);
+  await expect(page.locator('.person-results th')).toHaveCount(5);
   const name=page.getByRole('button',{name:'Ada Editor',exact:true});
   await name.click();
   await expect(page.getByRole('dialog')).toBeFocused();

@@ -12,6 +12,7 @@ import {
   getSubcategories,
   deleteOrganizationPerson,
   deletePerson,
+  deleteOrganization,
   getOrganizations,
   getOrganizationPeople,
   getPersons,
@@ -157,6 +158,7 @@ export function useEditorData() {
   const deferredQuery = useDeferredValue(query);
   const deferredPersonQuery = useDeferredValue(personQuery);
   const organizationWriting = useRef(false);
+  const [organizationDeleting, setOrganizationDeleting] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [linkPersonId, setLinkPersonId] = useState<number | null>(null);
@@ -700,6 +702,32 @@ export function useEditorData() {
     }
   }
 
+  async function onDeleteOrganization(): Promise<boolean> {
+    if (!tenantId || typeof selectedOrgId !== "number" || !canDelete || organizationWriting.current) return false;
+    organizationWriting.current = true;
+    setOrganizationDeleting(true);
+    setError(null);
+    const deletedId = selectedOrgId;
+    try {
+      await deleteOrganization(tenantId, deletedId);
+      // Only a confirmed DELETE clears the profile and its local links.
+      setOrganizations(current => current.filter(org => org.id !== deletedId));
+      setOrganizationPeople(current => current.filter(link => link.organization !== deletedId));
+      setSelectedOrgId(null);
+      setDraft(emptyDraft);
+      setOrganizationTagInput("");
+      setOrganizationFieldErrors({});
+      setSaveState("idle");
+      return true;
+    } catch (err) {
+      setError(apiErrorMessage(err, "Sletting ikke bekreftet. Kontroller lagret resultat før du prøver igjen."));
+      return false;
+    } finally {
+      organizationWriting.current = false;
+      setOrganizationDeleting(false);
+    }
+  }
+
   async function updateLink(
     linkId: number,
     payload: Partial<Pick<OrganizationPerson, "status" | "publish_person">>,
@@ -894,6 +922,8 @@ export function useEditorData() {
     onCreateLink,
     onCreateLinkedPerson,
     onDeletePerson,
+    onDeleteOrganization,
+    organizationDeleting,
     updateLink,
     removeLink,
     onResetOrganizationDraft,

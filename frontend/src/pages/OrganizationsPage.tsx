@@ -111,6 +111,16 @@ export function OrganizationsPage() {
       <>
         <OrganizationEditorPanel navigate={navigate} orgId={orgId} invalidOrgRoute={invalidOrgRoute} />
         <ProfileSection title="Forhåndsvisning" summary="Utkast og lagret metadata · egen oppdatering"><OrganizationPreviewPanel invalidOrgRoute={invalidOrgRoute} /></ProfileSection>
+        {editor.tenantDataLoaded && !invalidOrgRoute ? <div className="actions profile-bottom-actions actor-profile-footer">
+          <ProfileFormActions form="organization-profile-form" model="aktør" isNew={editor.selectedOrgId === "new"} state={editor.saveState} dirty={editor.organizationHasUnsavedChanges} disabled={!editor.tenantId || editor.organizationDeleting} />
+          {typeof editor.selectedOrgId === "number" ? <button type="button" className="link-delete"
+            disabled={!editor.canDelete || editor.saveState === "saving" || editor.organizationDeleting}
+            onClick={async () => {
+              if (window.confirm("Slette valgt aktør? Dette sletter også aktørens personkoblinger. Personene beholdes.")) {
+                if (await editor.onDeleteOrganization()) navigate("/organizations");
+              }
+            }}>{editor.organizationDeleting ? "Sletter aktør…" : "Slett aktør"}</button> : null}
+        </div> : null}
       </>
     </main>
   );
@@ -395,7 +405,7 @@ function OrganizationEditorPanel(props: {
       ) : (
         <>
           {editor.saveState === "error" ? <div className="inline-banner warn">Lagring ikke bekreftet. Kontroller feilmeldingen og lagret resultat før du prøver igjen.</div> : null}
-          <form onSubmit={editor.onSubmit} onInvalidCapture={revealInvalidProfileField} className="editor-form profile-form"><fieldset className="profile-fields" disabled={editor.saveState === "saving"}>
+          <form id="organization-profile-form" onSubmit={editor.onSubmit} onInvalidCapture={revealInvalidProfileField} className="editor-form profile-form"><fieldset className="profile-fields" disabled={editor.saveState === "saving" || editor.organizationDeleting}>
             <div className="editor-header profile-header">
               <div className="profile-heading">
                 <button type="button" className="profile-back" onClick={() => navigate("/organizations")}>← Til aktøroversikt</button>
@@ -406,7 +416,7 @@ function OrganizationEditorPanel(props: {
               <ProfileFormActions
                 model="aktør" isNew={editor.selectedOrgId === "new"}
                 state={editor.saveState} dirty={editor.organizationHasUnsavedChanges}
-                disabled={!editor.tenantId}
+                disabled={!editor.tenantId || editor.organizationDeleting}
               />
             </div>
             <ProfileValidationSummary errors={editor.organizationFieldErrors} />
@@ -610,7 +620,6 @@ function OrganizationEditorPanel(props: {
               </label>
             </div>
 
-            <ProfileFormActions model="aktør" isNew={editor.selectedOrgId === "new"} state={editor.saveState} dirty={editor.organizationHasUnsavedChanges} disabled={!editor.tenantId} />
           </fieldset></form>
 
           {typeof editor.selectedOrgId === "number" && editor.selectedOrganization?.image_asset_feature_enabled ? (
@@ -2134,7 +2143,7 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
 
         </>
       ) : (
-        <div className="empty-state">Lagre eller velg en organisasjon for å administrere personkoblinger.</div>
+        <div className="empty-state">Opprett aktøren først. Deretter kan du knytte til personer eller opprette en ny kontaktperson.</div>
       )}
     </div>
   );

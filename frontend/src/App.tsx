@@ -73,7 +73,7 @@ function EditorShell({ username, user, onLogout }: { username: string; user: Aut
     applyTenantSelection: editor.applyTenantSelection,
     saveAllPendingChanges: editor.saveAllPendingChanges,
     discardAllPendingChanges: editor.discardAllPendingChanges,
-    isSaving: editor.saveState === "saving" || editor.personSaveState === "saving",
+    isSaving: editor.saveState === "saving" || editor.personSaveState === "saving" || editor.organizationDeleting,
   });
 
   const goToEditorHome = () => {

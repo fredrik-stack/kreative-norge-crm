@@ -1,9 +1,9 @@
 import { profileStatus, type SaveState } from "../editor-utils";
 
-/** Inside the profile's main form; separate writes keep their own controls. */
-export function ProfileFormActions({ model, isNew, state, dirty, disabled }: {
+/** Submit the main profile form, including an explicitly associated outer footer. */
+export function ProfileFormActions({ model, isNew, state, dirty, disabled, form }: {
   model: "aktør" | "person"; isNew: boolean; state: SaveState;
-  dirty: boolean; disabled: boolean;
+  dirty: boolean; disabled: boolean; form?: string;
 }) {
   const status = profileStatus(state, dirty, isNew, model);
   return (
@@ -12,7 +12,7 @@ export function ProfileFormActions({ model, isNew, state, dirty, disabled }: {
         {state !== "idle" || dirty ? status.label : ""}
       </span>
       <div className="actions">
-        <button type="submit" className="primary-button"
+        <button type="submit" form={form} className="primary-button"
           disabled={disabled || state === "saving" || (!isNew && !dirty && state !== "error")}>
           {isNew ? `Opprett ${model}` : `Lagre ${model}`}
         </button>

@@ -231,7 +231,7 @@ test("canonical dial targets, internal actor phones and effective PUBLIC state s
   await actorDialog.getByRole("button", { name: "Rediger" }).click();
 
   const swedishRow = page.locator(".link-row").filter({ hasText: "Svensk Kontakt" });
-  await expect(swedishRow.getByText(/vises ikke på denne aktøren fordi personen er skjult/)).toBeVisible();
+  await expect(swedishRow.getByText(/Personen og kontaktkanalene er skjult på denne aktøren/)).toBeVisible();
   await swedishRow.getByRole("checkbox", { name: "Vis person offentlig" }).click();
   await expect(swedishRow.getByText("Kan vises offentlig på denne aktøren: telefon.")).toBeVisible();
   expect(contactPatches).toHaveLength(0);

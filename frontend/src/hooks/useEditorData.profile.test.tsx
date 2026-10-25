@@ -5,9 +5,9 @@ import { server } from "../test/server";
 import { profileStatus } from "../editor-utils";
 import { useEditorData } from "./useEditorData";
 
-async function editor() {
+async function editor(role = "redigerer") {
   server.use(http.get('/api/tenants/', () => HttpResponse.json([
-    { id: 1, name: 'Test', slug: 'test', default_phone_region: 'NO', current_user_role: 'redigerer' },
+    { id: 1, name: 'Test', slug: 'test', default_phone_region: 'NO', current_user_role: role },
   ])));
   const hook = renderHook(() => useEditorData());
   await waitFor(() => expect(hook.result.current.tenantDataLoaded).toBe(true));
@@ -138,4 +138,37 @@ it('successful save, new edits and profile switch never reuse an old confirmatio
   act(() => result.current.setSelectedOrgId('new'));
   await waitFor(() => expect(result.current.saveState).toBe('idle'));
   expect(profileStatus(result.current.saveState, result.current.organizationHasUnsavedChanges, true, 'aktør').label).toBe('Nytt profilutkast');
+});
+
+it('actor deletion requires the existing delete role and never clears a rejected profile', async () => {
+  let deletes=0;
+  server.use(http.delete('/api/tenants/1/organizations/10/', () => { deletes++; return HttpResponse.json({detail:'Profilen har beskyttet tilhørighet eller historikk og kan ikke slettes.'}, {status:409}); }));
+  const denied=await editor();
+  await act(async()=>{expect(await denied.result.current.onDeleteOrganization()).toBe(false);});
+  expect(deletes).toBe(0); denied.unmount();
+  const {result}=await editor('gruppeadmin');
+  act(()=>result.current.setDraft(draft=>({...draft,name:'Ulagret navn'})));
+  await act(async()=>{expect(await result.current.onDeleteOrganization()).toBe(false);});
+  expect(deletes).toBe(1); expect(result.current.draft.name).toBe('Ulagret navn');
+  expect(result.current.selectedOrgId).toBe(10);
+  expect(result.current.error).toContain('beskyttet tilhørighet');
+  expect(result.current.organizationDeleting).toBe(false);
+});
+it('confirmed actor deletion clears only its cache/links, retains people and excludes competing writes', async () => {
+  const {result}=await editor('gruppeadmin');
+  const people=result.current.persons;
+  let release!:()=>void; const gate=new Promise<void>(resolve=>{release=resolve;}); let deletes=0,patches=0;
+  server.use(http.delete('/api/tenants/1/organizations/10/', async()=>{deletes++;await gate;return new HttpResponse(null,{status:204});}),
+    http.patch('/api/tenants/1/organizations/10/',()=>{patches++;return HttpResponse.json({});}));
+  act(()=>result.current.setDraft(draft=>({...draft,name:'Lokalt utkast'})));
+  let deletion!:Promise<boolean>;act(()=>{deletion=result.current.onDeleteOrganization();});
+  await waitFor(()=>expect(deletes).toBe(1));
+  expect(result.current.organizationDeleting).toBe(true);
+  await act(async()=>{await result.current.onSubmit(event);expect(await result.current.onDeleteOrganization()).toBe(false);});
+  expect(deletes).toBe(1);expect(patches).toBe(0);
+  await act(async()=>{release();expect(await deletion).toBe(true);});
+  expect(result.current.organizations.some(org=>org.id===10)).toBe(false);
+  expect(result.current.organizationPeople.some(link=>link.organization===10)).toBe(false);
+  expect(result.current.persons).toEqual(people);
+  expect(result.current.organizationHasUnsavedChanges).toBe(false);
 });

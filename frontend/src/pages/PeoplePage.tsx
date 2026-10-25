@@ -93,14 +93,15 @@ function PeopleOverviewPanel(props: {
       : persons.length === 0 ? <div className="empty-state">Ingen personer matcher søket eller filtrene.</div>
       : <div className="overview-table-wrap person-results">
         <table className="overview-table"><caption className="sr-only">Personer som matcher søk og filtre</caption>
-          <thead><tr><th>Navn og tittel</th><th>Aktører</th><th>Kontakt</th><th>Sted</th></tr></thead>
+          <thead><tr><th>Navn og tittel</th><th>Aktører</th><th>Kontakt</th><th>Sted</th><th>Kategorier og tags</th></tr></thead>
           <tbody>{persons.map(person => {
             const linkedOrganizations = linkedOrganizationsByPersonId.get(person.id) ?? [];
             return <tr key={person.id} className={editor.selectedPersonId === person.id ? "selected-result" : undefined}>
-              <td data-label="Navn og tittel"><button type="button" className="table-link person-name" onClick={() => { editor.setSelectedPersonId(person.id); setModalPersonId(person.id); }}>{person.full_name}</button>{person.title ? <span className="result-secondary">{person.title}</span> : null}<div className="result-taxonomy">{[...person.categories.map(item => item.name), ...person.subcategories.map(item => item.name), ...person.tags.map(item => item.name)].map((name, index) => <span key={`${index}:${name}`} className="mini-pill">{name}</span>)}</div></td>
+              <td data-label="Navn og tittel"><button type="button" className="table-link person-name" onClick={() => { editor.setSelectedPersonId(person.id); setModalPersonId(person.id); }}>{person.full_name}</button>{person.title ? <span className="result-secondary">{person.title}</span> : null}</td>
               <td data-label="Aktører">{linkedOrganizations.length ? <div className="table-linked-items">{linkedOrganizations.map(organization => <button key={organization.id} type="button" className="table-link secondary" onClick={() => navigate(`/organizations?openOrg=${organization.id}`)}>{organization.name}</button>)}</div> : <span className="meta">Ingen aktørtilknytning</span>}</td>
               <td data-label="Kontakt"><div className="result-contact">{person.email ? <a href={`mailto:${person.email}`}>{person.email}</a> : null}<PhoneLink value={person.phone} dialUri={person.phone_dial_uri} countryCallingCodeHint={person.phone_country_calling_code_hint} empty={person.email ? null : "Ingen kontaktinfo"}/></div></td>
               <td data-label="Sted">{person.municipality || "—"}</td>
+              <td data-label="Kategorier og tags"><div className="result-taxonomy">{[...person.categories.map(item => item.name), ...person.subcategories.map(item => item.name), ...person.tags.map(item => item.name)].map((name, index) => <span key={`${index}:${name}`} className="mini-pill">{name}</span>)}</div></td>
             </tr>;
           })}</tbody>
         </table>

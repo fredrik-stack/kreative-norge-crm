@@ -18,7 +18,7 @@ it('has exactly one form submit while saving', () => {
 it('prioritizes active request/error, then new edits over old saved',()=>{
  expect(profileStatus('saving',true,false,'person').label).toMatch(/Lagrer/);
  expect(profileStatus('error',true,false,'person').label).toBe('Lagring ikke bekreftet');
- expect(profileStatus('saved',true,false,'person').label).toBe('Ulagrede profilfelt');
+ expect(profileStatus('saved',true,false,'person')).toEqual({kind:'dirty',label:'Ulagrede profilfelt'});
  expect(profileStatus('saved',false,false,'person').label).toBe('Personskjema lagret');
  expect(profileStatus('idle',false,true,'person').label).toBe('Nytt profilutkast');
 });
