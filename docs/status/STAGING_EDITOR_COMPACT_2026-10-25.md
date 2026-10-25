@@ -91,10 +91,10 @@ nettverksfeilinjeksjon, authomgåelse eller ny Cloudflare-kantverifikasjon.
 Kun to syntetiske upubliserte aktører, én syntetisk person og én midlertidig
 nonstaff gruppeadmin i tenant1 ble brukt; eksisterende taksonomi ble bare gjenbrukt.
 
-[Ti kontroller](evidence/editor-staging-2026-10-25/checks.json) er grønne:
+[Ti kontroller](evidence/editor-staging-2026-10-25/checks.json) er grønne, gruppert nedenfor:
 
 1. Faktisk visningsnavn/tenantrolle, ikke Admin for nonstaff; annen tenant gir403.
-2.1920/390/320px: kort148px/lik bredde, kvadrat90px/senteravvik<0,5CSSpx,
+2. 1920/390/320px: kort148px/lik bredde, kvadrat90px/senteravvik<0,5CSSpx,
    brun/blå/grønn metadata og ingen horisontal side-overflyt.
 3. Alle tre bredder: synlig/udekket grønn Rediger i modal, riktig redigeringsrute,
    to Lagre og én Slett under eksisterende rolle.320px-modal er rullet til footer.
