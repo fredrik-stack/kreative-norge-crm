@@ -20,5 +20,12 @@
     "tag": "#4a8755"
   },
   "public_cases": 8,
-  "import_image_included": false
+  "import_image_included": false,
+  "targeted_postgresql_tests": 18,
+  "initial_backend_ci": {
+    "run": 40229854426,
+    "tests": 652,
+    "failures": 1,
+    "cause": "Legacy PUBLIC test expected old brown tag; expectation updated to owner-requested green; other contract assertions preserved."
+  }
 }

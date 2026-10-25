@@ -574,7 +574,8 @@ class PublicImageProjectionTests(TestCase):
         self.assertNotContains(public_detail, 'class="public-image-cutover"')
         self.assertNotContains(public_detail, 'class="image-shell"')
         self.assertContains(public_detail, "grid-template-columns: 112px")
-        self.assertContains(public_detail, "--tag: #4f332c")
+        # Owner-approved taxonomy colors apply in both presentation variants.
+        self.assertContains(public_detail, "--tag: #4a8755")
 
     @override_settings(PUBLIC_IMAGE_API_SCHEMA_ENABLED=True)
     def test_target_api_aliases_equal_projection_for_asset_and_fallback(self):

@@ -9,7 +9,9 @@
 - Forrige Importbilde15 markeres avvist som misvisende og beholdes kun historisk;
   godkjent v6 rev.4/O-24 er styrende. Ni nye avgrensede browserbilder.
 - 66 frontendtester, 24 Editor-reiser, TS/build og 8 DB-frie PUBLIC-template-
-  browserkontroller grønne. Samme draft PR; ingen merge/staging.
+  browserkontroller grønne. Etter konkret CI-funn er gammel PUBLIC-fargeforventning
+  oppdatert; 18 eksisterende projeksjonstester grønne i isolert PostgreSQL.
+  Samme draft PR; ingen merge/staging.
 
 ## 2026-10-25 – andre visuelle retting av PR #92 (før eiergodkjenning)
 

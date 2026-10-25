@@ -12,9 +12,11 @@ rettet i eksisterende importchips og eldre PUBLIC-detaljvariant. Ingen ny policy
 [UI-6 §12](../features/UI_6_FELLES_SPEC.md#12-låst-kortformat-og-metadatafarger--2026-10-25)
 og [nytt tilleggsgalleri/kontrollrapport](EDITOR_COLOR_VISUAL_REVIEW_2026-10-25.md)
 gjelder runtime `2b4ca8eb96e9e74920b3af5a1ccc6cabf59da24f`. 66 frontendtester, TS/build, 24 Editor-reiser og
-8 DB-frie PUBLIC-template/browsertilfeller er grønne. Nye bilder bruker eksplisitt
-syntetiske API-fixtures, ikke lokal/stagingdatabase. Ingen Docker/DB nødvendig
-eller kjørt i denne runden. Siste review/CI spores i PR.
+8 DB-frie PUBLIC-template/browsertilfeller er grønne. Etter ett konkret CI-funn
+er også 18 eksisterende PUBLIC-projeksjonstester grønne mot isolert lokal PostgreSQL:
+testens gamle brune fargeforventning er oppdatert til bestilt grønn, øvrig API-/
+bildekontrakt beholdt. Nye bilder bruker fortsatt eksplisitte syntetiske API-
+fixtures, ikke lokal/stagingdatabase. Siste review/CI spores i PR.
 
 Importbilde15 fra forrige galleri er avvist som misvisende; PNG beholdes kun som
 historikk med tydelig merking. Ingen Importvisning foreslås/godkjennes her:

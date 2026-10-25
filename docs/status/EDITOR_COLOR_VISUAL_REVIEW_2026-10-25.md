@@ -49,10 +49,16 @@ er gjeldende. Øvrige rettelser og manuell personlagring i PR #92 består.
 | Editor browser | 24/24 reiser grønne. Fire nye regresjoner: kort/farger ved1920/390/320 og eksisterende importmetadata både lukket/åpen review. Bilde og fallback76×76, kort148/like bredder, ingen sideoverflow; beregnede farger kontrolleres på aktørkort og personoversikt samt begge modaler. |
 | PUBLIC browser | Åtte tilfeller: faktiske Django-maler liste/detalj × eldre/cutover-visning ×1920/390. Renderet med syntetisk kontekst i minnet, deretter beregnede farger kontrollert i Chromium. Ingen database/API/stagingkjøring. [Journal](evidence/editor-colors-2026-10-25/public-template-checks.json). |
 | Dokumentasjon | Ni PNG og filmanifest med SHA/byte/dimensjoner, lokal galleri-/lenkekontroll. [Kontrolloversikt](evidence/editor-colors-2026-10-25/checks.json). |
-| Docker/PostgreSQL | Ikke kjørt og ikke nødvendig i denne runden: bare visning/fargeklasser/mal-CSS, ingen write-/modell-/permissionsendring. Tidligere daterte DB-/lagringsbevis beholdes historisk og påstås ikke kjørt om igjen. |
+| Docker/PostgreSQL | Etter konkret CI-funn er alle 18 eksisterende PublicImageProjectionTests grønne i egen isolert lokal PostgreSQL16-container. Kun gammel testforventning brun→bestilt grønn; øvrige kontraktskontroller beholdt. Bildene og de åtte fargekontrollene ovenfor er fortsatt DB-frie. Ingen person-/kontakt-/modell-/permissionsendring. |
 | Zoom | Ingen ny zoomkjøring; runde2s faktiske 200% er historisk bevis. Ingen endring av profilhandlinger/posisjonering i denne runden. |
 | CI/review | Siste-head resultat og eksakte versjoner spores i PR. Agentreview er separat fra gjennomførerens tester og menneskelig eiergodkjenning. |
 | Merge/staging | Ikke utført. Samlet sluttgodkjenning kreves fortsatt først. Senere deploy omfatter hele PR-ens API + frontend og PUBLIC-mal, uten migrasjon. |
+
+CI40229854426 kjørte 652 Django-tester og feilet bare på gammel forventning
+`--tag: #4f332c` i `test_canonical_route_and_legacy_contract_remain_unchanged_off`.
+Forventningen er oppdatert til eiers bestilte `#4a8755`; de øvrige API-/gate-/
+bildekontraktsassertene er bevart. Hele klassens 18 tester er deretter verifisert
+grønne lokalt mot egen PostgreSQL. Siste-head CI-resultat spores i PR-en.
 
 Tidlig importfixture manglet warnings_json og brukte feil tabellselector; dette
 var testoppsett og ble rettet. Separat reviewer fant deretter ett viktig restavvik:
