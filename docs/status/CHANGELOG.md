@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-25 – Editor PR #92 sluttgodkjent og stagingverifisert
+
+- Samlet visuell eieraksept på4cdff63; ordinær merge d698888 og main-CI6/6.
+- API+frontend deployet: godkjente aktørkort/90px thumbnail, mobil-Rediger,
+  venstremeny, fem personkolonner, metadatafarger og manuell kontaktlagring.
+- Ti ekte stagingkontroller/åtte viewportbilder med syntetiske data, eksakt
+  cleanup/radbevaring, tre backup-/restorecheckpoints og aktive timere.
+- [Sanitert evidens](STAGING_EDITOR_COMPACT_2026-10-25.md). Ingen migrasjon,
+  ny aktivering, produksjonsdeploy eller ferdigmelding av øvrige UI-6/faser.
+
+
 ## 2026-10-25 – thumbnailbalanse og aktørmodal i PR #92
 
 - Oversiktens bilde/fallback økes til90×90px som PUBLIC og sentreres vertikalt;

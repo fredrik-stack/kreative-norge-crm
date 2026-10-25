@@ -486,3 +486,23 @@ historikk. Samme draft PR #92; separat review/siste-head CI og samlet sluttaksep
 før merge/staging består. Import v6 rev.4/O-24 og5E, eksisterende palett/person-
 lagring og begge kart består. Ingen ny PUBLIC-/Import-/API-/data-/policyendring,
 migrasjon/backfill eller neste etappe. Hele PR-ens senere deployscope er API+frontend.
+
+
+## 14. Samlet sluttgodkjenning og teknisk staging – 2026-10-25
+
+**BESLUTTET:** Prosjekteier har gitt samlet visuell sluttgodkjenning av PR #92s
+siste vurderingsgrunnlag på4cdff63 og bestilt ordinær merge/main-CI/API+frontend-
+staging. Dette overstyrer tidligere ventestatus i§9–13; øvrige scopegrenser består.
+
+**IMPLEMENTERT/DEPLOYET/TEKNISK VERIFISERT:** Merge
+`d698888ee851bd884e148b0bca8ae0b4f3219704`, main-CI40234720716 SUCCESS6/6.
+[Evidens](../status/STAGING_EDITOR_COMPACT_2026-10-25.md) dokumenterer ekte HTTPS,
+90px sentrerte thumbnails på148px kort, grønn modal-Rediger1920/390/320,
+fem personkolonner/farger, faktisk nederste aktør-Lagre og manuell kontaktlagring
+med bevarte ID-er. Kun syntetiske profiler/bruker ble endret og eksakt ryddet.
+Eksisterende CRM-rader/media/static/miljø/safety består; ingen migrasjon/gateendring.
+
+Dette er samlet aksept og teknisk stagingbevis for den bestilte PR-leveransen.
+Det er ingen ny formell brukertest, ny Import-UX eller ferdigmelding av hele UI-6,
+6A/6B/6C, begge kart eller Editor/PUBLIC-v1. Import v6 rev.4/O-24 og godkjent5E
+består. Ingen neste produktetappe starter automatisk.

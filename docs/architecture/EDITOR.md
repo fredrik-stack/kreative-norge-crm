@@ -1,5 +1,15 @@
 # Editor
 
+## Samlet sluttgodkjent runtime på staging – 2026-10-25
+
+Eier har samlet godkjent PR #92 på4cdff63. Ordinær merge d698888 og main-CI6/6
+følges av teknisk stagingverifisert API+frontend. [Datert evidens](../status/STAGING_EDITOR_COMPACT_2026-10-25.md)
+binder kode/images, HTTPS-bundle, syntetisk browserreise og eksakt databevaring.
+§10–13 i UI-6 er gjeldende innen denne leveransen; [§14](../features/UI_6_FELLES_SPEC.md#14-samlet-sluttgodkjenning-og-teknisk-staging--2026-10-25)
+registrerer aksept/status. Eldre ventestatuser er historiske. Ingen ny arkitektur,
+Import-UX, API-/tagg-/kontaktpolicy, migrasjon, gateaktivering eller neste etappe.
+
+
 ## Siste thumbnailretting, runde4 – 2026-10-25
 
 [UI-6 §13](../features/UI_6_FELLES_SPEC.md#13-thumbnail-som-public-og-aktørens-mobilmodal--2026-10-25) erstatter76px-thumbnailen

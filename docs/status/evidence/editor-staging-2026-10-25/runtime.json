@@ -1,0 +1,84 @@
+{
+  "commit": "d698888ee851bd884e148b0bca8ae0b4f3219704",
+  "database_container_unchanged": true,
+  "environment_mounts_unchanged": true,
+  "existing_crm_rows_unchanged": true,
+  "http_after": {
+    "/": 200,
+    "/admin/": 302,
+    "/api/auth/session/": 200,
+    "/api/public/actors/": 200,
+    "/api/tenants/1/organizations/": 403,
+    "/public/actors/": 200
+  },
+  "http_before": {
+    "/": 200,
+    "/admin/": 302,
+    "/api/auth/session/": 200,
+    "/api/public/actors/": 200,
+    "/api/tenants/1/organizations/": 403,
+    "/public/actors/": 200
+  },
+  "media_static_unchanged": true,
+  "migration_plan_count": 0,
+  "migrations_executed": false,
+  "new_api": "598cb50a1369f22376328e3735716c94d642b5afdc9b0aef8bd7ca963ac1f9be",
+  "new_api_image": "sha256:b236d0f53194c697d6a995d3f1b59b17f78ee392ed835ea90c1d1fed79d0294f",
+  "new_web": "266f0764e8ec1705d5228c1df7acb6ae223651ad44034af374906425bc1fce52",
+  "new_web_image": "sha256:608df9dc06d90d707f2e152940cacf9a83ac397c5f82c45cffda14f308a94b68",
+  "old_api": "d3be6947c1def8679eb69597025498729e5055267397dc73006103172b65d6e3",
+  "old_api_image": "sha256:63000cdd2a3e4b25e8a49768466a6eade74407d39a52a6291654b3772c0d0ad5",
+  "old_web": "8de45d3bd58edadc5e4fcb9c232a0ba5ce23879178f6c866fb0bce3420855af4",
+  "old_web_image": "sha256:b6c0e8152c3d9f714551843f27d4aa31e24346d4d68e223813a8f256f62816c6",
+  "overlay_enabled": false,
+  "post_checkpoint": {
+    "dump_sha256": "3eec04aaa546b6237ce3ac32bca95b8f9dec5b5814fb9ab580d1661d7880d5b7",
+    "id": "dda56a29cc2ef881aeb0f4782fcdbf6a4081d803a47ec314cb2c3a1854d84821",
+    "name": "kreative-norge-staging-20261025T212400Z",
+    "new_restore_volumes": [],
+    "repository_verified": true,
+    "restore_verified": true
+  },
+  "pre_checkpoint": {
+    "dump_sha256": "eeb044b591f61899d897577d610024f25fe26a6bdbd59826cfe89952211cff5d",
+    "id": "b228cdeebd0d6db63f861fce4d3c4392ffb536ce80d0fde5a9e9967253c88b0b",
+    "name": "kreative-norge-staging-20261025T212230Z",
+    "new_restore_volumes": [],
+    "repository_verified": true,
+    "restore_verified": true
+  },
+  "shadow_enabled": false,
+  "source_files_verified": 154,
+  "status": "DEPLOY_TECHNICALLY_VERIFIED",
+  "timers": {
+    "kreative-norge-backup-verify.timer": {
+      "active": "active",
+      "enabled": "enabled",
+      "start_ok": true
+    },
+    "kreative-norge-backup.timer": {
+      "active": "active",
+      "enabled": "enabled",
+      "start_ok": true
+    }
+  },
+  "web_files": {
+    "assets/index-Buhjlg5h.js": "2365181e4223e5b667c7523dcb475949e515068f3f8a260b11ade673c177785c",
+    "assets/index-D9Qi-31M.css": "b55270e7e038ae9576682fe9dcf195ed36a90ee520fb0bbb3f3997c7ba378872",
+    "index.html": "87ea5bed241116b748c6b76b0fd11ce3c47e6fc22b11d822ccde06a0a455dd83"
+  },
+  "safety": {
+    "ready": true,
+    "event_cursor": 13,
+    "read_cursor": 13,
+    "anchor_cursor": 13
+  },
+  "post_browser_checkpoint": {
+    "name": "kreative-norge-staging-20261025T212716Z",
+    "id": "a5ec5a1f38e9bfd682147eeb4d5123ffe5e0f8ddab82b47f388c89dc728c433e",
+    "dump_sha256": "7a92837c7ee972160e59d416d1da99c8eb3a636a789c16c87b79a4686ac10b6d",
+    "restore_verified": true,
+    "repository_verified": true,
+    "new_restore_volumes": []
+  }
+}
