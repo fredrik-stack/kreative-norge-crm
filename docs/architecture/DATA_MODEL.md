@@ -1,5 +1,22 @@
 # Data Model
 
+## Operatørstyrt notatkopiering – kodeleveranse 2026-11-07
+
+`TenantNoteCopyBatch` og additiv0036 registrerer miljø-/databasebundet unik
+batchidentitet, request-/plandigest, operatør/kodebaseline, privat manifeststi
+og PREPARED/COMMITTED_VERIFIED-kvittering. Ingen profil-/assignmentendring,
+seed, adminregistrering eller datakopiering skjer ved migrering. Reverse avvises
+ved enhver batchrad. Dette er operatørbevis, ikke bruker-/agreementautorisasjon.
+
+`copy_legacy_tenant_notes` kopierer bare ikke-NULL note, tapsfritt og insert-only,
+til egen eksisterende legacyassignment. Konsistent privat plan, låst omberegning,
+samlet bevaringskontroll og atomisk DB-kvittering beskytter mot stale/konflikt og
+tapte svar. Read-back skiller historisk commit fra dagens tilstand. Se
+[full kontrakt og mandat](../operations/TENANT_NOTE_OVERLAYS.md#operatørstyrt-legacykopiering--kodeleveranse-2026-11-07).
+Ingen staging-/data-apply eller runtimeaktivering inngår. Legacy note er fortsatt
+autoritet; overlays får ingen ny funksjonell reader/writer. Senere notataudit,
+revision/tilgang og samlet autoritetsovergang er ikke implementert.
+
 ## Tenantprivate notater – inaktiv grunnmur stagingverifisert 2026-10-24
 
 [Kode-PR #85](https://github.com/fredrik-stack/kreative-norge-crm/pull/85) er separat

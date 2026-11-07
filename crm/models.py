@@ -2151,3 +2151,25 @@ class LegacyDomainBackfillBatch(models.Model):
             fields=["environment", "database_identity", "batch_id"],
             name="legacy_domain_batch_identity_unique",
         )]
+
+
+class TenantNoteCopyBatch(models.Model):
+    """Operator commit evidence only; never authorizes private user access."""
+
+    environment = models.CharField(max_length=64)
+    database_identity = models.CharField(max_length=255)
+    batch_id = models.CharField(max_length=64)
+    request_digest = models.CharField(max_length=64)
+    plan_digest = models.CharField(max_length=64)
+    operator_id = models.PositiveBigIntegerField()
+    code_baseline = models.CharField(max_length=40)
+    manifest_path = models.TextField()
+    state = models.CharField(max_length=32, default="PREPARED")
+    receipt = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(
+            fields=["environment", "database_identity", "batch_id"],
+            name="tenant_note_copy_batch_unique",
+        )]
