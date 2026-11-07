@@ -111,12 +111,12 @@ brukte eksisterende plattformbruker innen read-only-transaksjon, uten ny login
 eller sessionskriving. [Evidens og begrensninger](../status/STAGING_PHASE_6A_READ_SHADOW_2026-10-24.md).
 Dette aktiverer ingen av de framtidige shared rettighetene nedenfor.
 
-## Godkjent sharing-domain-sikkerhet – ikke implementert
+## Godkjent sharing-domain-sikkerhet – delvis grunnmur, ingen aktivering
 
 [ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md)
 godkjenner målarkitekturen for deling innen eksakt SharingDomain. Dagens direkte
-tenantroller og gruppefallback er fortsatt aktiv nåtilstand; ingen shared
-capabilities eller agreementgate er implementert.
+tenantroller og gruppefallback er fortsatt aktiv nåtilstand; den inaktive trinn-8-grunnmuren nedenfor er implementert, men ingen shared
+funksjoner eller aktive agreementgater er koblet til brukerreisene.
 
 Framtidige domain-wide read-, match-, assignment- og writehandlinger skal kreve
 alle disse kontrollene server-side:
@@ -212,3 +212,161 @@ Det restore-sikre off-server ankeret bruker minst privilegium. Fase 3E.1A har be
 3E.1C legger til bare én read-only `authorize`-operasjon. Den krever eksakt release-, tenant-, Organization-, variant-, public-key- og checksum-scope og kan ikke skrive/repairere ledger, ankre, kjøre Borg eller hente generell historikk. En writer-preferred gate gjør at nye lesere ikke kan gå forbi ventende lifecycle-mutasjon. `web` får bare delivery-root read-only og supplementary GID `2000` for den dedikerte hostgruppen; den får ingen socket, artifacts, private filer, ledger eller credentials. Nginx kan bare lese etter Djangos interne redirect og nekter symlinks. Livegaten 2026-08-24 beviste disse grensene, negativ scope-autorisasjon, bridge-/filfeil, restart og sanitert logging. Servingflagget er fortsatt default-off i kode/eksempel og `True` bare i ignorert stagingmiljø. ADR-et lover ikke absolutt WORM eller vern mot kompromittert Hetzner control plane/root.
 
 3E.4 håndhever formell takedown server-side: plattform-superadmin på tvers av tenants; aktiv tenant-`SUPERADMIN`/`GRUPPEADMIN` bare i egen tenant; `REDIGERER`, `LESER`, inaktive brukere, manglende medlemskap og globale Django-gruppenavn avvises. API-et mottar bare en allowlistet reason code og utleder Organizationens eksakte aktive release; caller kan ikke levere release, checksum, event-ID eller key. Koden og eksempelkonfigurasjonen er default-off, mens staginggaten har bevist konkret release-deny, tenant-scopet checksum-deny uten informasjonslekkasje, legacyguard, projection/gateway-samsvar, originblokkering, cacheverifikasjon og restore-safe no-reactivation. Global checksum-deny er ikke del av MVP-en.
+
+## ADR-011 trinn 8 – inaktiv tilgangsgrunnmur, 2026-11-07
+
+**Mandat:** Første avgrensede additive kodeleveranse etter `c05dc87`. Lokal
+PostgreSQL-validering, dokumentasjon, separat review, PR/ordinær merge og CI;
+ingen staging/schema-apply, reelle avtaler/aksepter, shared-aktivering eller
+notatkopiering. Juridisk tekst, aksept-UI, canonical writer og revisjonskontroll
+leveres senere. Trinn 7 og hele trinn 8/6A er fortsatt åpne.
+
+### Gjenbruk og konkrete mangler
+
+Eksisterende `TenantMembership` og de fire tenantrollene gjenbrukes, sammen med
+SharingDomain, domainbindinger og assignments. Additiv0037 legger til
+`TenantMembership.is_active=True` for eksisterende medlemskap; bare den nye
+policyen bruker feltet. Gamle views/permissions beholder nøyaktig sin eksisterende
+rolleoppløsning og brukerreiser. Ingen medlemskap opprettes.
+
+`crm/services/sharing_access.py` bruker **aldri** `get_user_tenant_role`, globale
+Django-grupper, `is_staff` eller `is_superuser` som tilgangsgrunnlag. En
+plattform-superuser trenger samme eksplisitte aktive medlemskap, avtale og
+capability som andre. Rollen tas fra dette medlemskapet, også for superuser.
+Dermed er global fallback avgrenset bort fra den nye kontrakten. Eksisterende
+fallback i legacy API/image-ruter består; de må overføres samlet før shared
+aktivering, slik at gamle ruter ikke omgår nye regler. Den endringen gjøres
+ikke i denne leveransen.
+
+Eksisterende 0034-/assignmentvern avviser sletting av tildelte profiler/tenants
+og assignmentfjerning, også via bulk/SQL. Dette bevarer dagens godkjente
+midlertidige slettebegrensning. Ingen ny deletion-workflow er nødvendig for
+inaktiv grunnmur. Før framtidig assignment-/multiassignment-write kreves fortsatt
+egen kontrollert livssyklus; tenant-CASCADE må aldri slette et objekt med en
+annen assignment. Ingen gammel tillatt slettereise er endret her.
+
+### Immutable avtale- og aksepthistorikk
+
+- `SharingAgreement`: eksakt tekst, domain, positiv versjon, `effective_at`,
+  forfatter og DB-stemplet opprettelsestid. Versjon og virkningstid må øke per
+  domain; begge er unike innen domain. En framtidig versjon erstatter den gamle
+  nøyaktig fra `effective_at`, uten grace. Det finnes ingen defaultavtale.
+- `SharingAgreementAcceptance`: bruker, eksakt avtaleversjon/domain (via FK),
+  aksepttenant og DB-stemplet tidspunkt. Innsetting krever aktiv bruker og
+  eksplisitt aktivt, gyldig medlemskap i en tenant i avtaledomainet, samt den
+  gjeldende versjonen. Aksept gjelder bruker/domain, også i andre tenants i
+  samme domain når brukeren der har eget aktivt medlemskap.
+- `SharingAgreementRevocation`: separat, immutable hendelse med én referanse
+  til aksept, samme bruker som actor og DB-stemplet tidspunkt. Aksept slettes
+  eller oppdateres ikke. Status avledes som gjeldende, erstattet eller
+  tilbakekalt. Ny eksplisitt aksept etter tilbakekalling er mulig uten å
+  gjenopplive den gamle. Bare én ikke-tilbakekalt aksept per bruker/versjon
+  tillates. Tilbakekalling krever ikke fortsatt aktivt medlemskap eller bruker;
+  den kan dermed bevares også etter tilbaketrekking av tilgang.
+- `SharingAccessAudit`: DB-generert hendelse for hver avtale, aksept og
+  tilbakekalling i **samme transaksjon** som kilderaden. Bare hendelsestype,
+  kilderad-ID, actor-ID, domain-ID, eventuell tenant-ID og tidspunkt lagres;
+  ingen notater, kontaktdata, avtaletekst eller frie metadata. Historiske ID-er
+  er snapshots og reassosieres aldri ved senere sletting.
+
+ORM avviser endring/sletting; PostgreSQL-triggere avviser UPDATE/DELETE og
+upsert-oppdatering også gjennom direkte SQL/bulk. Audit kan ikke skrives
+uavhengig gjennom vanlig INSERT. Triggere låser domain/bruker/medlemskap for å
+serialisere avtaleplanlegging og aksept; en mislykket audit ruller kilden tilbake.
+Historikkinnsetting krever READ COMMITTED i databasen. REPEATABLE READ og
+SERIALIZABLE avvises eksplisitt: en låseventing må etterfølges av et ferskt
+snapshot, ellers kan duplicate-/rekkefølgekontrollen bruke gammel state.
+Dette er ikke beskyttelse mot DB-administrator med DDL-/TRUNCATE-/triggerkontroll.
+Direkte DB-/ORM-tilgang er privilegert drift, aldri en brukerautorisasjon.
+
+Modellene er **ikke registrert i Admin, API eller frontend**. Ingen støttet
+avtalepubliserings-, aksept- eller tilbakekallingsrute er innført; ingen slik
+state opprettes automatisk. Teknisk lagring bestemmer ikke hvem som skal få
+publisere juridisk avtaletekst eller utføre delegert tilbakekalling. Disse
+brukerhandlingene trenger eksplisitt autorisert servergrense ved senere levering.
+
+### Handlingsspesifikk policy, default-off
+
+`SHARING_ACCESS_ENABLED=False` leses fail-closed fra miljø; ukjente verdier gir
+False. Ingen eksisterende runtimekall bruker den nye policyen. Selv aktivering
+av dette ene flagget oppretter ingen funksjonelle shared lesere/skrivere.
+
+`assess_access()` kontrollerer fersk DB-state og DB-tid: aktiv bruker,
+aktivt eksplisitt medlemskap, eksakt tenant/domain, kjent rolle, handlingscapability
+og gjeldende ikke-tilbakekalt aksept. Disse grunnvilkårene evalueres i ett
+PostgreSQL-statement-snapshot. Den returnerer bare en avgrenset beslutningskode
+og interne avtale-/assignmentreferanser; ingen profil-/notatdata eller serializer.
+
+| Capability | Første rollemapping og ytterligere scope |
+| --- | --- |
+| `SHARED_MATCH` | Alle fire medlemskapsroller; bare domain, ingen objektpayload |
+| `ADD_TO_OWN_TENANT` | Superadmin/gruppeadmin/redigerer; eksisterende objekt i eksakt domain, bare angitt aktiv membershiptenant |
+| `EDIT_SHARED_CORE` | Samme skrivende roller; eksakt egen assignment; publisert aktør avvises og krever egen capability |
+| `EDIT_PUBLISHED_CORE` | Samme skrivende roller; Organization og egen assignment |
+| `PUBLISH` | Samme skrivende roller; Organization og egen assignment |
+| `READ_PRIVATE_OVERLAY` | Alle fire roller; eksakt egen objekt-/tenantassignment |
+| `WRITE_PRIVATE_OVERLAY` | Skrivende roller; eksakt egen objekt-/tenantassignment |
+| `WRITE_IMAGE_HOME`, `TRANSFER_IMAGE_HOME` | Navngitt, men **ingen tildeling** før separat image-home bridge |
+
+Private kontroller gir aldri andre tenanters assignment tilgang. Assignment til
+ny tenant opprettes ikke av en positiv vurdering. Caller må binde `tenant_id` til
+den autentiserte requestens eksplisitte aktive tenant; det er ingen parameter for
+å velge en annen måltenant innenfor samme handling.
+
+En positiv vurdering er et **øyeblikksbilde, ikke et gjenbrukbart grant/token**.
+Senere writer skal kontrollere tilgang på nytt under sin atomiske låse-,
+expected-revision-/auditgrense, også ved endret medlemskap, avtale eller
+publiseringsstatus. Denne leveransen lover ingen ferdig shared-write-kontrakt
+eller canonical audit/revisjon. Det finnes ingen nye shared dataqueries,
+matchingprojeksjon, overlaylesere/-skrivere eller aktivering.
+
+### Migrasjon, bevaring og neste gate
+
+0037 er kun additivt skjema og standardverdien True på eksisterende medlemskap;
+ingen seed eller dataflytting. Eksisterende serializers/Admin-feltlister, API,
+Editor, import, PUBLIC, tags, imagehistorikk, safety-ledger og deny-state er
+uendret. Nye tabeller skal være tomme etter en senere separat godkjent
+schema-apply. Backup/fullverify/isolert restore og eksakt migrasjonsplan kreves
+etter gjeldende driftsrunbooks før slik stagingbestilling.
+
+Reverse krever READ COMMITTED, tomme nye tabeller og ingen `is_active=False`-state;
+snapshot-isolasjon avvises også her før kontroll/låsing.
+Etter første semantiske avtale-/akseptstate beholdes historikken; slå av ny
+funksjon og rett framover. Restore av eldre DB kan gjenopplive gammel aksept eller
+medlemskap: før framtidig aktivering må gjeldende tilbakekallinger/tilgangstap
+reconcileres fra autoritativt bevis, ellers forblir ny tilgang av. Denne
+leveransen etablerer ingen ekstern restore-sikker avtaleledger og endrer aldri
+ADR-009s eksisterende image-safety-/deny- og historiske identitetskontrakt.
+
+Prosjekteiers avklaring 2026-11-07: Endringen fra 12 til 13 notatkandidater er en
+ordinær redigering av et internt personnotat, ikke migreringsavvik. Ingen ekstra
+inventar/diagnose/reparasjon gjennomføres. Legacydata forblir autoritative;
+faktisk kopiering utsettes til nødvendig tilgangs-/writergrunnlag er på plass,
+med fersk plan og separat godkjenning.
+
+### Lokal verifikasjon for denne leveransen
+
+Første validering ga 687 grønne backendtester, inklusive 13 nye, på syntetisk
+PostgreSQL 16.14, samt 64 grønne separate image-safety-tester. Separat review
+identifiserte snapshot-isolasjonsrisiko i innsettingstriggerne; rettingen krever
+READ COMMITTED. Etter rettingen er 93 berørte tester (14 nye + 79 eksisterende)
+grønne, inklusive negative RR/SERIALIZABLE- og reverse-kontroller og beholdt
+RC-samtidighet. Relevant separat re-review og CI følger GitHub før merge.
+Sikkerhetstestene dekker positiv rollemapping og negative kontroller for
+cross-tenant/-domain, feil eller manglende assignment, manglende/erstattet/
+framtidig/tilbakekalt aksept, eksakt effective-at uten grace, inaktiv bruker,
+inaktivt/slettet/ukjent medlemskap og manglende capability. Superuser og global
+Django-gruppe alene avvises. Publisert aktør krever sin separate capability;
+image-home-handlinger er fortsatt avvist. Policyen skriver ingen data.
+
+Migrasjonstest dekker eksisterende medlemskap, ingen seed, tom reverse/forward
+og reverse-stopp ved ny historikk eller deaktivert medlemskap. SQL-/ORM-vern,
+duplikataksept og samtidige aksepter, auditfeil/atomisk rollback og eksisterende
+assigned-delete-beskyttelse testes. Et eksisterende0036-migrasjonstestoppsett er
+tilpasset senere additive tabeller; kopitjenesten er uendret.
+
+Reproduser med lokal, isolert testdatabase og `python manage.py test crm` samt
+`python manage.py makemigrations --check --dry-run`. Eksisterende separate
+image-safety-tester kjøres med `python3 -m unittest discover -s ops/image_safety/tests`.
+Dette er teknisk lokal/CI-validering, ingen ny Editor-/Import-UX-runde,
+eieraksept, stagingevidens eller bevis for en ferdig shared writer.

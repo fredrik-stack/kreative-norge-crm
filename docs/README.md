@@ -1,4 +1,11 @@
 # Kreative Norge CRM – dokumentasjon
+## ADR-011 trinn 8 – inaktiv tilgangsgrunnmur, 2026-11-07
+
+Additiv0037, versjonert avtale-/aksepthistorikk, tilbakekalling, atomisk audit og
+eksplisitte medlemskapsbaserte capabilities er kodeleveransen. Ingen shared
+lesere/skrivere, avtaleaksept, notatkopiering eller staging i dette mandatet.
+[Kontrakt og leveransegrenser](architecture/SECURITY_AND_ROLES.md#adr-011-trinn-8--inaktiv-tilgangsgrunnmur-2026-11-07).
+
 
 ## Legacy-notatkopiering – stagingverifisert uten kopiering 2026-11-07
 

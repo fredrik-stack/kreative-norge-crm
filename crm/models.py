@@ -8,6 +8,7 @@ from django.conf import settings
 
 from .domain_integrity import AssignmentMixin, DomainBindingMixin
 from .note_overlays import NoteOverlayMixin
+from .sharing_records import SharingRecord
 
 from .validators import (
     validate_e164_phone,
@@ -323,6 +324,8 @@ class TenantMembership(models.Model):
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="memberships")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="tenant_memberships")
     role = models.CharField(max_length=24, choices=Role.choices)
+    # Only the new ADR-011 policy uses this; legacy journeys remain unchanged.
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -2173,3 +2176,51 @@ class TenantNoteCopyBatch(models.Model):
             fields=["environment", "database_identity", "batch_id"],
             name="tenant_note_copy_batch_unique",
         )]
+
+
+# ADR-011 step 8: storage only; no admin/API registration or automatic acceptance.
+class SharingAgreement(SharingRecord):
+    sharing_domain = models.ForeignKey(SharingDomain, on_delete=models.PROTECT)
+    version = models.PositiveIntegerField()
+    # Exact approved text, with no normalization. No actual text is seeded.
+    text = models.TextField()
+    effective_at = models.DateTimeField()
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta(SharingRecord.Meta):
+        abstract = False
+        constraints = [
+            models.UniqueConstraint(fields=["sharing_domain", "version"], name="sharing_agreement_domain_version"),
+            models.UniqueConstraint(fields=["sharing_domain", "effective_at"], name="sharing_agreement_domain_effective"),
+            models.CheckConstraint(condition=models.Q(version__gt=0), name="sharing_agreement_version_positive"),
+            models.CheckConstraint(condition=~models.Q(text=""), name="sharing_agreement_text_present"),
+        ]
+
+
+class SharingAgreementAcceptance(SharingRecord):
+    agreement = models.ForeignKey(SharingAgreement, on_delete=models.PROTECT, related_name="acceptances")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT)
+    accepted_at = models.DateTimeField(auto_now_add=True)
+
+
+class SharingAgreementRevocation(SharingRecord):
+    acceptance = models.OneToOneField(SharingAgreementAcceptance, on_delete=models.PROTECT, related_name="revocation")
+    # Self-revocation only in this foundation; delegated revocation is not granted.
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    revoked_at = models.DateTimeField(auto_now_add=True)
+
+
+class SharingAccessAudit(SharingRecord):
+    # Immutable historical IDs deliberately have no cascading/live FK semantics.
+    event = models.CharField(max_length=24)
+    record_id = models.PositiveBigIntegerField()
+    actor_id = models.PositiveBigIntegerField()
+    sharing_domain_id = models.PositiveBigIntegerField()
+    tenant_id = models.PositiveBigIntegerField(null=True)
+    occurred_at = models.DateTimeField()
+
+    class Meta(SharingRecord.Meta):
+        abstract = False
+        constraints = [models.UniqueConstraint(fields=["event", "record_id"], name="sharing_audit_event_record")]
