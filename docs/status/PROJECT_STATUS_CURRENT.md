@@ -1,5 +1,31 @@
 # Project Status Current
 
+## ADR-011 trinn 8 – teknisk stagingverifisert, inaktivt 2026-11-07
+
+PR #101 / kode `d410e8e2e5e4a671edbd755f527d7eb52fe8103a` er API-only deployet
+etter grønn main-CI42421510721,6/6. Bare additiv0037 er anvendt med READ COMMITTED,
+2s lock-/30s statement-timeout og eksplisitt MigrationExecutor uten seed eller
+post_migrate. Migrasjonsplanen er tom; fire historikktabeller har 0 rader,
+22 constraints er validerte, 11 triggere er aktive og fire funksjoner matcher
+kilden. Shared- og notatgaten er effektivt/varig av, overlays/kopibatch fortsatt0.
+[Mandat, faktisk bevis og grenser](../architecture/SECURITY_AND_ROLES.md#stagingverifisering-av-trinn-8--2026-11-07).
+
+Alle 48 eksisterende DB-tabeller og legacyfelt/PK/tidsstempler er bevart; bare
+nytt skjema og én0037-migrasjonsrad er tilkommet. Det var **0 medlemskap før og
+etter**: ingen medlemskapsrader er opprettet, og True-kravet har ingen reelle rader
+å validere i staging. Ingen tilgang gis av grunnmuren. Frontend/DB-container,
+dependencies, miljø/media/static, PUBLIC og safety READY/cursor13 er bevart.
+Pre/post-backup, fullverify og arkivbundet isolert restore er grønne; timere
+aktive/enabled og restorecontainere/volumer ryddet.
+
+Ingen avtale, aksept, tilbakekalling, audit-event, notatkopiering eller kopiplan
+er opprettet/kjørt. Teknisk API-/Admin-/session-/PUBLIC-lesing er verifisert;
+ingen ny browser-/UX-runde eller eieraksept påstås. Dokumentasjon publiseres
+med separat review/PR/ordinær merge/CI og utløser ingen deploy. Grunnmuren er
+teknisk stagingverifisert; shared tilgang, avtale-/akseptflyt, canonical writer
+og autoritetsovergang er ikke aktivert. Trinn7 og hele trinn8/6A består åpne.
+
+
 ## ADR-011 trinn 8 – tilgangsgrunnmur, kodeleveranse 2026-11-07
 
 Additiv0037 forbereder immutable SharingAgreement, Acceptance, separat Revocation

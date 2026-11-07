@@ -1,4 +1,15 @@
 # Kreative Norge CRM – dokumentasjon
+
+## ADR-011 trinn 8 – teknisk stagingverifisert, inaktivt 2026-11-07
+
+API-kode `d410e8e` og bare0037 er levert med tomme historikktabeller, 22 validerte
+constraints, 11 triggere og fire verifiserte funksjoner. Shared-/notatgater er av;
+ingen avtaler/aksepter, notatkopiering eller kopiplan. Eksisterende data/runtime,
+pre/post-backup/fullverify/isolert restore og timere er grønne. Staging har0
+medlemskap; ingen er opprettet. [Faktisk evidens og grenser](architecture/SECURITY_AND_ROLES.md#stagingverifisering-av-trinn-8--2026-11-07).
+Ingen aktivering eller ferdigmelding av trinn7/hele trinn8/6A. Daterte eldre
+avsnitt nedenfor beskriver opprinnelig kodeleveranse og tidligere staging.
+
 ## ADR-011 trinn 8 – inaktiv tilgangsgrunnmur, 2026-11-07
 
 Additiv0037, versjonert avtale-/aksepthistorikk, tilbakekalling, atomisk audit og

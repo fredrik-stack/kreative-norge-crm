@@ -1,5 +1,128 @@
 # Security and Roles
 
+## Stagingverifisering av trinn 8 – 2026-11-07
+
+**STAGING VERIFIED, INACTIVE** innen det uttrykkelige mandatet: lever eksakt API
+fra PR #101 og bare0037, med pre/post-backup, fullverify/isolert restore og
+bevaring av eksisterende drift. Ingen avtale-/akseptopprettelse, medlemskaps-
+deaktivering, shared-aktivering, canonical writer, notatkopi/-plan eller
+produksjonssetting. Dokumentasjonsleveransen følger separat review/PR/ordinær
+merge/CI; dokumentasjonsmerge deployes ikke. Dette er en senere bestilt
+driftsvidereføring av den opprinnelige kodeleveransen nedenfor.
+
+[Sanitert maskinevidens](../status/evidence/phase6a8-access-staging-2026-11-07/checks.json)
+er kontrollert `2026-11-07T22:59:01Z` / **23:59:01 CET**. Private før-/etter-
+fingeravtrykk, metadata, driftslogger og eksakte arkiv-/dumpkvitteringer beholdes
+operatørbeskyttet utenfor Git. Ingen rå notater, personverdier, individuelle
+profilhashverdier, credentials eller private manifest publiseres.
+
+### Faktisk kode, skjema og inaktiv tilgang
+
+- Før: rent stagingrepo/API `48ac5976bb6cf396b12335e8a108370f3b57af8d`, image
+  `sha256:b9e76c4b0d3686f2462d27e259fd2a2a403264d98fe002dec5d0f559f3b119c1`,
+  0036 anvendt, ingen0037-tabeller, 48 eksisterende DB-tabeller. Databaseidentitet
+  ble kontrollert eksakt og var uendret gjennom hele etappen.
+- Etter: rent stagingrepo/API **`d410e8e2e5e4a671edbd755f527d7eb52fe8103a`**,
+  image **`sha256:4a0356cc23af52a96433fa3b7db44c6a3d85d7a7263f12b5a2c962677ba10630`**.
+  Alle162 relevante kildefiler matcher Git. Image bygger på den tidligere
+  immutable API-basen med eksakt Git-kilde lagt over; dependencyfingeravtrykk,
+  Dockerfile, requirements og Composekontrakt er uendret. Ingen pip-/infraupgrade.
+- Eksakt én pending migrasjon ble verifisert før apply. Bare
+  `0037_sharing_access_foundation` ble anvendt med eksplisitt MigrationExecutor,
+  prosessavgrenset READ COMMITTED, lock_timeout2s og statement_timeout30s.
+  Ingen generell migrate/post_migrate, contenttypes/permissions/seed eller retry.
+  Ny migrasjonsrad er eneste tillegg til `django_migrations`; gammel historikk
+  er bevart. Sluttplanen er tom. Ingen schema-reverse eller API-rollback var nødvendig.
+- `SharingAgreement`, `SharingAgreementAcceptance`, `SharingAgreementRevocation`
+  og `SharingAccessAudit` har **0 rader hver**. Alle22 constraints er validerte,
+  alle11 forventede triggere er enabled, og alle fire funksjonskropper matcher
+  den godkjente migrasjonen. Eksisterende schema-/assignment-/overlayvern består.
+- `TenantMembership.is_active` finnes som NOT NULL. Det var **0 medlemskap før
+  og etter**. Ingen medlemskap er opprettet, deaktivert eller remappet. Kravet
+  om True på eksisterende rader har dermed ingen reelle rader i staging; lokal
+  syntetisk migrasjonstest i PR #101 dekker den befolkede tilstanden. Dette er
+  ikke bevis for at virkelige brukere har ADR-011-medlemskap.
+- `SHARING_ACCESS_ENABLED=False` og `TENANT_NOTE_OVERLAYS_ENABLED=False` er
+  effektive og varige. Begge er unset i uendret `.env.staging` og bruker
+  fail-closed False-default; de er heller ikke aktivert i containerens miljø.
+  Alle ni nye capabilityvurderinger returnerer DISABLED. Ingen nye funksjonelle
+  shared lesere/skrivere eller Adminmodeller er tilgjengelige. Medlemskapets
+  nye active-felt er skjult i eksisterende Adminskjema.
+- Begge notatoverlays og kopibatchregisteret har0 rader. Ingen kopikommando,
+  kopiplan eller reell notat-/avtale-/aksept-/revokasjons-/audithendelse er kjørt/opprettet.
+
+### Bevaring og teknisk lesebevis
+
+Alle48 tidligere tabeller er sammenlignet med private, deterministiske
+radfingeravtrykk, inklusive PK-er, tidsstempler, auth/session/grupper/rettigheter,
+M2M, notater/tags, import, bildehistorikk og publication. Medlemskap sammenlignes
+uten den ene nye active-kolonnen; alle tidligere felt er bevart. Det nye
+skjemaet og én migrasjonsregistrering er de eneste DB-deltaene.
+
+Frontend/web- og DB-container har samme identitet, image, start/restart,
+Config/HostConfig og mounts. API-miljø/mounts/restartpolicy, miljøfil,
+private originals, renditions, delivery og static er bevart. Ingen import-/
+eksportfiler fantes i API-laget ved førkontroll eller etter graceful stopp.
+Bare API ble rekreert, direkte med Gunicorn uten migrate/collectstatic;
+nginx fikk nødvendig configtest/reload, uten web-recreate. Ingen ny Compose-/
+Docker-/database-/frontendleveranse.
+
+Eksisterende aktiv staff/plattformoperatør, tidligere dokumentert i backfill-
+batch, ble gjenbrukt for teknisk **read-only** backendlesing:14 tenant-/modell-
+lister,6 tilgjengelige detaljer,2 Adminlister,2 legacy-notatskjemaer og autentisert
+session. Ingen konto, medlemskap, rettighet, login, session eller last_login ble
+skrevet. Dette er RequestFactory/force_authenticate-bevis, ikke ny ekte
+browserlogin/UX-runde eller manuell eieraksept. Legacy permissions/views/serializers/
+ruter har ingen kildedelta og bruker fortsatt eksisterende rollefallback.
+
+PUBLIC-katalog, HTML, frontend og HTTP-grenser svarte som forventet. Hele PUBLIC-
+API-responsen og seks representative asset-/fallback-varianter har uendrede
+bytes; PUBLIC/legacytags og image-/denyhistorikk er ikke lagt om. Safety forble
+READY med samme ledger-/repositoryidentitet og event/read/anchor-cursor13;
+ledgerfil og historikk er byteuendret. Ingen ledgerwrite, reassosiering eller
+ny offentlig tilgang.
+
+### Backup, driftsvindu og kontrollgrunnlag
+
+Skrivefrys ble gjennomført ved graceful API-stopp. Backup-/verify-timere var
+midlertidig pausede; ingen backupservice løp samtidig. Fersk pre- og post-backup,
+full Borg repository-/archive-data-verifikasjon og isolert PostgreSQL16-restore
+bestod. Hvert restorebevis er bundet til forventet arkiv, eksakt arkiv-ID og
+dumpchecksum; begge arkividentiteter er lest tilbake etterpå. Post-restore
+bekreftet0037, fire tomme historikktabeller,22 validerte constraints,11 aktive
+triggere, null inaktive medlemskap og fortsatt tomme note-/batchtabeller.
+
+Installerte backupskript er uendret. Private kopier fulgte eksisterende
+kontrollert prosedyre uten prune/compact, med arkivbinding og eksplisitt cleanup
+av isolerte restorecontainere inklusive anonyme volumer. Volumsettet er bevart;
+ingen restorecontainere står igjen. Backup-, verify- og safety-health-timere er
+active/enabled; backup-/verify-services er inactive i sluttkontrollen.
+
+Operatørskriptene fikk separat skrivebeskyttet statisk review før driftsmutasjon,
+bundet til de tre helperhashene i JSON-evidensen, uten blokkerende funn.
+En innledende **read-only** target-image-kontroll forsøkte SessionView før den
+nye is_active-kolonnen fantes. Kontrollskriptet ble rettet før schema/runtime-
+endring: pending-mode verifiserer identitet/plan/data/flags/struktur, mens
+før-/etter-runtime gir lesebeviset. Samme bygde image ble revalidert uten nybuild;
+ingen migrasjon, backup eller datahandling måtte gjentas som følge av dette.
+
+### Gjenstående tilgangs- og autoritetsovergang
+
+Ingen teknisk drifts-/restoreblokker står igjen for en **separat bestilt**
+trinn9-leveranse. Det er ikke en godkjenning av shared writes. Før virkelig
+bruk kreves eksplisitte aktive medlemskap/rollemapping, gjeldende juridisk
+avtaletekst og autorisert aksept-/tilbakekallingsflyt. Ingen tilgang kan åpnes på
+dagens tomme medlemskaps-/akseptgrunnlag.
+
+Canonical writer skal fortsatt leveres med atomisk reautorisering, expected
+revision/stale-kontroll og handlingsaudit. Gamle API-/Editor-/Admin-/import-/ORM-
+innganger må overføres samlet før autoritetsovergang, slik at legacyfallback
+eller gammel writer ikke omgår kontrakten. Image-home, tags, PUBLIC og øvrige
+ADR-011-porter består. Reell notatkopiering utsettes til nødvendig tilgangs-/
+writergrunnlag, med fersk plan og separat godkjenning. Ingen ny notatinventar-,
+diagnose- eller reparasjonsrunde er utført. Trinn7 og hele trinn8/6A er fortsatt åpne.
+
+
 **Visuell rettingsrunde 2, 25.10.2026:** Slett aktør er gjenopprettet i Editor med
 eksisterende superadmin/gruppeadmin, eksplisitt confirm og serverens tenant-/
 DELETE-beskyttelse. Tildelt/beskyttet profil gir fortsatt 409 og beholdes. Ingen
