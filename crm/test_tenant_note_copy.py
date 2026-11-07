@@ -437,6 +437,9 @@ class TenantNoteCopyMigrationTests(TransactionTestCase):
         before = {t: v for t, v in service._snapshot().items()}
         MigrationExecutor(connection).migrate([old])
         MigrationExecutor(connection).migrate([current])
+        # Snapshot uses current model metadata, including later additive tables.
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
         self.assertEqual(service._snapshot(), before)
         TenantNoteCopyBatch.objects.create(environment="synthetic", database_identity="synthetic", batch_id="prepared",
             request_digest="a"*64, plan_digest="b"*64, operator_id=1, code_baseline="a"*40, manifest_path="/private/synthetic")

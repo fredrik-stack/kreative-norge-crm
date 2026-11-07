@@ -1,5 +1,23 @@
 # Roadmap
 
+## ADR-011 trinn 8 – tilgangsgrunnmur, kodeleveranse 2026-11-07
+
+Additiv0037 forbereder immutable SharingAgreement, Acceptance, separat Revocation
+og atomisk DB-generert audit. Eksplisitt aktivt TenantMembership og separate
+server-side capabilities vurderes uten global gruppe-/superuserfallback, med
+eksakt domain og privat assignmentscope. `SHARING_ACCESS_ENABLED` er default-off;
+ingen aktive views/skrivere eller automatisk avtaleaksept.
+[Mandat, kontrakt, bevaring og neste gate](../architecture/SECURITY_AND_ROLES.md#adr-011-trinn-8--inaktiv-tilgangsgrunnmur-2026-11-07).
+
+Lokal syntetisk PostgreSQL-validering og separat review/PR/merge/CI følger
+leveransen; faktisk GitHub-status er fasit. Ingen stagingdeploy/schema-apply,
+reelle avtaler, aksepter eller notatkopiering inngår. Legacylesere/-skrivere og
+PUBLIC består. Trinn 7 og hele trinn 8/6A er ikke lukket.
+Prosjekteier bekrefter at 13. notatkandidat skyldes ordinær brukerredigering.
+Ingen ekstra inventar eller reparasjon; kopiering utsettes til nødvendig tilgangs-
+og writergrunnlag, med fersk plan og separat godkjenning.
+
+
 ## Tverrgående UI/UX-ferdigstilling – presisering 2026-10-24
 
 [Samlet Editor-/PUBLIC-plan](EDITOR_PUBLIC_UI_COMPLETION_PLAN_2026-10-24.md)

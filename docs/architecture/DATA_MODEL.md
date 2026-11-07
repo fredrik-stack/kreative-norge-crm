@@ -1,5 +1,23 @@
 # Data Model
 
+## ADR-011 trinn 8 – additiv0037, inaktiv grunnmur 2026-11-07
+
+Nye tabeller: `SharingAgreement` (domain/immutable versjon/tekst/effective_at/
+forfatter), `SharingAgreementAcceptance` (bruker/avtale/aksepttenant/tid),
+`SharingAgreementRevocation` (unik aksept/actor/tid) og `SharingAccessAudit`
+(DB-generert hendelse med minimale historiske ID-er/tid). ORM og PostgreSQL
+UPDATE/DELETE-vern bevarer historikken; auditinnsetting er atomisk med kilden.
+Agreement-/aksept-/revokasjons-FK bruker PROTECT; audit har historiske ID-snapshots.
+`TenantMembership.is_active=True` innføres additivt og brukes bare i ny policy.
+Ingen nye medlemskap, avtaler, aksepter eller datamigrering/seed. Ingen nye
+Admin-/API-modeller eller funksjonelle shared lesere/skrivere.
+
+[Detaljert kontrakt, constraints, capabilities, rollback og restoregrense](SECURITY_AND_ROLES.md#adr-011-trinn-8--inaktiv-tilgangsgrunnmur-2026-11-07).
+Reverse av0037 avvises ved enhver ny historikkrad eller deaktivert medlemskap.
+Legacydata og historisk image-/safety-state er uendret. Kun lokal syntetisk
+validering i denne leveransen; ingen staging/schema-apply eller aktivering.
+
+
 ## Notatkopiering – schema0036 stagingverifisert 2026-11-07
 
 PR #99-kode `48ac5976bb6cf396b12335e8a108370f3b57af8d` er teknisk

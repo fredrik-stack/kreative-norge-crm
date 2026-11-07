@@ -28,6 +28,7 @@ class TenantAdmin(admin.ModelAdmin):
 
 @admin.register(TenantMembership)
 class TenantMembershipAdmin(admin.ModelAdmin):
+    exclude = ("is_active",)  # Inactive ADR-011 foundation; no new Admin control.
     list_display = ("id", "tenant", "user", "role", "created_at")
     list_filter = ("tenant", "role")
     search_fields = ("tenant__name", "user__username", "user__email")
