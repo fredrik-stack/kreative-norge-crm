@@ -60,19 +60,23 @@ export function OrganizationsPage() {
     (!orgRouteIsNumeric || !editor.organizations.some((org) => org.id === orgRouteParsed));
 
   const filterSummary = editor.overviewFilterSummary;
-  const [overviewModalOrgId, setOverviewModalOrgId] = useState<number | null>(null);
-
+  const params = new URLSearchParams(location.search);
+  const readModalId = (key: string) => {
+    const value = params.get(key);
+    return value && Number.isInteger(Number(value)) && Number(value) > 0 ? Number(value) : null;
+  };
+  const overviewModalOrgId = readModalId("openOrg");
+  const overviewPersonId = readModalId("openPerson");
+  const previousTenant = useRef(editor.tenantId);
   useEffect(() => {
-    if (orgId) return;
-    const params = new URLSearchParams(location.search);
-    const openOrg = params.get("openOrg");
-    if (!openOrg) {
-      setOverviewModalOrgId(null);
-      return;
-    }
-    const parsed = Number(openOrg);
-    if (!Number.isNaN(parsed)) setOverviewModalOrgId(parsed);
-  }, [location.search, orgId]);
+    const changed = previousTenant.current !== null && previousTenant.current !== editor.tenantId;
+    previousTenant.current = editor.tenantId;
+    if (!changed || orgId) return;
+    const next = new URLSearchParams(location.search);
+    if (!next.has("openOrg") && !next.has("openPerson")) return;
+    next.delete("openOrg"); next.delete("openPerson");
+    navigate(next.size ? `/organizations?${next}` : "/organizations", { replace: true });
+  }, [editor.tenantId, orgId, location.search, navigate]);
 
   useEffect(() => {
     if (editor.tenantDataLoaded && !inOverviewMode && !editor.canWrite) {
@@ -93,9 +97,18 @@ export function OrganizationsPage() {
           navigate={navigate}
           filterSummary={filterSummary}
           modalOrgId={overviewModalOrgId}
-          onModalOrgIdChange={(nextId) => {
-            setOverviewModalOrgId(nextId);
+          modalPersonId={overviewPersonId}
+          onModalPersonIdChange={(nextId) => {
+            if (nextId === null && location.state?.personCardParent) { navigate(-1); return; }
             const params = new URLSearchParams(location.search);
+            if (nextId === null) params.delete("openPerson");
+            else params.set("openPerson", String(nextId));
+            const nextSearch = params.toString();
+            navigate(nextSearch ? `/organizations?${nextSearch}` : "/organizations", nextId === null ? { replace: true } : { state: { personCardParent: location.key } });
+          }}
+          onModalOrgIdChange={(nextId) => {
+            const params = new URLSearchParams(location.search);
+            params.delete("openPerson");
             if (nextId === null) {
               params.delete("openOrg");
             } else {
@@ -138,19 +151,19 @@ function OrganizationOverviewPanel(props: {
   navigate: (to: string) => void;
   filterSummary: string | null;
   modalOrgId: number | null;
+  modalPersonId: number | null;
+  onModalPersonIdChange: (id: number | null) => void;
   onModalOrgIdChange: (nextId: number | null) => void;
 }) {
-  const { organizations, navigate, filterSummary, modalOrgId, onModalOrgIdChange } = props;
+  const { organizations, navigate, filterSummary, modalOrgId, modalPersonId, onModalPersonIdChange, onModalOrgIdChange } = props;
   const editor = useEditor();
-  const [linkedPersonId, setLinkedPersonId] = useState<number | null>(null);
-  useEffect(() => { setLinkedPersonId(null); }, [modalOrgId, editor.tenantId]);
-  const linkedPerson = editor.persons.find(person => person.id === linkedPersonId);
+  // Resolve both cards from the authorized tenant data; the parent must exist.
+  const activeOrganization = modalOrgId ? editor.organizations.find(organization => organization.id === modalOrgId) ?? null : null;
+  const linkedPerson = activeOrganization ? editor.persons.find(person => person.id === modalPersonId) : null;
   const linkedOrganizations = linkedPerson ? editor.organizationPeople.filter(link => link.person === linkedPerson.id).flatMap(link => {
     const organization = editor.organizations.find(item => item.id === link.organization);
     return organization ? [{ id: organization.id, name: organization.name }] : [];
   }) : [];
-  // An explicit linked actor can be outside the overview's retained person filters.
-  const activeOrganization = modalOrgId ? editor.organizations.find((organization) => organization.id === modalOrgId) ?? null : null;
 
   return (
     <section className="panel overview-panel">
@@ -190,13 +203,13 @@ function OrganizationOverviewPanel(props: {
       </div>
       {organizations.length === 0 ? <div className="empty-state">Ingen aktører matcher filtreringen.</div> : null}
       {linkedPerson ? <PersonOverviewModal person={linkedPerson} linkedOrganizations={linkedOrganizations}
-        onClose={() => setLinkedPersonId(null)}
+        onClose={() => onModalPersonIdChange(null)} onBack={() => onModalPersonIdChange(null)}
         onEdit={editor.canWrite ? () => { editor.setSelectedPersonId(linkedPerson.id); navigate(`/people/${linkedPerson.id}`); } : null}
-        onOpenOrganization={id => { setLinkedPersonId(null); onModalOrgIdChange(id); }} /> : null}
+        onOpenOrganization={onModalOrgIdChange} /> : null}
       {activeOrganization && !linkedPerson ? (
         <OrganizationOverviewModal
           organization={activeOrganization}
-          onOpenPerson={setLinkedPersonId}
+          onOpenPerson={onModalPersonIdChange}
           onClose={() => onModalOrgIdChange(null)}
           onEdit={
             editor.canWrite

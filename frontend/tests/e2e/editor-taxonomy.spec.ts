@@ -5,6 +5,7 @@ const colors = {category:'rgb(107, 73, 61)',subcategory:'rgb(56, 168, 236)',tag:
 async function expectTaxonomyColors(scope: Locator) {
   for (const [kind,color] of Object.entries(colors)) {
     const pills=scope.locator(`.mini-pill.${kind}`);
+    await expect(pills.first()).toBeVisible();
     expect(await pills.count()).toBeGreaterThan(0);
     for (const pill of await pills.all()) await expect(pill).toHaveCSS('background-color',color);
   }

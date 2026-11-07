@@ -17,6 +17,7 @@ for (const width of [1920, 390, 320]) test(`Editor identity, fitted tags and lin
   await expect(page.getByRole('navigation',{name:'Hovednavigasjon'}).locator('svg')).toHaveCount(5);
   const card=page.locator('.editor-card-grid article').filter({has:page.getByRole('button',{name:actor.name,exact:true})});
   await expect(card.locator('.card-name')).toHaveCSS('font-weight','600');
+  expect(await card.evaluate(e=>{const body=e.querySelector('.editor-card-body')!.getBoundingClientRect(),heading=e.querySelector('h3')!.getBoundingClientRect(),button=e.querySelector('.card-name')!.getBoundingClientRect();return button.left>=body.left-.5&&button.right<=body.right+.5&&heading.right<=body.right+.5;})).toBe(true);
   if(width<600) {await expect(card.locator('.card-name')).toHaveCSS('font-size','17px');await expect(card.locator('.editor-card-head .meta')).toHaveCSS('font-size','13px');}
   const short=page.locator('.editor-card-grid article').filter({has:page.getByRole('button',{name:'Kort navn',exact:true})});
   await expect.poll(()=>short.locator('.card-tags > .mini-pill').count()).toBeGreaterThan(1);
@@ -31,8 +32,11 @@ for (const width of [1920, 390, 320]) test(`Editor identity, fitted tags and lin
   await expect(dialog.locator('.mini-pill.tag')).toHaveCount(5);await expect(dialog.getByText('Primærlenke',{exact:true})).toHaveCount(0);await expect(dialog.getByRole('link',{name:'Nettside',exact:true})).toBeVisible();
   await dialog.getByRole('button',{name:person.full_name,exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(1);await expect(page.getByRole('dialog').getByRole('heading',{name:person.full_name,exact:true})).toBeVisible();await page.screenshot({path:info.outputPath(`linked-person-${width}.png`)});
-  await page.goBack();await expect(page.getByRole('dialog')).toHaveCount(0);
-  await card.locator('.tag-count').click();await page.getByRole('dialog').getByRole('button',{name:person.full_name,exact:true}).click();
+  await page.goBack();await expect(page.getByRole('dialog').getByRole('heading',{name:actor.name,exact:true})).toBeVisible();
+  await page.getByRole('dialog').getByRole('button',{name:person.full_name,exact:true}).click();
+  await page.getByRole('dialog').getByRole('button',{name:'Tilbake til aktør',exact:true}).click();
+  await expect(page.getByRole('dialog').getByRole('heading',{name:actor.name,exact:true})).toBeVisible();
+  await page.getByRole('dialog').getByRole('button',{name:person.full_name,exact:true}).click();
   await page.keyboard.press('Escape');await expect(page.getByRole('dialog').getByRole('heading',{name:actor.name,exact:true})).toBeVisible();await page.keyboard.press('Escape');
   await page.evaluate(()=>scrollTo(0,document.body.scrollHeight));await short.getByRole('button',{name:'Kort navn',exact:true}).click();
   const edit=page.getByRole('dialog').getByRole('button',{name:'Rediger',exact:true});await edit.scrollIntoViewIfNeeded();await edit.click();await expect(page).toHaveURL(/\/organizations\/50$/);await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(0);
@@ -78,4 +82,13 @@ test('very long tags retain a readable first tag and an exact overflow count',as
  const tags=page.locator('.card-tags');await expect(tags.locator('> .mini-pill')).toHaveCount(1);await expect(tags.locator('.tag-count')).toHaveText('+4');
  expect(await tags.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true);await tags.locator('.tag-count').click();await expect(page.getByRole('dialog').locator('.mini-pill.tag')).toHaveCount(5);
  expect(await page.getByRole('dialog').evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true);
+});
+
+
+test('direct linked-person card returns to the actor without an external history dependency',async({page})=>{
+ const state=await setupMockEditorApi(page);const actor=state.organizations[0],person=state.persons[0];
+ await page.goto(`/organizations?openOrg=${actor.id}&openPerson=${person.id}`);await loginAsEditor(page);
+ await expect(page.getByRole('dialog').getByRole('heading',{name:person.full_name,exact:true})).toBeVisible();
+ await page.getByRole('dialog').getByRole('button',{name:'Tilbake til aktør',exact:true}).click();
+ await expect(page).toHaveURL(new RegExp(`openOrg=${actor.id}$`));await expect(page.getByRole('dialog').getByRole('heading',{name:actor.name,exact:true})).toBeVisible();
 });

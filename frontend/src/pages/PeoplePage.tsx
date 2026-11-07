@@ -123,8 +123,9 @@ export function PersonOverviewModal(props: {
   onClose: () => void;
   onEdit: (() => void) | null;
   onOpenOrganization: (organizationId: number) => void;
+  onBack?: () => void;
 }) {
-  const { person, linkedOrganizations, onClose, onEdit, onOpenOrganization } = props;
+  const { person, linkedOrganizations, onClose, onEdit, onOpenOrganization, onBack } = props;
   const externalLinks = getPersonLinkRows(person);
   const dialogRef = useReadDialog(onClose);
   const modal = (
@@ -230,8 +231,8 @@ export function PersonOverviewModal(props: {
               ) : null}
             </div>
             <div className="actions modal-footer">
-              <button type="button" className="ghost-button compact-button" onClick={onClose}>
-                Lukk
+              <button type="button" className="ghost-button compact-button" onClick={onBack ?? onClose}>
+                {onBack ? "Tilbake til aktør" : "Lukk"}
               </button>
               {onEdit ? (
                 <button type="button" className="primary-button compact-button" onClick={onEdit}>
