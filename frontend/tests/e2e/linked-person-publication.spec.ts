@@ -14,7 +14,7 @@ async function openFirstOrganization(page: Page) {
   await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
   await page.locator("summary").filter({hasText:"Opprett kontaktperson"}).click();
   await page.locator("summary").filter({hasText:"Knytt eksisterende person"}).click();
-  await expect(page.getByRole("heading", { name: "Opprett ny kontaktperson for denne aktøren" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Ny kontaktperson" })).toBeVisible();
 }
 
 test("new linked person reuses backend-created private primary contacts", async ({ page }) => {
@@ -145,8 +145,8 @@ test("switching organization clears linked-person draft, errors, status and publ
   await expect(page.getByText("Ugyldig telefonnummer.", { exact: true })).toHaveCount(0);
   await expect(
     page
-      .getByRole("heading", { name: "Opprett ny kontaktperson for denne aktøren" })
+      .getByRole("heading", { name: "Ny kontaktperson" })
       .locator("..")
       .getByText("Klar", { exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
 });

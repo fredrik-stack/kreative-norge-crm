@@ -506,3 +506,38 @@ Dette er samlet aksept og teknisk stagingbevis for den bestilte PR-leveransen.
 Det er ingen ny formell brukertest, ny Import-UX eller ferdigmelding av hele UI-6,
 6A/6B/6C, begge kart eller Editor/PUBLIC-v1. Import v6 rev.4/O-24 og godkjent5E
 består. Ingen neste produktetappe starter automatisk.
+
+
+## 15. Editor-identitet og lesbarhet – eierbestilling 2026-11-07
+
+**BESLUTTET AV EIER / BESTILT SAMLET TIL STAGING:** Editor heter bare «Editor CRM».
+PUBLIC beholder Kreative Norge. Mobil får et kompakt grønt toppfelt med tydelig
+navn, ekte bruker/rolle/kontor og utlogging. Samme bygg/person/pil-opp/pil-ned/kart/
+admin-symboler brukes på desktop. Kart er etter uttrykkelig svar et deaktivert
+menyvalg; ingen kartside eller provideraktivering inngår. Admin følger faktisk
+adminadgang. Dette er en ny retting etter godkjent PR #92, ikke full UI-6-lukking.
+
+Kortformat148px og kvadrat90px beholdes. Navn bruker samme fontfamilie med lettere
+vekt600 (tidligere750 valgte faktisk Avenir Next Heavy). Desktop beholder13px;
+mobil får17/21px navn med vanlige ordskiller og kontrollert avkorting, sted13px.
+Mobil hjelpetekst/feltetiketter blir14px og input16px. Metadatafarger består.
+Flere tags fyller tilgjengelig plass; +N viser bare faktisk skjulte tags, og modal
+viser hele settet. Resize må gi ny tilpasning uten å endre kortets høyde.
+
+Kontaktperson i aktørens lesekort åpner personens lesekort på mobil/desktop,
+også for leser. Tilbake går til aktørkortet; Rediger krever fortsatt skrivetilgang.
+Rediger aktør starter øverst. Doble synlige e-post-/telefonetiketter fjernes, men
+feltenes tilgjengelige navn består. Inaktiv «Klar» ved opprett kontaktperson vises
+ikke; faktisk lagring/feilstatus beholdes. Hjelpetekster forkortes uten endring av
+lagringsscope, publiseringsvilkår, provideropplysninger eller nødvendige feilvarsler.
+
+«Primærlenke» fjernes fra brukerflatene i både Editor og PUBLIC. Nettside/sosiale
+lenker beholdes; eksisterende URL-data, avledede API-felt og interne kildevalg er
+uendret. Ingen migrasjon/datarydding, kontakt-/taggpolicy, ny Import-UX, 6A–6C,
+Google Maps-implementering eller ny brukertestrunde. Import v6 rev.4/O-24/5E består.
+
+Leveransegangen er uttrykkelig bestilt som én prosess: målrettet implementering/
+kontroll, dokumentasjon, separat review, PR/ordinær merge/main-CI, kontrollert
+API+frontend-staging og sanitert evidens. Ingen ny visuell forhåndsgodkjenningsgate
+innføres; ved faktisk uavklart produktvalg spørres eier. Faktiske resultater og
+runtimebinding publiseres i leveranse-PR og datert evidens, ikke som planpåstand.

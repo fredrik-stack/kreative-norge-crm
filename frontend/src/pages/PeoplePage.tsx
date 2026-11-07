@@ -82,13 +82,13 @@ function PeopleOverviewPanel(props: {
   const constrained = Boolean(editor.overviewQuery.trim() || editor.overviewCategorySlug || editor.overviewSubcategorySlug || editor.overviewTagSlug);
   return (
     <section className="panel overview-panel">
-      <div className="sidebar-header"><div><p className="eyebrow small">Kontaktoversikt</p><h2>Personer</h2><p className="meta overview-hint"><span aria-hidden="true">💡</span> Klikk på navn for utfyllende info</p></div>
-        {constrained && !editor.tenantDataLoading && !editor.tenantDataError && !editor.overviewSearchPending ? <span className="meta">{persons.length} treff i innlastet utvalg</span> : null}
+      <div className="sidebar-header"><div><p className="eyebrow small">Kontaktoversikt</p><h2>Personer</h2><p className="meta overview-hint"><span aria-hidden="true">💡</span> Åpne et navn for kontaktinfo</p></div>
+        {constrained && !editor.tenantDataLoading && !editor.tenantDataError && !editor.overviewSearchPending ? <span className="meta">{persons.length} treff</span> : null}
       </div>
       {editor.tenantDataError ? <div className="empty-state" role="alert">Personoversikten kunne ikke lastes. Prøv å laste siden på nytt.</div>
       : !editor.tenantId ? <div className="empty-state">Velg et Musikkontor for å søke etter personer.</div>
       : editor.tenantDataLoading ? <div className="empty-state" role="status">Henter persondata…</div>
-      : !constrained ? <div className="search-entry"><span className="search-entry-icon" aria-hidden="true">⌕</span><h3>Finn en person</h3><p>Søk etter navn, kontaktinfo, aktør eller sted, eller velg et filter ovenfor.</p><p className="meta">Personer vises når du har avgrenset utvalget.</p></div>
+      : !constrained ? <div className="search-entry"><span className="search-entry-icon" aria-hidden="true">⌕</span><h3>Finn en person</h3><p>Søk etter navn, kontaktinfo, aktør eller sted, eller velg et filter ovenfor.</p></div>
       : editor.overviewSearchPending ? <div className="empty-state" role="status">Oppdaterer utvalget…</div>
       : persons.length === 0 ? <div className="empty-state">Ingen personer matcher søket eller filtrene.</div>
       : <div className="overview-table-wrap person-results">
@@ -117,7 +117,7 @@ function PeopleOverviewPanel(props: {
   );
 }
 
-function PersonOverviewModal(props: {
+export function PersonOverviewModal(props: {
   person: ReturnType<typeof useEditor>["persons"][number];
   linkedOrganizations: Array<{ id: number; name: string }>;
   onClose: () => void;
@@ -187,16 +187,6 @@ function PersonOverviewModal(props: {
                       empty={<strong>—</strong>}
                     />
                   </div>
-                  <div>
-                    <span className="meta">Primærlenke</span>
-                    {getPersonPrimaryLink(person) ? (
-                      <a href={getPersonPrimaryLink(person)!} target="_blank" rel="noreferrer">
-                        {truncateLink(getPersonPrimaryLink(person)!)}
-                      </a>
-                    ) : (
-                      <strong>—</strong>
-                    )}
-                  </div>
                 </div>
               </section>
 
@@ -264,13 +254,8 @@ function PeopleEditorPanel(props: {
 }) {
   const { navigate, personId, invalidPersonRoute } = props;
   const editor = useEditor();
-  const selectedPersonLinks =
-    typeof editor.selectedPersonId === "number"
-      ? editor.organizationPeople.filter((link) => link.person === editor.selectedPersonId)
-      : [];
-  const publicPersonLinks = selectedPersonLinks.filter(
-    (link) => link.status === "ACTIVE" && link.publish_person,
-  ).length;
+  const selectedPersonLinks = typeof editor.selectedPersonId === "number" ? editor.organizationPeople.filter(link => link.person === editor.selectedPersonId) : [];
+  const publicPersonLinks = selectedPersonLinks.filter(link => link.status === "ACTIVE" && link.publish_person).length;
 
 
   return (
@@ -279,7 +264,7 @@ function PeopleEditorPanel(props: {
         <div className="route-missing">
           <p className="eyebrow small">Laster</p>
           <h2>Henter persondata...</h2>
-          <p className="muted">Vent litt mens tenant-data lastes inn.</p>
+          <p className="muted">Vent litt mens opplysningene lastes.</p>
         </div>
       ) : invalidPersonRoute ? (
         <div className="route-missing">
@@ -315,7 +300,7 @@ function PeopleEditorPanel(props: {
                 <button type="button" className="profile-back" onClick={() => navigate("/people")}>← Til personoversikt</button>
                 <p className="eyebrow small">{!editor.persistedPersonId ? "Ny person" : `Person #${editor.persistedPersonId}`}</p>
                 <h2>{editor.personDraft.full_name || "Ny person"}</h2>
-                <p className="meta profile-scope">Endringer lagres når du velger Lagre person.</p>
+                <p className="meta profile-scope">Lagre person lagrer også kontaktopplysningene.</p>
               </div>
               <ProfileFormActions
                 model="person" isNew={!editor.persistedPersonId}
@@ -354,7 +339,7 @@ function PeopleEditorPanel(props: {
               {(["EMAIL", "PHONE"] as const).map(type => <section key={type} className="person-contact-group" aria-label={type === "EMAIL" ? "E-postadresser" : "Telefonnumre"}>
                 <h3>{type === "EMAIL" ? "E-post" : "Telefon"}</h3>
                 {editor.personContactRows.filter(row => row.type === type).map((row, index) => row.removed ? <div className="contact-removal" key={row.key}><span>{row.value} · {row.deleted ? "er fjernet" : row.deleteUncertain ? "fjerning er ikke bekreftet; prøv lagring igjen med samme kontakt" : "fjernes ved lagring"}</span>{!row.deleted && !row.deleteUncertain ? <button type="button" className="table-link" onClick={() => editor.updatePersonContact(row.key, { removed: false })}>Angre fjerning</button> : null}</div> : <div key={row.key} className="person-contact-row">
-                  <Field label={`${type === "EMAIL" ? "E-post" : "Telefon"}${index ? ` ${index + 1}` : ""}`} name={row.key} error={editor.personFieldErrors[row.key]}>
+                  <Field label={`${type === "EMAIL" ? "E-post" : "Telefon"}${index ? ` ${index + 1}` : ""}`} hideLabel={index === 0} name={row.key} error={editor.personFieldErrors[row.key]}>
                     <div className={type === "PHONE" ? "contact-inline-input" : undefined}>
                       {type === "PHONE" ? <PhoneRegionSelect value={row.phone_region ?? ""} ariaLabel={`Land/region for telefon ${index + 1}`} onChange={phone_region => editor.updatePersonContact(row.key, { phone_region: phone_region || null })} /> : null}
                       <input type={type === "EMAIL" ? "email" : "tel"} value={row.value} onChange={event => editor.updatePersonContact(row.key, { value: event.target.value, ...(type === "PHONE" && event.target.value.trim().startsWith("+") ? { phone_region: null } : {}) })} />
@@ -366,10 +351,10 @@ function PeopleEditorPanel(props: {
                   </div>
                 </div>)}
                 <button type="button" className="table-link add-contact" onClick={() => editor.addPersonContact(type)}>+ Legg til ekstra {type === "EMAIL" ? "e-post" : "telefon"}</button>
-                {type === "PHONE" ? <small className="meta">Land/region brukes når et nasjonalt nummer endres. Nummer med + trenger ikke region.</small> : null}
+                {type === "PHONE" ? <small className="meta">Velg land hvis nummeret ikke starter med +.</small> : null}
               </section>)}
             </div>
-            <p className="meta contact-public-context">Offentlige kontaktverdier vises bare på aktører der personen også er satt til «Vis person offentlig». {typeof editor.selectedPersonId === "number" ? `${publicPersonLinks} av ${selectedPersonLinks.length} aktørkoblinger viser personen offentlig.` : "Nye kontaktverdier er interne inntil du velger noe annet."}</p>
+            <p className="meta contact-public-context">Valgt offentlig kontaktinfo vises bare på aktører som viser personen.{typeof editor.selectedPersonId === "number" ? ` Personen vises offentlig på ${publicPersonLinks} av ${selectedPersonLinks.length} aktører.` : ""}</p>
 
             <ProfileSection title="Internt notat" summary={editor.personDraft.note ? "Notat er lagt inn" : "Ingen notat"}>
             <Field label="Notat">
@@ -384,7 +369,7 @@ function PeopleEditorPanel(props: {
             <ProfileSection title="Kategorisering og tags" summary={editor.personTagInput || "Kategori, underkategori og tags"}>
             <CategorySelectFields
               title="Kategori og underkategori"
-              description="Velg først en hovedkategori, og deretter en underkategori som hører til den."
+              description="Velg hovedkategori, deretter underkategori."
               categories={editor.categories}
               subcategories={editor.subcategories}
               selectedCategoryIds={editor.personDraft.category_ids}
@@ -410,7 +395,7 @@ function PeopleEditorPanel(props: {
                 onSelect={(nextValue) => editor.setPersonTagInput(nextValue)}
               />
               <p className="muted" style={{ margin: "6px 0 0" }}>
-                Skriv egne tags separert med komma. Maks 5 tags.
+                Inntil fem tags, skill med komma.
               </p>
             </Field>
 
@@ -422,7 +407,7 @@ function PeopleEditorPanel(props: {
                 <span className="meta">Brukes i offentlig profil senere</span>
               </div>
               <div className="grid two">
-                <Field label="Website URL" name="website_url" error={editor.personFieldErrors.website_url}>
+                <Field label="Nettside" name="website_url" error={editor.personFieldErrors.website_url}>
                   <input
                     type="url"
                     value={editor.personDraft.website_url ?? ""}
@@ -571,25 +556,6 @@ function CategorySelectFields(props: {
   );
 }
 
-function getPersonPrimaryLink(person: {
-  website_url: string | null;
-  instagram_url: string | null;
-  tiktok_url: string | null;
-  linkedin_url: string | null;
-  facebook_url: string | null;
-  youtube_url: string | null;
-}) {
-  return (
-    person.website_url ||
-    person.instagram_url ||
-    person.tiktok_url ||
-    person.linkedin_url ||
-    person.facebook_url ||
-    person.youtube_url ||
-    null
-  );
-}
-
 function TagSuggestions(props: {
   value: string;
   tags: Array<{ id: number; name: string }>;
@@ -657,10 +623,6 @@ function getPersonLinkRows(person: {
     { label: "Facebook", href: person.facebook_url },
     { label: "YouTube", href: person.youtube_url },
   ].filter((link): link is { label: string; href: string } => Boolean(link.href));
-}
-
-function truncateLink(value: string) {
-  return value.length > 38 ? `${value.slice(0, 35)}...` : value;
 }
 
 function matchesPersonFilters(input: {

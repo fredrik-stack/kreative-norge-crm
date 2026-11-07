@@ -6,12 +6,14 @@ export function Field({
   error,
   name,
   children,
+  hideLabel = false,
 }: {
   label: string;
   required?: boolean;
   error?: string;
   name?: string;
   children: ReactNode;
+  hideLabel?: boolean;
 }) {
   const id = useId();
   const items = Children.toArray(children);
@@ -40,14 +42,14 @@ export function Field({
   const content = bindControl(items);
   if (!control) return (
     <fieldset className={`field ${error ? "has-error" : ""}`} data-field={name} aria-describedby={error ? `${id}-error` : undefined}>
-      <legend className="field-label">{label}{required ? " *" : ""}</legend>
+      <legend className={`field-label${hideLabel ? " sr-only" : ""}`}>{label}{required ? " *" : ""}</legend>
       {content}
       {error ? <span className="field-error" id={`${id}-error`}>{error}</span> : null}
     </fieldset>
   );
   return (
     <div className={`field ${error ? "has-error" : ""}`} data-field={name}>
-      <label className="field-label" htmlFor={controlId}>{label}{required ? " *" : ""}</label>
+      <label className={`field-label${hideLabel ? " sr-only" : ""}`} htmlFor={controlId}>{label}{required ? " *" : ""}</label>
       {content}
       {error ? <span className="field-error" id={`${id}-error`}>{error}</span> : null}
     </div>

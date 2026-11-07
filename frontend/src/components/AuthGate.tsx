@@ -84,7 +84,7 @@ export function AuthGate(props: {
     return (
       <div className="app-shell">
         <div className="panel auth-panel">
-          <p className="eyebrow">Kreative Norge</p>
+          <p className="eyebrow">Editor CRM</p>
           <h1>Editor CRM</h1>
           <p className="muted">Sjekker innloggingsstatus...</p>
         </div>

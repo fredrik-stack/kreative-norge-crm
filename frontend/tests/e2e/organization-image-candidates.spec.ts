@@ -48,7 +48,7 @@ test("legacy candidates are listed without network preview until explicit select
   await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
   await page.locator("summary").filter({hasText:"Endre bilde"}).click();
   await expect(page.getByText("Tidligere lagrede bilder")).toBeVisible();
-  await expect(page.getByText("Ingen automatisk forhåndshenting")).toBeVisible();
+  await expect(page.getByText("Åpne for å se bildet")).toBeVisible();
   expect(previewRequests).toBe(0);
   await page.getByRole("button", { name: /Tidligere Open Graph-bilde/ }).click();
   await expect.poll(() => previewRequests).toBe(1);
@@ -403,7 +403,7 @@ test("local upload can be processed as a complete uncropped logo without changin
   await uploadCandidate.click();
   await expect(page.getByLabel("Live crop-preview").getByRole("img")).toHaveCount(3);
   await page.getByLabel("Bildetype").selectOption("logo");
-  await expect(page.getByText("Logo viser hele motivet uten beskjæring.")).toBeVisible();
+  await expect(page.getByText("Logo vises uten beskjæring.")).toBeVisible();
   await expect(page.getByRole("img", { name: "Forhåndsvisning av hele logoen" })).toBeVisible();
   await expect(page.getByText("Finjuster utsnitt")).toHaveCount(0);
   await expect(page.getByLabel("Zoom")).toHaveCount(0);
@@ -517,13 +517,13 @@ test("Brave search is mocked with exact manual query, privacy copy, private prev
   await page.locator("summary").filter({hasText:"Endre bilde"}).click();
   await page.getByRole("button", { name: "Finn bilder" }).click();
   await page.getByRole("button", { name: "Søk etter flere bilder" }).click();
-  await expect(page.getByText(/Bildesøket utføres via Brave Search/)).toBeVisible();
+  await expect(page.getByText(/Søket sendes til Brave/)).toBeVisible();
   const query = page.getByLabel("Forslått søk");
   await expect(query).toHaveValue("Kreativ Demo AS Oslo");
   await query.fill("Festspillene Helgeland logo");
   await page.getByRole("button", { name: "Søk", exact: true }).click();
   await expect(page.getByText("Eksempelavisen · publisher.example")).toBeVisible();
-  await expect(page.getByText("Bildesøk viser forslag fra nettet. Kontroller at bildet kan brukes før du godkjenner det.")).toBeVisible();
+  await expect(page.getByText("Kontroller at du har lov til å bruke bildet før du godkjenner.")).toBeVisible();
   await page.getByRole("button", { name: /Festspillene Helgeland/ }).click();
   await page.getByRole("button", { name: "Prosesser valgt bilde" }).click();
   await expect(page.getByLabel("Serverens bildeformater").getByRole("img")).toHaveCount(3);

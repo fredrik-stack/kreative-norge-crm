@@ -20,7 +20,7 @@ export function LoginForm(props: {
   return (
     <div className="app-shell">
       <div className="panel auth-panel">
-        <p className="eyebrow">Kreative Norge</p>
+        <p className="eyebrow">Editor CRM</p>
         <h1>Logg inn</h1>
         <p className="muted">Editor CRM krever innlogging.</p>
         {error ? <div className="banner error">{error}</div> : null}

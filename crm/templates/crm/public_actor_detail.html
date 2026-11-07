@@ -477,12 +477,7 @@
             <div class="fact-value">{{ actor.org_number|default:"Ikke oppgitt" }}</div>
           </div>
 
-          {% if actor.get_primary_link %}
-            <div class="fact">
-              <span class="fact-label">Primærlenke</span>
-              <div class="fact-value"><a href="{{ actor.get_primary_link }}" target="_blank" rel="noopener">{{ actor.get_primary_link }}</a></div>
-            </div>
-          {% endif %}
+
         </div>
       </div>
 
