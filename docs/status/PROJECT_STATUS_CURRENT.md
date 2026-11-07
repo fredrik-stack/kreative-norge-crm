@@ -9,9 +9,10 @@ overstyrer eldre mobil-Admin-bilder og føringer nedenfor. Admin skjules til og
 med eksisterende mobilgrense 900 px; fra 901 px følger lenken fortsatt faktisk
 adminadgang. Kart og øvrig meny består.
 
-Implementert på branch med målrettet resize-/grense-/tilgangstest og TS/bygg
-grønne. [Kontrollgrunnlag](EDITOR_ADMIN_DESKTOP_ONLY_2026-11-07.md).
-Ordinær review/merge/CI og frontend-only staging er bestilt, ennå ikke utført.
+Ordinært merget som `a49b9d1`, main-CI 42408479236 SUCCESS, 6/6;
+**frontend-only staging er verifisert**. Resize/grense/Tab/nonstaff og TS/bygg er grønne. [Kontrollgrunnlag](EDITOR_ADMIN_DESKTOP_ONLY_2026-11-07.md).
+Fem originale viewportbilder og syv responsive kontroller er publisert; API/DB
+er uendret, fersk backup/fullverify/isolertrestore og timere er grønne.
 Ingen ny produktetappe eller ferdigmelding av hele UI-6/v1.
 
 

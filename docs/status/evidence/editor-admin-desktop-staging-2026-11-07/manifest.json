@@ -1,0 +1,65 @@
+{
+  "source_commit": "a49b9d109e2c00f4cb000c31ed21c2a97db9d640",
+  "date": "2026-11-07",
+  "provenance": "Real staging frontend/HTTPS through dedicated staging-only SSH/CONNECT; TLS verified. Fully synthetic APIs with remaining API requests blocked. No real credentials/accounts/tenant data, writes, RBAC or new Cloudflare-edge assertion.",
+  "responsive_checks": 7,
+  "nonstaff_desktop": "PASS",
+  "viewport_pictures": 5,
+  "files": [
+    {
+      "file": "admin-menu-1920.png",
+      "bytes": 526798,
+      "sha256": "81fa962f6d3630f8f849c0c668b8aebf446a3a8cb4b4e54b7309b15ffbab13cf",
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "file": "admin-menu-320.png",
+      "bytes": 84157,
+      "sha256": "7cde6b72e4e0650335977c5ba477565cda00c7eeac51302579fefa469ced6b24",
+      "width": 320,
+      "height": 844
+    },
+    {
+      "file": "admin-menu-390.png",
+      "bytes": 93194,
+      "sha256": "5d21372a0c946c0d12c5d75dcfbe877a506492b37b1db7cc56e553b5f2ba0289",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "admin-menu-900.png",
+      "bytes": 154408,
+      "sha256": "8a71f909ced99ae5c92cd5397ff3714a64fe4a6fc527c9e1d35ff08cd648ae14",
+      "width": 900,
+      "height": 844
+    },
+    {
+      "file": "admin-menu-901.png",
+      "bytes": 227120,
+      "sha256": "4b2f83bb3e9efc6e9dd198e5fa48d50771f2856e039f83d5aef7a3a32055514a",
+      "width": 901,
+      "height": 1080
+    },
+    {
+      "file": "browser-checks.json",
+      "bytes": 1786,
+      "sha256": "aeb81dcb9d196177e52914798a08503e8fa29c9535de82b0c136e988cc9ea36a"
+    },
+    {
+      "file": "deploy-checks.json",
+      "bytes": 412,
+      "sha256": "ed85a6b974f45b237e237d62b43c7390112ba5f6e37b1bc4c77d0e7d84ccbf02"
+    },
+    {
+      "file": "index.html",
+      "bytes": 2175,
+      "sha256": "97a899ef3ddb7410b8c5ded4a3b87967452e44728d2e7b11c6921c1a40419362"
+    },
+    {
+      "file": "operator-review.json",
+      "bytes": 1101,
+      "sha256": "a4e948219787baa2c967aaca2c6e98a53de3353e931b478cf312ec1487c776b8"
+    }
+  ]
+}

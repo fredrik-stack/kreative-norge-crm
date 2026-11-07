@@ -6,7 +6,9 @@
 skjuler .editor-admin-link ved eksisterende mobilgrense ≤900 px. Over 900 px vises
 lenken fortsatt bare ved faktisk can_access_admin. CSS styrer responsive synlighet;
 rollen, direkte /admin/-adgang og navigasjonsvernet er uendret. Eldre mobilbilder
-med Admin er historikk. [Kontrollgrunnlag](../status/EDITOR_ADMIN_DESKTOP_ONLY_2026-11-07.md).
+med Admin er historikk. [Kontrollgrunnlag](../status/EDITOR_ADMIN_DESKTOP_ONLY_2026-11-07.md)
+binder frontend-only deploy a49b9d1 til grønn main-CI og fem viewportbilder.
+API/DB/adgang er uendret.
 
 
 ## Editor CRM-identitet og mobil lesbarhet – 2026-11-07
