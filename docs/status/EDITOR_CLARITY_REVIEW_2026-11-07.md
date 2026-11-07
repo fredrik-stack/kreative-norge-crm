@@ -1,12 +1,15 @@
 # Editor CRM – identitet, mobil lesbarhet og kontaktkort
 
-**07.11.2026 · BESTILT / IMPLEMENTERT PÅ BRANCH / LOKALT VERIFISERT · MERGE/STAGING GJENSTÅR**
+**07.11.2026 · IMPLEMENTERT / ORDINÆRT MERGET / TEKNISK STAGINGVERIFISERT**
 
 [13 hele viewportbilder](evidence/editor-clarity-2026-11-07/index.html) ·
 [manifest/SHA-256](evidence/editor-clarity-2026-11-07/manifest.json).
 Runtime `582454101114c4baef70cc833ca5282345702940` på `feat/editor-mobile-clarity`,
 base `5cc6e966d211c6c6a969b63e7f8380c751e6cb2e`. Senere docshead kan være nyere
-uten runtimeendring. Faktisk separat review/siste-head CI spores i leveranse-PR.
+uten runtimeendring. Faktisk separat review/siste-head CI spores i [PR #94](https://github.com/fredrik-stack/kreative-norge-crm/pull/94).
+[Datert stagingevidens](STAGING_EDITOR_CLARITY_2026-11-07.md) dokumenterer senere
+API+frontend-deploy på merge fe28c5b, grønn main-CI 6/6,18 browserkontroller/18 bilder
+og bevaring/backup. De lokale bildene nedenfor er fortsatt eksplisitt syntetiske API-fixtures.
 
 ## Mandat og gjennomføring
 
@@ -63,7 +66,7 @@ Tekniske kilde- og API-koder er ikke gjort til nye brukerbeslutninger.
   har oppdaterte tekstforventninger; API-/publiserings-/primærkontakt-/retry-/bilde-
   assertions er bevart. JSDOM har en egen scrollTo-stub; ekte scrolling kontrolleres
   i browser, ikke med en ny runtimeomgåelse.
-- 32 eksplisitte Editor-Playwright-reiser er grønne. Åtte nye reiser dekker1920/390/320,
+- 32 eksplisitte Editor-Playwright-reiser er grønne. Åtte nye reiser dekker 1920/390/320,
   både reader/Admin-port, flere tags/resize/lange tags, kontaktkort begge veier,
   browser-Tilbake/Escape, reell desktop-/mobilscroll og tilgjengelige feltetiketter.
   Etter siste herding av bare testfixture er alle åtte gjentatt grønne på samme kode.
@@ -89,10 +92,10 @@ kontakt-/tagg-/publiseringspolicy, catch-up/backfill, shared-/overlayaktivering,
 Google Maps-implementering, Import-UX eller ny formell brukertest. Godkjent
 Import v6 rev.4/O-24/5E og begge kart som senere v1-leveranser består.
 
-Koden må reviewes separat og ha grønn PR-/main-CI før bestilt kontrollert
-API+frontend-staging (PUBLIC-mal inkludert). Ingen migrasjon skal anvendes.
-Faktisk deploy-/stagingstatus og sanitert evidens følger etter drift innen samme
-mandat; denne lokale rapporten er ikke stagingaksept.
+Separat review og grønn PR-/main-CI er fullført. API+frontend-staging, inklusive
+PUBLIC-malen, er kontrollert uten migrasjon. [Den separate stagingrapporten](STAGING_EDITOR_CLARITY_2026-11-07.md)
+har faktisk deploy-/browser-/bevaringsstatus; denne lokale rapportens opprinnelige
+fixtures er ikke ommerket til stagingbevis.
 
 
 ## Separat kodereview før publisering

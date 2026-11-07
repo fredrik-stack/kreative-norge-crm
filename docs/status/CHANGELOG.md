@@ -1,6 +1,6 @@
 # Changelog
 
-## 2026-11-07 – Editor CRM-identitet og mobil lesbarhet, på branch
+## 2026-11-07 – Editor CRM-identitet og mobil lesbarhet, stagingverifisert
 
 - Kun Editor CRM i Editor, kompakt grønn mobilhero og samme SVG-meny på desktop.
 - Kart deaktivert etter eiervalg; Admin-port består. Lettere navnevekt, større
@@ -8,13 +8,16 @@
 - Kontaktperson åpner personlesekort også for leser. Rediger aktør starter øverst.
 - Doble kontaktetiketter/inaktiv Klar og Primærlenke i UI fjernet; URL-data og
   API-/lagrings-/publiseringskontrakter består. Kortere hjelpetekster.
-- [Lokalt kontrollgrunnlag](EDITOR_CLARITY_REVIEW_2026-11-07.md). Bestilt staging
-  er ennå ikke utført. Ingen migrasjon, kartaktivering eller ny Import-UX.
+- PR #94 ordinært merget fe28c5b, main-CI 42401986176 SUCCESS, 6/6 og eksakt API+frontend
+  stagingverifisert:18 ekte kontroller/18 bilder, eksakt syntetisk cleanup/radbevaring
+  og tre backup-/verify-/isolertrestorecheckpoints.
+- [Sanitert stagingevidens](STAGING_EDITOR_CLARITY_2026-11-07.md) og [lokalt kontrollgrunnlag](EDITOR_CLARITY_REVIEW_2026-11-07.md)
+  skiller kilder. Ingen ny visuell eieraksept, migrasjon, kartaktivering eller ny Import-UX.
 
 
 ## 2026-10-25 – Editor PR #92 sluttgodkjent og stagingverifisert
 
-- Samlet visuell eieraksept på4cdff63; ordinær merge d698888 og main-CI6/6.
+- Samlet visuell eieraksept på4cdff63; ordinær merge d698888 og main-CI 6/6.
 - API+frontend deployet: godkjente aktørkort/90px thumbnail, mobil-Rediger,
   venstremeny, fem personkolonner, metadatafarger og manuell kontaktlagring.
 - Ti ekte stagingkontroller/åtte viewportbilder med syntetiske data, eksakt

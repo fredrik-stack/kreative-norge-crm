@@ -477,7 +477,7 @@ beholder plassering. Hovedkategori krymper ikke når bildekolonnen tar mer plass
 
 Modalens eksisterende primary Rediger er allerede grønn; canWrite og handling
 beholdes uten modalkodeendring. Browsertest kontrollerer synlighet, gradient,
-udekket trykkpunkt og åpning av korrekt aktørredigering ved1920/390/320. Ved320px
+udekket trykkpunkt og åpning av korrekt aktørredigering ved 1920/390/320. Ved320px
 rulles dialogen normalt til nederste handling. Ingen sticky-footer eller ny tilgang.
 
 [Seks nye viewportbilder](../status/EDITOR_THUMBNAIL_VISUAL_REVIEW_2026-10-25.md)
@@ -495,7 +495,7 @@ siste vurderingsgrunnlag på4cdff63 og bestilt ordinær merge/main-CI/API+fronte
 staging. Dette overstyrer tidligere ventestatus i§9–13; øvrige scopegrenser består.
 
 **IMPLEMENTERT/DEPLOYET/TEKNISK VERIFISERT:** Merge
-`d698888ee851bd884e148b0bca8ae0b4f3219704`, main-CI40234720716 SUCCESS6/6.
+`d698888ee851bd884e148b0bca8ae0b4f3219704`, main-CI40234720716 SUCCESS, 6/6.
 [Evidens](../status/STAGING_EDITOR_COMPACT_2026-10-25.md) dokumenterer ekte HTTPS,
 90px sentrerte thumbnails på148px kort, grønn modal-Rediger1920/390/320,
 fem personkolonner/farger, faktisk nederste aktør-Lagre og manuell kontaktlagring
@@ -541,3 +541,11 @@ kontroll, dokumentasjon, separat review, PR/ordinær merge/main-CI, kontrollert
 API+frontend-staging og sanitert evidens. Ingen ny visuell forhåndsgodkjenningsgate
 innføres; ved faktisk uavklart produktvalg spørres eier. Faktiske resultater og
 runtimebinding publiseres i leveranse-PR og datert evidens, ikke som planpåstand.
+
+
+**Teknisk leveransestatus 07.11.2026:** [PR #94](https://github.com/fredrik-stack/kreative-norge-crm/pull/94)
+er ordinært merget som fe28c5b med grønn main-CI 42401986176,6/6. Eksakt API+frontend
+på staging har 18 ekte browserkontroller/18 hele viewportbilder, syntetisk cleanup,
+fullrad-/media-/miljø-/safety-bevaring og tre ferske backup-/verify-/restorecheckpoints.
+[Datert sanitert evidens](../status/STAGING_EDITOR_CLARITY_2026-11-07.md).
+Ingen ny manuell visuell eieraksept, produksjonsdeploy, aktivering eller neste etappe er påstått.

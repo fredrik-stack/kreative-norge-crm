@@ -1,0 +1,157 @@
+{
+  "source_commit": "fe28c5b66d11e312b976c3ff53ff088f09d75d6e",
+  "status": "PASS",
+  "synthetic_only": true,
+  "real_session_csrf": true,
+  "tls_verification": true,
+  "network_scope": "SSH tunnel to staging Caddy; normal staging host/SNI; no new Cloudflare-edge assertion",
+  "checks": [
+    {
+      "name": "real login, isolated synthetic tenant, exact frontend bundle and branding",
+      "status": "PASS"
+    },
+    {
+      "name": "synthetic API fixtures created with publication off",
+      "status": "PASS"
+    },
+    {
+      "name": "menu, fixed square/card geometry, name bounds and measured tag overflow at 1920",
+      "status": "PASS"
+    },
+    {
+      "name": "contact to person card and browser/back/Escape parent navigation at 1920",
+      "status": "PASS"
+    },
+    {
+      "name": "real overview scroll then edit actor begins at top at 1920",
+      "status": "PASS"
+    },
+    {
+      "name": "one visible email/phone label with accessible names at 1920",
+      "status": "PASS"
+    },
+    {
+      "name": "menu, fixed square/card geometry, name bounds and measured tag overflow at 390",
+      "status": "PASS"
+    },
+    {
+      "name": "contact to person card and browser/back/Escape parent navigation at 390",
+      "status": "PASS"
+    },
+    {
+      "name": "real overview scroll then edit actor begins at top at 390",
+      "status": "PASS"
+    },
+    {
+      "name": "one visible email/phone label with accessible names at 390",
+      "status": "PASS"
+    },
+    {
+      "name": "menu, fixed square/card geometry, name bounds and measured tag overflow at 320",
+      "status": "PASS"
+    },
+    {
+      "name": "contact to person card and browser/back/Escape parent navigation at 320",
+      "status": "PASS"
+    },
+    {
+      "name": "real overview scroll then edit actor begins at top at 320",
+      "status": "PASS"
+    },
+    {
+      "name": "one visible email/phone label with accessible names at 320",
+      "status": "PASS"
+    },
+    {
+      "name": "real UI profile save and API readback preserve synthetic contacts",
+      "status": "PASS"
+    },
+    {
+      "name": "real reader can read contact and cannot edit/write",
+      "status": "PASS"
+    }
+  ],
+  "pictures": [
+    {
+      "file": "overview-1920.png",
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "file": "actor-card-1920.png",
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "file": "person-card-1920.png",
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "file": "actor-form-1920.png",
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "file": "person-form-1920.png",
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "file": "overview-390.png",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "actor-card-390.png",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "person-card-390.png",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "actor-form-390.png",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "person-form-390.png",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "overview-320.png",
+      "width": 320,
+      "height": 844
+    },
+    {
+      "file": "actor-card-320.png",
+      "width": 320,
+      "height": 844
+    },
+    {
+      "file": "person-card-320.png",
+      "width": 320,
+      "height": 844
+    },
+    {
+      "file": "actor-form-320.png",
+      "width": 320,
+      "height": 844
+    },
+    {
+      "file": "person-form-320.png",
+      "width": 320,
+      "height": 844
+    },
+    {
+      "file": "reader-390.png",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "synthetic_cleanup": "PASS"
+}

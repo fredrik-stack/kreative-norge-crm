@@ -1,0 +1,170 @@
+{
+  "source_commit": "fe28c5b66d11e312b976c3ff53ff088f09d75d6e",
+  "date": "2026-11-07",
+  "provenance": "Real staging HTTPS/session/CSRF through dedicated staging-only SSH/CONNECT tunnel; TLS verification enabled; no network/API mocks; synthetic tenant/user/profiles only; exact cleanup verified. No new Cloudflare-edge or manual-owner-acceptance assertion.",
+  "checks": 18,
+  "viewport_pictures": 18,
+  "files": [
+    {
+      "file": "actor-card-1920.png",
+      "bytes": 427858,
+      "sha256": "6ae0a9d08a9ca90df791204fb7d1ff1541d9a16c285d1214cd994d80edbed52e",
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "file": "actor-card-320.png",
+      "bytes": 62064,
+      "sha256": "60d5e37a2475f75cd998f509687823ba67029e84d37bd77f4d5255f3e3b804f4",
+      "width": 320,
+      "height": 844
+    },
+    {
+      "file": "actor-card-390.png",
+      "bytes": 68143,
+      "sha256": "652275a3dce4b90666887f2a8105b17ed50598c8eaf96b812d451d62d909e322",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "actor-card-action-320.png",
+      "bytes": 53730,
+      "sha256": "b0918439233ab8c041ab3d23416c52e343c8b2ec4100b324869fffc8c7a555e5",
+      "width": 320,
+      "height": 844
+    },
+    {
+      "file": "actor-card-action-390.png",
+      "bytes": 57910,
+      "sha256": "168e8deaf3dde7d3b24c567b713e696abbf06d1a8e68d1d47da4b12a6ce679c7",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "actor-form-1920.png",
+      "bytes": 351816,
+      "sha256": "0cc764b35001b45e4563537e4ff7a864937f5ca778f30aeb1de3343588f9ce18",
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "file": "actor-form-320.png",
+      "bytes": 81910,
+      "sha256": "2a371b4a003077edd1eafe4daa1ed36e3c316c16aaabb67836c94559f630bdde",
+      "width": 320,
+      "height": 844
+    },
+    {
+      "file": "actor-form-390.png",
+      "bytes": 89331,
+      "sha256": "ea78e74b74b88f849288f15aeb9ac0fcf4135ec97a2d7f8ae6b345a172fd8b4a",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "browser-checks.json",
+      "bytes": 3681,
+      "sha256": "880d1c8e7cd759ddd7b6608060e177c0fb60508030b3251c50adf149df2997c5"
+    },
+    {
+      "file": "deployment.json",
+      "bytes": 814,
+      "sha256": "f0f3acf515b88ae4b1fcf7fb545b9aaebe71a86be5972b8005927539651d121c"
+    },
+    {
+      "file": "index.html",
+      "bytes": 5153,
+      "sha256": "d2deecc051135f2acc621a9feeebfdb0e52d9f18528cd1fee8040c44a933f919"
+    },
+    {
+      "file": "mobile-action-checks.json",
+      "bytes": 799,
+      "sha256": "e0a5a4193600357ca38c7569efac8e85e1204e53aaa68153a3af5362909685e6"
+    },
+    {
+      "file": "operator-review.json",
+      "bytes": 1458,
+      "sha256": "da8462c267e7c0f4fc057a3d3189f45503453759b68daf0f44066ae15f427279"
+    },
+    {
+      "file": "overview-1920.png",
+      "bytes": 381130,
+      "sha256": "bde76894ad10d3a03a1adef5d94566bdb546ff39d0b228ae2671b44bdb1dbcd0",
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "file": "overview-320.png",
+      "bytes": 97216,
+      "sha256": "9ed02b6c2864d5638aa78c6fe864f7e2d716350a3d7a7a62ccd3d59ec43e5546",
+      "width": 320,
+      "height": 844
+    },
+    {
+      "file": "overview-390.png",
+      "bytes": 109866,
+      "sha256": "3625e35de9beb2c28fe84c7c442094b4b9a67a9af51165a6f1732a95250f5836",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "person-card-1920.png",
+      "bytes": 413848,
+      "sha256": "30a980569e60f1e2a12a3931d7cdd8a0b435ca6ee47be29e3bd06ac66b73f9f6",
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "file": "person-card-320.png",
+      "bytes": 60832,
+      "sha256": "73d0ad724693a49f11e138de29c28d62c80e36c4f9f566649317acf248d4537a",
+      "width": 320,
+      "height": 844
+    },
+    {
+      "file": "person-card-390.png",
+      "bytes": 76295,
+      "sha256": "87d1d07a6a6684b4ef3b5fd430ae418c6af3b275335ca6a7836352b65ae2d7fd",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "person-form-1920.png",
+      "bytes": 404187,
+      "sha256": "d0e22901624c12369f44f9c7edc3c42c700095923fe24172683a3ea13e91a6c1",
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "file": "person-form-320.png",
+      "bytes": 87869,
+      "sha256": "bf3d877b30c5171d53ea3c5a8424a79509c6e6d78c1b05c29c07bcad0b6bd1c7",
+      "width": 320,
+      "height": 844
+    },
+    {
+      "file": "person-form-390.png",
+      "bytes": 95170,
+      "sha256": "261bee45466d5fecc176fc839e8cedc3bde07d7d6516060374562d979e4d6652",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "reader-390.png",
+      "bytes": 70222,
+      "sha256": "a26c8c9833dcb3c151be56a6bcefe0a644d85ef6b56122364a8d60509542d344",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "server-checks-cycle1.json",
+      "bytes": 682,
+      "sha256": "bc3da51bd26248a4b7b1fd378a973f5b052bb182bced95c9b99406ae66663a63"
+    },
+    {
+      "file": "server-checks.json",
+      "bytes": 682,
+      "sha256": "bc3da51bd26248a4b7b1fd378a973f5b052bb182bced95c9b99406ae66663a63"
+    }
+  ]
+}
