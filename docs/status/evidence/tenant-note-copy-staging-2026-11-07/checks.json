@@ -1,0 +1,275 @@
+{
+  "api_direct_gunicorn": true,
+  "api_image": "sha256:b9e76c4b0d3686f2462d27e259fd2a2a403264d98fe002dec5d0f559f3b119c1",
+  "auth_session_data_preserved": true,
+  "backup_scripts_unchanged": true,
+  "backup_services_inactive": true,
+  "batch_rows": 0,
+  "checkpoint_receipts": {
+    "post": {
+      "archive_identity_read_back": true,
+      "dump_checksum_bound": true,
+      "no_new_volumes": true,
+      "restore": true,
+      "schema_validated": true,
+      "verified": true
+    },
+    "pre": {
+      "archive_identity_read_back": true,
+      "dump_checksum_bound": true,
+      "no_new_volumes": true,
+      "restore": true,
+      "schema_validated": false,
+      "verified": true
+    }
+  },
+  "code_commit": "48ac5976bb6cf396b12335e8a108370f3b57af8d",
+  "date_oslo": "2026-11-07",
+  "dependencies_preserved": true,
+  "environment_mounts_flags_preserved": true,
+  "evidence_version": 1,
+  "existing_rows_pk_timestamps_preserved": true,
+  "existing_tables_preserved": 47,
+  "frontend_database_containers_unchanged": true,
+  "helper_hashes": {
+    "db-read.py": "900aa35001763bee9a8b1405b940fdf708dd01f6500d0a9d03f7c126c37f145c",
+    "schema.py": "fdc95a6397ebde616aac4e7498ed074fa6b8948692848a166c3d47b8ba78d4a2",
+    "stage.py": "d2752000220052e14106dde8542aef47dfdb453b6fadaaf0551afa8b5c7ce641"
+  },
+  "media_static_preserved": true,
+  "migrate_collectstatic_start": false,
+  "migration": "0036_tenant_note_copy_batch",
+  "old_api_image": "sha256:e3f60bd86e0b3ddd51b39c3ca1d6393fe654d19741edea98d9bb846f193d5ae3",
+  "old_staging_repo": "a49b9d109e2c00f4cb000c31ed21c2a97db9d640",
+  "ordinary_rebuild_dependency_drift_rejected": true,
+  "organization_overlay_rows": 0,
+  "overlay_gate": false,
+  "persistent_overlay_gate_off": true,
+  "persistent_overlay_gate_source": "unset_default_false",
+  "person_overlay_rows": 0,
+  "plan": {
+    "blocker_reasons": [],
+    "blockers": 0,
+    "mode": "DRY_RUN",
+    "state": "READY",
+    "summary": [
+      {
+        "candidates": 0,
+        "deferred_unbound": 0,
+        "empty": 0,
+        "model": "organization",
+        "null": 121,
+        "profiles": 121,
+        "tenant_id": 1,
+        "text": 0,
+        "whitespace": 0
+      },
+      {
+        "candidates": 2,
+        "deferred_unbound": 0,
+        "empty": 0,
+        "model": "organization",
+        "null": 1,
+        "profiles": 3,
+        "tenant_id": 2,
+        "text": 2,
+        "whitespace": 0
+      },
+      {
+        "candidates": 0,
+        "deferred_unbound": 0,
+        "empty": 0,
+        "model": "organization",
+        "null": 4,
+        "profiles": 4,
+        "tenant_id": 3,
+        "text": 0,
+        "whitespace": 0
+      },
+      {
+        "candidates": 0,
+        "deferred_unbound": 0,
+        "empty": 0,
+        "model": "organization",
+        "null": 0,
+        "profiles": 0,
+        "tenant_id": 6,
+        "text": 0,
+        "whitespace": 0
+      },
+      {
+        "candidates": 0,
+        "deferred_unbound": 0,
+        "empty": 0,
+        "model": "organization",
+        "null": 0,
+        "profiles": 0,
+        "tenant_id": 7,
+        "text": 0,
+        "whitespace": 0
+      },
+      {
+        "candidates": 0,
+        "deferred_unbound": 0,
+        "empty": 0,
+        "model": "organization",
+        "null": 0,
+        "profiles": 0,
+        "tenant_id": 8,
+        "text": 0,
+        "whitespace": 0
+      },
+      {
+        "candidates": 0,
+        "deferred_unbound": 0,
+        "empty": 0,
+        "model": "organization",
+        "null": 0,
+        "profiles": 0,
+        "tenant_id": 9,
+        "text": 0,
+        "whitespace": 0
+      },
+      {
+        "candidates": 5,
+        "deferred_unbound": 0,
+        "empty": 2,
+        "model": "person",
+        "null": 142,
+        "profiles": 147,
+        "tenant_id": 1,
+        "text": 3,
+        "whitespace": 0
+      },
+      {
+        "candidates": 3,
+        "deferred_unbound": 0,
+        "empty": 1,
+        "model": "person",
+        "null": 1,
+        "profiles": 4,
+        "tenant_id": 2,
+        "text": 2,
+        "whitespace": 0
+      },
+      {
+        "candidates": 3,
+        "deferred_unbound": 0,
+        "empty": 3,
+        "model": "person",
+        "null": 3,
+        "profiles": 6,
+        "tenant_id": 3,
+        "text": 0,
+        "whitespace": 0
+      },
+      {
+        "candidates": 0,
+        "deferred_unbound": 0,
+        "empty": 0,
+        "model": "person",
+        "null": 0,
+        "profiles": 0,
+        "tenant_id": 6,
+        "text": 0,
+        "whitespace": 0
+      },
+      {
+        "candidates": 0,
+        "deferred_unbound": 0,
+        "empty": 0,
+        "model": "person",
+        "null": 0,
+        "profiles": 0,
+        "tenant_id": 7,
+        "text": 0,
+        "whitespace": 0
+      },
+      {
+        "candidates": 0,
+        "deferred_unbound": 0,
+        "empty": 0,
+        "model": "person",
+        "null": 0,
+        "profiles": 0,
+        "tenant_id": 8,
+        "text": 0,
+        "whitespace": 0
+      },
+      {
+        "candidates": 0,
+        "deferred_unbound": 0,
+        "empty": 0,
+        "model": "person",
+        "null": 0,
+        "profiles": 0,
+        "tenant_id": 9,
+        "text": 0,
+        "whitespace": 0
+      }
+    ],
+    "writes": 0
+  },
+  "plan_is_apply_approval": false,
+  "plan_totals": {
+    "candidates": 13,
+    "deferred_unbound": 0,
+    "empty": 6,
+    "null": 272,
+    "profiles": 285,
+    "text": 7,
+    "whitespace": 0
+  },
+  "prune_compact_executed": false,
+  "public_api_media_preserved": true,
+  "real_note_copy": false,
+  "remaining_migrations": 0,
+  "restore_containers_remaining": 0,
+  "safety_cursor": 13,
+  "safety_ledger_bytes_and_history_preserved": true,
+  "safety_ready": true,
+  "schema_only_interruption_recovered": true,
+  "schema_retried": false,
+  "source_files_checked": 158,
+  "status": "STAGING_VERIFIED",
+  "technical_read_checks": {
+    "admin_lists": 2,
+    "admin_note_forms": 2,
+    "api_details": 6,
+    "api_lists": 14,
+    "authenticated_session": true,
+    "operator_reused": true
+  },
+  "timers": {
+    "kreative-norge-backup": {
+      "active": true,
+      "enabled": true
+    },
+    "kreative-norge-backup-verify": {
+      "active": true,
+      "enabled": true
+    },
+    "kreative-norge-image-safety-health": {
+      "active": true,
+      "enabled": true
+    }
+  },
+  "validated_constraints": [
+    {
+      "definition": "CHECK ((operator_id >= 0))",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "type": "p",
+      "validated": true
+    },
+    {
+      "definition": "UNIQUE (environment, database_identity, batch_id)",
+      "type": "u",
+      "validated": true
+    }
+  ],
+  "verified_at_utc": "2026-11-07T21:47:27.838881+00:00"
+}

@@ -381,6 +381,14 @@ omlegging; legacytag-policy velges ikke her. Ingen ubestemt «polish senere».
 
 ### 6A – Deling og tilgang
 
+**Notatkopiering 2026-11-07 – TEKNISK SCHEMA-/STAGINGVERIFISERT, GATE AV:**
+PR #99 / `48ac597` er API-only deployet med bare 0036 og tomme batch-/overlays.
+Én read-only-plan er READY/writes0 med 13 kandidater og 272 NULL utelatt.
+Bevaring, teknisk lesing, arkivbundne pre/post-backup/restore og timere er grønne.
+Ingen notatkopiering, applygodkjenning eller autoritetsovergang. [Evidens og
+senere porter](../operations/TENANT_NOTE_OVERLAYS.md#stagingverifisering-2026-11-07--schema0036-gate-av).
+Hele trinn 7/6A er ikke lukket; faktisk senere docsmerge/CI følger GitHub.
+
 **PK-shadow 2026-10-24 – TEKNISK STAGINGVERIFISERT / FULL_EQUAL:** [PR #83](https://github.com/fredrik-stack/kreative-norge-crm/pull/83) er reviewet/merget og kode `ad876846275ff46b3d2827a9507598ecf3ba6e1d` deployet etter grønn main-CI. Alle 14 kombinasjoner stemte på eksisterende PK-sett, med null NULL-profiler og null strukturavvik. Operatørgaten er av i varig sluttstate, og legacylesing er fortsatt autoritativ. [Evidens](STAGING_PHASE_6A_READ_SHADOW_2026-10-24.md) dokumenterer bevaring, checkpoints og tekniske kontroller. NULL-policyen fra [mandatet](../operations/DOMAIN_READ_SHADOW.md) gjelder fortsatt ved framtidige eksplisitt bestilte målinger; ingen automatisk catch-up eller neste etappe. Hele 6A/shared tilgang er ikke ferdig.
 
 **Historisk første stagingutføring 2026-10-13:** 0033 anvendt uten backfill; data/media/safety bevart. API-deploy avbrutt av Compose `ContainerConfig`, gammel API tilbakeført. Full 6A.1-stagingverifikasjon er ikke fullført; avgrenset API-recovery krevde da ny bestilling. Ingen delingsaktivering eller oppstart av 6A.2. Se [evidens](STAGING_PHASE_6A1_SCHEMA_VERIFICATION_2026-10-13.md).

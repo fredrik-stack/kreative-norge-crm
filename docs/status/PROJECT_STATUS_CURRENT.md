@@ -1,5 +1,26 @@
 # Project Status Current
 
+## Legacy-notatkopiering – teknisk stagingverifisert 2026-11-07
+
+PR #99 / kode `48ac5976bb6cf396b12335e8a108370f3b57af8d` er deployet API-only
+etter kontrollert grønn main-CI 42414848725, 6/6. Bare additiv 0036 er anvendt,
+uten seed/post_migrate; migrasjonsplanen er tom. Batchtabell og overlays har 0
+rader, og notatgaten er effektivt/varig av. Ingen reell kopiering eller aktivering.
+[Faktisk evidens, driftsforløp og grenser](../operations/TENANT_NOTE_OVERLAYS.md#stagingverifisering-2026-11-07--schema0036-gate-av).
+
+Én read-only-plan ga READY/writes0/blockers0: 285 profiler, 13 kandidater
+(7 tekst + 6 tomme), 272 NULL utelatt og ingen utsatte ubundne profiler. Planen
+er teknisk evidens, **ikke godkjent applyplan**. Alle 47 eksisterende DB-tabeller,
+auth/session, miljø, media/static, frontend/DB-container og safety READY/cursor 13
+er bevart. Autorisert teknisk API-/Admin-/sessionlesing og PUBLIC bestod.
+Pre/post-fullverify og arkivbundet isolert restore er grønne, timere gjenopprettet.
+Ordinært rebuild med dependencydrift ble avvist; levert image bevarer gammel
+immutable runtimebase. Korrigerte operatørkontroller og kontrollert schema-only-
+tilbakeføring/fortsettelse er dokumentert; ingen schema-/planretry eller restavvik.
+Sanitert dokumentasjon leveres gjennom separat review/PR/ordinær merge/CI og
+utløser ingen ny deploy. Separat fersk applygodkjenning og autoritetsovergang
+gjenstår; shared tilgang, tags og PUBLIC er ikke lagt om. Hele 6A er ikke ferdig.
+
 ## Legacy-notatkopiering – kodeleveranse 2026-11-07
 
 Prosjekteier har bestilt en avgrenset implementering under ADR-011 trinn 7:
@@ -13,9 +34,9 @@ nytt, også ved tapt COMMIT-svar. Additiv0036 gjelder bare batchbevis.
 181 lokale PostgreSQL 16-tester (22 nye + 159 regresjoner), 64 separate
 image-safety-tester og modell-/migrasjonssamsvar er grønne.
 Dette er kode/lokal syntetisk validering; faktisk review, PR,
-merge og CI følger GitHub. **Ingen stagingdeploy/schema-apply/ny måling eller
-reell notatkopiering er bestilt eller utført.** Ordinær overlaygate er fortsatt
-default-off; legacy API/Editor/Admin/import/PUBLIC er ikke lagt om. Senere
+merge og CI følger GitHub. **Den opprinnelige kodeleveransen omfattet ingen
+staging/schema-apply; senere stagingvidereføring er dokumentert ovenfor.**
+Ordinær overlaygate er fortsatt default-off; legacy API/Editor/Admin/import/PUBLIC er ikke lagt om. Senere
 fersk plan/digest/applyfullmakt og samlet autoritetsovergang gjenstår separat.
 Ingen taggklassifisering, shared tilgang eller fullført trinn 7/6A.
 

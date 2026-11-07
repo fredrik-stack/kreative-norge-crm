@@ -1,5 +1,14 @@
 # Kreative Norge CRM – dokumentasjon
 
+## Legacy-notatkopiering – stagingverifisert uten kopiering 2026-11-07
+
+PR #99 / kode `48ac597` er API-only deployet med bare additiv0036, tom
+migrasjonsplan, tomme batch-/overlaytabeller og gate av. Én read-only-plan ga
+READY/writes0:13 kandidater (7 tekst/6 tomme), 272 NULL utelatt. Eksisterende data,
+miljø, frontend/DB og safety er bevart; pre/post-fullverify/isolert restore og
+timere er grønne. [Faktisk evidens og korrigert driftsforløp](operations/TENANT_NOTE_OVERLAYS.md#stagingverifisering-2026-11-07--schema0036-gate-av).
+Ingen reell kopiering, applygodkjenning, autoritetsovergang eller fullført 6A.
+
 ## Admin bare på desktop – eierføring 2026-11-07
 
 Prosjekteier har gjennomgått og godkjent øvrige endringer i PR #94–96, med ett
