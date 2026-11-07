@@ -1,5 +1,118 @@
 # Tenantprivate notater – inaktiv lagringsgrunnmur
 
+## Stagingverifisering 2026-11-07 – schema0036, gate av
+
+**TEKNISK STAGINGVERIFISERT / INGEN NOTATKOPIERING.** Prosjekteier bestilte
+API-only deploy av PR #99, bare 0036, preflight/backup/fullverify/isolert restore,
+etablerte tekniske lesekontroller, høyst én read-only kopiplan og dokumentasjon
+gjennom separat review/PR/ordinær merge/CI. Ingen kopikommando med `--apply`,
+batchregistrering, overlayinsert, flaggaktivering, shared tilgang eller produksjon.
+Opprinnelig kodeleveranse nedenfor er historikk; dette er dens separat bestilte
+stagingvidereføring. Dokumentasjonsmergen skal ikke deployes.
+
+### Kode, schema og kontrollert drift
+
+- [PR #99](https://github.com/fredrik-stack/kreative-norge-crm/pull/99) er ordinært
+  merget på `48ac5976bb6cf396b12335e8a108370f3b57af8d` etter separat fullreview/
+  re-review. [Main-CI 42414848725](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/42414848725)
+  var SUCCESS, 6/6 og ble kontrollert før staging. GitHub-head var identisk.
+- Stagingrepoets førversjon var `a49b9d109e2c00f4cb000c31ed21c2a97db9d640`.
+  Gammel API ble kontrollert mot alle relevante runtimefiler fra denne versjonen.
+  Levert API er byteverifisert mot 158 Git-filer fra eksakt målcommit.
+  [Sanitert maskinevidens](../status/evidence/tenant-note-copy-staging-2026-11-07/checks.json)
+  binder gammel/ny image og de statisk reviewede operatørhelperne til resultatet.
+- Ordinært rebuild ble avvist før schema/runtimeendring fordi 13 dependencies
+  ville blitt oppgradert. Levert image bruker derfor den konkrete immutable
+  gamle API-imagen som base og kopierer bare eksakt Git-kilde oppå. Dockerfile og
+  requirements er uendret, og ingen runtimefiler er slettet mellom versjonene.
+  Full dependency-fingerprint er identisk før/etter. Ingen dependency- eller
+  infrastrukturoppgradering inngår.
+- Målimage hadde nøyaktig én forward-migrasjon: 0036. Den ble kjørt én gang med
+  eksplisitt MigrationExecutor, lock timeout 2 s / statement timeout 30 s, uten
+  post_migrate, contenttype-/permissionopprettelse, seed eller datakopiering.
+  Sluttplanen er tom. Batchtabellen har validert PK, unik
+  `(environment,database_identity,batch_id)` og Djangos positive operator-ID-check.
+  Begge overlayidentity-triggere er fortsatt aktiverte.
+- Bare API ble recreatet med direkte Gunicorn, uten migrate/collectstatic-start.
+  Gammelt image og privat rollbackgrunnlag er bevart. Web/frontend og DB beholdt
+  containeridentitet, image, starttid, restartteller, konfigurasjon og mounts.
+  Bare nødvendig nginx test/reload ble utført for ny API-upstream. Eksisterende
+  Docker 29.1.3/Compose 1.29.2 og kommandoavgrenset API 1.44 ble beholdt.
+
+Operatørreviewet var faktisk separat og statisk, uten reviewer-SSH/DB/nettverk
+eller kjøring av helpers. To skrivebeskyttede preflightfeil (manglende import og
+antakelse om `id` i sessiontabellen) ble rettet før muterende drift.
+Etter korrekt schema-apply stoppet en feilaktig forventning om to constraints
+kontrollen; automatisk API-rollback gjenopprettet gammel runtime og timere, mens
+additiv 0036 ble beholdt. Frisk read-only-kontroll bekreftet tre korrekte
+constraints og uendrede data. En separat reviewet fortsettelse byttet deretter
+bare API; schema ble ikke gjentatt. Sluttkontrollen stoppet også på tilfeldig
+rekkefølge i Dockers mountliste. Tolv read-only-prøver bekreftet to rekkefølger,
+men identiske mount-egenskaper/Config/HostConfig. Sammenligningen ble sortert med
+alle egenskaper bevart og separat reviewet; sluttføringen gjentok verken deploy,
+migrasjon eller kopiplan. Ingen uavklart drift eller schemaavvik står igjen.
+
+### Lesekontroller og bevaring
+
+Før-/etterkontrollene brukte den verifiserte stagingdatabasen og eksakt
+Musikkontoret-scope nedenfor. En eksisterende, aktiv staff/plattform-superuser
+fra den tidligere eiergodkjente legacybackfillen ble gjenbrukt; ingen ny konto,
+rettighet, login, last_login- eller sessionskriving.
+
+Autorisert teknisk backendlesing kjørte innen egne REPEATABLE READ READ ONLY-
+transaksjoner: 14 tenant-/modellister, 6 tilgjengelige detaljer med uendret legacy
+note, autentisert session og begge Admin-lister/notatskjemaer bestod. Ingen
+overlay-/batchmodell er eksponert i admin. Editor-frontendsiden, session-HTTP,
+PUBLIC API/HTML, anonym adminredirect og avvist anonym tenant-API bestod.
+Frontendfiler/bundle og PUBLIC API samt asset/fallback-bytes er uendret.
+Dette er avgrensede tekniske lesebevis, ikke ny browser-/innloggings-/UX-runde
+eller ny manuell eieraksept.
+
+Eksisterende rader i alle 47 DB-tabeller, inklusive M2M og auth/session, beholdt
+eksakt innhold, PK-er og tidsstempler. Eneste DB-delta er batchschemaet og én
+migrasjonsregistrering. Batchregisteret og begge overlaytabeller er tomme.
+Effektiv `TENANT_NOTE_OVERLAYS_ENABLED=False`; ordinært miljø og samtlige gamle
+flaggs effekt er bevart. Miljøfil, mounts, media/private, renditions, delivery og
+static er uendret; imports/exports var kontrollert fraværende før og etter stopp.
+Safety er READY med samme ledgeridentitet og cursor 13; ledgerbytes og historisk
+image-/release-/deny-state er bevart. Ingen ledger-/deny-write eller reassosiering.
+
+### Arkivbundne checkpoints og én kopiplan
+
+Fersk prebackup før 0036 og postbackup etter API-/lese-/plankontroll bestod full
+Borg-data-/arkivverifikasjon og isolert PostgreSQL-restore. Hver restore var
+bundet til eksakt arkiv-ID og dumpchecksum; begge arkiv-ID-er ble lest tilbake
+etter siste checkpoint. Postrestore verifiserte også 0036 og tomme batch-/
+overlaytabeller. Private kopier av etablerte skript utelot prune/compact og
+fjernet bare sin egen restorecontainer med tilhørende anonymt volum.
+Installerte backupskript er uendret; ingen restorecontainer/nytt volum er
+etterlatt. Backup-/verify-/safety-timere er active/enabled, og backup-/verify-
+services er inaktive ved sluttkontroll. Detaljerte kvitteringer beholdes privat.
+
+Nøyaktig én `copy_legacy_tenant_notes` dry-run bestod med **READY, writes0,
+blockers0**, gate av og ingen batch-/overlaywrite. Komplett privat plan og
+mapping ligger i operatøreid 0700-område utenfor Git, planfil 0600. Bare
+aggregater/status er publisert; ikke rå notater, profil-ID-er, individuelle
+profilhashverdier eller plandigest.
+
+| Modell | Profiler | NULL | Eksakt tom | Whitespace | Tekst | Kandidater |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Organization | 128 | 126 | 0 | 0 | 2 | 2 |
+| Person | 157 | 146 | 6 | 0 | 5 | 11 |
+| Totalt | 285 | 272 | 6 | 0 | 7 | 13 |
+
+Ingen utsatte NULL-domainprofiler eller struktur-/målkonflikter ble funnet i
+planen. Det daterte inventaret fra 24.10 hadde 12 kandidater; dagens plan har 13.
+Dette er to ulike datatidspunkter, ikke en endring utført av denne deployen;
+eksakte før-/etterfingerprints viser bevaring innen dagens driftsvindu.
+
+**Klarhet for senere apply:** Schema/mekanisme er teknisk stagingverifisert,
+og denne tekniske planen er READY. Den er **ikke eiergodkjent applygrunnlag**.
+Senere kopiering krever separat mandat, fersk plan/digest/godkjenning og gyldige
+drifts-/backupporter. Kopiering og samlet autoritetsovergang er fortsatt ikke
+utført; legacy note/tags forblir autoritative og hele trinn 7/6A er ikke lukket.
+Ingen taggklassifisering eller PUBLIC-endring inngår.
+
 ## Operatørstyrt legacykopiering – kodeleveranse 2026-11-07
 
 **Mandat:** Prosjekteier har godkjent lokal implementering/test, dokumentasjon,

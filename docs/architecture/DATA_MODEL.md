@@ -1,5 +1,18 @@
 # Data Model
 
+## Notatkopiering – schema0036 stagingverifisert 2026-11-07
+
+PR #99-kode `48ac5976bb6cf396b12335e8a108370f3b57af8d` er teknisk
+stagingverifisert API-only. Bare0036 er anvendt uten post_migrate/seed, med
+tom sluttplan, validert PK/unikhet/positiv operator-ID-check og0 batchrader.
+Begge overlaytabeller er fortsatt tomme; effektiv/varig gate er av.
+Én read-only-plan er READY med 13 kandidater (7 tekst/6 tomme), 272 NULL utelatt,
+ingen writes eller konflikter. Planen er ikke godkjent for apply. Eksisterende
+DB-/auth-/sessiondata, miljø, media/static, frontend/DB og safety er bevart;
+arkivbundne pre/post-restorekontroller er grønne. Se
+[faktisk evidens og driftsforløp](../operations/TENANT_NOTE_OVERLAYS.md#stagingverifisering-2026-11-07--schema0036-gate-av).
+Ingen notatkopiering, autoritetsovergang eller fullført ADR-011 trinn 7/6A.
+
 ## Operatørstyrt notatkopiering – kodeleveranse 2026-11-07
 
 `TenantNoteCopyBatch` og additiv0036 registrerer miljø-/databasebundet unik
@@ -13,7 +26,8 @@ til egen eksisterende legacyassignment. Konsistent privat plan, låst omberegnin
 samlet bevaringskontroll og atomisk DB-kvittering beskytter mot stale/konflikt og
 tapte svar. Read-back skiller historisk commit fra dagens tilstand. Se
 [full kontrakt og mandat](../operations/TENANT_NOTE_OVERLAYS.md#operatørstyrt-legacykopiering--kodeleveranse-2026-11-07).
-Ingen staging-/data-apply eller runtimeaktivering inngår. Legacy note er fortsatt
+Det opprinnelige kodemandatet omfattet ingen staging-/data-apply; separat
+schema-/stagingstatus står ovenfor. Ingen notatlagring er aktivert. Legacy note er fortsatt
 autoritet; overlays får ingen ny funksjonell reader/writer. Senere notataudit,
 revision/tilgang og samlet autoritetsovergang er ikke implementert.
 
