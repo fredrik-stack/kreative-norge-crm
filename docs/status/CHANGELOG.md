@@ -11,6 +11,8 @@
 - PR #94 ordinært merget fe28c5b, main-CI 42401986176 SUCCESS, 6/6 og eksakt API+frontend
   stagingverifisert:18 ekte kontroller/18 bilder, eksakt syntetisk cleanup/radbevaring
   og tre backup-/verify-/isolertrestorecheckpoints.
+- Avgrenset CI-oppfølging: E2E venter på eksakt dialogfokus før Escape; alle
+  etterkontroller beholdes. Ingen runtimeendring eller ny deploy.
 - [Sanitert stagingevidens](STAGING_EDITOR_CLARITY_2026-11-07.md) og [lokalt kontrollgrunnlag](EDITOR_CLARITY_REVIEW_2026-11-07.md)
   skiller kilder. Ingen ny visuell eieraksept, migrasjon, kartaktivering eller ny Import-UX.
 
