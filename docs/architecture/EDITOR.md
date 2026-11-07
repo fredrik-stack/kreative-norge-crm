@@ -1,5 +1,21 @@
 # Editor
 
+## Editor CRM-identitet og mobil lesbarhet – 2026-11-07
+
+[UI-6 §15](../features/UI_6_FELLES_SPEC.md#15-editor-identitet-og-lesbarhet--eierbestilling-2026-11-07)
+er ny eierføring etter PR #92. [Implementert kode og lokale bevis](../status/EDITOR_CLARITY_REVIEW_2026-11-07.md)
+beskriver grønn mobilhero, delte SVG-ikoner, deaktivert Kart, vekt600 i samme fontfamilie,
+mobilnavn17px/sted13px og hjelpetekst14px. Kort148px/kvadrat90px består.
+OverviewTags måler resterende bredde/høyde med ResizeObserver og fonts-ready;
++N gjelder faktisk skjulte tags. PersonOverviewModal gjenbrukes fra kontaktkort,
+med reader/canWrite-port og nullstilling ved parent-/tenantbytte. Aktørruten
+ruller til toppen ved ny ID/ferdig innlasting. Første kontaktetikett er sr-only,
+gruppens overskrift synlig én gang. Idle Klar skjules; faktiske writeutfall består.
+Primærlenke er fjernet fra UI/preview, ikke URL-data eller avledede API-felt.
+Manuell lagring/ID-/retry-/publiseringskontrakter og øvrige scopegrenser består.
+Merge og API+frontend-staging er bestilt og følger PR; lokale bilder er ikke stagingbevis.
+
+
 ## Samlet sluttgodkjent runtime på staging – 2026-10-25
 
 Eier har samlet godkjent PR #92 på4cdff63. Ordinær merge d698888 og main-CI6/6
@@ -17,7 +33,7 @@ med90×90px, samme mål som PUBLIC-listen. Oversiktskortets godkjente148px høyd
 responsive bredde/kolonner, gap, padding og fonter beholdes. Gridraden fyller
 kortets innvendige høyde (`align-content:stretch`), og kun bilde/fallback sentreres
 vertikalt med `align-self:center`. Tekst/sted beholder sin plassering. Hovedkategori
-krymper ikke på smal skjerm; annen kontrollert avkorting/full modalinfo består.
+krymper ikke på smal skjerm; annen kontrollert avkorting innenfor tekstkolonnen/full modalinfo består.
 
 Aktørmodalens Rediger er allerede grønn primary-knapp under eksisterende canWrite.
 Ingen modalkode eller ny tilgang/posisjonering er innført; browsertest kontrollerer

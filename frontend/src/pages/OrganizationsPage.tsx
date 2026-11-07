@@ -1,6 +1,8 @@
 import { ProfileSection, ProfileValidationSummary, revealInvalidProfileField } from "../components/ProfileSection";
 import { useReadDialog } from "../hooks/useReadDialog";
 import { ProfileThumbnail } from "../components/ProfileThumbnail";
+import { OverviewTags } from "../components/OverviewTags";
+import { PersonOverviewModal } from "./PeoplePage";
 import { ProfileFormActions } from "../components/ProfileFormActions";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -58,25 +60,34 @@ export function OrganizationsPage() {
     (!orgRouteIsNumeric || !editor.organizations.some((org) => org.id === orgRouteParsed));
 
   const filterSummary = editor.overviewFilterSummary;
-  const [overviewModalOrgId, setOverviewModalOrgId] = useState<number | null>(null);
-
+  const params = new URLSearchParams(location.search);
+  const readModalId = (key: string) => {
+    const value = params.get(key);
+    return value && Number.isInteger(Number(value)) && Number(value) > 0 ? Number(value) : null;
+  };
+  const overviewModalOrgId = readModalId("openOrg");
+  const overviewPersonId = readModalId("openPerson");
+  const previousTenant = useRef(editor.tenantId);
   useEffect(() => {
-    if (orgId) return;
-    const params = new URLSearchParams(location.search);
-    const openOrg = params.get("openOrg");
-    if (!openOrg) {
-      setOverviewModalOrgId(null);
-      return;
-    }
-    const parsed = Number(openOrg);
-    if (!Number.isNaN(parsed)) setOverviewModalOrgId(parsed);
-  }, [location.search, orgId]);
+    const changed = previousTenant.current !== null && previousTenant.current !== editor.tenantId;
+    previousTenant.current = editor.tenantId;
+    if (!changed || orgId) return;
+    const next = new URLSearchParams(location.search);
+    if (!next.has("openOrg") && !next.has("openPerson")) return;
+    next.delete("openOrg"); next.delete("openPerson");
+    navigate(next.size ? `/organizations?${next}` : "/organizations", { replace: true });
+  }, [editor.tenantId, orgId, location.search, navigate]);
 
   useEffect(() => {
     if (editor.tenantDataLoaded && !inOverviewMode && !editor.canWrite) {
       navigate("/organizations");
     }
   }, [editor.canWrite, editor.tenantDataLoaded, inOverviewMode, navigate]);
+  useEffect(() => {
+    if (!orgId || !editor.tenantDataLoaded) return;
+    const frame = requestAnimationFrame(() => window.scrollTo(0, 0));
+    return () => cancelAnimationFrame(frame);
+  }, [orgId, editor.tenantDataLoaded]);
 
   if (inOverviewMode) {
     return (
@@ -86,9 +97,18 @@ export function OrganizationsPage() {
           navigate={navigate}
           filterSummary={filterSummary}
           modalOrgId={overviewModalOrgId}
-          onModalOrgIdChange={(nextId) => {
-            setOverviewModalOrgId(nextId);
+          modalPersonId={overviewPersonId}
+          onModalPersonIdChange={(nextId) => {
+            if (nextId === null && location.state?.personCardParent) { navigate(-1); return; }
             const params = new URLSearchParams(location.search);
+            if (nextId === null) params.delete("openPerson");
+            else params.set("openPerson", String(nextId));
+            const nextSearch = params.toString();
+            navigate(nextSearch ? `/organizations?${nextSearch}` : "/organizations", nextId === null ? { replace: true } : { state: { personCardParent: location.key } });
+          }}
+          onModalOrgIdChange={(nextId) => {
+            const params = new URLSearchParams(location.search);
+            params.delete("openPerson");
             if (nextId === null) {
               params.delete("openOrg");
             } else {
@@ -110,7 +130,7 @@ export function OrganizationsPage() {
     <main className="workspace no-sidebar">
       <>
         <OrganizationEditorPanel navigate={navigate} orgId={orgId} invalidOrgRoute={invalidOrgRoute} />
-        <ProfileSection title="Forhåndsvisning" summary="Utkast og lagret metadata · egen oppdatering"><OrganizationPreviewPanel invalidOrgRoute={invalidOrgRoute} /></ProfileSection>
+        <ProfileSection title="Forhåndsvisning" summary="Se opplysningene før publisering"><OrganizationPreviewPanel invalidOrgRoute={invalidOrgRoute} /></ProfileSection>
         {editor.tenantDataLoaded && !invalidOrgRoute ? <div className="actions profile-bottom-actions actor-profile-footer">
           <ProfileFormActions form="organization-profile-form" model="aktør" isNew={editor.selectedOrgId === "new"} state={editor.saveState} dirty={editor.organizationHasUnsavedChanges} disabled={!editor.tenantId || editor.organizationDeleting} />
           {typeof editor.selectedOrgId === "number" ? <button type="button" className="link-delete"
@@ -131,12 +151,19 @@ function OrganizationOverviewPanel(props: {
   navigate: (to: string) => void;
   filterSummary: string | null;
   modalOrgId: number | null;
+  modalPersonId: number | null;
+  onModalPersonIdChange: (id: number | null) => void;
   onModalOrgIdChange: (nextId: number | null) => void;
 }) {
-  const { organizations, navigate, filterSummary, modalOrgId, onModalOrgIdChange } = props;
+  const { organizations, navigate, filterSummary, modalOrgId, modalPersonId, onModalPersonIdChange, onModalOrgIdChange } = props;
   const editor = useEditor();
-  // An explicit linked actor can be outside the overview's retained person filters.
-  const activeOrganization = modalOrgId ? editor.organizations.find((organization) => organization.id === modalOrgId) ?? null : null;
+  // Resolve both cards from the authorized tenant data; the parent must exist.
+  const activeOrganization = modalOrgId ? editor.organizations.find(organization => organization.id === modalOrgId) ?? null : null;
+  const linkedPerson = activeOrganization ? editor.persons.find(person => person.id === modalPersonId) : null;
+  const linkedOrganizations = linkedPerson ? editor.organizationPeople.filter(link => link.person === linkedPerson.id).flatMap(link => {
+    const organization = editor.organizations.find(item => item.id === link.organization);
+    return organization ? [{ id: organization.id, name: organization.name }] : [];
+  }) : [];
 
   return (
     <section className="panel overview-panel">
@@ -147,14 +174,10 @@ function OrganizationOverviewPanel(props: {
         </div>
         <span className="meta">{organizations.length} synlige</span>
       </div>
-      <p className="muted">
-        Åpne en aktør for kontaktinfo og detaljer.
-      </p>
       {filterSummary ? <div className="filter-summary">{filterSummary}</div> : null}
       <div className="editor-card-grid">
         {organizations.map((organization) => {
           const overviewPills = getOverviewPills(organization).filter(pill => pill.kind !== "tag");
-          const firstTag = organization.tags[0];
           return (
           <article
             key={organization.id}
@@ -173,15 +196,20 @@ function OrganizationOverviewPanel(props: {
                   <span key={pill.key} className={`mini-pill ${pill.kind}`}>{pill.label}</span>
                 ))}
               </div>
-              {firstTag ? <div className="card-tags"><span className="mini-pill tag">{firstTag.name}</span>{organization.tags.length > 1 ? <button type="button" className="tag-count" aria-label={`Vis ${organization.tags.length - 1} flere tags for ${organization.name}`} onClick={event => { event.stopPropagation(); onModalOrgIdChange(organization.id); }}>+{organization.tags.length - 1}</button> : null}</div> : null}
+              <OverviewTags tags={organization.tags} name={organization.name} onOpen={() => onModalOrgIdChange(organization.id)} />
             </div>
           </article>
         )})}
       </div>
       {organizations.length === 0 ? <div className="empty-state">Ingen aktører matcher filtreringen.</div> : null}
-      {activeOrganization ? (
+      {linkedPerson ? <PersonOverviewModal person={linkedPerson} linkedOrganizations={linkedOrganizations}
+        onClose={() => onModalPersonIdChange(null)} onBack={() => onModalPersonIdChange(null)}
+        onEdit={editor.canWrite ? () => { editor.setSelectedPersonId(linkedPerson.id); navigate(`/people/${linkedPerson.id}`); } : null}
+        onOpenOrganization={onModalOrgIdChange} /> : null}
+      {activeOrganization && !linkedPerson ? (
         <OrganizationOverviewModal
           organization={activeOrganization}
+          onOpenPerson={onModalPersonIdChange}
           onClose={() => onModalOrgIdChange(null)}
           onEdit={
             editor.canWrite
@@ -201,8 +229,9 @@ function OrganizationOverviewModal(props: {
   organization: ReturnType<typeof useEditor>["organizations"][number];
   onClose: () => void;
   onEdit: (() => void) | null;
+  onOpenPerson: (id: number) => void;
 }) {
-  const { organization, onClose, onEdit } = props;
+  const { organization, onClose, onEdit, onOpenPerson } = props;
   const editor = useEditor();
   const externalLinks = getOrganizationLinkRows(organization);
   const contactsByPersonId = useMemo(() => {
@@ -279,16 +308,6 @@ function OrganizationOverviewModal(props: {
                 <span className="meta">Org.nr</span>
                 <strong>{organization.org_number || "—"}</strong>
               </div>
-              <div>
-                <span className="meta">Primærlenke</span>
-                {organization.primary_link ? (
-                  <a href={organization.primary_link} target="_blank" rel="noreferrer">
-                    {organization.primary_link}
-                  </a>
-                ) : (
-                  <strong>—</strong>
-                )}
-              </div>
             </div>
             {externalLinks.length > 0 ? (
               <div className="editor-detail-section">
@@ -310,7 +329,9 @@ function OrganizationOverviewModal(props: {
                     const visibleContacts = getEditorVisibleContacts(link, editor.personsById, contactsByPersonId);
                     return (
                       <div key={link.id} className="editor-contact-card">
-                        <strong>{link.person?.full_name || "Ukjent person"}</strong>
+                        {link.person && editor.persons.some(person => person.id === link.person?.id)
+                          ? <button type="button" className="table-link person-name" onClick={() => onOpenPerson(link.person!.id)}>{link.person.full_name}</button>
+                          : <strong>{link.person?.full_name || "Ukjent person"}</strong>}
                         <span className="meta">
                           {[link.person?.title || null, link.person?.municipality || null].filter(Boolean).join(" · ") || "Ingen kommune"}
                         </span>
@@ -375,7 +396,7 @@ function OrganizationEditorPanel(props: {
         <div className="route-missing">
           <p className="eyebrow small">Laster</p>
           <h2>Henter aktørdata...</h2>
-          <p className="muted">Vent litt mens tenant-data lastes inn.</p>
+          <p className="muted">Vent litt mens opplysningene lastes.</p>
         </div>
       ) : invalidOrgRoute ? (
         <div className="route-missing">
@@ -411,7 +432,7 @@ function OrganizationEditorPanel(props: {
                 <button type="button" className="profile-back" onClick={() => navigate("/organizations")}>← Til aktøroversikt</button>
                 <p className="eyebrow small">{editor.selectedOrgId === "new" ? "Ny aktør" : `Aktør #${editor.selectedOrgId}`}</p>
                 <h2>{editor.draft.name || "Ny aktør"}</h2>
-                <p className="meta profile-scope">Profilfelt og publiseringsvalg. Bilde og koblinger lagres separat.</p>
+                <p className="meta profile-scope">Bilde og personkoblinger lagres separat.</p>
               </div>
               <ProfileFormActions
                 model="aktør" isNew={editor.selectedOrgId === "new"}
@@ -465,7 +486,7 @@ function OrganizationEditorPanel(props: {
                     }
                   />
                 </div>
-                <small className="meta">Land/region kreves bare for nasjonalt skrevne numre.</small>
+                <small className="meta">Velg land hvis nummeret ikke starter med +.</small>
               </Field>
             </div>
 
@@ -482,17 +503,15 @@ function OrganizationEditorPanel(props: {
                 rows={3}
                 value={editor.draft.description ?? ""}
                 onChange={(e) => editor.setDraft((s) => ({ ...s, description: e.target.value }))}
-                placeholder="Denne teksten vises offentlig under Profil på aktørsiden."
+                placeholder="En kort beskrivelse til den offentlige aktørsiden."
               />
-              <p className="muted" style={{ margin: "6px 0 0" }}>
-                Dette feltet brukes i public-visningen under Profil-seksjonen.
-              </p>
+
             </Field>
 
             <ProfileSection title="Kategorisering og tags" summary={editor.organizationTagInput || "Kategori, underkategori og tags"}>
             <CategorySelectFields
               title="Kategori og underkategori"
-              description="Velg først en hovedkategori, og deretter en underkategori som hører til den."
+              description="Velg hovedkategori, deretter underkategori."
               categories={editor.categories}
               subcategories={editor.subcategories}
               selectedCategoryIds={editor.draft.category_ids}
@@ -518,7 +537,7 @@ function OrganizationEditorPanel(props: {
                 onSelect={(nextValue) => editor.setOrganizationTagInput(nextValue)}
               />
               <p className="muted" style={{ margin: "6px 0 0" }}>
-                Skriv egne tags separert med komma. Maks 5 tags.
+                Inntil fem tags, skill med komma.
               </p>
             </Field>
 
@@ -529,14 +548,14 @@ function OrganizationEditorPanel(props: {
                 rows={3}
                 value={editor.draft.note ?? ""}
                 onChange={(e) => editor.setDraft((s) => ({ ...s, note: e.target.value }))}
-                placeholder="Interne kommentarer, status eller ting som ikke skal vises offentlig."
+                placeholder="Kun synlig internt."
               />
             </Field>
 
             </ProfileSection>
             <ProfileSection title="Lenker og sosiale medier" summary={editor.draft.website_url || "Nettside og sosiale profiler"} errors={Object.entries(editor.organizationFieldErrors).filter(([key]) => key.endsWith("_url")).map(([,value]) => value)}>
             <div className="grid two">
-              <Field label="Website URL" name="website_url" error={editor.organizationFieldErrors.website_url}>
+              <Field label="Nettside" name="website_url" error={editor.organizationFieldErrors.website_url}>
                 <input
                   type="url"
                   value={editor.draft.website_url ?? ""}
@@ -603,7 +622,7 @@ function OrganizationEditorPanel(props: {
                 />
                 <div>
                   <strong>Publiser aktør</strong>
-                  <p>Synlig i public API når slått på.</p>
+                  <p>Vis aktøren offentlig.</p>
                 </div>
               </label>
 
@@ -615,7 +634,7 @@ function OrganizationEditorPanel(props: {
                 />
                 <div>
                   <strong>Publiser telefon</strong>
-                  <p>Telefon returneres i public API når slått på.</p>
+                  <p>Vis telefon når aktøren er offentlig.</p>
                 </div>
               </label>
             </div>
@@ -625,7 +644,7 @@ function OrganizationEditorPanel(props: {
           {typeof editor.selectedOrgId === "number" && editor.selectedOrganization?.image_asset_feature_enabled ? (
             <div className="profile-image-entry">
               <ProfileThumbnail url={editor.selectedOrganization?.preview_image_url} name={editor.selectedOrganization?.name ?? ""} />
-              <ProfileSection key={`${editor.tenantId}:${editor.selectedOrgId}`} title="Endre bilde" summary="Kilder, forhåndsvisning og godkjenning · lagres separat">
+              <ProfileSection key={`${editor.tenantId}:${editor.selectedOrgId}`} title="Endre bilde" summary="Velg og godkjenn bilde">
             <OrganizationImagePanel
               key={`${editor.tenantId}:${editor.selectedOrgId}`}
               tenantId={editor.tenantId!}
@@ -1355,7 +1374,7 @@ export function OrganizationImagePanel(props: {
         </button>
       </div>
       <p className="muted">
-        Finn kandidater fra aktørens offisielle nettside. Ingenting blir valgt før du godkjenner eksplisitt.
+        Finn bilder fra aktørens nettside. Du velger hva som skal brukes.
       </p>
       {error ? <div className="inline-banner warn" role="alert">{error}</div> : null}
       {imageState?.active_selection ? (
@@ -1373,7 +1392,7 @@ export function OrganizationImagePanel(props: {
         <div className="image-source-section" aria-label="Tidligere lagrede bilder">
           <strong>Tidligere lagrede bilder</strong>
           <p className="muted">
-            Disse historiske URL-ene er bare forslag. Forhåndsvisning og godkjenning må gjøres eksplisitt.
+            Tidligere bilder er forslag. Velg og godkjenn før bruk.
           </p>
           <div className="image-candidate-grid">
             {legacyCandidates.map((candidate) => (
@@ -1387,7 +1406,7 @@ export function OrganizationImagePanel(props: {
                 {candidateOriginalPreviews[candidate.candidate_ref] ? (
                   <img src={candidateOriginalPreviews[candidate.candidate_ref]} alt="" />
                 ) : (
-                  <span className="empty-state compact">Ingen automatisk forhåndshenting</span>
+                  <span className="empty-state compact">Åpne for å se bildet</span>
                 )}
                 <strong>{candidate.source_label}</strong>
                 <span className="meta">{candidate.source_domain ?? "Ukjent kilde"}</span>
@@ -1471,7 +1490,7 @@ export function OrganizationImagePanel(props: {
               {searchContext ? (
                 <>
                   <p className="muted">
-                    Bildesøket utføres via Brave Search. Søketeksten sendes til Brave og kan lagres der i opptil 90 dager. Ikke skriv sensitiv eller intern informasjon i søket.
+                    Søket sendes til Brave og kan lagres i opptil 90 dager. Unngå sensitiv eller intern informasjon.
                   </p>
                   <Field label={searchQueryEdited ? "Søk" : "Forslått søk"}>
                     <input
@@ -1566,7 +1585,7 @@ export function OrganizationImagePanel(props: {
                       <span className="meta"><strong>Basert på:</strong> {lastSearch.sources.map((source) => QUERY_SOURCE_LABELS[source] ?? source).join(" + ")}</span>
                     </div>
                   ) : null}
-                  <p className="muted">Bildesøk viser forslag fra nettet. Kontroller at bildet kan brukes før du godkjenner det.</p>
+                  <p className="muted">Kontroller at du har lov til å bruke bildet før du godkjenner.</p>
                 </>
               ) : (
                 <div className="empty-state compact">{busy === "search-context" ? "Laster søkeforslag..." : "Søkeforslaget kunne ikke lastes."}</div>
@@ -1608,7 +1627,7 @@ export function OrganizationImagePanel(props: {
                 </button>
                 <span className="meta">{uploadFile?.name || "Ingen fil valgt"}</span>
               </div>
-              <p className="muted">Støttede formater: JPEG, PNG og WebP. Filen kontrolleres av serveren når du prosesserer bildet.</p>
+              <p className="muted">Velg et bilde i JPEG, PNG eller WebP.</p>
             </div>
           ) : null}
         </div>
@@ -1632,7 +1651,7 @@ export function OrganizationImagePanel(props: {
             </Field>
             {imageKind === "photo" ? (
               <div className="image-focus-and-preview">
-                <p className="muted">Foto fyller hele bildeflaten og kan derfor beskjæres. Bruk fokus og zoom for å styre utsnittet.</p>
+                <p className="muted">Foto fyller bildeflaten. Juster utsnittet med fokus og zoom.</p>
                 <div className="image-focus-controls">
                   <fieldset className="image-focus-group">
                     <legend>Horisontalt</legend>
@@ -1717,11 +1736,11 @@ export function OrganizationImagePanel(props: {
                   </button>
                 </details>
                 <LiveCropPreviewGrid url={selectedPreviewUrl} focusX={focusX} focusY={focusY} zoom={zoom} />
-                <p className="muted">Forhåndsvisningen oppdateres med én gang. Det endelige utsnittet lages med samme fokus og zoom når du trykker «Prosesser valgt bilde».</p>
+                <p className="muted">Forhåndsvisningen viser utsnittet du har valgt.</p>
               </div>
             ) : (
               <div className="image-logo-preview-block">
-                <p className="muted">Logo viser hele motivet uten beskjæring.</p>
+                <p className="muted">Logo vises uten beskjæring.</p>
                 {selectedPreviewUrl ? <img className="image-logo-preview" src={selectedPreviewUrl} alt="Forhåndsvisning av hele logoen" /> : null}
               </div>
             )}
@@ -1894,8 +1913,8 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
                         editor.updateLink(link.id, { status: e.target.value as "ACTIVE" | "INACTIVE" })
                       }
                     >
-                      <option value="ACTIVE">ACTIVE</option>
-                      <option value="INACTIVE">INACTIVE</option>
+                      <option value="ACTIVE">Aktiv</option>
+                      <option value="INACTIVE">Inaktiv</option>
                     </select>
 
                     <label className="inline-check compact">
@@ -1938,8 +1957,8 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
               <div className="empty-state">Ingen personer koblet til denne organisasjonen.</div>
             ) : null}
           </div>
-          <p className="meta">Koblingsstatus og offentlig valg lagres separat når du endrer dem.</p>
-          <ProfileSection title="Knytt eksisterende person" summary="Søk og velg en person · egen lagringshandling">
+          <p className="meta">Endringer i personkoblinger lagres med én gang.</p>
+          <ProfileSection title="Knytt eksisterende person" summary="Velg en person som finnes fra før">
           <form className="link-create searchable-link-create" onSubmit={editor.onCreateLink}>
             <div className="link-search-panel">
               <input
@@ -1953,7 +1972,7 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
               {editor.availablePersonsForLink.length === 0 ? (
                 <div className="empty-state compact">Alle personer er allerede koblet til denne aktøren.</div>
               ) : !linkQuery.trim() ? (
-                <div className="empty-state compact">Skriv navn, kommune, e-post eller telefon for å finne riktig person.</div>
+                <div className="empty-state compact">Søk etter navn, sted eller kontaktinfo.</div>
               ) : (
                 <div className="link-search-results">
                   {filteredAvailablePersons.length > 0 ? (
@@ -1983,8 +2002,8 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
               value={editor.linkStatus}
               onChange={(e) => editor.setLinkStatus(e.target.value as "ACTIVE" | "INACTIVE")}
             >
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="INACTIVE">INACTIVE</option>
+              <option value="ACTIVE">Aktiv</option>
+              <option value="INACTIVE">Inaktiv</option>
             </select>
 
             <label className="inline-check">
@@ -2006,15 +2025,14 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
           </form>
 
           </ProfileSection>
-          <ProfileSection title="Opprett kontaktperson" summary="Ny person og kobling · egen lagringshandling" errors={Object.values(editor.linkedPersonFieldErrors)}>
+          <ProfileSection title="Opprett kontaktperson" summary="Opprett og knytt til aktøren" errors={Object.values(editor.linkedPersonFieldErrors)}>
           <div className="link-section">
             <div className="sidebar-header">
-              <h2>Opprett ny kontaktperson for denne aktøren</h2>
-              <span className={`save-pill ${editor.linkedPersonSaveState}`}>{saveLabel(editor.linkedPersonSaveState)}</span>
+              <h2>Ny kontaktperson</h2>
+              {editor.linkedPersonSaveState !== "idle" ? <span className={`save-pill ${editor.linkedPersonSaveState}`} role="status">{saveLabel(editor.linkedPersonSaveState)}</span> : null}
             </div>
             <p className="muted">
-              Denne flyten oppretter personen, lager første e-post/telefon hvis du fyller det ut, og knytter personen
-              direkte til aktøren.
+              Personen knyttes til denne aktøren når du oppretter den.
             </p>
             <form className="editor-form" onInvalidCapture={revealInvalidProfileField} onSubmit={editor.onCreateLinkedPerson}>
               <div className="grid two">
@@ -2121,8 +2139,8 @@ function OrganizationLinksPanel({ navigate }: { navigate: (to: string) => void }
                       editor.setLinkedPersonDraft((s) => ({ ...s, status: e.target.value as "ACTIVE" | "INACTIVE" }))
                     }
                   >
-                    <option value="ACTIVE">ACTIVE</option>
-                    <option value="INACTIVE">INACTIVE</option>
+                    <option value="ACTIVE">Aktiv</option>
+                    <option value="INACTIVE">Inaktiv</option>
                   </select>
                 </Field>
               </div>
@@ -2157,13 +2175,13 @@ function OrganizationPreviewPanel({ invalidOrgRoute }: { invalidOrgRoute: boolea
         <div className="route-missing">
           <p className="eyebrow small">Laster</p>
           <h2>Preview lastes...</h2>
-          <p className="muted">Preview vises når aktørdata er lastet.</p>
+          <p className="muted">Forhåndsvisning kommer når opplysningene er lastet.</p>
         </div>
       ) : invalidOrgRoute ? (
         <div className="route-missing">
           <p className="eyebrow small">Preview utilgjengelig</p>
           <h2>Ingen aktør valgt</h2>
-          <p className="muted">Velg en gyldig aktør fra listen for å se preview.</p>
+          <p className="muted">Velg en aktør for å se forhåndsvisningen.</p>
         </div>
       ) : (
         <>
@@ -2201,7 +2219,7 @@ function OrganizationPreviewPanel({ invalidOrgRoute }: { invalidOrgRoute: boolea
                 <dd>{editor.draft.municipalities || "Ikke satt"}</dd>
               </div>
               <div>
-                <dt>Beskrivelse (public)</dt>
+                <dt>Offentlig beskrivelse</dt>
                 <dd>{editor.draft.description || "Ikke satt"}</dd>
               </div>
               <div>
@@ -2209,7 +2227,7 @@ function OrganizationPreviewPanel({ invalidOrgRoute }: { invalidOrgRoute: boolea
                 <dd>{editor.draft.email || "Ikke satt"}</dd>
               </div>
               <div>
-                <dt>Telefon (public)</dt>
+                <dt>Offentlig telefon</dt>
                 <dd>{editor.draft.publish_phone ? editor.draft.phone || "Ikke satt" : "Skjult"}</dd>
               </div>
               <div>
@@ -2217,23 +2235,19 @@ function OrganizationPreviewPanel({ invalidOrgRoute }: { invalidOrgRoute: boolea
                 <dd>{editor.draft.is_published ? "Publisert" : "Ikke publisert"}</dd>
               </div>
               <div>
-                <dt>Primærlenke</dt>
-                <dd>{primaryLink(editor.draft) || "Ikke satt"}</dd>
+                <dt>Nettside</dt>
+                <dd>{editor.draft.website_url || "Ikke satt"}</dd>
               </div>
               <div>
-                <dt>Kildetype</dt>
-                <dd>{linkFieldLabel(editor.selectedOrganization?.primary_link_field) || "Ikke valgt"}</dd>
-              </div>
-              <div>
-                <dt>OG-tittel</dt>
+                <dt>Tittel fra nettsiden</dt>
                 <dd>{editor.selectedOrganization?.og_title || "Ikke hentet"}</dd>
               </div>
               <div>
-                <dt>OG-beskrivelse</dt>
+                <dt>Beskrivelse fra nettsiden</dt>
                 <dd>{editor.selectedOrganization?.og_description || "Ikke hentet"}</dd>
               </div>
               <div>
-                <dt>Automatisk thumbnail</dt>
+                <dt>Bilde fra nettsiden</dt>
                 <dd>{editor.selectedOrganization?.auto_thumbnail_url || "Ikke valgt"}</dd>
               </div>
               <div>
@@ -2255,7 +2269,7 @@ function OrganizationPreviewPanel({ invalidOrgRoute }: { invalidOrgRoute: boolea
             </dl>
             {editor.selectedOrganization?.active_people?.length ? (
               <div className="people-preview">
-                <h4>Aktive personer (fra API)</h4>
+                <h4>Kontaktpersoner</h4>
                 <ul>
                   {editor.selectedOrganization.active_people.map((link) => (
                     <li key={link.id}>
@@ -2285,44 +2299,6 @@ function formatDateTime(iso: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-function primaryLink(draft: {
-  website_url: string | null;
-  instagram_url: string | null;
-  tiktok_url: string | null;
-  linkedin_url: string | null;
-  facebook_url: string | null;
-  youtube_url: string | null;
-}): string | null {
-  return (
-    draft.website_url ||
-    draft.instagram_url ||
-    draft.tiktok_url ||
-    draft.linkedin_url ||
-    draft.facebook_url ||
-    draft.youtube_url ||
-    null
-  );
-}
-
-function linkFieldLabel(field: string | null | undefined): string | null {
-  switch (field) {
-    case "website_url":
-      return "Website";
-    case "instagram_url":
-      return "Instagram";
-    case "tiktok_url":
-      return "TikTok";
-    case "linkedin_url":
-      return "LinkedIn";
-    case "facebook_url":
-      return "Facebook";
-    case "youtube_url":
-      return "YouTube";
-    default:
-      return null;
-  }
 }
 
 function CategorySelectFields(props: {

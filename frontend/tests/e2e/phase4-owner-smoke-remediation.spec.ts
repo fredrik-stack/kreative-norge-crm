@@ -198,10 +198,10 @@ test("canonical dial targets, internal actor phones and effective PUBLIC state s
   await page.getByLabel("Tittel",{exact:true}).fill("Produsent endret");
   await page.getByRole("button", { name: "Lagre person" }).first().click();
   await expect(page.getByRole("status").filter({ hasText: "Personskjema lagret" }).first()).toBeVisible();
-  await expect(page.getByText(/0 av 1 aktørkoblinger viser personen offentlig/)).toBeVisible();
+  await expect(page.getByText(/Personen vises offentlig på 0 av 1 aktører/)).toBeVisible();
   const savedContactCard = page.locator(".person-contact-row").first();
   await expect(savedContactCard.getByText("Kan vises offentlig", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Offentlige kontaktverdier vises bare på aktører/)).toBeVisible();
+  await expect(page.getByText(/Valgt offentlig kontaktinfo vises bare på aktører som viser personen/)).toBeVisible();
 
   await page.getByRole("link", { name: /^Aktører/ }).click();
   await page.getByRole("searchbox",{name:"Søk aktører"}).fill("");

@@ -2257,7 +2257,7 @@ select,
 .compact-editor .editor-card-head { display: grid; gap: 4px; min-width: 0; }
 .compact-editor .editor-card-head :is(h3,.meta) { overflow-wrap: anywhere; min-width: 0; }
 .compact-editor .editor-card-actions { flex-wrap: wrap; gap: 8px; }
-.card-name { border: 0; background: none; padding: 0; color: inherit; font-weight: 750; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.card-name { border: 0; background: none; padding: 0; color: inherit; font-weight: 600; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
 .compact-editor .mini-pill, .detail-modal .mini-pill { min-height: 22px; padding: 3px 7px; font-size: 11px; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 .search-entry { padding: 40px 20px; text-align: center; background: rgba(12,122,91,.035); border-radius: 12px; }
 .search-entry h3 { margin: 8px 0; font-size: 20px; }
@@ -2437,3 +2437,53 @@ fieldset.field > legend { padding: 0; margin: 0 0 5px; }
 .actor-profile-footer .actions { margin-top: 0; }
 .actor-profile-footer .link-delete { margin-bottom: 2px; }
 .person-results .result-taxonomy { margin-top: 0; }
+
+/* Owner revision 2026-11-07: Editor identity, readable mobile content and fitted tags. */
+.compact-editor .editor-card-grid > .editor-card { grid-template-rows:minmax(0,1fr); }
+.compact-editor .editor-card-grid .editor-card-body { min-height:0; }
+.editor-brand-header { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.editor-brand { padding:0 0 18px; width:100%; color:#075840; }
+.editor-brand strong { font-size:28px; line-height:1.15; letter-spacing:-.7px; white-space:nowrap; }
+.editor-mobile-session { display:none; }
+.editor-icon { width:22px; height:22px; flex-shrink:0; }
+.editor-nav .nav-unavailable { opacity:.55; cursor:default; }
+.compact-editor .editor-card-grid .card-name { width:100%; max-width:100%; min-width:0; font-weight:600; overflow-wrap:normal; word-break:normal; text-overflow:ellipsis; }
+.compact-editor .editor-card-grid .editor-card-head .meta { font-size:12px; }
+.card-tags { position:relative; flex:1; min-height:22px; flex-wrap:wrap; align-content:flex-start; overflow:hidden; }
+.card-tags > .mini-pill { flex:0 0 auto; max-width:100%; }
+.card-tags-probe { position:absolute; inset:0 0 auto; display:flex; flex-direction:column; align-items:start; gap:4px; visibility:hidden; pointer-events:none; }
+.card-tag-probe { display:inline-flex; align-items:center; width:max-content; max-width:100%; min-height:22px; border-radius:999px; font-size:10px; line-height:14px; font-weight:700; padding:3px 5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tag-count, .tag-count-probe { flex:0 0 auto; width:max-content; max-width:100%; min-height:22px; line-height:16px; padding:3px 6px; font-size:11px; font-weight:700; white-space:nowrap; }
+@media(max-width:900px) {
+  .editor-sidebar { display:flex; padding:0; gap:0; background:linear-gradient(135deg,#075440,#08775b); border:0; }
+  .editor-brand-header { order:0; padding:16px 16px 6px; }
+  .editor-brand { color:white; padding:0; width:auto; }
+  .editor-brand strong { font-size:30px; }
+  .editor-mobile-session { display:flex; align-items:center; gap:8px; }
+  .editor-mobile-session .user-initials { width:40px; height:40px; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2); color:#e5fff4; font-size:14px; }
+  .editor-logout-icon { display:grid; place-items:center; width:44px; height:44px; padding:0; border:0; border-radius:10px; color:#d4f2e6; background:transparent; cursor:pointer; }
+  .editor-user-panel { order:1; display:grid; grid-template-columns:minmax(0,1fr) minmax(110px,.8fr); gap:10px; align-items:center; padding:10px 16px 16px; border:0; border-radius:0; color:white; }
+  .editor-user-heading { min-width:0; }
+  .editor-user-heading strong { font-size:14px; line-height:1.4; font-weight:600; }
+  .editor-user-heading small { color:#d0eee2; font-size:12px; }
+  .editor-user-heading .user-initials, .editor-user-panel > .logout-button { display:none; }
+  .compact-editor .editor-user-panel select { width:100%; height:40px; min-height:40px; font-size:14px; padding:6px 10px; border-radius:24px; background:#064d3e; border-color:rgba(255,255,255,.25); color:white; }
+  .editor-nav { order:2; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); padding:8px; gap:4px; background:#fffefa; border-bottom:1px solid var(--line); }
+  .editor-nav.read-only-nav { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .editor-nav .nav-link { flex-direction:column; justify-content:center; min-width:0; min-height:62px; padding:8px 2px; gap:5px; font-size:13px; line-height:1.2; }
+  .editor-nav .nav-link.active { background:#d9f5e8; box-shadow:inset 0 0 0 1px #9bdfc3; }
+  .editor-nav .editor-icon { width:24px; height:24px; }
+}
+@media(max-width:600px) {
+  .compact-editor :is(.meta,.muted,small) { font-size:14px; line-height:1.5; }
+  .compact-editor :is(input,textarea,select) { font-size:16px; }
+  .compact-editor :is(.field-label,.profile-section > summary small,.person-contact-options .inline-check,.contact-remove,.add-contact,.profile-status) { font-size:14px; line-height:1.5; }
+  .compact-editor .editor-card-grid .card-name { font-size:17px; line-height:21px; -webkit-line-clamp:2; }
+  .compact-editor .editor-card-grid .editor-card-head h3 { line-height:21px; }
+  .compact-editor .editor-card-grid .editor-card-head .meta { font-size:13px; line-height:16px; }
+  .compact-editor .editor-card-grid .mini-pill, .card-tag-probe { font-size:12px; line-height:16px; padding:3px 5px; }
+  .editor-user-heading small { font-size:12px; }
+  .compact-editor .editor-user-panel select { font-size:14px; }
+}
+.compact-editor .editor-card-grid .mini-pill { display:block; }
+.detail-modal .mini-pill { max-width:100%; overflow-wrap:anywhere; }

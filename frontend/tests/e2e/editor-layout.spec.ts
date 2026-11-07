@@ -9,9 +9,9 @@ test('outer actor footer submits the main form, validates hidden fields, and fol
  await submit.click();await expect(page.getByLabel('Navn',{exact:false}).first()).toBeFocused();
  await page.getByLabel('Navn',{exact:false}).first().fill('Footeraktør');
  const links=page.locator('summary').filter({hasText:/^Lenker og sosiale medier/});
- await links.click();await page.getByLabel('Website URL',{exact:true}).fill('broken');await links.click();
- await submit.click();await expect(page.getByLabel('Website URL',{exact:true})).toBeFocused();
- await page.getByLabel('Website URL',{exact:true}).fill('https://example.invalid');await links.click();
+ await links.click();await page.getByLabel('Nettside',{exact:true}).fill('broken');await links.click();
+ await submit.click();await expect(page.getByLabel('Nettside',{exact:true})).toBeFocused();
+ await page.getByLabel('Nettside',{exact:true}).fill('https://example.invalid');await links.click();
  const request=page.waitForRequest(r=>r.method()==='POST'&&r.url().endsWith('/organizations/'));
  await submit.click();expect((await request).postDataJSON().name).toBe('Footeraktør');
  await expect(footer.getByRole('button',{name:'Lagre aktør',exact:true})).toBeDisabled();

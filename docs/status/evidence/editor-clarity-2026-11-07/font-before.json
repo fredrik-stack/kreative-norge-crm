@@ -1,0 +1,19 @@
+{
+  "css": {
+    "family": "\"IBM Plex Sans\", \"Avenir Next\", \"Segoe UI\", sans-serif",
+    "weight": "750",
+    "size": "13px",
+    "line": "17px"
+  },
+  "fonts": {
+    "fonts": [
+      {
+        "familyName": "Avenir Next Heavy",
+        "postScriptName": "AvenirNext-Heavy",
+        "isCustomFont": false,
+        "glyphCount": 15
+      }
+    ]
+  },
+  "provenance": "Recorded browser/CDP result before source edits on main5cc6e96"
+}

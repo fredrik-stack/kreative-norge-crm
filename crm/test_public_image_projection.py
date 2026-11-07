@@ -576,6 +576,7 @@ class PublicImageProjectionTests(TestCase):
         self.assertContains(public_detail, "grid-template-columns: 112px")
         # Owner-approved taxonomy colors apply in both presentation variants.
         self.assertContains(public_detail, "--tag: #4a8755")
+        self.assertNotContains(public_detail, "Primærlenke")
         self.assertNotContains(public_detail, "--tag: #4f332c")
 
     @override_settings(PUBLIC_IMAGE_API_SCHEMA_ENABLED=True)
@@ -676,6 +677,7 @@ class PublicImageProjectionTests(TestCase):
         )
         self.assertContains(public_detail, "grid-template-columns: 160px")
         self.assertContains(public_detail, "--tag: #4a8755")
+        self.assertNotContains(public_detail, "Primærlenke")
 
         fallback_square = (
             "https://public.example.no/static/crm/public-image-fallback/v1/"

@@ -12,6 +12,7 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { AuthGate } from "./components/AuthGate";
+import { EditorIcon } from "./components/EditorIcon";
 import { ConfirmNavigationModal } from "./components/ConfirmNavigationModal";
 import { useUnsavedChangesGuard } from "./hooks/useUnsavedChangesGuard";
 import { EditorProvider } from "./context/EditorContext";
@@ -98,22 +99,27 @@ function EditorShell({ username, user, onLogout }: { username: string; user: Aut
       .filter((tag) => tag.name.toLocaleLowerCase("nb").includes(query))
       .slice(0, 8);
   }, [overviewTagQuery, editor.tags]);
+  const initials = (user?.display_name || username).split(/\s+/).map(part => part[0]).slice(0, 2).join("").toUpperCase();
 
   return (
     <div className="app-shell editor-shell compact-editor">
       <aside className="editor-sidebar" aria-label="Editor-meny">
-        <Link to="/organizations" className="editor-brand"><span className="brand-mark" aria-hidden="true">K</span><span><strong>Kreative Norge</strong><small>Editor CRM</small></span></Link>
-        <nav className="editor-nav" aria-label="Hovednavigasjon">
-          <NavLink to="/organizations" className={({isActive}) => `nav-link ${isActive ? "active" : ""}`}><span aria-hidden="true">⌂</span>Aktører</NavLink>
-          <NavLink to="/people" className={({isActive}) => `nav-link ${isActive ? "active" : ""}`}><span aria-hidden="true">♙</span>Personer</NavLink>
+        <header className="editor-brand-header">
+          <Link to="/organizations" className="editor-brand"><strong>Editor CRM</strong></Link>
+          <div className="editor-mobile-session"><span className="user-initials" aria-hidden="true">{initials}</span><button type="button" className="editor-logout-icon" aria-label="Logg ut" title="Logg ut" onClick={() => unsavedGuard.requestAction("Logg ut", onLogout)}><EditorIcon name="logout" /></button></div>
+        </header>
+        <nav className={`editor-nav${editor.canImportExport ? "" : " read-only-nav"}`} aria-label="Hovednavigasjon">
+          <NavLink to="/organizations" className={({isActive}) => `nav-link ${isActive ? "active" : ""}`}><EditorIcon name="actors" />Aktører</NavLink>
+          <NavLink to="/people" className={({isActive}) => `nav-link ${isActive ? "active" : ""}`}><EditorIcon name="people" />Personer</NavLink>
           {editor.canImportExport ? <>
-            <NavLink to="/import" className={({isActive}) => `nav-link ${isActive || location.pathname === "/import-export" ? "active" : ""}`}><span aria-hidden="true">▣</span>Import</NavLink>
-            <NavLink to="/export" className={({isActive}) => `nav-link ${isActive ? "active" : ""}`}><span aria-hidden="true">↗</span>Eksport</NavLink>
+            <NavLink to="/import" className={({isActive}) => `nav-link ${isActive || location.pathname === "/import-export" ? "active" : ""}`}><EditorIcon name="import" />Import</NavLink>
+            <NavLink to="/export" className={({isActive}) => `nav-link ${isActive ? "active" : ""}`}><EditorIcon name="export" />Eksport</NavLink>
           </> : null}
-          {user?.can_access_admin ? <a href="/admin/" className="nav-link" onClick={event => { event.preventDefault(); unsavedGuard.requestAction("Admin", () => window.location.assign("/admin/")); }}><span aria-hidden="true">⚙</span>Admin</a> : null}
+          <button type="button" className="nav-link nav-unavailable" disabled title="Kart er ikke tilgjengelig ennå"><EditorIcon name="map" />Kart</button>
+          {user?.can_access_admin ? <a href="/admin/" className="nav-link" onClick={event => { event.preventDefault(); unsavedGuard.requestAction("Admin", () => window.location.assign("/admin/")); }}><EditorIcon name="admin" />Admin</a> : null}
         </nav>
         <div className="editor-user-panel">
-          <div className="editor-user-heading"><span className="user-initials" aria-hidden="true">{(user?.display_name || username).split(/\s+/).map(part => part[0]).slice(0,2).join("").toUpperCase()}</span><div><strong>{user?.display_name || username}</strong>{user?.is_superuser ? <small>Plattform-superbruker</small> : null}<small>{({superadmin:"Superadmin",gruppeadmin:"Gruppeadmin",redigerer:"Redigerer",leser:"Leser"} as Record<string,string>)[editor.currentTenantRole ?? ""] ?? "Ingen tenanttilgang"} i aktivt kontor</small></div></div>
+          <div className="editor-user-heading"><span className="user-initials" aria-hidden="true">{initials}</span><div><strong>{user?.display_name || username}</strong>{user?.is_superuser ? <small>Plattform-superbruker</small> : null}<small>{({superadmin:"Superadmin",gruppeadmin:"Gruppeadmin",redigerer:"Redigerer",leser:"Leser"} as Record<string,string>)[editor.currentTenantRole ?? ""] ?? "Ingen tenanttilgang"} i aktivt kontor</small></div></div>
           <label className="field-label" htmlFor="tenant-select">Aktivt Musikkontor</label>
           <select id="tenant-select" value={editor.tenantId ?? ""} onChange={event => unsavedGuard.requestTenantSelection(Number(event.target.value) || null)}>
             {editor.tenants.length === 0 ? <option value="">Ingen kontor</option> : null}

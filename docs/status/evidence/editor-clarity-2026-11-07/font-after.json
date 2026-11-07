@@ -1,0 +1,18 @@
+{
+  "css": {
+    "family": "\"IBM Plex Sans\", \"Avenir Next\", \"Segoe UI\", sans-serif",
+    "weight": "600",
+    "size": "17px",
+    "line": "21px"
+  },
+  "fonts": {
+    "fonts": [
+      {
+        "familyName": "Avenir Next Demi Bold",
+        "postScriptName": "AvenirNext-DemiBold",
+        "isCustomFont": false,
+        "glyphCount": 15
+      }
+    ]
+  }
+}

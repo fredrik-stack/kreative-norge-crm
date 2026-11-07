@@ -166,7 +166,7 @@ describe("OrganizationImagePanel", () => {
     await userEvent.click(screen.getByRole("button", { name: "Finn bilder" }));
     await userEvent.click(await screen.findByRole("button", { name: /Open Graph/ }));
     await userEvent.selectOptions(screen.getByLabelText("Bildetype"), "logo");
-    expect(screen.getByText("Logo viser hele motivet uten beskjæring.")).toBeInTheDocument();
+    expect(screen.getByText("Logo vises uten beskjæring.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Zoom")).not.toBeInTheDocument();
     expect(screen.queryByText("Finjuster utsnitt")).not.toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Forhåndsvisning av hele logoen" })).toBeInTheDocument();
@@ -313,7 +313,7 @@ describe("OrganizationImagePanel", () => {
     const vertical = screen.getByRole("group", { name: "Vertikalt" });
     await userEvent.click(within(horizontal).getByRole("button", { name: "Høyre" }));
     await userEvent.click(within(vertical).getByRole("button", { name: "Bunn" }));
-    expect(screen.getByText("Foto fyller hele bildeflaten og kan derfor beskjæres. Bruk fokus og zoom for å styre utsnittet.")).toBeInTheDocument();
+    expect(screen.getByText("Foto fyller bildeflaten. Juster utsnittet med fokus og zoom.")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Prosesser valgt bilde" }));
     await waitFor(() => expect(api.processOrganizationImage).toHaveBeenCalledWith(1, 10, {
@@ -365,7 +365,7 @@ describe("OrganizationImagePanel", () => {
     await userEvent.click(screen.getByRole("button", { name: "Søk etter flere bilder" }));
 
     expect(await screen.findByText(
-      "Bildesøket utføres via Brave Search. Søketeksten sendes til Brave og kan lagres der i opptil 90 dager. Ikke skriv sensitiv eller intern informasjon i søket.",
+      "Søket sendes til Brave og kan lagres i opptil 90 dager. Unngå sensitiv eller intern informasjon.",
     )).toBeInTheDocument();
 
     const query = await screen.findByLabelText("Forslått søk");
@@ -390,7 +390,7 @@ describe("OrganizationImagePanel", () => {
       query_edited: true,
     }));
     expect(await screen.findByText("Kreativ Demo på scenen")).toBeInTheDocument();
-    expect(screen.getByText("Bildesøk viser forslag fra nettet. Kontroller at bildet kan brukes før du godkjenner det.")).toBeInTheDocument();
+    expect(screen.getByText("Kontroller at du har lov til å bruke bildet før du godkjenner.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Prosesser valgt bilde" })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Tilbakestill til forslag" }));

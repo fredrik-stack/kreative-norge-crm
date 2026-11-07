@@ -35,7 +35,7 @@ test("closed profile sections retain drafts, reveal native errors and link dupli
   await setupMockEditorApi(page);await page.goto('/organizations');await loginAsEditor(page);
   await page.locator('.editor-card-grid').getByRole('button',{name:'Kreativ Demo AS'}).click();await page.getByRole('dialog').getByRole('button',{name:'Rediger'}).click();
   const links=page.locator('summary').filter({hasText:/^Lenker og sosiale medier/});
-  await links.click();await page.getByLabel('Website URL',{exact:true}).fill('broken');await links.click();
+  await links.click();await page.getByLabel('Nettside',{exact:true}).fill('broken');await links.click();
   await page.evaluate(() => {
     document.addEventListener('invalid', event => {
       queueMicrotask(() => { document.body.dataset.nativeErrorCancelled = String(event.defaultPrevented); });
@@ -43,16 +43,16 @@ test("closed profile sections retain drafts, reveal native errors and link dupli
   });
   await page.getByLabel('Navn',{exact:false}).first().fill('Kreativ Demo endret');
   await page.getByRole('button',{name:'Lagre aktør'}).first().click();
-  await expect(page.getByLabel('Website URL',{exact:true})).toBeFocused();
-  await expect(page.getByLabel('Website URL',{exact:true})).toHaveValue('broken');
+  await expect(page.getByLabel('Nettside',{exact:true})).toBeFocused();
+  await expect(page.getByLabel('Nettside',{exact:true})).toHaveValue('broken');
   await expect(page.locator('body')).toHaveAttribute('data-native-error-cancelled','false');
-  await page.getByLabel('Website URL',{exact:true}).fill('https://example.invalid');
+  await page.getByLabel('Nettside',{exact:true}).fill('https://example.invalid');
   await page.getByLabel('Facebook URL',{exact:true}).fill('https://example.invalid/facebook');await links.click();
   await page.route('**/api/tenants/1/organizations/10/',route=>route.request().method()==='PATCH'
     ? route.fulfill({status:400,json:{website_url:['Ugyldig URL.'],facebook_url:['Ugyldig URL.']}}) : route.continue());
   await page.getByRole('button',{name:'Lagre aktør'}).first().click();
   await expect(page.getByRole('status').first()).toHaveText('Lagring ikke bekreftet');
-  await expect(page.getByLabel('Website URL',{exact:true})).toBeVisible();
+  await expect(page.getByLabel('Nettside',{exact:true})).toBeVisible();
   await links.click();
   await page.locator('.profile-validation').getByRole('button',{name:/Facebook/}).click();
   await expect(page.getByLabel('Facebook URL',{exact:true})).toBeFocused();
