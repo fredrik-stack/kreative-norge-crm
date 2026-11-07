@@ -566,3 +566,10 @@ Ingen endring av øvrig meny, Kart, Importdesign, lagrings-/publiseringskontrakt
 API, data eller aktiveringsflagg. Leveransen er frontend-only; API/DB skal ikke
 gjenskapes. Dokumentasjon og sanitert stagingevidens følger ordinær review/CI.
 [Datert kontrollgrunnlag](../status/EDITOR_ADMIN_DESKTOP_ONLY_2026-11-07.md).
+
+
+**Teknisk status:** PR #97 er ordinært merget som a49b9d1 med main-CI 42408479236
+SUCCESS, 6/6 og frontend-only stagingverifisert. Fem originale viewportbilder, syv
+responsive kontroller/Tab/nonstaff og eksakt bundlekontroll er grønne. API/DB er
+uendret; én fersk backup/fullverify/isolertrestore og aktive timere er verifisert.
+[Datert evidens](../status/EDITOR_ADMIN_DESKTOP_ONLY_2026-11-07.md#faktisk-staging-og-publisert-bevis).

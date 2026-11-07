@@ -6,7 +6,8 @@
 - Admin skjules ved ≤900 px; eksisterende adgang/lenke og ikon beholdes på desktop.
 - Målrettet resize-/900–901-grense-/nonstaff-test og TS/bygg grønne.
 - [Kontrollgrunnlag](EDITOR_ADMIN_DESKTOP_ONLY_2026-11-07.md). Bestilt frontend-only
-  staging gjenstår; ingen API-/DB-/rolleendring.
+  staging er verifisert på merge a49b9d1 med grønn main-CI 6/6, fem viewportbilder
+  og fersk backup/fullverify/isolertrestore. Ingen API-/DB-/rolleendring.
 
 
 ## 2026-11-07 – Editor CRM-identitet og mobil lesbarhet, stagingverifisert
