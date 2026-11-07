@@ -1,5 +1,24 @@
 # Project Status Current
 
+## Legacy-notatkopiering – kodeleveranse 2026-11-07
+
+Prosjekteier har bestilt en avgrenset implementering under ADR-011 trinn 7:
+operatørkommando med privat dry-run/plan, insert-only apply, eget batchregister
+og konsistent read-back. Eksakt tom/whitespace/tekst kopieres bare til egen
+eksisterende legacyassignment; NULL-note utelates. Eksisterende overlay er
+konflikt. Alle inserts og commitkvittering er atomiske; replay skriver ikke på
+nytt, også ved tapt COMMIT-svar. Additiv0036 gjelder bare batchbevis.
+[Mandat, kontrakt, tester og senere driftsporter](../operations/TENANT_NOTE_OVERLAYS.md#operatørstyrt-legacykopiering--kodeleveranse-2026-11-07).
+
+180 lokale PostgreSQL 16-tester (21 nye + 159 regresjoner), 64 separate
+image-safety-tester og modell-/migrasjonssamsvar er grønne.
+Dette er kode/lokal syntetisk validering; faktisk review, PR,
+merge og CI følger GitHub. **Ingen stagingdeploy/schema-apply/ny måling eller
+reell notatkopiering er bestilt eller utført.** Ordinær overlaygate er fortsatt
+default-off; legacy API/Editor/Admin/import/PUBLIC er ikke lagt om. Senere
+fersk plan/digest/applyfullmakt og samlet autoritetsovergang gjenstår separat.
+Ingen taggklassifisering, shared tilgang eller fullført trinn 7/6A.
+
 ## Admin bare på desktop – eierføring 2026-11-07
 
 Prosjekteier har gjennomgått og godkjent øvrige endringer i PR #94–96, med ett
