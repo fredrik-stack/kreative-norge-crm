@@ -1,5 +1,14 @@
 # Editor
 
+## Admin i responsiv meny – 2026-11-07
+
+[UI-6 §16](../features/UI_6_FELLES_SPEC.md#16-admin-bare-på-desktop--eierføring-2026-11-07)
+skjuler .editor-admin-link ved eksisterende mobilgrense ≤900 px. Over 900 px vises
+lenken fortsatt bare ved faktisk can_access_admin. CSS styrer responsive synlighet;
+rollen, direkte /admin/-adgang og navigasjonsvernet er uendret. Eldre mobilbilder
+med Admin er historikk. [Kontrollgrunnlag](../status/EDITOR_ADMIN_DESKTOP_ONLY_2026-11-07.md).
+
+
 ## Editor CRM-identitet og mobil lesbarhet – 2026-11-07
 
 [UI-6 §15](../features/UI_6_FELLES_SPEC.md#15-editor-identitet-og-lesbarhet--eierbestilling-2026-11-07)

@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-07 – Admin bare i desktopmenyen
+
+- Eier har godkjent øvrig UI-leveranse fra PR #94–96, med denne ene rettingen.
+- Admin skjules ved ≤900 px; eksisterende adgang/lenke og ikon beholdes på desktop.
+- Målrettet resize-/900–901-grense-/nonstaff-test og TS/bygg grønne.
+- [Kontrollgrunnlag](EDITOR_ADMIN_DESKTOP_ONLY_2026-11-07.md). Bestilt frontend-only
+  staging gjenstår; ingen API-/DB-/rolleendring.
+
+
 ## 2026-11-07 – Editor CRM-identitet og mobil lesbarhet, stagingverifisert
 
 - Kun Editor CRM i Editor, kompakt grønn mobilhero og samme SVG-meny på desktop.

@@ -549,3 +549,20 @@ på staging har 18 ekte browserkontroller/18 hele viewportbilder, syntetisk clea
 fullrad-/media-/miljø-/safety-bevaring og tre ferske backup-/verify-/restorecheckpoints.
 [Datert sanitert evidens](../status/STAGING_EDITOR_CLARITY_2026-11-07.md).
 Ingen ny manuell visuell eieraksept, produksjonsdeploy, aktivering eller neste etappe er påstått.
+
+
+## 16. Admin bare på desktop – eierføring 2026-11-07
+
+**BESLUTTET / BESTILT HELT TIL STAGING:** Eier har gjennomgått og godkjent øvrige
+endringer fra PR #94–96, men krever at Admin fjernes fra mobilmenyen. Denne
+presiseringen overstyrer tidligere visning av Admin nedenfor mobilens femvalgmeny.
+Eksisterende responsive grense beholdes: Admin er display:none ved bredde ≤900 px
+og tilgjengelig fra 901 px bare under eksisterende can_access_admin-port.
+Det skjulte valget skal ikke være i tilgjengelighets-/Tab-rekkefølgen. Ved resizing
+skal visningen skifte uten reload. Desktop beholder samme lenke, ikon og
+navigasjonsvern. Dette endrer ikke Django-adminadgang eller direkte /admin/-URL.
+
+Ingen endring av øvrig meny, Kart, Importdesign, lagrings-/publiseringskontrakter,
+API, data eller aktiveringsflagg. Leveransen er frontend-only; API/DB skal ikke
+gjenskapes. Dokumentasjon og sanitert stagingevidens følger ordinær review/CI.
+[Datert kontrollgrunnlag](../status/EDITOR_ADMIN_DESKTOP_ONLY_2026-11-07.md).

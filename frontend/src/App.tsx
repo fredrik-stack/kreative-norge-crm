@@ -116,7 +116,7 @@ function EditorShell({ username, user, onLogout }: { username: string; user: Aut
             <NavLink to="/export" className={({isActive}) => `nav-link ${isActive ? "active" : ""}`}><EditorIcon name="export" />Eksport</NavLink>
           </> : null}
           <button type="button" className="nav-link nav-unavailable" disabled title="Kart er ikke tilgjengelig ennå"><EditorIcon name="map" />Kart</button>
-          {user?.can_access_admin ? <a href="/admin/" className="nav-link" onClick={event => { event.preventDefault(); unsavedGuard.requestAction("Admin", () => window.location.assign("/admin/")); }}><EditorIcon name="admin" />Admin</a> : null}
+          {user?.can_access_admin ? <a href="/admin/" className="nav-link editor-admin-link" onClick={event => { event.preventDefault(); unsavedGuard.requestAction("Admin", () => window.location.assign("/admin/")); }}><EditorIcon name="admin" />Admin</a> : null}
         </nav>
         <div className="editor-user-panel">
           <div className="editor-user-heading"><span className="user-initials" aria-hidden="true">{initials}</span><div><strong>{user?.display_name || username}</strong>{user?.is_superuser ? <small>Plattform-superbruker</small> : null}<small>{({superadmin:"Superadmin",gruppeadmin:"Gruppeadmin",redigerer:"Redigerer",leser:"Leser"} as Record<string,string>)[editor.currentTenantRole ?? ""] ?? "Ingen tenanttilgang"} i aktivt kontor</small></div></div>

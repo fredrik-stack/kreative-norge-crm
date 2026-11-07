@@ -71,13 +71,28 @@ test('tags refit after viewport resize and show no counter when all fit',async({
  await page.setViewportSize({width:1200,height:900});await expect.poll(()=>tags.locator('> .mini-pill').count()).toBe(5);await expect(tags.locator('.tag-count')).toHaveCount(0);
 });
 
-test('authorized Admin remains below the shared five-item mobile menu',async({page},info)=>{
+test('Admin is desktop-only at the responsive boundary and still requires admin access',async({page},info)=>{
  await setupMockEditorApi(page);
- await page.route('**/api/auth/session/',route=>route.fulfill({json:{authenticated:true,user:{id:1,username:'synthetic-admin',display_name:'Ada Eksempel',is_superuser:true,can_access_admin:true,memberships:[{id:1,tenant:1,user:1,role:'superadmin'}]}}}));
- await page.setViewportSize({width:390,height:844});await page.goto('/organizations');
- const nav=page.getByRole('navigation',{name:'Hovednavigasjon'});await expect(nav.getByRole('link')).toHaveText(['Aktører','Personer','Import','Eksport','Admin']);await expect(nav.locator('svg')).toHaveCount(6);
- const admin=await nav.getByRole('link',{name:'Admin',exact:true}).boundingBox(),map=await nav.getByRole('button',{name:'Kart',exact:true}).boundingBox();expect(admin!.y).toBeGreaterThan(map!.y);
- await page.screenshot({path:info.outputPath('admin-hero-390.png')});
+ const user={id:1,username:'synthetic-admin',display_name:'Ada Eksempel',is_superuser:true,can_access_admin:true,memberships:[{id:1,tenant:1,user:1,role:'superadmin'}]};
+ await page.route('**/api/auth/session/',route=>route.fulfill({json:{authenticated:true,user}}));
+ await page.goto('/organizations');
+ const nav=page.getByRole('navigation',{name:'Hovednavigasjon'}),admin=nav.locator('a[href="/admin/"]');
+ for(const width of [1920,390,320,900,901,390,1920]) {
+  await page.setViewportSize({width,height:width>900?1080:844});
+  if(width<=900) {
+   await expect(admin).toBeHidden();
+   await expect(nav.getByRole('link')).toHaveText(['Aktører','Personer','Import','Eksport']);
+   await expect(nav.locator('svg:visible')).toHaveCount(5);
+  } else {
+   await expect(admin).toBeVisible();await expect(admin).toHaveAttribute('href','/admin/');
+   await expect(nav.getByRole('link')).toHaveText(['Aktører','Personer','Import','Eksport','Admin']);
+   await expect(nav.locator('svg:visible')).toHaveCount(6);
+  }
+  await expect(nav.getByRole('button',{name:'Kart',exact:true})).toBeDisabled();
+  await page.screenshot({path:info.outputPath(`admin-menu-${width}.png`)});
+ }
+ await page.route('**/api/auth/session/',route=>route.fulfill({json:{authenticated:true,user:{...user,is_superuser:false,can_access_admin:false}}}));
+ await page.reload();await expect(page.locator('.editor-brand')).toHaveText('Editor CRM');await expect(admin).toHaveCount(0);
 });
 
 test('very long tags retain a readable first tag and an exact overflow count',async({page})=>{
