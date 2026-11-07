@@ -1,5 +1,20 @@
 # Project Status Current
 
+## Editor CRM – ny eierbestilt UI-retting 2026-11-07
+
+[UI-6 §15](../features/UI_6_FELLES_SPEC.md#15-editor-identitet-og-lesbarhet--eierbestilling-2026-11-07)
+styrer ny Editor-identitet, grønn mobilhero, samme SVG-meny, lettere navnevekt,
+leselig mobiltekst, flere plassavhengige tags og klikkbar kontaktperson→personkort.
+Kart er uttrykkelig valgt deaktivert; PUBLIC beholder Kreative Norge. Primærlenke
+fjernes fra UI, Nettside/sosiale lenker og API-kompatibilitet består. Kort148px og
+thumbnail90px beholdes. Doble feltetiketter og inaktiv Klar fjernes visuelt.
+[Kode/lokalt bevis](EDITOR_CLARITY_REVIEW_2026-11-07.md) på5824541:66 unit-tester,
+TS/bygg,32 Editor-reiser og to DB-frie PUBLIC-malrenderinger grønne. Bilder bruker
+syntetiske API-fixtures. **Merge/staging er bestilt, ikke utført på dette tidspunktet**;
+faktisk review/CI følger PR. Dette er ny retting etter tidligere PR #92-aksept,
+ikke samlet UI-6/v1-lukking. Ingen Import-UX eller aktivering/neste produktetappe.
+
+
 ## Editor PR #92 – sluttgodkjent og teknisk stagingverifisert 2026-10-25
 
 Prosjekteier har gitt **samlet visuell sluttgodkjenning** av siste grunnlag på

@@ -1,0 +1,26 @@
+{
+  "runtime_commit": "582454101114c4baef70cc833ca5282345702940",
+  "data": "Explicit synthetic Playwright API fixtures; no backend or staging",
+  "unit_tests": 66,
+  "editor_browser_tests": 32,
+  "final_hardened_fixture_tests": 8,
+  "typescript_build": "PASS",
+  "public_templates": "Both actual Django legacy/cutover renders, DB-free; primary label absent; website/social links retained",
+  "viewports": [
+    [
+      1920,
+      1080
+    ],
+    [
+      390,
+      844
+    ],
+    [
+      320,
+      844
+    ]
+  ],
+  "image_count": 13,
+  "browser_back_escape_reader_resize": "PASS",
+  "merge_staging": "Not performed at evidence capture"
+}

@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-07 – Editor CRM-identitet og mobil lesbarhet, på branch
+
+- Kun Editor CRM i Editor, kompakt grønn mobilhero og samme SVG-meny på desktop.
+- Kart deaktivert etter eiervalg; Admin-port består. Lettere navnevekt, større
+  mobilnavn/sted/hjelpetekst, flere tags etter faktisk plass og presis +N.
+- Kontaktperson åpner personlesekort også for leser. Rediger aktør starter øverst.
+- Doble kontaktetiketter/inaktiv Klar og Primærlenke i UI fjernet; URL-data og
+  API-/lagrings-/publiseringskontrakter består. Kortere hjelpetekster.
+- [Lokalt kontrollgrunnlag](EDITOR_CLARITY_REVIEW_2026-11-07.md). Bestilt staging
+  er ennå ikke utført. Ingen migrasjon, kartaktivering eller ny Import-UX.
+
+
 ## 2026-10-25 – Editor PR #92 sluttgodkjent og stagingverifisert
 
 - Samlet visuell eieraksept på4cdff63; ordinær merge d698888 og main-CI6/6.

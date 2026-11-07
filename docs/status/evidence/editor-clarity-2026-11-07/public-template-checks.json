@@ -1,0 +1,16 @@
+[
+  {
+    "mode": "legacy",
+    "primary_label_absent": true,
+    "website_and_social_links_preserved": true,
+    "actual_django_template": true,
+    "database_used": false
+  },
+  {
+    "mode": "cutover",
+    "primary_label_absent": true,
+    "website_and_social_links_preserved": true,
+    "actual_django_template": true,
+    "database_used": false
+  }
+]
