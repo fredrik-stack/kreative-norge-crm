@@ -1,5 +1,19 @@
 # Data Model
 
+## 0037 – faktisk stagingtilstand 2026-11-07
+
+API-kode `d410e8e` er teknisk stagingverifisert med bare0037 anvendt og tom
+migrasjonsplan. De fire nye historikktabellene er tomme; 22 constraints,
+11 aktive triggere og fire kildeverifiserte funksjoner er kontrollert, også
+22 constraints/11 triggere/tomme tabeller i isolert post-restore. Nytt
+`TenantMembership.is_active` er NOT NULL; medlemskapstall er0 før/etter, så
+ingen reelle eksisterende medlemskapsrader er backfillvalidert. Ingen seed.
+Alle tidligere felt/PK/tidsstempler/relasjoner og gamle schema-vern er bevart.
+[Full evidens, tilgangsgrenser og neste gate](SECURITY_AND_ROLES.md#stagingverifisering-av-trinn-8--2026-11-07).
+Ingen avtale-/akseptstate, shared-aktivering, notatkopiering eller authority-cutover.
+Den opprinnelige lokale kodeleveransen beskrives datert nedenfor.
+
+
 ## ADR-011 trinn 8 – additiv0037, inaktiv grunnmur 2026-11-07
 
 Nye tabeller: `SharingAgreement` (domain/immutable versjon/tekst/effective_at/

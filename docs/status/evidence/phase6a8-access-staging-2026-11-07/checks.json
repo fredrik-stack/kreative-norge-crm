@@ -1,0 +1,328 @@
+{
+  "agreement_or_acceptance_created": false,
+  "api_direct_gunicorn": true,
+  "api_image": "sha256:4a0356cc23af52a96433fa3b7db44c6a3d85d7a7263f12b5a2c962677ba10630",
+  "auth_session_roles_preserved": true,
+  "backup_scripts_unchanged": true,
+  "backup_services_inactive": true,
+  "checkpoint_receipts": {
+    "post": {
+      "archive_identity_read_back": true,
+      "dump_checksum_bound": true,
+      "no_new_volumes": true,
+      "restore": true,
+      "schema_validated": true,
+      "verified": true
+    },
+    "pre": {
+      "archive_identity_read_back": true,
+      "dump_checksum_bound": true,
+      "no_new_volumes": true,
+      "restore": true,
+      "schema_validated": false,
+      "verified": true
+    }
+  },
+  "code_commit": "d410e8e2e5e4a671edbd755f527d7eb52fe8103a",
+  "copy_batch_rows": 0,
+  "copy_plan_executed": false,
+  "database_identity_match": true,
+  "date_oslo": "2026-11-07",
+  "dependencies_preserved": true,
+  "disabled_capabilities_checked": 9,
+  "enabled_triggers": [
+    {
+      "enabled": "O",
+      "name": "sharing_audit_insert",
+      "table": "crm_sharingaccessaudit"
+    },
+    {
+      "enabled": "O",
+      "name": "sharingaccessaudit_immutable",
+      "table": "crm_sharingaccessaudit"
+    },
+    {
+      "enabled": "O",
+      "name": "sharingagreement_audit",
+      "table": "crm_sharingagreement"
+    },
+    {
+      "enabled": "O",
+      "name": "sharingagreement_immutable",
+      "table": "crm_sharingagreement"
+    },
+    {
+      "enabled": "O",
+      "name": "sharingagreement_insert",
+      "table": "crm_sharingagreement"
+    },
+    {
+      "enabled": "O",
+      "name": "sharingagreementacceptance_audit",
+      "table": "crm_sharingagreementacceptance"
+    },
+    {
+      "enabled": "O",
+      "name": "sharingagreementacceptance_immutable",
+      "table": "crm_sharingagreementacceptance"
+    },
+    {
+      "enabled": "O",
+      "name": "sharingagreementacceptance_insert",
+      "table": "crm_sharingagreementacceptance"
+    },
+    {
+      "enabled": "O",
+      "name": "sharingagreementrevocation_audit",
+      "table": "crm_sharingagreementrevocation"
+    },
+    {
+      "enabled": "O",
+      "name": "sharingagreementrevocation_immutable",
+      "table": "crm_sharingagreementrevocation"
+    },
+    {
+      "enabled": "O",
+      "name": "sharingagreementrevocation_insert",
+      "table": "crm_sharingagreementrevocation"
+    }
+  ],
+  "environment_mounts_flags_preserved": true,
+  "evidence_version": 1,
+  "existing_rows_pk_timestamps_preserved": true,
+  "existing_tables_preserved": 48,
+  "frontend_database_containers_unchanged": true,
+  "gates": {
+    "SHARING_ACCESS_ENABLED": {
+      "file_setting": "unset_default_false",
+      "persistent_false": true
+    },
+    "TENANT_NOTE_OVERLAYS_ENABLED": {
+      "file_setting": "unset_default_false",
+      "persistent_false": true
+    }
+  },
+  "helper_hashes": {
+    "db-read.py": "e7ce9b40f0a93cef8c3e471eb6913925251dbcff7f3af0fbdb8977ae2cc55893",
+    "schema.py": "b7eb23dffff7bb4de8f9cb37d4b1e2278ab183695ceddc5bfeed8b64cc1f05a7",
+    "stage.py": "fe28886f3495f570a258e399121799f5f312091a36c548052ca6e9f4f4d54067"
+  },
+  "history_rows": {
+    "crm_sharingaccessaudit": 0,
+    "crm_sharingagreement": 0,
+    "crm_sharingagreementacceptance": 0,
+    "crm_sharingagreementrevocation": 0
+  },
+  "legacy_read_write_route_sources_unchanged": true,
+  "lock_timeout_ms": 2000,
+  "media_static_preserved": true,
+  "membership_active_admin_field_hidden": true,
+  "membership_inactive_rows": 0,
+  "membership_legacy_fields_preserved": true,
+  "membership_rows_after": 0,
+  "membership_rows_before": 0,
+  "membership_true_check_has_real_rows": false,
+  "memberships_created": 0,
+  "migrate_collectstatic_start": false,
+  "migration": "0037_sharing_access_foundation",
+  "migration_isolation": "READ COMMITTED",
+  "new_history_models_not_admin_registered": true,
+  "organization_overlay_rows": 0,
+  "overlay_gate": false,
+  "person_overlay_rows": 0,
+  "pre_schema_session_probe_corrected_before_mutation": true,
+  "previous_api_image": "sha256:b9e76c4b0d3686f2462d27e259fd2a2a403264d98fe002dec5d0f559f3b119c1",
+  "previous_staging_commit": "48ac5976bb6cf396b12335e8a108370f3b57af8d",
+  "prune_compact_executed": false,
+  "public_api_media_preserved": true,
+  "real_note_copy": false,
+  "remaining_migrations": 0,
+  "restore_containers_remaining": 0,
+  "safety_cursor": 13,
+  "safety_ledger_bytes_and_history_preserved": true,
+  "safety_ready": true,
+  "sharing_gate": false,
+  "source_files_checked": 162,
+  "source_functions_verified": 4,
+  "statement_timeout_ms": 30000,
+  "status": "STAGING_VERIFIED",
+  "technical_read_checks": {
+    "admin_lists": 2,
+    "admin_note_forms": 2,
+    "api_details": 6,
+    "api_lists": 14,
+    "authenticated_session": true,
+    "operator_reused": true
+  },
+  "timers": {
+    "kreative-norge-backup": {
+      "active": true,
+      "enabled": true
+    },
+    "kreative-norge-backup-verify": {
+      "active": true,
+      "enabled": true
+    },
+    "kreative-norge-image-safety-health": {
+      "active": true,
+      "enabled": true
+    }
+  },
+  "validated_constraints": [
+    {
+      "definition": "CHECK ((actor_id >= 0))",
+      "name": "crm_sharingaccessaudit_actor_id_check",
+      "table": "crm_sharingaccessaudit",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "crm_sharingaccessaudit_pkey",
+      "table": "crm_sharingaccessaudit",
+      "type": "p",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((record_id >= 0))",
+      "name": "crm_sharingaccessaudit_record_id_check",
+      "table": "crm_sharingaccessaudit",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((sharing_domain_id >= 0))",
+      "name": "crm_sharingaccessaudit_sharing_domain_id_check",
+      "table": "crm_sharingaccessaudit",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((tenant_id >= 0))",
+      "name": "crm_sharingaccessaudit_tenant_id_check",
+      "table": "crm_sharingaccessaudit",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "UNIQUE (event, record_id)",
+      "name": "sharing_audit_event_record",
+      "table": "crm_sharingaccessaudit",
+      "type": "u",
+      "validated": true
+    },
+    {
+      "definition": "FOREIGN KEY (created_by_id) REFERENCES auth_user(id) DEFERRABLE INITIALLY DEFERRED",
+      "name": "crm_sharingagreement_created_by_id_83ed54f8_fk_auth_user_id",
+      "table": "crm_sharingagreement",
+      "type": "f",
+      "validated": true
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "crm_sharingagreement_pkey",
+      "table": "crm_sharingagreement",
+      "type": "p",
+      "validated": true
+    },
+    {
+      "definition": "FOREIGN KEY (sharing_domain_id) REFERENCES crm_sharingdomain(id) DEFERRABLE INITIALLY DEFERRED",
+      "name": "crm_sharingagreement_sharing_domain_id_56a20968_fk_crm_shari",
+      "table": "crm_sharingagreement",
+      "type": "f",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((version >= 0))",
+      "name": "crm_sharingagreement_version_check",
+      "table": "crm_sharingagreement",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "UNIQUE (sharing_domain_id, effective_at)",
+      "name": "sharing_agreement_domain_effective",
+      "table": "crm_sharingagreement",
+      "type": "u",
+      "validated": true
+    },
+    {
+      "definition": "UNIQUE (sharing_domain_id, version)",
+      "name": "sharing_agreement_domain_version",
+      "table": "crm_sharingagreement",
+      "type": "u",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((NOT (text = ''::text)))",
+      "name": "sharing_agreement_text_present",
+      "table": "crm_sharingagreement",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((version > 0))",
+      "name": "sharing_agreement_version_positive",
+      "table": "crm_sharingagreement",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "FOREIGN KEY (agreement_id) REFERENCES crm_sharingagreement(id) DEFERRABLE INITIALLY DEFERRED",
+      "name": "crm_sharingagreement_agreement_id_58b9bd73_fk_crm_shari",
+      "table": "crm_sharingagreementacceptance",
+      "type": "f",
+      "validated": true
+    },
+    {
+      "definition": "FOREIGN KEY (tenant_id) REFERENCES crm_tenant(id) DEFERRABLE INITIALLY DEFERRED",
+      "name": "crm_sharingagreement_tenant_id_ae893adc_fk_crm_tenan",
+      "table": "crm_sharingagreementacceptance",
+      "type": "f",
+      "validated": true
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "crm_sharingagreementacceptance_pkey",
+      "table": "crm_sharingagreementacceptance",
+      "type": "p",
+      "validated": true
+    },
+    {
+      "definition": "FOREIGN KEY (user_id) REFERENCES auth_user(id) DEFERRABLE INITIALLY DEFERRED",
+      "name": "crm_sharingagreementacceptance_user_id_6c74beb3_fk_auth_user_id",
+      "table": "crm_sharingagreementacceptance",
+      "type": "f",
+      "validated": true
+    },
+    {
+      "definition": "FOREIGN KEY (acceptance_id) REFERENCES crm_sharingagreementacceptance(id) DEFERRABLE INITIALLY DEFERRED",
+      "name": "crm_sharingagreement_acceptance_id_977e726d_fk_crm_shari",
+      "table": "crm_sharingagreementrevocation",
+      "type": "f",
+      "validated": true
+    },
+    {
+      "definition": "FOREIGN KEY (actor_id) REFERENCES auth_user(id) DEFERRABLE INITIALLY DEFERRED",
+      "name": "crm_sharingagreement_actor_id_2af595bb_fk_auth_user",
+      "table": "crm_sharingagreementrevocation",
+      "type": "f",
+      "validated": true
+    },
+    {
+      "definition": "UNIQUE (acceptance_id)",
+      "name": "crm_sharingagreementrevocation_acceptance_id_key",
+      "table": "crm_sharingagreementrevocation",
+      "type": "u",
+      "validated": true
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "crm_sharingagreementrevocation_pkey",
+      "table": "crm_sharingagreementrevocation",
+      "type": "p",
+      "validated": true
+    }
+  ],
+  "verified_at_utc": "2026-11-07T22:59:01.790327+00:00"
+}
