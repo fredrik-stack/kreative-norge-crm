@@ -1,0 +1,20 @@
+{
+  "source_commit": "fe28c5b66d11e312b976c3ff53ff088f09d75d6e",
+  "status": "PASS",
+  "detailed_metadata": "retained privately on staging",
+  "existing_crm_rows_preserved": true,
+  "synthetic_fixture_removed": true,
+  "media_static_environment_safety_preserved": true,
+  "database_container_unchanged": true,
+  "no_pending_migrations": true,
+  "no_activation": true,
+  "public_api_and_six_image_variants_preserved": true,
+  "public_primary_label_absent": true,
+  "website_preserved": true,
+  "api_source_match": true,
+  "frontend_bundle_match": true,
+  "post_backup": true,
+  "post_full_repository_verify": true,
+  "post_isolated_restore": true,
+  "backup_timers_restored": true
+}

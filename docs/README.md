@@ -3,23 +3,29 @@
 ## Editor CRM – ny eierbestilt UI-retting 2026-11-07
 
 [UI-6 §15](features/UI_6_FELLES_SPEC.md#15-editor-identitet-og-lesbarhet--eierbestilling-2026-11-07)
-styrer ny Editor-identitet, grønn mobilhero, samme SVG-meny, lettere navnevekt,
-leselig mobiltekst, flere plassavhengige tags og klikkbar kontaktperson→personkort.
-Kart er uttrykkelig valgt deaktivert; PUBLIC beholder Kreative Norge. Primærlenke
-fjernes fra UI, Nettside/sosiale lenker og API-kompatibilitet består. Kort148px og
-thumbnail90px beholdes. Doble feltetiketter og inaktiv Klar fjernes visuelt.
-[Kode/lokalt bevis](status/EDITOR_CLARITY_REVIEW_2026-11-07.md) på5824541:66 unit-tester,
-TS/bygg,32 Editor-reiser og to DB-frie PUBLIC-malrenderinger grønne. Bilder bruker
-syntetiske API-fixtures. **Merge/staging er bestilt, ikke utført på dette tidspunktet**;
-faktisk review/CI følger PR. Dette er ny retting etter tidligere PR #92-aksept,
-ikke samlet UI-6/v1-lukking. Ingen Import-UX eller aktivering/neste produktetappe.
+er implementert i [PR #94](https://github.com/fredrik-stack/kreative-norge-crm/pull/94):
+bare Editor CRM, grønn mobilhero/delte symboler, deaktivert Kart, lettere navnevekt,
+leselig mobiltekst, presise plassavhengige tags og kontaktperson→personkort.
+Kort148px/kvadrat90px og metadatafarger består. Doble kontaktetiketter, idle Klar
+og Primærlenke i brukerflatene er fjernet; URL-data/Nettside/API består.
+
+Ordinær merge `fe28c5b66d11e312b976c3ff53ff088f09d75d6e` har grønn main-CI
+42401986176,6/6, og eksakt **API+frontend er teknisk stagingverifisert**.
+[Sanitert stagingevidens](status/STAGING_EDITOR_CLARITY_2026-11-07.md) har 18 ekte
+browserkontroller/18 hele viewportbilder, syntetisk UI-lagring/readback, reader403
+og tydelig mobil-Rediger. Eksakt cleanup/radbevaring, media/static/miljø/safety og
+tre ferske backup-/verify-/restorecheckpoints er grønne; timere er aktive.
+[Lokale kode-/tekstbevis](status/EDITOR_CLARITY_REVIEW_2026-11-07.md) er bevart separat.
+Ingen ny manuell visuell eieraksept er påstått. PUBLIC beholder Kreative Norge;
+Import v6 rev.4/O-24/5E og begge senere kart består. Ingen migrasjon, ny aktivering,
+produksjonsdeploy eller neste produktetappe. Tidligere ventestatus er historikk.
 
 
 ## Editor PR #92 – sluttgodkjent og teknisk stagingverifisert 2026-10-25
 
 Prosjekteier har gitt **samlet visuell sluttgodkjenning** av siste grunnlag på
 `4cdff63`. PR #92 er ordinært merget som `d698888ee851bd884e148b0bca8ae0b4f3219704`;
-main-CI40234720716 er SUCCESS6/6. Eksakt API+frontend er deployet og teknisk
+main-CI40234720716 er SUCCESS, 6/6. Eksakt API+frontend er deployet og teknisk
 stagingverifisert med ekte HTTPS/browser og syntetiske testprofiler. Ti kontroller,
 åtte viewportbilder, manuell kontaktlagring/read-back og90px sentrert thumbnail
 på samme148px kort er grønne. Eksisterende CRM-rader er bevart med eksakte

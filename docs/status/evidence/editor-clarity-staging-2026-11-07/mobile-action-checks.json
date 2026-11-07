@@ -1,0 +1,31 @@
+{
+  "source_commit": "fe28c5b66d11e312b976c3ff53ff088f09d75d6e",
+  "status": "PASS",
+  "synthetic_only": true,
+  "real_session_csrf": true,
+  "tls_verification": true,
+  "network_scope": "SSH tunnel to staging Caddy; normal staging host/SNI; no new Cloudflare-edge assertion",
+  "checks": [
+    {
+      "name": "green actor Edit visible and unobstructed after ordinary modal scroll at 390",
+      "status": "PASS"
+    },
+    {
+      "name": "green actor Edit visible and unobstructed after ordinary modal scroll at 320",
+      "status": "PASS"
+    }
+  ],
+  "pictures": [
+    {
+      "file": "actor-card-action-390.png",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "actor-card-action-320.png",
+      "width": 320,
+      "height": 844
+    }
+  ],
+  "synthetic_cleanup": "PASS"
+}

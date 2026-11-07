@@ -13,12 +13,15 @@ ruller til toppen ved ny ID/ferdig innlasting. Første kontaktetikett er sr-only
 gruppens overskrift synlig én gang. Idle Klar skjules; faktiske writeutfall består.
 Primærlenke er fjernet fra UI/preview, ikke URL-data eller avledede API-felt.
 Manuell lagring/ID-/retry-/publiseringskontrakter og øvrige scopegrenser består.
-Merge og API+frontend-staging er bestilt og følger PR; lokale bilder er ikke stagingbevis.
+[PR #94](https://github.com/fredrik-stack/kreative-norge-crm/pull/94) er ordinært merget
+som fe28c5b med main-CI 6/6. Eksakt API+frontend er teknisk stagingverifisert;
+[18 kontroller/18 bilder, cleanup/bevaring og backup](../status/STAGING_EDITOR_CLARITY_2026-11-07.md)
+er separate faktiske stagingbevis. Ingen migrasjon eller ny aktivering.
 
 
 ## Samlet sluttgodkjent runtime på staging – 2026-10-25
 
-Eier har samlet godkjent PR #92 på4cdff63. Ordinær merge d698888 og main-CI6/6
+Eier har samlet godkjent PR #92 på4cdff63. Ordinær merge d698888 og main-CI 6/6
 følges av teknisk stagingverifisert API+frontend. [Datert evidens](../status/STAGING_EDITOR_COMPACT_2026-10-25.md)
 binder kode/images, HTTPS-bundle, syntetisk browserreise og eksakt databevaring.
 §10–13 i UI-6 er gjeldende innen denne leveransen; [§14](../features/UI_6_FELLES_SPEC.md#14-samlet-sluttgodkjenning-og-teknisk-staging--2026-10-25)
@@ -37,7 +40,7 @@ krymper ikke på smal skjerm; annen kontrollert avkorting innenfor tekstkolonnen
 
 Aktørmodalens Rediger er allerede grønn primary-knapp under eksisterende canWrite.
 Ingen modalkode eller ny tilgang/posisjonering er innført; browsertest kontrollerer
-grønn gradient, synlig/udekket knapp og faktisk redigeringsnavigasjon ved1920/390/320.
+grønn gradient, synlig/udekket knapp og faktisk redigeringsnavigasjon ved 1920/390/320.
 Ved320px rulles dialogen for å vise footeren. [Nye viewportbilder](../status/EDITOR_THUMBNAIL_VISUAL_REVIEW_2026-10-25.md)
 bruker syntetiske API-fixtures; de er ikke stagingaksept. Tidligere76px-bilder er
 historikk. Import og PUBLIC er ikke endret i denne runden.

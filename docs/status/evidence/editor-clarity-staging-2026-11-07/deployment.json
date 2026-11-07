@@ -1,0 +1,20 @@
+{
+  "source_commit": "fe28c5b66d11e312b976c3ff53ff088f09d75d6e",
+  "status": "PASS",
+  "api_frontend_deployed": true,
+  "pre_backup_full_verify_isolated_restore": "PASS",
+  "backup_restore_checkpoints": 3,
+  "no_prune_or_compact": true,
+  "no_migrate_or_collectstatic": true,
+  "source_and_local_bundle_match": true,
+  "api_graceful_stop": "PASS",
+  "database_and_existing_crm_media_environment_safety_preservation": "PASS",
+  "backup_timers_restored": "PASS",
+  "local_test_servers_tunnel_proxy_closed": true,
+  "synthetic_local_credential_removed": true,
+  "pr": 94,
+  "pr_ci": 42401321690,
+  "main_ci": 42401986176,
+  "ci_jobs": "6/6 SUCCESS on exact source/head",
+  "detailed_metadata": "Private staging-only records; no database/media/environment/backup fingerprints or raw personal/contact data exported."
+}

@@ -1,0 +1,22 @@
+{
+  "reviewer": "editor_compact_review",
+  "mode": "separate read-only static review; no script/network/browser/SSH/database execution",
+  "runtime_base": "5cc6e966d211c6c6a969b63e7f8380c751e6cb2e",
+  "runtime_reviewed": "582454101114c4baef70cc833ca5282345702940",
+  "deployed_merge": "fe28c5b66d11e312b976c3ff53ff088f09d75d6e",
+  "findings_closed": [
+    "person-card history and bounded actor name before code merge",
+    "interrupted deployment could emit false PASS; explicit healthy/no-error/timers condition added",
+    "unexpected success of negative reader probe is now included in exact synthetic cleanup"
+  ],
+  "open_critical_or_important_findings": 0,
+  "operator_sources": {
+    "editor-nov-deploy-template.py": "9c699017fbf0e2b5af0063631c7af96cfb8bc022b0d7aa931eb325139b38ab7d",
+    "editor-nov-private-preflight.py": "e3c3e82756dd7f686eee53160f7486ce29eb00d58cc50b271bfe610660428833",
+    "editor-nov-stage-fixture.py": "bcab2c5aab507ea398ed12e9155fd9dc3eca20a3b21f339df18e66eec881abb1",
+    "editor-nov-stage-browser.mjs": "f90084d39547d0c32d94875f3dd8dab555ff3e6a3024b82fc88a1f3ce1c5d249",
+    "editor-nov-stage-final.py": "cb406d5d466f00cc68137ea8744f8e5e555f343f879b56a802b7dbee5936d843",
+    "editor-nov-stage-mobile-actions.mjs": "16e4509f788d13474789d85b69e5acd3319587fbf44c80a96b2ba47f2be999f6"
+  },
+  "template_binding": "Only PENDING_MAIN_MERGE replaced with the green merge commit; reviewed local public bundle hashes unchanged."
+}
