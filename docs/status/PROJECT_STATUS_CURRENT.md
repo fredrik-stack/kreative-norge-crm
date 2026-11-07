@@ -1,5 +1,20 @@
 # Project Status Current
 
+## Admin bare på desktop – eierføring 2026-11-07
+
+Prosjekteier har gjennomgått og godkjent øvrige endringer i PR #94–96, med ett
+korreksjonskrav: Admin skal ikke være et valg i mobilmenyen.
+[UI-6 §16](../features/UI_6_FELLES_SPEC.md#16-admin-bare-på-desktop--eierføring-2026-11-07)
+overstyrer eldre mobil-Admin-bilder og føringer nedenfor. Admin skjules til og
+med eksisterende mobilgrense 900 px; fra 901 px følger lenken fortsatt faktisk
+adminadgang. Kart og øvrig meny består.
+
+Implementert på branch med målrettet resize-/grense-/tilgangstest og TS/bygg
+grønne. [Kontrollgrunnlag](EDITOR_ADMIN_DESKTOP_ONLY_2026-11-07.md).
+Ordinær review/merge/CI og frontend-only staging er bestilt, ennå ikke utført.
+Ingen ny produktetappe eller ferdigmelding av hele UI-6/v1.
+
+
 ## Editor CRM – ny eierbestilt UI-retting 2026-11-07
 
 [UI-6 §15](../features/UI_6_FELLES_SPEC.md#15-editor-identitet-og-lesbarhet--eierbestilling-2026-11-07)
