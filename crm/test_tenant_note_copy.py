@@ -204,6 +204,28 @@ class TenantNoteCopyTests(TransactionTestCase):
             service.apply_copy(**{**options, "manifest_path": str(symlink)})
         self.assert_empty()
 
+    def test_orphan_profile_and_tenant_endpoints_cannot_disappear_from_inspection(self):
+        for model, assignment, _, field in service.CASES:
+            profile = next(p for p, _ in self.profiles if isinstance(p, model))
+            for missing_profile in (True, False):
+                with self.subTest(model=model, missing_profile=missing_profile):
+                    with transaction.atomic(), connection.cursor() as cursor:
+                        cursor.execute("SET LOCAL session_replication_role = replica")
+                        cursor.execute(f'''INSERT INTO "{assignment._meta.db_table}"
+                            ({field},tenant_id,created_at,updated_at)
+                            VALUES (%s,%s,now(),now()) RETURNING id''',
+                            [999999 if missing_profile else profile.pk,
+                             self.tenant.pk if missing_profile else 999999])
+                        orphan_id = cursor.fetchone()[0]
+                    report = service.dry_run(self.mapping, **self.context)
+                    self.assertEqual(report["state"], "BLOCKED")
+                    self.assertTrue(any(b["model"] == model._meta.model_name
+                        and b.get("assignment_id") == orphan_id and b["reason"] == "ASSIGNMENT_SCOPE"
+                        for b in report["plan"]["blockers"]))
+                    with self.assertRaises(CommandError):
+                        service.apply_copy(**self.options(f"orphan-{model._meta.model_name}-{missing_profile}"))
+                    self.assert_empty()
+
     def test_stale_edit_insert_or_overlay_stops_without_semantic_writes(self):
         for change in (lambda: Organization.objects.filter(pk=self.profiles[1][0].pk).update(note="new source"),
                        lambda: Organization.objects.create(tenant=self.tenant, name="New NULL"),

@@ -144,11 +144,11 @@ restore; ingen ledger-/deny-/image-write inngår i kopieringen.
 
 ### Lokal validering
 
-21 målrettede syntetiske PostgreSQL 16-tester dekker eksakte verdier/NULL-fravær,
+22 målrettede syntetiske PostgreSQL 16-tester dekker eksakte verdier/NULL-fravær,
 strukturavvik, målkonflikter, private filer/sanitert CLI, gate, replay/read-back,
 reell samtidighet/stale/timeout, atomisk feil, tapt COMMIT-svar med og uten faktisk
 commit, filack etter commit og additiv forward/tom reverse/bevisvern.
-Alle 180 tester i samlet utvalg bestod (21 nye + 159 eksisterende overlay-,
+Alle 181 tester i samlet utvalg bestod (22 nye + 159 eksisterende overlay-,
 6A.1/6A.2-/shadow-, legacyimport-, PUBLIC-projection-, takedown-, telefon- og
 Editor-revisjonstester). 64 separate image-safety-tester bestod; modell-/
 migrasjonssamsvar og diffcheck er grønne. PostgreSQL var 16.14 i en isolert,

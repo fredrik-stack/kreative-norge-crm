@@ -110,10 +110,19 @@ def _plan(mapping, context):
         label = model._meta.model_name
         rows = list(model.objects.filter(tenant_id__in=ids).order_by("id")
                     .values("id", "tenant_id", "sharing_domain_id", "note"))
-        assigned = list(assignment.objects.filter(
-            models.Q(tenant_id__in=ids) | models.Q(**{field + "__in": [r["id"] for r in rows]})
-        ).order_by("id").values("id", field, "tenant_id", "tenant__sharing_domain_id",
-                                field[:-3] + "__tenant_id", field[:-3] + "__sharing_domain_id"))
+        # LEFT JOIN is intentional: corrupt/restored orphan endpoints must be
+        # blockers, never disappear through the ORM's non-null FK INNER JOINs.
+        columns = ("id", field, "tenant_id", "tenant__sharing_domain_id",
+                   field[:-3] + "__tenant_id", field[:-3] + "__sharing_domain_id")
+        with connection.cursor() as cursor:
+            cursor.execute(f'''SELECT a.id,a.{field},a.tenant_id,t.sharing_domain_id,
+                    p.tenant_id,p.sharing_domain_id
+                FROM "{assignment._meta.db_table}" a
+                LEFT JOIN crm_tenant t ON t.id=a.tenant_id
+                LEFT JOIN "{model._meta.db_table}" p ON p.id=a.{field}
+                WHERE a.tenant_id=ANY(%s) OR a.{field}=ANY(%s) ORDER BY a.id''',
+                [ids, [r["id"] for r in rows]])
+            assigned = [dict(zip(columns, row)) for row in cursor.fetchall()]
         by_profile = {}
         for a in assigned:
             by_profile.setdefault(a[field], []).append(a)

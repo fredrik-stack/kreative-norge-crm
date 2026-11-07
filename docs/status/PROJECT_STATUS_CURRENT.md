@@ -10,7 +10,7 @@ konflikt. Alle inserts og commitkvittering er atomiske; replay skriver ikke på
 nytt, også ved tapt COMMIT-svar. Additiv0036 gjelder bare batchbevis.
 [Mandat, kontrakt, tester og senere driftsporter](../operations/TENANT_NOTE_OVERLAYS.md#operatørstyrt-legacykopiering--kodeleveranse-2026-11-07).
 
-180 lokale PostgreSQL 16-tester (21 nye + 159 regresjoner), 64 separate
+181 lokale PostgreSQL 16-tester (22 nye + 159 regresjoner), 64 separate
 image-safety-tester og modell-/migrasjonssamsvar er grønne.
 Dette er kode/lokal syntetisk validering; faktisk review, PR,
 merge og CI følger GitHub. **Ingen stagingdeploy/schema-apply/ny måling eller
