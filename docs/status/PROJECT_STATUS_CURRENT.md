@@ -15,8 +15,9 @@ auth/session, miljø, media/static, frontend/DB-container og safety READY/cursor
 er bevart. Autorisert teknisk API-/Admin-/sessionlesing og PUBLIC bestod.
 Pre/post-fullverify og arkivbundet isolert restore er grønne, timere gjenopprettet.
 Ordinært rebuild med dependencydrift ble avvist; levert image bevarer gammel
-immutable runtimebase. Korrigerte operatørkontroller og kontrollert schema-only-
-tilbakeføring/fortsettelse er dokumentert; ingen schema-/planretry eller restavvik.
+immutable runtimebase. Korrigerte operatørkontroller, schema-only-avbrudd med
+API-rollback og kontrollert fortsettelse er dokumentert; ingen schema-reverse,
+schema-/planretry eller restavvik.
 Sanitert dokumentasjon leveres gjennom separat review/PR/ordinær merge/CI og
 utløser ingen ny deploy. Separat fersk applygodkjenning og autoritetsovergang
 gjenstår; shared tilgang, tags og PUBLIC er ikke lagt om. Hele 6A er ikke ferdig.
