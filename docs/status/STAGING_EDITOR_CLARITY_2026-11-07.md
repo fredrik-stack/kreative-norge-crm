@@ -83,7 +83,7 @@ syklus ga to supplerende mobilbilder etter at første syklus var fullstendig ryd
 | Samme ikoner, deaktivert Kart, ingen Admin for nonstaff, ingen horisontal overflyt | PASS 1920/390/320 |
 | Kort148px, kvadrat90px sentrert; navn innen tekstkolonnen, vekt600, mobilnavn17px/sted13px | PASS 1920/390/320 |
 | Synlige tags passer i faktisk restareal; +N er presist, alle fem i modal | PASS 1920/390/320 |
-| Klikk kontaktperson, eget personkort, browser-Tilbake/knapp/Escape til aktør | PASS 1920/390/320 |
+| Klikk kontaktperson, eget personkort, browser-Tilbake/knapp til aktør; Escape lukker aktørkortet | PASS 1920/390/320 |
 | Faktisk rullet oversikt → Rediger aktør → scroll0 | PASS 1920/390/320 |
 | Bare én synlig første e-post-/telefonetikett; korrekt tilgjengelig navn | PASS 1920/390/320 |
 | Idle Klar borte; ekte UI-lagring av tittel med API-readback og bevarte kontaktkanaler | PASS |
@@ -93,7 +93,8 @@ syklus ga to supplerende mobilbilder etter at første syklus var fullstendig ryd
 [Hovedjournal](evidence/editor-clarity-staging-2026-11-07/browser-checks.json) og
 [mobiltillegg](evidence/editor-clarity-staging-2026-11-07/mobile-action-checks.json)
 har 16+2 kontroller.18 originale hele viewport-PNG dekker 1920×1080 og390/320×844.
-Aktørkortets første bilder viser toppen; de to handlingsbildene er rullet inni
+Escape fra personkort tilbake til aktør er lokalt E2E-verifisert; denne
+stagingreisen testet Escape på aktørkortet. Aktørkortets første bilder viser toppen; de to handlingsbildene er rullet inni
 modalen og viser Rediger. Ingen utsnitt eller ny Importillustrasjon.
 
 Egne profiler/relasjoner/kanaler/tags ble slettet med eksakt tenant-/identitetsguard
