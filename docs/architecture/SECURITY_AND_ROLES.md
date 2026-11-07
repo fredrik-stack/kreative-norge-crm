@@ -273,6 +273,9 @@ ORM avviser endring/sletting; PostgreSQL-triggere avviser UPDATE/DELETE og
 upsert-oppdatering også gjennom direkte SQL/bulk. Audit kan ikke skrives
 uavhengig gjennom vanlig INSERT. Triggere låser domain/bruker/medlemskap for å
 serialisere avtaleplanlegging og aksept; en mislykket audit ruller kilden tilbake.
+Historikkinnsetting krever READ COMMITTED i databasen. REPEATABLE READ og
+SERIALIZABLE avvises eksplisitt: en låseventing må etterfølges av et ferskt
+snapshot, ellers kan duplicate-/rekkefølgekontrollen bruke gammel state.
 Dette er ikke beskyttelse mot DB-administrator med DDL-/TRUNCATE-/triggerkontroll.
 Direkte DB-/ORM-tilgang er privilegert drift, aldri en brukerautorisasjon.
 
@@ -326,7 +329,8 @@ uendret. Nye tabeller skal være tomme etter en senere separat godkjent
 schema-apply. Backup/fullverify/isolert restore og eksakt migrasjonsplan kreves
 etter gjeldende driftsrunbooks før slik stagingbestilling.
 
-Reverse tillates bare med tomme nye tabeller og ingen `is_active=False`-state.
+Reverse krever READ COMMITTED, tomme nye tabeller og ingen `is_active=False`-state;
+snapshot-isolasjon avvises også her før kontroll/låsing.
 Etter første semantiske avtale-/akseptstate beholdes historikken; slå av ny
 funksjon og rett framover. Restore av eldre DB kan gjenopplive gammel aksept eller
 medlemskap: før framtidig aktivering må gjeldende tilbakekallinger/tilgangstap
@@ -342,8 +346,13 @@ med fersk plan og separat godkjenning.
 
 ### Lokal verifikasjon for denne leveransen
 
-13 nye tester på syntetisk PostgreSQL 16.14 og 64 separate image-safety-tester
-er grønne. Sikkerhetstestene dekker positiv rollemapping og negative kontroller for
+Første validering ga 687 grønne backendtester, inklusive 13 nye, på syntetisk
+PostgreSQL 16.14, samt 64 grønne separate image-safety-tester. Separat review
+identifiserte snapshot-isolasjonsrisiko i innsettingstriggerne; rettingen krever
+READ COMMITTED. Etter rettingen er 93 berørte tester (14 nye + 79 eksisterende)
+grønne, inklusive negative RR/SERIALIZABLE- og reverse-kontroller og beholdt
+RC-samtidighet. Relevant separat re-review og CI følger GitHub før merge.
+Sikkerhetstestene dekker positiv rollemapping og negative kontroller for
 cross-tenant/-domain, feil eller manglende assignment, manglende/erstattet/
 framtidig/tilbakekalt aksept, eksakt effective-at uten grace, inaktiv bruker,
 inaktivt/slettet/ukjent medlemskap og manglende capability. Superuser og global

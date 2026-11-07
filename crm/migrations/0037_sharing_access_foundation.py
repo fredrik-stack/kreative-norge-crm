@@ -13,6 +13,11 @@ END $$;
 CREATE FUNCTION crm_sharing_record_insert() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE d bigint; u bigint; latest bigint;
 BEGIN
+    -- Row locks serialize checks only with fresh statement snapshots after waits.
+    -- Never accept stale snapshot-isolation checks as proof of uniqueness/order.
+    IF current_setting('transaction_isolation') <> 'read committed' THEN
+        RAISE EXCEPTION 'Sharing history insert requires READ COMMITTED' USING ERRCODE='23514';
+    END IF;
     IF TG_TABLE_NAME = 'crm_sharingagreement' THEN
         PERFORM 1 FROM crm_sharingdomain WHERE id=NEW.sharing_domain_id FOR UPDATE;
         IF EXISTS (SELECT 1 FROM crm_sharingagreement WHERE sharing_domain_id=NEW.sharing_domain_id
@@ -121,6 +126,9 @@ DROP FUNCTION crm_sharing_history_guard();
 
 def require_unused_foundation(apps, schema_editor):
     with schema_editor.connection.cursor() as cursor:
+        cursor.execute("SHOW transaction_isolation")
+        if cursor.fetchone()[0] != "read committed":
+            raise RuntimeError("Sharing history reverse requires READ COMMITTED.")
         cursor.execute("SET LOCAL lock_timeout = '5s'")
         cursor.execute("LOCK TABLE crm_sharingagreement, crm_sharingagreementacceptance, crm_sharingagreementrevocation, crm_sharingaccessaudit, crm_tenantmembership IN ACCESS EXCLUSIVE MODE")
     for name in ("SharingAgreement", "SharingAgreementAcceptance", "SharingAgreementRevocation", "SharingAccessAudit"):

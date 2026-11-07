@@ -249,6 +249,11 @@ class SharingFoundationMigrationTests(TransactionTestCase):
             self.assertEqual(model.objects.count(), 0)
         MigrationExecutor(connection).migrate([self.old])
         MigrationExecutor(connection).migrate([self.new])
+        for isolation in ("REPEATABLE READ", "SERIALIZABLE"):
+            with self.assertRaisesMessage(RuntimeError, "reverse requires READ COMMITTED"), transaction.atomic():
+                with connection.cursor() as cursor:
+                    cursor.execute("SET TRANSACTION ISOLATION LEVEL " + isolation)
+                MigrationExecutor(connection).migrate([self.old])
         TenantMembership.objects.filter(pk=member.pk).update(is_active=False)
         with self.assertRaises(RuntimeError), transaction.atomic():
             MigrationExecutor(connection).migrate([self.old])
@@ -291,3 +296,26 @@ class SharingConcurrencyTests(TransactionTestCase):
         self.assertEqual(outcomes, ["CONFLICT"])
         self.assertEqual(SharingAgreementAcceptance.objects.count(), 1)
         self.assertEqual(SharingAccessAudit.objects.filter(event="accepted").count(), 1)
+
+    def test_snapshot_isolation_rejects_all_history_inserts(self):
+        user = get_user_model().objects.create_user(username="synthetic-isolation")
+        domain = SharingDomain.objects.create(name="Isolation", slug="isolation")
+        tenant = fixture_bound(Tenant, name="Isolation", slug="isolation", sharing_domain=domain)
+        TenantMembership.objects.create(user=user, tenant=tenant, role="leser")
+        agreement = SharingAgreement.objects.create(sharing_domain=domain, version=1, text="Synthetic", created_by=user, effective_at=timezone.now())
+        acceptance = SharingAgreementAcceptance.objects.create(user=user, tenant=tenant, agreement=agreement)
+        before = SharingAccessAudit.objects.count()
+        for isolation in ("REPEATABLE READ", "SERIALIZABLE"):
+            for create in (
+                lambda: SharingAgreement.objects.create(sharing_domain=domain, version=2, text="Synthetic", created_by=user, effective_at=timezone.now()),
+                lambda: SharingAgreementAcceptance.objects.create(user=user, tenant=tenant, agreement=agreement),
+                lambda: SharingAgreementRevocation.objects.create(acceptance=acceptance, actor=user),
+            ):
+                with self.subTest(isolation=isolation), self.assertRaisesMessage(DatabaseError, "requires READ COMMITTED"):
+                    with transaction.atomic(), connection.cursor() as cursor:
+                        cursor.execute("SET TRANSACTION ISOLATION LEVEL " + isolation)
+                        create()
+        self.assertEqual(SharingAccessAudit.objects.count(), before)
+        self.assertEqual(SharingAgreement.objects.count(), 1)
+        self.assertEqual(SharingAgreementAcceptance.objects.count(), 1)
+        self.assertEqual(SharingAgreementRevocation.objects.count(), 0)
