@@ -20,6 +20,11 @@ Ingen ny manuell visuell eieraksept er påstått. PUBLIC beholder Kreative Norge
 Import v6 rev.4/O-24/5E og begge senere kart består. Ingen migrasjon, ny aktivering,
 produksjonsdeploy eller neste produktetappe. Tidligere ventestatus er historikk.
 
+Senere dokumentasjons-main-CI 42404083399 fant et timingavhengig Escape-steg i
+én browsertest. [Avgrenset testoppfølging](STAGING_EDITOR_CLARITY_2026-11-07.md#avgrenset-ci-oppfølging--dialogfokus-før-escape)
+venter på faktisk dialogfokus før tastetrykk og bevarer alle utfallskontroller.
+Ingen runtimeendring/deploy; siste review/PR-/main-CI spores fra PR #95.
+
 
 ## Editor PR #92 – sluttgodkjent og teknisk stagingverifisert 2026-10-25
 

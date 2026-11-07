@@ -125,3 +125,30 @@ PUBLIC beholder Kreative Norge. URL-data/API-kompatibilitet, lagrings-/publiseri
 vilkår, metadatafarger, Import v6 rev.4/O-24 og godkjent5E består. Ingen modell-/
 schemaendring, backfill, shared-/overlay-/provider-/kartaktivering, produksjonsdeploy,
 ny formell brukertest eller neste produktetappe inngår.
+
+
+## Avgrenset CI-oppfølging – dialogfokus før Escape
+
+Etter dokumentasjonsmerge `e9a405612007f7ca46cc1dfdf6cc2c3af5be9520` feilet
+[main-CI 42404083399](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/42404083399)
+i én av 36 browserreiser: 320px-steget som trykker Escape umiddelbart etter klikk
+på kontaktpersonen. De 35 øvrige var grønne. CI-feilkonteksten viser oversikten
+uten dialog etter tastetrykket. Samme uendrede test var grønn i 12 lokale gjentakelser;
+den eksakte hendelsesrekkefølgen lot seg ikke gjenskape lokalt.
+
+Routeren bruker startTransition. Klikk alene beviser ikke at persondialogens
+mount-effect har flyttet fokus og bundet Escape. Testen avventer derfor nå
+`toBeFocused()` på den eksakt navngitte persondialogen før første Escape, og
+på aktørdialogen før andre Escape. Alle opprinnelige utfallsasserts beholdes;
+ingen kunstig fokus, sleep, økt timeout eller retry er lagt til. Dette lukker en
+konkret mangel i testens beredskapskontroll. Overgangsracet er en begrunnet
+rotårsakshypotese; ingen runtimefeil er påvist fra dette alene.
+
+Sluttvarianten med begge fokusvilkår er grønn i 36 målrettede lokale gjentakelser:
+12 hver ved 1920/390/320. Alle opprinnelige etterkontroller består.
+
+Bare test/dokumentasjon endres. De 18 stagingkontrollene, bildene, manifestet og
+deployet merge fe28c5b er uendret. Ingen ny deploy eller stagingkjøring følger av
+rettingen. Målrettede sluttresultater, separat review og fersk PR-/main-CI spores
+i testoppfølgingen som lenkes fra [PR #95](https://github.com/fredrik-stack/kreative-norge-crm/pull/95),
+uten en ny dokumentasjonsrunde for oppfølgingens egen merge.

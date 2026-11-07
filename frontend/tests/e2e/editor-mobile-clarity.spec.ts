@@ -37,7 +37,12 @@ for (const width of [1920, 390, 320]) test(`Editor identity, fitted tags and lin
   await page.getByRole('dialog').getByRole('button',{name:'Tilbake til aktør',exact:true}).click();
   await expect(page.getByRole('dialog').getByRole('heading',{name:actor.name,exact:true})).toBeVisible();
   await page.getByRole('dialog').getByRole('button',{name:person.full_name,exact:true}).click();
-  await page.keyboard.press('Escape');await expect(page.getByRole('dialog').getByRole('heading',{name:actor.name,exact:true})).toBeVisible();await page.keyboard.press('Escape');
+  // Navigation commits asynchronously; target the mounted person dialog before keyboard input.
+  await expect(page.getByRole('dialog',{name:person.full_name,exact:true})).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog').getByRole('heading',{name:actor.name,exact:true})).toBeVisible();
+  await expect(page.getByRole('dialog',{name:actor.name,exact:true})).toBeFocused();
+  await page.keyboard.press('Escape');
   await page.evaluate(()=>scrollTo(0,document.body.scrollHeight));await short.getByRole('button',{name:'Kort navn',exact:true}).click();
   const edit=page.getByRole('dialog').getByRole('button',{name:'Rediger',exact:true});await edit.scrollIntoViewIfNeeded();await edit.click();await expect(page).toHaveURL(/\/organizations\/50$/);await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(0);
   if(width<600) await expect(page.locator('.profile-scope')).toHaveCSS('font-size','14px');
