@@ -64,12 +64,44 @@ PUBLIC_MEDIA_ORIGIN=https://staging.your-domain.no
 PUBLIC_IMAGE_SAFETY_BRIDGE_SOCKET=/run/kreative-norge-image-safety/bridge.sock
 PUBLIC_IMAGE_SAFETY_BRIDGE_TIMEOUT=50
 BRAVE_IMAGE_SEARCH_API_KEY=
+BRAVE_IMAGE_SEARCH_USER_ID=
 VITE_API_BASE=
 ```
 
 Keep `IMAGE_ASSET_FEATURE_ENABLED=False` until the persistence and Borg gates below are green. The two image roots are still required explicitly so the same Compose configuration can be verified before activation.
 
-`BRAVE_IMAGE_SEARCH_API_KEY` is optional and server-side only. On staging, install an existing valid credential directly in the ignored `/srv/kreative-norge-crm/.env.staging`; never put it in Git, chat, a PR, `.env.staging.example`, a `VITE_` variable, frontend build argument, browser/API response, command output, or logs. Recreate only `api`, and verify only `configured`/`missing`, never the value. If it is empty, Brave search returns the controlled `503` code `brave_not_configured`. The live staging gate on 2026-08-11 verified 30 real candidates, private original preview, secure fetch and processing with `search_lang=nb`; the credential value was never emitted. After preserving that evidence, the credential was intentionally cleared and only `api` was recreated. Staging now reports `brave_configured=False` and controlled `brave_not_configured`: live verification remains **PASS**, but current operational activation is **NOT ACTIVE**. Do not reactivate Brave for ordinary Editor end users until the contract owner has documented compliance with the written End User agreement requirement in the current [Brave Search API Terms](https://api-dashboard.search.brave.com/documentation/resources/terms-of-service) section 4(c), including obligations substantially similar to section 3(b), and any required privacy notices/consents under the current [Privacy Policy](https://api-dashboard.search.brave.com/privacy-policy). This is a manual operational gate; this runbook does not introduce a consent or terms engine.
+`BRAVE_IMAGE_SEARCH_API_KEY` and `BRAVE_IMAGE_SEARCH_USER_ID` are server-side
+only in the ignored private `.env.staging`. The latter must identify exactly one
+active, explicitly authorized owner account; blank defaults to no access, and
+staff/groups/superuser never substitute for this binding. No key in Git, chat,
+PRs, examples, VITE variables, frontend builds, browser responses or logs.
+Key alone grants no search access. Recreate only API for a later separately
+authorized configuration change, using the controlled runtime procedure below.
+
+**Current status2026-11-08:** PR #109 is deployed. The owner confirmed personal
+customer status, prior customer agreement acceptance and no special terms;
+a live provider call returned200/30 candidates and a synthetic nonowner was
+rejected before provider. Brave is active for this owner account only. No real
+users, memberships or CRM agreement acceptances were created. Colleague access
+and any new legal customer require later written agreements/privacy review.
+[Exact contract, immutable runtime identities and evidence](../../docs/architecture/SECURITY_AND_ROLES.md#editor-bildepublisering-og-en-brave-konto--kodeleveranse-2026-11-08).
+
+When rolling API back to code before PR #109, clear both Brave settings in
+persistent configuration and effective runtime before reopening the old API:
+that code does not enforce the new exact-owner boundary. Retain current schema,
+media, immutable releases and newer safety/deny state; never reverse these as
+part of an API rollback.
+
+For controlled static-bundle promotion, include directories with0755 and files
+with0644; verify readability as the Nginx worker, not just root-side hashes.
+Verify actual public HTTPS JS/CSS bytes and Content-Type plus the public index's
+references. Cloudflare may inject HTML, so do not compare its entire HTML body
+with the origin hash. If an erroneous fallback response is already cached under
+an asset path, a deterministic revision suffix may rename the identical JS/CSS
+bytes and only their two index references; verify the actual public index uses
+these new paths. This does not authorize CDN/infrastructure changes. The2026-11-08
+repair changed only web, preserving API/DB/environment/media/ledger; the fresh
+post-backup/verified restore remained valid for identical DB/config state.
 
 Phase 3D.2 does not change the existing `image_originals_private` or `image_renditions_public` storage aliases, host-persistent roots, Borg coverage, or dry-run-first orphan cleanup. It activates no PUBLIC image release or production behavior.
 

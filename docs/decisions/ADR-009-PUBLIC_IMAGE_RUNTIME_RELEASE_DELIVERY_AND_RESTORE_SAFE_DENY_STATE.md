@@ -10,6 +10,8 @@ fallback gjenbruker projeksjon/selection-historikk; formell deny er separat.
 Brave begrenses server-side til én uttrykkelig identifisert, aktiv kundekonto,
 uten gruppe-/staff-/superuserfallback, i påvente av senere flerbrukeravtaler.
 Ingen schemaendring, ny bildearkitektur eller generelt avtalesystem.
+PR #109 er stagingverifisert med Brave aktivt bare for eierkontoen; øvrige
+brukere og fem tilgangs-/writer-/notatgater forblir avvist/avslått.
 [Kontrakt, eiermandat og faktisk leveransestatus](../architecture/SECURITY_AND_ROLES.md#editor-bildepublisering-og-en-brave-konto--kodeleveranse-2026-11-08).
 
 

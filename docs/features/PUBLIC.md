@@ -1,6 +1,6 @@
 # Feature: Public
 
-## Eksplisitt bildeflyt – implementert lokalt2026-11-08
+## Eksplisitt bildeflyt – stagingverifisert2026-11-08
 
 Editor skiller internt godkjent bilde fra bildet som brukes offentlig. Etter
 preview og eksplisitt rettighetsbekreftelse velger redaktøren separat «Ta bildet
@@ -9,7 +9,9 @@ bruker samme projeksjon som kort, detalj og bilde-URL-er. Ingen gamle URL-er
 konverteres automatisk. «Bruk standardbilde i stedet» bevarer bildehistorikken;
 rettighets-/personvernkrav håndteres fortsatt med formell takedown.
 [Server-, Brave- og driftskontrakt](../architecture/SECURITY_AND_ROLES.md#editor-bildepublisering-og-en-brave-konto--kodeleveranse-2026-11-08).
-Stagingstatus følger prosjektstatus; kodeleveransen alene betyr ikke aktivering.
+PR #109 er stagingverifisert med syntetisk aktør, erstatning/fallback og tre
+serverte bildevarianter. Brave er aktivert bare for eierkontoen. Reelle aktørbilder
+er ikke endret; eier kan ferdigstille dem med separat rettighets- og PUBLIC-valg.
 
 
 ## Helhetlig ferdigstilling – presisering 2026-10-24

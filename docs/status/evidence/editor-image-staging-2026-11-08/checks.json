@@ -1,0 +1,248 @@
+{
+  "backup": {
+    "all_timers_normal": true,
+    "installed_modules_unchanged": true,
+    "isolated_postgresql16_restore": true,
+    "no_live_database_restore": true,
+    "no_prune_or_compact": true,
+    "post": {
+      "archive": "kreative-norge-staging-20261108T193546Z",
+      "archive_id": "077a68682537eac12dd3ce0b1fb15d54a7af84f6d29fea7b3a742fd79ec8bab5",
+      "dump_sha256": "74e12e65f5282a863d4e093ae0a66adfb6ef1d4d5b4eea6257b325a56b69a5d9",
+      "no_new_volumes": true,
+      "restore": true,
+      "schema_validated": true,
+      "verified": true
+    },
+    "pre": {
+      "archive": "kreative-norge-staging-20261108T193053Z",
+      "archive_id": "8eabad19bbe6fccd6dcb4db903fbc4c43034967cc3c3192cd6595e0e5d6e324c",
+      "dump_sha256": "921238b2b2d3349e5d7877719bcf5b55ab34423d8ddb7eaef80d72c16ecf507c",
+      "no_new_volumes": true,
+      "restore": true,
+      "schema_validated": false,
+      "verified": true
+    }
+  },
+  "boundaries": {
+    "mass_legacy_url_conversion": false,
+    "migration_or_seed": false,
+    "new_users_memberships_roles_or_agreements": false,
+    "production_deploy": false,
+    "real_actor_images_changed": false,
+    "schema_data_media_or_ledger_reverse": false,
+    "shared_canonical_or_note_activation": false
+  },
+  "brave": {
+    "api_status": 200,
+    "candidate_count": 30,
+    "code": "READY",
+    "customer_and_prior_acceptance_confirmed_by_owner": true,
+    "database_writes": 0,
+    "owner_binding_verified": true,
+    "owner_only_until_v1": true,
+    "persistent_config_changed_only_key_and_exact_owner_binding": true,
+    "provider_http_status": 200,
+    "raw_results_retained": false,
+    "ready": true,
+    "runtime_nonowner_context_denied": true,
+    "runtime_owner_binding_verified": true,
+    "runtime_owner_state_context_pass": true,
+    "special_terms_reported": false,
+    "synthetic_nonowner_denied_before_provider": true
+  },
+  "checked_at_utc": "2026-11-08T19:45:27Z",
+  "code": {
+    "backend_tests": 763,
+    "base_main": "8fb6c7cfa70b97c4734d23bbd070d7901fcb2874",
+    "ci_jobs_successful": 6,
+    "main_ci": 42514894245,
+    "merge": "4c2ca2b88dd51d982956935248445e0a104ed0b5",
+    "pr": 109,
+    "pr_ci": 42514192844,
+    "reviewed_head": "bfbb911ecd7b73b81b9e0a7ce261ce719811e9ad"
+  },
+  "database": {
+    "all_other_table_rows_preserved": true,
+    "history_audit_overlays_batches_empty": true,
+    "image_row_deltas": {
+      "crm_imageasset": 2,
+      "crm_imagerendition": 6,
+      "crm_imagerenditionset": 2,
+      "crm_imagereviewevent": 3,
+      "crm_organizationimagerelease": 2,
+      "crm_organizationimagereleaserendition": 6,
+      "crm_organizationimageselection": 3
+    },
+    "memberships": {
+      "inactive": 0,
+      "total": 0
+    },
+    "organization_rows": 128,
+    "other_profile_revisions_and_timestamps_unchanged": true,
+    "person_rows": 157,
+    "private_pre_baseline_retained_unchanged": true,
+    "real_crm_rows_and_relationships_preserved": true,
+    "remaining_migrations": 0,
+    "schema": "0039_access_management_journey",
+    "schema_unchanged": true,
+    "synthetic_profile_only_publication_restored_and_updated_timestamp_stamp": true,
+    "tables_checked": 56
+  },
+  "flags": {
+    "ACCESS_MANAGEMENT_ENABLED": false,
+    "CANONICAL_WRITER_ENABLED": false,
+    "IMAGE_ASSET_FEATURE_ENABLED": true,
+    "IMPORT_IMAGE_DECISIONS_ENABLED": false,
+    "PUBLIC_IMAGE_API_SCHEMA_ENABLED": true,
+    "PUBLIC_IMAGE_PROJECTION_ENABLED": true,
+    "PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED": true,
+    "PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED": true,
+    "PUBLIC_IMAGE_SERVING_ENABLED": true,
+    "PUBLIC_IMAGE_TAKEDOWN_ENABLED": true,
+    "SHARING_ACCESS_ENABLED": false,
+    "SHARING_DOMAIN_SHADOW_ENABLED": false,
+    "STRICT_TENANT_ACCESS_ENABLED": false,
+    "TENANT_NOTE_OVERLAYS_ENABLED": false
+  },
+  "helper_sha256": {
+    "brave-probe.py": "f111557e18f71f719ad58518bc98f1fc56828d42330f29757d24a8f0b5849e13",
+    "db-read.py": "e1eed8c2d7201839856ca1ae269116e3d491dafd9d243b617403e1a278a8a8c8",
+    "exercise.py": "ae251b30ae1d00c241e6b2f3edd76f07b00b5e7e130c0bb073cff3d8f54e24b0",
+    "finalize-web-readback.py": "fb5313704c1bdee4b0c926c6be9dad04b4872bb208ee67edcac73e6baf5f7aae",
+    "resume-finalize.py": "cce09311f21d47a1c5f98cc51d6da8a86b8342187c987390d2bd9fcefe2b0832",
+    "resume-preflight.py": "06700a5aaa790c94ca780a0d7ca68bdbaaeb4a89f5e00d21bfa3b53918d80d94",
+    "runtime-brave-read.py": "5269d9860ad78bb6a19756c161c7cbf8b77decf54bcc253378a40ae71fc3f0d3",
+    "scope-proof.py": "eb4ae8cf5be46671eb7f7ef18706a9f6b378fa8b939e709d6d0f10c300a071ad",
+    "stage.py": "cf30731812b28c8b105829339f604a638d4faafbf0ef78ad458043486e5741b2",
+    "web-repair.py": "f88b8da1efa123c2c86b5862bcc7fbe5f5150c170ad01528827f3a89de18c20a"
+  },
+  "image_journey": {
+    "checks": [
+      {
+        "approval_kept_private_until_release": true,
+        "processing_previews": 3,
+        "public_api_detail_match": true,
+        "same_revision_replay": true,
+        "stale_confirmation_negative": true
+      },
+      {
+        "approval_kept_private_until_release": true,
+        "processing_previews": 3,
+        "public_api_detail_match": true,
+        "same_revision_replay": true,
+        "stale_confirmation_negative": true
+      }
+    ],
+    "exercise_replayed": false,
+    "existing_public_catalog_and_asset_fallback_bytes_unchanged_after_test": true,
+    "final_selection": "system_fallback",
+    "final_unpublished": true,
+    "new_images": 2,
+    "new_media_files": {
+      "delivery": 6,
+      "private": 2,
+      "renditions": 6
+    },
+    "new_releases": 2,
+    "new_visual_owner_approval_claimed": false,
+    "old_image_rows_and_media_preserved": true,
+    "old_release_url_denied_after_replacement": true,
+    "status": "IMAGE_EXERCISE_PASS",
+    "synthetic_actor_only": true,
+    "three_rendition_bytes_verified_through_nginx": true
+  },
+  "management_gate_checks": {
+    "authenticated_context_empty_disabled": true,
+    "denied_operations": 5,
+    "membership_admin_readonly_superuser": true,
+    "new_history_not_admin_registered": true
+  },
+  "proof_limits": [
+    "Provider probe and runtime context used forced authentication in a READ ONLY server process; no new real-user session or positive management journey.",
+    "Real backend processing, ledger, API/HTML and all three public rendition bytes were exercised; frontend integration is covered by73 local tests, build,5 image E2E tests and green CI. Browser interaction was interrupted by Chrome activity; no new live visual owner approval.",
+    "New static directories initially inherited0700 and Nginx returned HTML for JS/CSS. A separately reviewed web-only correction sets0755/0644, retains identical JS/CSS bytes under revision-suffixed names, and verifies actual public HTTPS index references and bytes. Existing cached erroneous URLs are bypassed; no CDN configuration or purge.",
+    "Initial ledger read-back inspected only V1. Completed synthetic writes were not replayed; V1/V2 finalization was separately reviewed and bound to the original preserved anchor13."
+  ],
+  "runtime": {
+    "api_commit": "4c2ca2b88dd51d982956935248445e0a104ed0b5",
+    "api_dependencies_unchanged": true,
+    "api_image": "sha256:6e41f92835c6b883b602aeda7d0ad640758126ecd85354bc5f1d30ded40bc867",
+    "bundle_files": 3,
+    "bundle_manifest_sha256": "0b0851e71526378c45ee7b3a5d71871c2a5fec31f8c22b6ca67f9b75ab4e944c",
+    "database_container_unchanged": true,
+    "database_image_unchanged": "sha256:49767d69e57428bc8229d8427521605e90b230c908d19542644d92b77dc1984d",
+    "frontend_source_commit": "4c2ca2b88dd51d982956935248445e0a104ed0b5",
+    "host_and_infrastructure_unchanged": true,
+    "web_dependencies_unchanged": true,
+    "web_image": "sha256:fec7d924299688e11402cb29d109697bc4cfea4aea0e47696145b5c9a100bc74"
+  },
+  "safety": {
+    "cursor_after": 17,
+    "cursor_before": 13,
+    "deny_and_legacy_guard_unchanged": true,
+    "new_event_scope_only_synthetic_releases": true,
+    "new_events": 4,
+    "old_event_chain_states_keys_and_anchor_receipts_preserved": true,
+    "original_anchor_bound_prefix_provenance": {
+      "anchor_event_hash_matches_current_verified_chain": true,
+      "derived_prefix_count": 13,
+      "exercise_replayed": false,
+      "new_head": 17,
+      "old_v1_event_prefix_preserved": true,
+      "original_anchor_row_unchanged": true,
+      "original_anchor_sequence": 13
+    },
+    "ready": true,
+    "v2_readback_corrected": true
+  },
+  "static_deployment_repair": {
+    "all_database_rows_after_post_checkpoint_unchanged": true,
+    "api_container_unchanged": true,
+    "environment_media_ledger_unchanged": true,
+    "fresh_post_checkpoint_reused_for_identical_db_and_config": "kreative-norge-staging-20261108T193546Z",
+    "immutable_base_and_dependencies_preserved": true,
+    "index_changed_only_two_asset_references": true,
+    "js_css_bytes_unchanged": true,
+    "new_https_assets_bytes_and_content_types_pass": true,
+    "old_incorrect_cdn_objects_bypassed_not_purged": true,
+    "public_index_uses_new_asset_urls": true,
+    "readable_as_nginx_worker": true,
+    "readback_only_no_runtime_or_data_retry": true,
+    "server_html_probe_denied_by_cloudflare": true,
+    "source_commit": "4c2ca2b88dd51d982956935248445e0a104ed0b5",
+    "status": "STATIC_REPAIR_PASS",
+    "timers_normal": true,
+    "web_image": "sha256:fec7d924299688e11402cb29d109697bc4cfea4aea0e47696145b5c9a100bc74",
+    "workstation_https_proof": {
+      "assets": [
+        {
+          "bytes_match": true,
+          "content_type_pass": true,
+          "path": "assets/index-CqihExZd-4c2ca2b.css",
+          "sha256": "9e7613aad52716f3e899e92af9c75d2eca3cce589cddbdc397c9127240e2902e"
+        },
+        {
+          "bytes_match": true,
+          "content_type_pass": true,
+          "path": "assets/index-RxJmQe6n-4c2ca2b.js",
+          "sha256": "48a19a3b80d69a75763865de32298ea4362dfe2dc52d71304f066e98c518d92f"
+        }
+      ],
+      "checked_at_utc": "2026-11-08T19:42:48.750706+00:00",
+      "checked_from": "owner_workstation",
+      "public_index_uses_new_asset_urls": true,
+      "tls_verified": true,
+      "writes": 0
+    }
+  },
+  "status": "STAGING_VERIFIED",
+  "technical_reading": {
+    "admin_lists": 2,
+    "admin_note_forms": 2,
+    "api_details": 6,
+    "api_lists": 14,
+    "authenticated_session": true,
+    "operator_reused": true
+  }
+}
