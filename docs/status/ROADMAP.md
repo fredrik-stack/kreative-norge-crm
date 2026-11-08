@@ -1,20 +1,30 @@
 # Roadmap
 
-## Samlet bildebekreftelse og zoom ut – lokal leveranse 2026-11-08
+## Samlet bildebekreftelse og zoom ut – stagingverifisert 2026-11-09
 
-Eiergodkjent videreføring av ADR-007/009: Fotozoom10–300 %, standard100 %, med
-hvit bakgrunn under100 %. Én «Bekreft og bruk bildet»-handling erstatter de
-separate PUBLIC-/standardbildevalgene. Klargjort bilde følger aktørens senere
-publiseringsvalg; upubliserte aktører og bildebytes er offentlig utilgjengelige.
-Eksisterende v1-bildevalg, immutable artefakter og historikk konverteres ikke.
+[PR #113](https://github.com/fredrik-stack/kreative-norge-crm/pull/113), eksakt
+API/frontend `efba875976564cf181fd8177c268bfce4e632e3c`, er levert etter separat
+review/re-review og grønn PR-/main-CI, 6/6. Fotozoom er 10–300 %, standard 100 %,
+med hvit flate under 100 %. «Bekreft og bruk bildet» erstatter de separate
+PUBLIC-/standardbildevalgene. Samme godkjente bilde brukes privat i Editor og
+følger aktørens senere publiseringsvalg; PUBLIC-URL-er for upubliserte avvises.
+Gamle bildevalg/bytes/historikk er bevart og v1-godkjenninger konverteres ikke.
 
-Kun schema0040 utvider zoom-constrainten; ingen data-apply. Tidligere metadata/
-bilder beholdes, og schema-reverse stoppes hvis zoom-ut-oppskrifter finnes.
-[Kontrakt, tester og kontrollbilder](../architecture/SECURITY_AND_ROLES.md#samlet-bildebekreftelse-og-zoom-ut--2026-11-08).
+Kun schema 0040 utvider zoom-constrainten. Etter varslet eierpause bestod fersk
+kontroll av alle 56 tabeller: gamle rader, tidsstempler, relasjoner og stamps er
+bevart. Bare én ny migrasjonsrad og tilsiktet constraint er endret. 122 publiserte
+Editor-previews er like PUBLIC (9 asset /113 fallback); én eksisterende privat
+preview var lesbar for operatøren og avvist anonymt. Tre safety-batcher for syv
+lister, ingen single-/legacykall per kort. Ingen profil-/bildewrite, v2-godkjenning,
+notatkopiering eller aktivering av de fem avslåtte gatene. READY33→33; miljø,
+DB-container, hostbridge og gamle media/static er uendret. Pre/post-backup,
+fullverify/isolert restore, faktiske HTTPS-assets og normale timere er grønne.
+[Kontrakt, sanitert evidens og kontrollbilder](../architecture/SECURITY_AND_ROLES.md#samlet-bildebekreftelse-og-zoom-ut--2026-11-08).
+
 [Varig eierregel](../development/WORKFLOW.md#levende-redaksjonelle-stagingdata--eierregel-2026-11-08)
-bevarer levende redaksjonelle data og krever fersk baseline og varslet skrivefrys.
-Lokal kode foreligger; separat review/PR/merge/CI og staging gjenstår. Forrige
-verifiserte staging er fortsatt PR #111 /2a86bb4/schema0039 nedenfor.
+bevarer levende redaksjonelle data og krever ferske planer/baselines og varslet
+skrivefrys. Pausen er opphevet. Ingen ny visuell eieraksept påstås; dokumentasjons-
+merge deployes ikke. Eldre daterte runtime-/testtall nedenfor er historikk.
 
 ## Avgrenset bilderetting – stagingverifisert 2026-11-08
 
