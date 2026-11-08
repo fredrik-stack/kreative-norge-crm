@@ -1,5 +1,132 @@
 # Security and Roles
 
+## Stagingverifisering av første tilgangsreise – 2026-11-08
+
+**Gjeldende stagingstatus:** PR #105 / eksakt kode
+`8cc160e84162e94c11069e1ab52683496753e71a` er teknisk stagingverifisert med bare
+`0039_access_management_journey`. Full read-back etter browserlesingen er datert
+**2026-11-08 14:45:07 UTC / 15:45:07 CET**. Kodeleveransens tidligere «ingen staging»
+nedenfor gjelder det opprinnelige mandatet; denne særskilt godkjente driftsetappen
+overstyrer ikke legacyautoritet eller gir tillatelse til aktivering.
+[Sanitert teknisk evidens](../status/evidence/access-journey-staging-2026-11-08/checks.json).
+
+### Eksakt runtime og additivt skjema
+
+- API før: `06e6594`, image
+  `sha256:8cf42afc8e15e0377f307119bde69b2c05b5b9d824598c05ec130f19ca2c84b9`.
+- API etter: godkjent `8cc160e`, image
+  `sha256:b2900af8533a6f51b9699b4825bc4993a7b02a93dfe853a3de410dfb308ba703`.
+  170 relevante kildefiler matcher eksakt Git-arkiv. Interpreter/pakker er bevart
+  gjennom samme immutable base og kontrollert dependencyfingerprint.
+- Frontend før matcher den tidligere godkjente `a49b9d1`-bundlen byte-for-byte.
+  Den er reprodusert lokalt med samme eksisterende avhengigheter. Ny frontend er
+  bygget fra rent `8cc160e`-arkiv uten npm install/oppgradering, og levert i image
+  `sha256:19f408668d9a637083ff2bf3ef303ff3c36b89c48e900f32999690835e9ce169`.
+  Index, JS og CSS matcher build, image og origin. Eksisterende nginxbase,
+  pakkefingerprint, konfigurasjon og `50x.html` er bevart.
+- Bare API/web er gjenskapt. PostgreSQL-containerens identitet, image, starttid,
+  restarttall, konfigurasjon og mounts er bevart. Docker/Compose, Caddy/prosess/
+  konfigurasjon, miljø, øvrige flagg og media/static er uendret. API starter direkte
+  Gunicorn, uten automatisk migrate/collectstatic eller dependencyoppgradering.
+- Én pending migrasjon ble verifisert og eksplisitt anvendt via MigrationExecutor:
+  bare0039, READ COMMITTED, 2s lock-/30s statement-timeout. Tom sluttplan; ingen
+  generell migrate, post_migrate/contenttype-/permissionseed, data-apply eller reverse.
+
+0039 har tre nye tabeller: AccessManagementGrant, AccessManagementGrantRevocation
+og MembershipManagementAudit, alle **0 rader**. 17 validerte constraints, fem
+aktive triggere og kildeidentisk `crm_management_grant_guard` er kontrollert.
+`SharingAgreement.legal_approval_reference` er NOT NULL varchar(200), uten
+vedvarende DB-default; den nye kolonnen er kontrollert separat fra gamle data.
+Det finnes ingen avtaler eller juridiske referanser. Isolert post-restore
+bekrefter den nye strukturen, tom historikk og migrasjonsregistreringen.
+
+### Avslått tilgang og faktiske lesebevis
+
+Alle fire gater er effektivt og varig False:
+`ACCESS_MANAGEMENT_ENABLED`, `SHARING_ACCESS_ENABLED`, `CANONICAL_WRITER_ENABLED`
+og `TENANT_NOTE_OVERLAYS_ENABLED`. De er unset i uendret environmentfil/container
+og bruker verifisert default False. Ingen annen gate er endret.
+
+Eksisterende aktiv operatør fra tidligere autorisert backfill er gjenbrukt i
+server-side APIRequestFactory/force_authenticate-/Admin-lesekontroller innen
+REPEATABLE READ READ ONLY. 14 tenant-/modellister, seks detaljer, to gamle
+Admin-lister, to legacy-notatfeltformer og autentisert sessionlesing bestod.
+Ingen ny bruker, login, session eller last_login ble skrevet av kontrollene.
+
+Ny autentisert context gir HTTP200, `enabled=false` og bare tomme lister.
+Fem negative forvaltningsprober (én GET og fire POST i viewlaget) med syntetiske
+verdier avvises med DISABLED før skrivergrensen. De kjøres under ekstra
+SQL-write-avvisning og DB READ ONLY; ingen positiv forvaltningsreise er forsøkt.
+De ni shared-capabilityvurderingene gir DISABLED. For eksisterende superuser
+avvises add/change/delete på TenantMembership-Admin, mens changelist kan leses.
+Nye historikkmodeller er ikke Admin-registrert; gammel Organization-/Person-
+Admin og notatfelt består. Ingen canonical writer-funksjon er kalt.
+
+**Faktisk HTTPS/browser:** En ny, senere lukket kontrollfane i eksisterende
+Chrome-profil gjenbrukte browserens egen innlogging, uten ny login eller
+credentialflytting. Aktører og Personer åpnet, og Tilgang og avtale var skjult i
+menyen. Direkte `/access` viste «Tilgangsforvaltning er ikke aktivert».
+`/api/auth/access-management/` viste HTTP200 med enabled=false og tomme lister.
+Medlemskaps-Admin viste «Select tenant membership to view», uten opprettingsvalg.
+Bare GET/navigasjon og synlig UI ble brukt; ingen profilskjema eller positiv
+forvaltningshandling ble utført. Brukerens eksisterende faner/utkast er bevart.
+Dette er avgrenset teknisk lesebevis, ikke ny generell UX-/visuell eieraksept.
+
+Et forsøk på å eksportere en eksisterende server-session til privat lokal fil
+ble avvist av automatisk godkjenningsreview. Eksporten ble ikke utført eller
+omgått. Den ubrukte root-only kontrollkopien ble fjernet uten å endre
+sessionsdatabasen. Den faktiske browserkontrollen brukte i stedet browserens
+allerede eksisterende innlogging. Ingen credential er publisert eller flyttet.
+
+### Bevaring, backup og driftsstatus
+
+Alle gamle feltverdier, relasjoner, PK-er, tidsstempler, publiseringsvalg og
+rader i **53 tidligere tabeller** matcher før-/etterkontrollene. Bare ny juridisk
+kolonne normaliseres bort i sammenligningen, og bare én0039-migrasjonsrad tillates
+som tillegg. Gamle constraints/triggere/funksjoner/kolonnedefinisjoner er bevart.
+Canonical-stamps inngår nå fullt i gammel data og er også separat sammenlignet:
+128 Organization og157 Person har samme ikke-null UUID-metadata som før0039.
+Ingen individuelle profilhashverdier, UUID-verdier eller rå notater publiseres.
+
+Medlemskap er0→0; avtale-/aksept-/revokasjons-/tilgangshistorikk, canonical audit,
+begge overlays og notatkopibatch er fortsatt tomme. Auth/session/roller, notater,
+tags, import, imagehistorikk og historiske identiteter er bevart. PUBLIC API,
+HTML/lenkevalg og seks asset/fallback-bildevarianter er uendret. Source for gammel
+rolleoppløsning, views og legacy-/PUBLIC-serializers matcher tidligere kode.
+
+Ferske pre- og postcheckpoints bestod backup, full repository/archive-data verify
+og isolert PostgreSQL16-restore. Begge kvitteringer er bundet til forventet arkiv,
+eksakt arkiv-ID og dumpchecksum, med ny identitetsread-back. Installerte scripts
+er uendret; private kopier fjernet prune/compact og skjerpet arkiv-/schemakontroll
+og cleanup. Ingen prune/compact er kjørt. Egne restorecontainere/volumer er borte,
+og eksisterende volumsett er bevart. Backup/verify-services er inactive, og
+backup-/verify-/safety-health-timere er active/enabled. Safety er READY på samme
+ledger/repository/cursor13; ledgerbytes, deny-state og historikk er uendret.
+
+Private buildkontroller ble før schema/runtime rettet for kjent nginx50x.html,
+macOS-arkivmetadata og kort/full Docker-ID, inklusive pre-schema recovery.
+Kontrollene stoppet uten database-/runtimeendring. Den rene byggefortsettelsen
+revaliderte API/kilde/deps/data og bygget bare det ennå ubygde webimaget.
+Siste helperversjoner fikk separat skrivebeskyttet review uten blokkere før
+stagingmutasjon. Ingen schema-/dataretry eller recovery var nødvendig.
+Ved feil etter mulig0039-commit skal gammel skrivbar medlemskaps-Admin aldri
+åpnes automatisk; behold additivt skjema og stopp/fens tilgang ved ukjent utfall.
+
+### Sluttpunkt og gjenværende aktivering
+
+Ingen reelle forvaltningsfullmakter, brukere, medlemskap, avtaler, aksepter eller
+tilbakekallinger er opprettet/endret. Ingen appoint_access_manager --apply,
+notatkopikommando/-plan, canonical testwrites, shared tilgang eller produksjon.
+Kilde-PR/main-CI var grønne6/6 før drift; denne etappen gjenbrukte eksisterende
+lokale testbevis og etablerte tekniske kontroller. Ingen ny generell testfase.
+Dokumentasjonsleveransen følger separat review/PR/ordinær merge/CI og deployes ikke.
+
+Teknisk stagingverifisert kode er fortsatt inaktiv. Legacyfallback og samlet
+håndtering av gammel tilgang, reell oppstartsfullmakt, juridisk godkjenning/
+aksept, restore-reconciliation, writer-/notat-/assignmentovergang og øvrige
+ADR-011-porter gjenstår før faktisk deling. Ingen ny produktetappe er startet.
+
+
 ## Forvaltningsfullmakter og første tilgangsreise – 2026-11-08
 
 **Mandat:** Eiergodkjent presisering i ADR-011 §9a etter main `6843192`.
