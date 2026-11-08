@@ -188,9 +188,21 @@ class StrictTenantTests(TransactionTestCase):
             self.assertEqual(self.get().status_code,200)
         with override_settings(ACCESS_MANAGEMENT_ENABLED=True,SHARING_ACCESS_ENABLED=True):
             self.assertEqual(self.get().status_code,200)
-        strict=self.client.get('/api/public/organizations/').content
+        Organization.objects.filter(pk=self.org.pk).update(
+            is_published=True,org_number='123456789',website_url='https://synthetic.example/',
+            thumbnail_image_url='https://synthetic.example/image.jpg',
+        )
+        public=APIClient()
+        strict=public.get('/api/public/actors/')
+        self.assertEqual(strict.status_code,200)
+        self.assertIn(b'Synthetic',strict.content)
+        self.assertIn(b'https://synthetic.example/',strict.content)
+        self.assertIn(b'https://synthetic.example/image.jpg',strict.content)
+        self.assertNotIn(b'exact',strict.content)
         with override_settings(STRICT_TENANT_ACCESS_ENABLED=False):
-            self.assertEqual(self.client.get('/api/public/organizations/').content,strict)
+            legacy=public.get('/api/public/actors/')
+            self.assertEqual(legacy.status_code,200)
+            self.assertEqual(legacy.json(),strict.json())
 
     def test_inflight_write_fences_revocation_and_next_request_denies(self):
         row=self.member(); entered=threading.Event(); release=threading.Event(); responses=[]
