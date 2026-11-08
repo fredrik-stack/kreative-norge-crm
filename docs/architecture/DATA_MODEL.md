@@ -1,5 +1,23 @@
 # Data Model
 
+## 0038 – faktisk stagingtilstand 2026-11-08
+
+Eksakt API-kode `06e6594` og bare0038 er teknisk stagingverifisert. Ny audit er
+tom,13 constraints er validerte, tre triggere er enabled og stamp-funksjonen
+matcher godkjent migrasjonskilde. Sluttplanen er tom; ingen seed/post_migrate.
+Alle tidligere felt, relasjoner, PK-er, publication og tidsstempler i52 tabeller
+er bevart. Kun nye canonical_write_stamp-felt og tom auditstruktur, samt én
+migrasjonsregistrering, er tilkommet.128 Organization-/157 Person-stamps har
+typen uuid og NOT NULL og er stabile fra første schema-readback til slutt.
+UUID-verdiene er privat metadata og publiseres ikke i Git.
+
+Isolert post-restore bekrefter0038, tom audit,13 constraints/tre triggere og
+NOT NULL UUID-metadata. Ingen testwrites eller schema-reverse er utført mot
+staging. Writer/shared/notatgater er av og medlemskap/avtalehistorikk er tomme.
+[Mandat, bevaring og legacykompatibilitetens bevisgrense](SECURITY_AND_ROLES.md#stagingverifisering-av-trinn-9--2026-11-08).
+Dette er teknisk staginggrunnmur, ingen autoritetsovergang eller delt redigering.
+
+
 ## ADR-011 trinn 9 – additiv0038, kodegrunnmur 2026-11-08
 
 `Organization.canonical_write_stamp` og `Person.canonical_write_stamp` er skjulte,

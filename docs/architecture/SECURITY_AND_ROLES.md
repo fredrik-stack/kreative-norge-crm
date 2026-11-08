@@ -1,5 +1,128 @@
 # Security and Roles
 
+## Stagingverifisering av trinn 9 – 2026-11-08
+
+**STAGING VERIFIED / WRITER INACTIVE** innen uttrykkelig mandat: eksakt PR #103-
+API og kun0038, etablerte backup-/restoreporter, uendrede gamle felt og separat
+UUID-metadata. Ingen canonical-/legacy-testwrites mot stagingprofiler,
+medlemskap/aksepter, notatkopiering/-plan, aktivering eller produksjon. Ingen ny
+generell test-/analyse-/UX-etappe. Dokumentasjon leveres med separat
+review/PR/ordinær merge/CI og utløser ingen ny deploy.
+
+[Sanitert maskinevidens](../status/evidence/phase6a9-writer-staging-2026-11-08/checks.json)
+er kontrollert **2026-11-08 kl.11:26:23 CET** / `10:26:23Z`. Private før-/etter-
+radfingeravtrykk, UUID-vektorer, container-/miljømetadata, arkiv-ID-er,
+dumpchecksums og driftslogger beholdes operatørbeskyttet utenfor Git. Ingen rå
+notater/kontaktdata, individuelle profilhashverdier eller UUID-stamps publiseres.
+
+### Eksakt kode, migrasjon og metadata
+
+- Før: rent stagingrepo/API `d410e8e2e5e4a671edbd755f527d7eb52fe8103a`, image
+  `sha256:4a0356cc23af52a96433fa3b7db44c6a3d85d7a7263f12b5a2c962677ba10630`,
+  0037 anvendt og52 eksisterende tabeller. Ingen0038-kolonner/audittabell.
+  Databaseidentiteten ble kontrollert eksakt og er uendret.
+- Etter: rent stagingrepo/API **`06e65947b90483ec242e1cdd657a7835debe60ec`**,
+  image **`sha256:8cf42afc8e15e0377f307119bde69b2c05b5b9d824598c05ec130f19ca2c84b9`**.
+  Alle165 relevante kildefiler matcher godkjent Git. Image bygger på den gamle
+  immutable API-basen med eksakt Git-kilde lagt over; dependencyfingeravtrykk,
+  Dockerfile, requirements og Composekontrakt er uendret. Ingen pakke-/infraupgrade.
+- Eksakt én pending migrasjon ble verifisert før apply. Bare
+  `0038_canonical_writer_foundation` er anvendt, eksplisitt med MigrationExecutor,
+  prosessavgrenset READ COMMITTED, lock_timeout2s og statement_timeout30s.
+  Ingen generell migrate/post_migrate, seed eller contenttype-/permissionrader.
+  Gammel migrasjonshistorikk er bevart med bare én ny0038-rad; sluttplanen er tom.
+  Ingen schema-retry, schema-reverse eller API-rollback var nødvendig.
+- `CanonicalWriteAudit` er tom. Alle13 constraints er validerte; de tre
+  forventede triggerne er enabled. Funksjonskroppen `crm_canonical_core_stamp`
+  matcher0038-kilden. Alle tidligere constraints/triggere/funksjoner består.
+- Nye profilkolonner har typen uuid og NOT NULL.128 Organization- og157
+  Person-rader har gyldige ikke-NULL-stamps. Stamps er separat tillatt metadata,
+  ikke nye profilverdier, canonical authority eller handlingsaudit. De ble
+  fingeravtrykksfestet ved første read-back etter0038 og er identiske gjennom
+  API-start, post-checkpoint og siste fulle bevaringskontroll.
+
+### Bevaring og uendrede legacyreiser
+
+Alle52 tidligere tabeller sammenlignes med private deterministiske
+radfingeravtrykk. **Bare canonical_write_stamp utelates på Organization/Person**;
+alle gamle felter, NULL/tom/tekst, PK-er, tidsstempler, relasjoner/M2M, publication,
+notater/tags, importdata, auth/session/grupper/roller og bildehistorikk er fortsatt
+med i sammenligningen. Eksisterende medlemskapsfelt, inklusive is_active,
+sammenlignes uendret; medlemskapstall er0→0 og ingen er opprettet/deaktivert.
+
+Frontend/web- og databasecontainer har samme identitet/image/start/restart,
+Config/HostConfig og mounts. API-miljø, restartpolicy og mounts, miljøfil,
+private originals, renditions, delivery og static er bevart. Ingen import-/
+eksportfiler fantes i API-laget før eller etter graceful stopp. Bare API ble
+rekreert, direkte med Gunicorn uten migrate/collectstatic. Nginx fikk nødvendig
+configtest/reload uten web-recreate. Ingen ny frontend-/database-/Composeleveranse.
+
+Eksisterende aktiv staff/plattformoperatør fra tidligere backfillbevis ble
+brukt til etablerte **read-only** backendkontroller:14 tenant-/modell-lister,
+6 detaljer,2 Adminlister,2 legacy-notatskjemaer og autentisert session.
+RequestFactory/force_authenticate gav ingen ny login/session/last_login eller
+rettighet. Ny audit er ikke Adminregistrert, og stamps er skjult i Admin/API/
+PUBLIC-serializers. PUBLIC-katalog, HTML og HTTP-grenser svarte som forventet;
+hele PUBLIC-API-responsen og seks representative asset-/fallback-varianter har
+uendrede bytes. Dette er teknisk lesebevis, ingen ny browser-/UX-/eieraksept.
+
+**Legacywrite-kompatibilitetens bevisgrense:** Det er ikke utført write-smoke mot
+reelle stagingprofiler eller kalt noen canonical writerfunksjon, heller ikke
+som et gate-off-forsøk. Grunnlaget er PR #103s allerede grønne syntetiske
+PostgreSQL16.14-tester og CI, kombinert med eksakt kilde-/trigger-readback og
+staginglesing. Lokal fullregresjon710 bestod før siste avgrensede feilkontrakt-
+retting;23 relevante tester etter rettingen og64 separate safety-tester er
+grønne. PR-CI42469037763/main-CI42469412699 var SUCCESS6/6 på godkjent kode.
+Ingen ny generell testetappe er gjennomført for stagingmandatet.
+
+Gamle permissions/views/urls/serializers har ingen kildedelta. Den tilsiktede
+DB-endringen er bare vedlikehold av metadata når legacy endrer writerens smale
+core-felt eller aktørens publication; den oppretter ingen audit og endrer ikke
+gamle feltverdier/normaliseringer. Legacy API/Editor/Admin/import er fortsatt
+autoritative. Nye triggeres konkrete write-/ABA-/rollbacksemantikk er testet
+lokalt, ikke utøvd mot stagingdata. Samlet writer-/rolle-/autoritetsovergang
+før aktivering gjenstår etter kontrakten nedenfor.
+
+### Gates, backup, restore og driftsstatus
+
+`CANONICAL_WRITER_ENABLED`, `SHARING_ACCESS_ENABLED` og
+`TENANT_NOTE_OVERLAYS_ENABLED` er effektive/varige False. Alle tre er unset i
+uendret `.env.staging` og containerkonfigurasjon og bruker False-default.
+Ni shared-capabilityvurderinger returnerer DISABLED. Ny canonical audit,
+SharingAgreement/Acceptance/Revocation/AccessAudit, begge notatoverlays og
+kopibatchregisteret har0 rader. Ingen avtale, aksept, notatkopi/-plan eller
+aktivering er opprettet/kjørt.
+
+Graceful API-stopp gav kontrollert skrivefrys. Fersk pre- og post-backup,
+full Borg repository-/archive-data-verifikasjon og arkivbundet isolert
+PostgreSQL16-restore bestod. Begge receipts er bundet til eksakt arkiv-ID og
+dumpchecksum og arkividentitetene er lest tilbake etterpå. Post-restore
+bekrefter0038, tom audit/avtalehistorikk/overlays/batch,13 constraints/tre triggere
+og begge profilkolonner som uuid/NOT NULL med null manglende stamps.
+Dette inkluderer ingen testwrites eller gjenoppretting til live DB.
+
+Installerte backupskript er byteuendret. Private operatørkopier brukte etablerte
+arkivbindinger og ingen prune/compact. Egne restorecontainere inklusive anonyme
+volumer er fjernet, og volumsettet er bevart. Backup-, verify- og safety-health-
+timere er active/enabled; backup-/verify-services er inactive i sluttkontrollen.
+Safety forblir READY med samme ledger-/repositoryidentitet og
+event/read/anchor-cursor13; ledgerfil og historikk er byteuendret. Ingen deny-
+write eller reassosiering av historisk image-state.
+
+De tre muterende/lesende operatørhelperne fikk separat skrivebeskyttet statisk
+review før driftsmutasjon, bundet til hashene i JSON. En variabelkollisjon i
+stamp-leseskriptet ble rettet før schema/runtime ble endret; DB-identiteten
+sammenlignes også eksplisitt mot førbeviset. Ingen blokkere stod igjen på
+endelige hashes. Sluttmålingen viser faktisk stagingbevis fra gjennomfører;
+revieweren kjørte ikke SSH/DB eller leste private metadata.
+
+Ved et eventuelt API-rollback skulle gammel API gjenopprettes med0038 og alle
+data beholdt; ingen destruktiv schema-reverse eller live restore var del av
+sekvensen. Ingen slik rollback ble nødvendig. Fullført stagingverifisering er
+ikke shared-aktivering, ferdigmelding av hele trinn7/8/9/6A eller tillatelse til
+neste produktetappe, reell notatkopiering eller produksjon.
+
+
 ## ADR-011 trinn 9 – inaktiv canonical writer, 2026-11-08
 
 **Mandat:** Én liten, additiv implementeringsleveranse etter `8283431`, med lokal

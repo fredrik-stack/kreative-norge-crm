@@ -1,0 +1,256 @@
+{
+  "agreement_or_acceptance_created": false,
+  "api_direct_gunicorn": true,
+  "api_image": "sha256:8cf42afc8e15e0377f307119bde69b2c05b5b9d824598c05ec130f19ca2c84b9",
+  "auth_session_roles_preserved": true,
+  "backup_scripts_unchanged": true,
+  "backup_services_inactive": true,
+  "canonical_audit_rows": 0,
+  "canonical_testwrites": false,
+  "canonical_writer_functions_called": false,
+  "checkpoint_receipts": {
+    "post": {
+      "archive_identity_read_back": true,
+      "dump_checksum_bound": true,
+      "no_new_volumes": true,
+      "restore": true,
+      "schema_validated": true,
+      "verified": true
+    },
+    "pre": {
+      "archive_identity_read_back": true,
+      "dump_checksum_bound": true,
+      "no_new_volumes": true,
+      "restore": true,
+      "schema_validated": false,
+      "verified": true
+    }
+  },
+  "code_commit": "06e65947b90483ec242e1cdd657a7835debe60ec",
+  "copy_batch_rows": 0,
+  "copy_plan_executed": false,
+  "database_identity_match": true,
+  "date_oslo": "2026-11-08",
+  "dependencies_preserved": true,
+  "disabled_shared_capabilities_checked": 9,
+  "enabled_triggers": [
+    {
+      "enabled": "O",
+      "name": "crm_canonical_audit_immutable",
+      "table": "crm_canonicalwriteaudit"
+    },
+    {
+      "enabled": "O",
+      "name": "crm_org_core_stamp",
+      "table": "crm_organization"
+    },
+    {
+      "enabled": "O",
+      "name": "crm_person_core_stamp",
+      "table": "crm_person"
+    }
+  ],
+  "environment_mounts_flags_preserved": true,
+  "evidence_version": 1,
+  "existing_tables_preserved": 52,
+  "existing_test_evidence": {
+    "local_full_backend_before_final_error_contract_fix": 710,
+    "new_general_test_round": false,
+    "separate_image_safety": 64,
+    "source_main_ci": 42469412699,
+    "source_pr_ci": 42469037763,
+    "targeted_after_final_error_contract_fix": 23
+  },
+  "frontend_database_containers_unchanged": true,
+  "gates": {
+    "CANONICAL_WRITER_ENABLED": {
+      "file_setting": "unset_default_false",
+      "persistent_false": true
+    },
+    "SHARING_ACCESS_ENABLED": {
+      "file_setting": "unset_default_false",
+      "persistent_false": true
+    },
+    "TENANT_NOTE_OVERLAYS_ENABLED": {
+      "file_setting": "unset_default_false",
+      "persistent_false": true
+    }
+  },
+  "helper_hashes": {
+    "db-read.py": "00a257ba59a02eddedf4cc0c0d85a7a84f98cef0dbdce79f974ade5ce4470522",
+    "schema.py": "9f48d6fc3cde750329699fdab5c933cd274a95f8bdd602a198fa396a0c5b488a",
+    "stage.py": "755a16056b78bd4d582998af6c39d1d489bdfeef9d4384715eb9a19ef1ae924f"
+  },
+  "history_rows": {
+    "crm_sharingaccessaudit": 0,
+    "crm_sharingagreement": 0,
+    "crm_sharingagreementacceptance": 0,
+    "crm_sharingagreementrevocation": 0
+  },
+  "legacy_fields_relations_publication_pk_timestamps_preserved": true,
+  "legacy_read_write_route_sources_unchanged": true,
+  "legacy_testwrites_on_staging": false,
+  "legacy_write_compatibility_evidence": "existing_local_postgresql_and_PR103_CI_plus_source_trigger_readback",
+  "lock_timeout_ms": 2000,
+  "media_static_preserved": true,
+  "membership_inactive_rows": 0,
+  "membership_legacy_fields_preserved": true,
+  "membership_rows_after": 0,
+  "membership_rows_before": 0,
+  "memberships_created": 0,
+  "migrate_collectstatic_start": false,
+  "migration": "0038_canonical_writer_foundation",
+  "migration_isolation": "READ COMMITTED",
+  "new_audit_not_admin_registered": true,
+  "organization_overlay_rows": 0,
+  "overlay_gate": false,
+  "person_overlay_rows": 0,
+  "pre_mutation_helper_variable_collision_corrected": true,
+  "previous_api_image": "sha256:4a0356cc23af52a96433fa3b7db44c6a3d85d7a7263f12b5a2c962677ba10630",
+  "previous_staging_commit": "d410e8e2e5e4a671edbd755f527d7eb52fe8103a",
+  "prune_compact_executed": false,
+  "public_api_media_preserved": true,
+  "real_note_copy": false,
+  "remaining_migrations": 0,
+  "restore_containers_remaining": 0,
+  "safety_cursor": 13,
+  "safety_ledger_bytes_and_history_preserved": true,
+  "safety_ready": true,
+  "schema_reverse_executed": false,
+  "sharing_gate": false,
+  "source_files_checked": 165,
+  "source_functions_verified": 1,
+  "stamp_metadata_compared_separately": true,
+  "stamps_hidden_in_admin_and_serializers": true,
+  "statement_timeout_ms": 30000,
+  "status": "STAGING_VERIFIED",
+  "technical_read_checks": {
+    "admin_lists": 2,
+    "admin_note_forms": 2,
+    "api_details": 6,
+    "api_lists": 14,
+    "authenticated_session": true,
+    "operator_reused": true
+  },
+  "timers": {
+    "kreative-norge-backup": {
+      "active": true,
+      "enabled": true
+    },
+    "kreative-norge-backup-verify": {
+      "active": true,
+      "enabled": true
+    },
+    "kreative-norge-image-safety-health": {
+      "active": true,
+      "enabled": true
+    }
+  },
+  "uuid_stamps": {
+    "crm_organization": {
+      "non_null_uuid_stamps": 128,
+      "profile_rows": 128,
+      "same_as_first_schema_readback": true
+    },
+    "crm_person": {
+      "non_null_uuid_stamps": 157,
+      "profile_rows": 157,
+      "same_as_first_schema_readback": true
+    }
+  },
+  "validated_constraints": [
+    {
+      "definition": "CHECK (((action)::text = ANY ((ARRAY['edit_shared_core'::character varying, 'edit_published_core'::character varying])::text[])))",
+      "name": "canonical_audit_action",
+      "table": "crm_canonicalwriteaudit",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "UNIQUE (entity_type, entity_id, revision)",
+      "name": "canonical_audit_entity_revision",
+      "table": "crm_canonicalwriteaudit",
+      "type": "u",
+      "validated": true
+    },
+    {
+      "definition": "CHECK (((entity_type)::text = ANY ((ARRAY['organization'::character varying, 'person'::character varying])::text[])))",
+      "name": "canonical_audit_entity_type",
+      "table": "crm_canonicalwriteaudit",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((revision = (previous_revision + 1)))",
+      "name": "canonical_audit_next_revision",
+      "table": "crm_canonicalwriteaudit",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((actor_id >= 0))",
+      "name": "crm_canonicalwriteaudit_actor_id_check",
+      "table": "crm_canonicalwriteaudit",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((agreement_id >= 0))",
+      "name": "crm_canonicalwriteaudit_agreement_id_check",
+      "table": "crm_canonicalwriteaudit",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((assignment_id >= 0))",
+      "name": "crm_canonicalwriteaudit_assignment_id_check",
+      "table": "crm_canonicalwriteaudit",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((entity_id >= 0))",
+      "name": "crm_canonicalwriteaudit_entity_id_check",
+      "table": "crm_canonicalwriteaudit",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "crm_canonicalwriteaudit_pkey",
+      "table": "crm_canonicalwriteaudit",
+      "type": "p",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((previous_revision >= 0))",
+      "name": "crm_canonicalwriteaudit_previous_revision_check",
+      "table": "crm_canonicalwriteaudit",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((revision >= 0))",
+      "name": "crm_canonicalwriteaudit_revision_check",
+      "table": "crm_canonicalwriteaudit",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((sharing_domain_id >= 0))",
+      "name": "crm_canonicalwriteaudit_sharing_domain_id_check",
+      "table": "crm_canonicalwriteaudit",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((tenant_id >= 0))",
+      "name": "crm_canonicalwriteaudit_tenant_id_check",
+      "table": "crm_canonicalwriteaudit",
+      "type": "c",
+      "validated": true
+    }
+  ],
+  "verified_at_utc": "2026-11-08T10:26:23.293011+00:00",
+  "writer_gate": false
+}
