@@ -1,0 +1,221 @@
+{
+  "backup": {
+    "all_timers_normal": true,
+    "full_repository_verify_both": true,
+    "installed_backup_modules_unchanged": true,
+    "isolated_postgresql16_restore_both": true,
+    "no_live_database_restore": true,
+    "no_prune_or_compact": true,
+    "post": {
+      "archive": "kreative-norge-staging-20261108T214430Z",
+      "archive_id": "90f0825af382f60710267dde58bedf7efaccc7156656923e6329f21f3baafbf7",
+      "dump_sha256": "b0a91efe4c1d3239ff128f3e3feec798e9a2d2461c0cbcf2761cd5824bec6d61",
+      "no_new_volumes": true,
+      "restore": true,
+      "verified": true
+    },
+    "pre": {
+      "archive": "kreative-norge-staging-20261108T214114Z",
+      "archive_id": "123c9cd55e28e4cc2b872b0ae793e04bc3b962980e77eeb3c40b5dde5f048d4d",
+      "dump_sha256": "8e58f1c559c44c02241655f49aefee9b000e4ff7f470da936290a5b5ae89ef19",
+      "no_new_volumes": true,
+      "restore": true,
+      "verified": true
+    },
+    "schema0039_checked_both": true
+  },
+  "boundaries": {
+    "migration_seed_or_data_apply": false,
+    "new_memberships_grants_agreements_acceptances": false,
+    "new_shared_writer_note_activation": false,
+    "production_deploy": false,
+    "provider_calls_during_deploy_checks": 0,
+    "real_actor_image_or_profile_writes": 0
+  },
+  "checked_at_utc": "2026-11-08T21:45:21.200387+00:00",
+  "code": {
+    "base_main": "c027bbeb56857e0b19cab59447a91709d11953ff",
+    "ci_jobs_successful": 6,
+    "main_backend_tests": 767,
+    "main_ci": 42525639102,
+    "merge": "2a86bb4df23d8aa87c31e70568adfa965bd30bc1",
+    "pr": 111,
+    "pr_ci": 42525060773,
+    "reviewed_head": "0fced171f6447ebad140e41f88fad1ca635b4cb4"
+  },
+  "database": {
+    "all_rows_and_relationships_timestamps_preserved": true,
+    "canonical_stamps_preserved": true,
+    "identity_verified": true,
+    "management_agreement_audit_overlays_copy_batches_still_empty": true,
+    "memberships": {
+      "inactive": 0,
+      "total": 0
+    },
+    "organization_rows": 128,
+    "person_rows": 157,
+    "remaining_migrations": 0,
+    "schema": "0039_access_management_journey",
+    "schema_unchanged": true,
+    "tables_checked": 56
+  },
+  "existing_technical_reads": {
+    "admin_lists": 2,
+    "admin_note_forms": 2,
+    "api_details": 6,
+    "api_lists": 14,
+    "authenticated_session": true,
+    "operator_reused": true
+  },
+  "flags": {
+    "ACCESS_MANAGEMENT_ENABLED": false,
+    "CANONICAL_WRITER_ENABLED": false,
+    "IMAGE_ASSET_FEATURE_ENABLED": true,
+    "IMPORT_IMAGE_DECISIONS_ENABLED": false,
+    "PUBLIC_IMAGE_API_SCHEMA_ENABLED": true,
+    "PUBLIC_IMAGE_PROJECTION_ENABLED": true,
+    "PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED": true,
+    "PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED": true,
+    "PUBLIC_IMAGE_SERVING_ENABLED": true,
+    "PUBLIC_IMAGE_TAKEDOWN_ENABLED": true,
+    "SHARING_ACCESS_ENABLED": false,
+    "SHARING_DOMAIN_SHADOW_ENABLED": false,
+    "STRICT_TENANT_ACCESS_ENABLED": false,
+    "TENANT_NOTE_OVERLAYS_ENABLED": false
+  },
+  "frontend_bundle": {
+    "index_only_two_references_changed": true,
+    "js_css_bytes_unchanged": true,
+    "lockfile_sha256": "7d657eb63887d784dbaf95fbd87b7801f5b1bc57f6f5a928e2cfc6c473599fb0",
+    "name_mapping": {
+      "assets/index-C6_QQa3J.js": "assets/index-C6_QQa3J-2a86bb4.js",
+      "assets/index-CqihExZd.css": "assets/index-CqihExZd-2a86bb4.css"
+    },
+    "node_version": "v22.11.0",
+    "promoted_files": {
+      "assets/index-C6_QQa3J-2a86bb4.js": "bb17be10562bb999f9b5526ff6f58ab36254f1b6c498bf8e69cc8737db58d206",
+      "assets/index-CqihExZd-2a86bb4.css": "9e7613aad52716f3e899e92af9c75d2eca3cce589cddbdc397c9127240e2902e",
+      "index.html": "c8a1358f419b660214f5e4f7122d6bfc92868c7b087dffb46796837997098d2c"
+    },
+    "source_commit": "2a86bb4df23d8aa87c31e70568adfa965bd30bc1",
+    "source_files": {
+      "assets/index-C6_QQa3J.js": "bb17be10562bb999f9b5526ff6f58ab36254f1b6c498bf8e69cc8737db58d206",
+      "assets/index-CqihExZd.css": "9e7613aad52716f3e899e92af9c75d2eca3cce589cddbdc397c9127240e2902e",
+      "index.html": "4348f2f110a436f5e6dab5f6dfa485d0be363a5db239b27e48c93c3b914abcf5"
+    }
+  },
+  "helper_sha256": {
+    "db-read.py": "e1eed8c2d7201839856ca1ae269116e3d491dafd9d243b617403e1a278a8a8c8",
+    "finalize-read-only.py": "edf9073526f0c825f6ab454c3af92a253fb15d1393307dafe6dd0017828a2b92",
+    "image-readback.py": "11dac302f7736e3c403a466034140cd757646990004722c77b613def4973c5f6",
+    "stage.py": "6eb9751380a213b7345578028f62d094d317ff51fe693aa3e5f272cf4cd054e1"
+  },
+  "image_readback": {
+    "asset_matches": 4,
+    "brave_count": 200,
+    "database_writes": 0,
+    "editor_tenant_lists": 7,
+    "exact_scope_allowed_wrong_tenant_denied": true,
+    "fallback_matches": 118,
+    "five_gates_off": true,
+    "maximum_batch_size": 6,
+    "nonowner_denied": true,
+    "owner_suggestions_available": true,
+    "private_list_batch_calls": 3,
+    "private_list_single_authorize_or_legacy_calls": 0,
+    "private_variant_checks": 12,
+    "provider_calls": 0,
+    "published_previews_equal_public": 122,
+    "real_detail_preview_matches": true,
+    "status": "READ_ONLY_IMAGE_PASS"
+  },
+  "management_gate_checks": {
+    "authenticated_context_empty_disabled": true,
+    "denied_operations": 5,
+    "membership_admin_readonly_superuser": true,
+    "new_history_not_admin_registered": true
+  },
+  "owner_write_freeze": {
+    "announced": true,
+    "approximate_minutes": 5,
+    "fresh_baseline_after_pause": true,
+    "owner_pause_confirmed": true,
+    "released_after_checks": true
+  },
+  "preservation": {
+    "all_56_table_rows_stamps_and_relations_preserved": true,
+    "all_existing_media_static_preserved": true,
+    "brave_owner_binding_preserved": true,
+    "database_container_unchanged": true,
+    "deploy_or_write_replayed": false,
+    "environment_unchanged": true,
+    "five_gates_off": true,
+    "host_bridge_only_additive_read_code_changed": true,
+    "ledger_bytes_preserved": true,
+    "no_profile_image_or_ledger_writes": true
+  },
+  "proof_limits": [
+    "Runtime image/API/Editor comparisons were READ ONLY with server-side forced authentication; no real-user login or staging profile/image testwrite.",
+    "Immediate frontend refresh and PUBLIC-last ordering are demonstrated by five local image E2E tests with synthetic mock data and three committed screenshots; no new visual owner approval claimed.",
+    "The first read-only probe incorrectly assumed PUBLIC exposed internal IDs. After its KeyError, a separately reviewed read-only finalizer bound the same ordered PUBLIC queryset inside one snapshot. No deploy or image write was replayed.",
+    "Targeted Brave comparison used six searches before deploy, aggregates only; no Facebook result found and no operator or image-rights guarantee."
+  ],
+  "public_https": {
+    "all_public_https_assets_match": true,
+    "cdn_config_or_purge_changed": false,
+    "checked_at_utc": "2026-11-08T21:43:34.750332+00:00",
+    "files": {
+      "assets/index-C6_QQa3J-2a86bb4.js": {
+        "mime": "application/javascript",
+        "sha256": "bb17be10562bb999f9b5526ff6f58ab36254f1b6c498bf8e69cc8737db58d206",
+        "source_bytes_match": true,
+        "status": 200
+      },
+      "assets/index-CqihExZd-2a86bb4.css": {
+        "mime": "text/css",
+        "sha256": "9e7613aad52716f3e899e92af9c75d2eca3cce589cddbdc397c9127240e2902e",
+        "source_bytes_match": true,
+        "status": 200
+      },
+      "index.html": {
+        "html_hash_not_compared_because_edge_injection": true,
+        "mime": "text/html",
+        "new_asset_references": true,
+        "old_asset_references_absent": true,
+        "status": 200
+      }
+    },
+    "source_commit": "2a86bb4df23d8aa87c31e70568adfa965bd30bc1"
+  },
+  "runtime": {
+    "api_commit": "2a86bb4df23d8aa87c31e70568adfa965bd30bc1",
+    "api_image": "sha256:5717f57e120804dc999a13fb9d577af2cd8d259c403514ed35ae8c4246f4880f",
+    "api_web_dependencies_unchanged": true,
+    "bridge_source_sha256": "49848e79785b59630ef1816c9024b35edb328823778f3ba277e363985141769c",
+    "changed_host_component_only": "image_safety/bridge.py",
+    "database_image": "sha256:49767d69e57428bc8229d8427521605e90b230c908d19542644d92b77dc1984d",
+    "docker_compose_infrastructure_unchanged": true,
+    "frontend_source_commit": "2a86bb4df23d8aa87c31e70568adfa965bd30bc1",
+    "host_peers_units_permissions_config_unchanged": true,
+    "previous_commit": "4c2ca2b88dd51d982956935248445e0a104ed0b5",
+    "web_image": "sha256:dac33500f52219488e5c2b536ae96c345ea851cc19c8772403599868eddb292d"
+  },
+  "safety": {
+    "bridge_read_probe": {
+      "batch_available": true,
+      "known_release_authorized": true,
+      "read_cursor": 23,
+      "single_backward_compatible": true,
+      "writes": 0,
+      "wrong_scope_and_unknown_denied": true
+    },
+    "cursor_after": 23,
+    "cursor_before": 23,
+    "deny_and_historic_image_state_preserved": true,
+    "events_added": 0,
+    "ledger_bytes_unchanged": true,
+    "read_anchor_cursors_unchanged": true,
+    "ready": true
+  },
+  "status": "STAGING_VERIFIED"
+}

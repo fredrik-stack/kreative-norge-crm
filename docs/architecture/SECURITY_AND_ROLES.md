@@ -79,7 +79,8 @@ bilde-E2E er grønne; E2E bekrefter umiddelbar oppdatering av kort/modal uten
 refresh, egen PUBLIC-handling nederst og bevarte rettighetsporter. Safety65
 tester inkluderer batchgrenser, én health-read, exact scope, deny og stale head;
 klienttester avviser feil lengde/rekkefølge/scope/cursor og malformed tillatelse.
-Ingen migrasjon er oppdaget. CI på endelig reviewet head er neste leveransegate.
+Ingen migrasjon er oppdaget. Endelig PR-/main-CI bestod 6/6; main kjørte alle
+767 backendtester på PostgreSQL16.
 
 Kort **syntetisk** visuelt grunnlag fra ekte frontend med mock-API:
 [PUBLIC-handling nederst](../status/evidence/editor-image-fixes-2026-11-08/01-public-action-last.png),
@@ -89,21 +90,65 @@ Disse er ikke skjermbilder av eiers reelle aktører eller en ny visuell eierakse
 
 ### Kontrollert staging og rollback
 
-Staging er ikke endret av denne kodeleveransen ennå. Eier vedlikeholder reelle
-kort; skrivefrys koordineres før API stoppes, og fersk baseline tas først da.
-Grønn main-CI, pre/post-backup/fullverify/isolert restore og normal timerstatus
-kreves. Godkjent hostbridgekode oppdateres/restartes før ny API tas i bruk;
-gammel single authorize må fortsatt fungere. API/frontend bygges fra eksakt
-merge på eksisterende immutable baser uten dependency-/infrastrukturoppgradering,
-automatisk migrate/seed/collectstatic eller endret miljø.
+[PR #111](https://github.com/fredrik-stack/kreative-norge-crm/pull/111) er
+ordinært merget som `2a86bb4df23d8aa87c31e70568adfa965bd30bc1`. Separat review
+bandt base `c027bbeb56857e0b19cab59447a91709d11953ff` til head
+`0fced171f6447ebad140e41f88fad1ca635b4cb4` uten blokkere. PR-CI42525060773 og
+main-CI42525639102 er SUCCESS, 6/6. Eksakt API/frontend er stagingverifisert
+2026-11-08T21:45Z etter varslet eierpause og fersk baseline.
 
-Stagingverifisering er read-only mot reelle profiler; ingen nye bildewrites.
-Alle CRM-rader/media og ledgerens aktuelle READY-head/deny/historikk må være
-bevart, sammen med DB-identitet/schema0039 og fem avslåtte gater. Ved avvik
-stoppes videreføring. API-rollback til PR #109 kan beholde den additive bridge-
-leseoperasjonen; ingen schema-/data-/media-/ledger-reverse. Rollback til eldre
-kode uten eierbinding krever fortsatt at Brave tømmes effektivt/persistent først.
-Dokumentasjonsmerge deployes ikke og neste produktetappe starter ikke automatisk.
+[Sanitert kontrollkvittering](../status/evidence/editor-image-fixes-2026-11-08/checks.json)
+bevarer image-/bundle-/helperidentitet og pre/post-arkiv-ID/dumpchecksums.
+API/web er bygget på eksisterende immutable baser, uten install/oppgradering,
+automatisk migrate/seed/collectstatic eller miljøendring. Bare hostens
+`image_safety/bridge.py` er oppdatert og eksisterende bridge restartet; peers,
+units, filrettigheter og konfigurasjon er uendret. Positiv single authorize
+og batch med korrekt scope / feil tenant / ukjent release bestod før ny API.
+Dette er read-only mot allerede eksisterende offentlig autoriserte data.
+
+Samme READ ONLY-snapshot viste 122 publiserte Editor-previews lik PUBLIC:
+4 asset / 118 fallback. En faktisk asset-detalj stemte også. Syv tenantlister
+brukte tre authorize_many-kall for 12 variantkontroller, maksimalt seks i én
+batch, ingen single-/legacykall. Eierens search-context har nye forslag/count200;
+en syntetisk ikke-eier, også superuser, fikk403 før provider. Ingen providerkall
+ble utført under deploykontrollene; de seks målrettede sammenligningene ovenfor
+var tidligere lesebasert teknisk evidens.
+
+Alle rader i 56 tabeller, relasjoner, tidsstempler, canonical-stamps, schema0039/
+tom migrasjonsplan, miljø, DB-container og eksisterende media/static er bevart.
+Medlemskap er0→0; avtale-/forvaltningshistorikk, tilgangs-/canonical-audit,
+overlays og kopibatch er
+fortsatt tomme. Fem tilgangs-/writer-/notatgater er effektivt og varig av; øvrige
+flagg og Brave-eierbinding er uendret. PUBLIC-katalog og tre asset-/fallback-
+varianters bytes er identiske med fersk prebaseline. Ledgerbytes/deny/historikk
+og READY/read-/anchorcursor23 er uendret, null hendelser. Forskjellen fra forrige
+leveranses cursor17 skyldes eiers ordinære arbeid før frysen, ikke denne deployen.
+
+Pre/post-backup, full repository verify og arkivbundet isolert PostgreSQL16-
+restore, inklusive schema0039, bestod. Ingen prune/compact eller live-DB-restore;
+installerte backupmoduler er uendret og ingen restorevolumer står igjen. Alle
+tre timere er active/enabled. API/Admin/session-lesing og avslåtte management-
+ruter er kontrollert. Nginx-worker kan lese bundlen; ekte offentlig HTTPS
+bekrefter JS/CSS-bytes og MIME samt nye indexreferanser. JS/CSS har suffiks
+`-2a86bb4`, med uendrede bytes fra kildebygget; bare to HTML-referanser endres.
+Dermed gjenbrukes ikke tidligere feilcachede asset-URL-er. Ingen CDN-endring
+eller purge; HTML-fullhash sammenlignes ikke på edge som kan injisere script.
+
+**Avvik og bevisgrenser:** Første image-readback antok feilaktig at PUBLIC
+utleverer intern ID, og stoppet med KeyError etter bestått bevaringskontroll.
+En separat reviewet read-only sluttføring bandt samme ordnede PUBLIC-queryset
+innen ett snapshot og fullførte lesebevis/post-checkpoint. Ingen deploy eller
+write ble replayet; opprinnelig INCOMPLETE-kvittering og positiv final-result
+beholdes privat. UI-rekkefølge/umiddelbar oppdatering er demonstrert i fem lokale
+syntetiske bilde-E2E og skjermbildene ovenfor; ingen ny positiv bildewrite eller
+visuell eieraksept er forsøkt i staging. Skrivefrysen er opphevet.
+
+Ved senere API-rollback til PR #109 kan den positive, bakoverkompatible additive
+bridgelesingen beholdes. Hvis transporten ikke kan verifiseres, må bare gammel
+bridgekode gjeninnsettes og positiv single authorize bestå før gammel API åpnes.
+Ingen schema-/data-/media-/ledger-reverse. Rollback til eldre kode uten eierbinding
+krever fortsatt at Brave tømmes effektivt/persistent først. Dokumentasjonsmerge
+deployes ikke; ingen neste produktetappe eller shared-/writer-/notataktivering.
 
 
 ## Editor-bildepublisering og en Brave-konto – kodeleveranse 2026-11-08

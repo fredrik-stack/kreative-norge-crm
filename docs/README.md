@@ -1,16 +1,27 @@
 # Kreative Norge CRM – dokumentasjon
 
-## Avgrenset bilderetting – kodeleveranse 2026-11-08
+## Avgrenset bilderetting – stagingverifisert 2026-11-08
 
-Prosjekteiers tre brukerfunn er rettet lokalt: PUBLIC-handlingen avslutter
-bildeflyten, Editor-thumbnail bruker samme autoritative projeksjon som PUBLIC,
-og Brave har synlige søkeforslag og «Vis flere» i puljer på12 fra opptil200 treff.
-Intern godkjenning er fortsatt separat fra PUBLIC-release. Bildeoppdateringer
-bevarer ulagrede profilfelt/tags. Prefetch og avgrenset read-only safety-batch
-unngår DB-/bridgekall per kort. Ingen migrasjon eller nye produktgater.
-[Kontrakt, diagnose, tester og bevisgrenser](architecture/SECURITY_AND_ROLES.md#avgrenset-bilderetting--2026-11-08).
-Separat review/PR/merge/CI og staging gjenstår; PR #109/#110-status nedenfor er
-forrige verifiserte runtime. Eierens reelle kort og fem avslåtte gater bevares.
+[PR #111](https://github.com/fredrik-stack/kreative-norge-crm/pull/111), eksakt
+API/frontend `2a86bb4df23d8aa87c31e70568adfa965bd30bc1`, er levert etter separat
+review og grønn PR-/main-CI, 6/6. PUBLIC-handlingen avslutter bildeflyten;
+Editor-thumbnail gjenbruker PUBLIC-projeksjonen og oppdateres uten refresh med
+bevarte utkast. Brave har synlige søkeforslag og «Vis flere» i puljer på 12
+fra opptil 200 treff, med previews bare for synlige treff. Intern approval og
+PUBLIC-release er fortsatt separate.
+
+Under varslet eierpause ble 122 publiserte Editor-previews sammenlignet med
+PUBLIC: 4 asset og 118 fallback, alle like; reell detalj og eksakt scope er
+leseverifisert. Syv tenantlister brukte tre safety-batcher og ingen single-
+eller legacykall. Bare additiv read-only bridgekode er oppdatert på hosten.
+Alle 56 tabeller, canonical-stamps, eksisterende media/static, miljø og DB-
+container er bevart; ingen migrasjon, profil-/bildewrite eller ledgerhendelse.
+Safety READY23→23, fem gater av, Brave fortsatt bare for eier. Pre/post-backup,
+fullverify/isolert PostgreSQL16-restore, HTTPS-bundle og normale timere består.
+[Kontrakt, sanitert evidens og bevisgrenser](architecture/SECURITY_AND_ROLES.md#avgrenset-bilderetting--2026-11-08).
+Skrivefrysen er opphevet. Tre syntetiske skjermbilder viser kort kontrollgrunnlag;
+ingen ny visuell eieraksept påstås. Dokumentasjonsmerge deployes ikke, og eldre
+daterte runtime-/testtall nedenfor er historikk.
 
 
 ## Editor-bilder til PUBLIC – stagingverifisert 2026-11-08
