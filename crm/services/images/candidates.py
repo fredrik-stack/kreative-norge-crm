@@ -170,6 +170,10 @@ def _load_signed_payload(
         or payload.get("user_id") != actor.pk
     ):
         raise ImageCandidateFlowError("wrong_scope", "The image reference does not match this context.")
+    if payload.get("source_type") == ImageReviewEvent.SourceType.BRAVE_IMAGE_SEARCH:
+        from .brave import brave_user_allowed
+        if not brave_user_allowed(actor):
+            raise ImageCandidatePermissionDenied()
     return payload
 
 
@@ -415,6 +419,8 @@ def get_brave_search_context(
 ) -> dict[str, object]:
     _feature_guard()
     _validate_actor(actor, tenant_id)
+    from .brave import require_brave_user
+    require_brave_user(actor)
     organization = _organization(tenant_id, organization_id)
     context = build_search_context(organization)
     return {
@@ -439,6 +445,8 @@ def discover_brave_image_candidates(
 ) -> tuple[str, tuple[str, ...], tuple[OfficialImageCandidate, ...]]:
     _feature_guard()
     _validate_actor(actor, tenant_id)
+    from .brave import require_brave_user
+    require_brave_user(actor)
     organization = _organization(tenant_id, organization_id)
     if not isinstance(query_edited, bool):
         raise BraveImageSearchError(
@@ -453,7 +461,7 @@ def discover_brave_image_candidates(
         person_id=person_id,
         query_edited=query_edited,
     )
-    provider_results = search_brave_images(prepared_query.query)
+    provider_results = search_brave_images(prepared_query.query, actor=actor)
     ranked_results = rank_brave_results(
         provider_results,
         organization=organization,
@@ -924,14 +932,25 @@ def get_organization_image_state(
 ) -> dict[str, object]:
     _feature_guard()
     _validate_actor(actor, tenant_id, allow_reader=True)
-    _organization(tenant_id, organization_id)
+    organization = _organization(tenant_id, organization_id)
+    from .publication import public_image_state
+    from .brave import brave_user_allowed
+    from .selections import IMAGE_APPROVAL_TEXT
     selection = OrganizationImageSelection.objects.filter(
         tenant_id=tenant_id,
         organization_id=organization_id,
         status=OrganizationImageSelection.Status.ACTIVE,
     ).first()
+    # Derive both representations from this selected revision. State remains
+    # advisory; commands always re-lock/re-authorize the expected revision.
+    organization._public_image_projection_selections = [selection] if selection else []
+    common = {
+        "public_image": public_image_state(organization),
+        "brave_search_enabled": brave_user_allowed(actor) and bool(settings.BRAVE_IMAGE_SEARCH_API_KEY),
+        "approval_text": IMAGE_APPROVAL_TEXT,
+    }
     if selection is None:
-        return {"active_selection": None, "expected_revision": 0}
+        return {"active_selection": None, "expected_revision": 0, **common}
     preview_ref = None
     variants: list[str] = []
     if selection.rendition_set_id:
@@ -950,6 +969,7 @@ def get_organization_image_state(
             ).order_by("variant").values_list("variant", flat=True)
         )
     return {
+        **common,
         "expected_revision": selection.revision,
         "active_selection": {
             "id": selection.pk,

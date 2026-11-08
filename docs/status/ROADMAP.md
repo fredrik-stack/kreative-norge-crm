@@ -1,5 +1,20 @@
 # Roadmap
 
+## Editor-bilder til PUBLIC – kodeleveranse 2026-11-08
+
+Eksplisitt rights approval og separat «Ta bildet i bruk på PUBLIC» kobler
+Editor til eksisterende immutable release-/materialiserings-/safetyflyt.
+Egen standardbildehandling og PUBLIC-projection-preview inngår; ingen skjult
+publisering, legacy-URL-konvertering eller ny migrasjon. Brave er server-side
+begrenset til én eksplisitt aktiv konto, default ingen, uten rollefallback.
+Kun prosjekteier skal bruke CRM frem til solid v1; flerbrukeraktivering utsettes.
+[Mandat, diagnose, tester, avtale-/credential- og driftsporter](../architecture/SECURITY_AND_ROLES.md#editor-bildepublisering-og-en-brave-konto--kodeleveranse-2026-11-08).
+Kode er lokalt testet; separat review/PR/merge/CI og staging gjenstår. Nøkkel og
+aktivt Brave-abonnement er ennå ikke liveverifisert. Ingen reelle aktørbilder,
+brukere/medlemskap, andre produktområder eller fem tilgangs-/writer-/notatgater
+endres. Daterte eldre leveranser nedenfor er historikk.
+
+
 ## Streng tenantmodus – teknisk stagingverifisert, fortsatt av 2026-11-08
 
 PR #107 / eksakt API `276592cf0ad77960dd83187b3e002afcc2edd3ab` er levert

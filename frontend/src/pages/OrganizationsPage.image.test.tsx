@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({
   approveOrganizationImage: vi.fn(),
+  publishOrganizationImage: vi.fn(),
+  useOrganizationImageFallback: vi.fn(),
   createDirectUrlCandidate: vi.fn(),
   discoverOfficialImages: vi.fn(),
   getCandidatePreview: vi.fn(),
@@ -39,6 +41,9 @@ describe("OrganizationImagePanel", () => {
     vi.spyOn(URL, "createObjectURL").mockReturnValueOnce("blob:active-square");
     vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
     api.getOrganizationImageState.mockResolvedValue({
+      brave_search_enabled: true,
+      approval_text: "Jeg bekrefter rettigheter",
+      public_image: {enabled: false, kind: "system_fallback", reason: "disabled", image: null},
       expected_revision: 0,
       active_selection: null,
     });
@@ -139,15 +144,17 @@ describe("OrganizationImagePanel", () => {
     expect(screen.getByText(/untagged_assumed_srgb/)).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText(/Alt-tekst/), "Offisielt foto");
     await userEvent.type(screen.getByLabelText("Offentlig kreditering (valgfritt)"), "Fotograf");
+    await userEvent.click(screen.getByRole("checkbox", {name: /Jeg bekrefter/}));
     await userEvent.click(screen.getByRole("button", { name: "Godkjenn og lås bilde" }));
 
     await waitFor(() => expect(api.approveOrganizationImage).toHaveBeenCalledWith(1, 10, {
       approval_ref: "approval-ref",
+      rights_confirmed: true,
       expected_revision: 0,
       alt_text: "Offisielt foto",
       public_credit: "Fotograf",
     }));
-    expect(await screen.findByText("Aktivt bilde")).toBeInTheDocument();
+    expect(await screen.findByText("Internt godkjent bilde")).toBeInTheDocument();
     expect(screen.getByText("Revisjon 1")).toBeInTheDocument();
   });
 
@@ -324,9 +331,11 @@ describe("OrganizationImagePanel", () => {
       zoom: 1,
     }));
     expect(await screen.findByRole("textbox", { name: /Alt-tekst \(valgfritt\)/ })).toHaveValue("");
+    await userEvent.click(screen.getByRole("checkbox", {name: /Jeg bekrefter/}));
     await userEvent.click(screen.getByRole("button", { name: "Godkjenn og lås bilde" }));
     await waitFor(() => expect(api.approveOrganizationImage).toHaveBeenCalledWith(1, 10, {
       approval_ref: "approval-ref",
+      rights_confirmed: true,
       expected_revision: 0,
       alt_text: "",
       public_credit: "",
@@ -555,6 +564,49 @@ describe("OrganizationImagePanel", () => {
     await act(async () => {
       previews.slice(1).forEach((preview) => preview.resolve(new Blob(["preview"], { type: "image/webp" })));
     });
+  });
+  it("requires an explicit PUBLIC action and uses the returned public projection", async () => {
+    const internal = {
+      expected_revision: 4, brave_search_enabled: false, approval_text: "Jeg bekrefter rettigheter",
+      active_selection: {id: 9, revision: 4, status: "active", kind: "asset", alt_text: "Synthetic", public_credit: "", rendition_preview_ref: null, variants: []},
+      public_image: {enabled: true, kind: "system_fallback", reason: "release_missing", image: null},
+    };
+    const variant = {url: "https://media.example/releases/public-square.webp", width: 512, height: 512};
+    api.getOrganizationImageState.mockResolvedValueOnce(internal).mockResolvedValue({
+      ...internal, public_image: {enabled: true, kind: "asset", reason: "asset", image: {kind:"asset",alt_text:"Synthetic",credit:null,square:variant,landscape:variant,share:variant}},
+    });
+    api.publishOrganizationImage.mockResolvedValue({release_id: "synthetic-release", revision: 4});
+    render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Synthetic" />);
+    expect(await screen.findByText("PUBLIC bruker standardbilde")).toBeInTheDocument();
+    expect(api.publishOrganizationImage).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", {name:"Ta bildet i bruk på PUBLIC"}));
+    expect(api.publishOrganizationImage).toHaveBeenCalledTimes(1);
+    expect(api.publishOrganizationImage).toHaveBeenCalledWith(1,10,4);
+    expect(await screen.findByText("Bildet er i bruk på PUBLIC")).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Forhåndsvisning fra PUBLIC")).getAllByRole("img")).toHaveLength(3);
+    expect(api.approveOrganizationImage).not.toHaveBeenCalled();
+  });
+
+  it("does not replay an uncertain publication and refreshes status before retry", async () => {
+    api.getOrganizationImageState.mockResolvedValue({
+      expected_revision: 7, active_selection: {id:9,revision:7,status:"active",kind:"asset",alt_text:"",public_credit:"",rendition_preview_ref:null,variants:[]},
+      public_image:{enabled:true,kind:"system_fallback",reason:"release_missing",image:null},brave_search_enabled:false,
+    });
+    api.publishOrganizationImage.mockRejectedValue(new ApiError(503,"Kunne ikke bekrefte PUBLIC",{code:"publication_unverified"}));
+    render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Synthetic" />);
+    await userEvent.click(await screen.findByRole("button",{name:"Ta bildet i bruk på PUBLIC"}));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(api.publishOrganizationImage).toHaveBeenCalledTimes(1);
+    await waitFor(()=>expect(api.getOrganizationImageState).toHaveBeenCalledTimes(2));
+  });
+
+  it("keeps Brave unavailable for an account without server authorization", async () => {
+    api.getOrganizationImageState.mockResolvedValue({expected_revision:0,active_selection:null,brave_search_enabled:false});
+    render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Synthetic" />);
+    await userEvent.click(await screen.findByRole("button", {name:"Finn bilder"}));
+    expect(await screen.findByRole("button",{name:"Søk etter flere bilder"})).toBeDisabled();
+    expect(api.getImageSearchContext).not.toHaveBeenCalled();
+    expect(api.searchBraveImages).not.toHaveBeenCalled();
   });
 });
 

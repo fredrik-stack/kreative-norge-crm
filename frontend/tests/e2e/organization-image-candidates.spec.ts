@@ -9,7 +9,7 @@ test("legacy candidates are listed without network preview until explicit select
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ expected_revision: 0, active_selection: null }),
+      body: JSON.stringify({ brave_search_enabled: true, expected_revision: 0, active_selection: null }),
     });
   });
   await page.route("**/api/tenants/1/organizations/10/images/legacy-candidates/", async (route) => {
@@ -64,6 +64,7 @@ test("official candidate can be processed, previewed, and explicitly locked", as
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        brave_search_enabled: true,
         expected_revision: activeRevision,
         active_selection: activeRevision
           ? {
@@ -132,6 +133,7 @@ test("official candidate can be processed, previewed, and explicitly locked", as
   await page.route("**/api/tenants/1/organizations/10/images/approve/", async (route) => {
     const payload = route.request().postDataJSON();
     expect(payload).toEqual({
+      rights_confirmed: true,
       approval_ref: "signed-approval-ref",
       expected_revision: 0,
       alt_text: "Offisielt bilde av Kreativ Demo AS",
@@ -158,8 +160,9 @@ test("official candidate can be processed, previewed, and explicitly locked", as
   await expect(page.getByLabel("Serverens bildeformater").getByRole("img")).toHaveCount(3);
   await page.getByLabel(/Alt-tekst/).fill("Offisielt bilde av Kreativ Demo AS");
   await page.getByLabel("Offentlig kreditering (valgfritt)").fill("Fotograf");
+  await page.getByRole("checkbox", {name: /Jeg bekrefter/}).check();
   await page.getByRole("button", { name: "Godkjenn og lås bilde" }).click();
-  await expect(page.getByText("Aktivt bilde")).toBeVisible();
+  await expect(page.getByText("Internt godkjent bilde")).toBeVisible();
   await expect(page.getByText("Revisjon 1")).toBeVisible();
   await page.locator("summary").filter({hasText:/^Forhåndsvisning/}).click();
   await expect(page.getByRole("heading", { name: "Public Preview (legacy)" })).toBeVisible();
@@ -179,6 +182,7 @@ test("direct URL can be previewed, cropped live, processed, and approved with bl
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        brave_search_enabled: true,
         expected_revision: activeRevision,
         active_selection: activeRevision
           ? {
@@ -257,6 +261,7 @@ test("direct URL can be previewed, cropped live, processed, and approved with bl
   });
   await page.route("**/api/tenants/1/organizations/10/images/approve/", async (route) => {
     expect(route.request().postDataJSON()).toEqual({
+      rights_confirmed: true,
       approval_ref: "signed-url-approval-ref",
       expected_revision: 0,
       alt_text: "",
@@ -298,8 +303,9 @@ test("direct URL can be previewed, cropped live, processed, and approved with bl
 
   await page.getByRole("button", { name: "Prosesser valgt bilde" }).click();
   await expect(page.getByRole("textbox", { name: /Alt-tekst \(valgfritt\)/ })).toHaveValue("");
+  await page.getByRole("checkbox", {name: /Jeg bekrefter/}).check();
   await page.getByRole("button", { name: "Godkjenn og lås bilde" }).click();
-  await expect(page.getByText("Aktivt bilde")).toBeVisible();
+  await expect(page.getByText("Internt godkjent bilde")).toBeVisible();
   await expect(page.getByText("Ingen alt-tekst")).toBeVisible();
 });
 
@@ -317,6 +323,7 @@ test("local upload can be processed as a complete uncropped logo without changin
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
+        brave_search_enabled: true,
         expected_revision: activeRevision,
         active_selection: activeRevision
           ? {
@@ -371,6 +378,7 @@ test("local upload can be processed as a complete uncropped logo without changin
   });
   await page.route("**/api/tenants/1/organizations/10/images/approve/", async (route) => {
     expect(route.request().postDataJSON()).toEqual({
+      rights_confirmed: true,
       approval_ref: "signed-upload-approval-ref",
       expected_revision: 0,
       alt_text: "",
@@ -409,9 +417,10 @@ test("local upload can be processed as a complete uncropped logo without changin
   await expect(page.getByLabel("Zoom")).toHaveCount(0);
   await page.getByRole("button", { name: "Prosesser valgt bilde" }).click();
   await expect(page.getByRole("textbox", { name: /Alt-tekst \(valgfritt\)/ })).toHaveValue("");
+  await page.getByRole("checkbox", {name: /Jeg bekrefter/}).check();
   await page.getByRole("button", { name: "Godkjenn og lås bilde" }).click();
 
-  await expect(page.getByText("Aktivt bilde")).toBeVisible();
+  await expect(page.getByText("Internt godkjent bilde")).toBeVisible();
   await expect(page.getByText("Ingen alt-tekst")).toBeVisible();
   await page.locator("summary").filter({hasText:/^Forhåndsvisning/}).click();
   await expect(page.getByRole("heading", { name: "Public Preview (legacy)" })).toBeVisible();
@@ -431,7 +440,7 @@ test("Brave search is mocked with exact manual query, privacy copy, private prev
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ expected_revision: 0, active_selection: null }),
+      body: JSON.stringify({ brave_search_enabled: true, expected_revision: 0, active_selection: null }),
     });
   });
   await page.route("**/api/tenants/1/organizations/10/images/discover/", async (route) => {

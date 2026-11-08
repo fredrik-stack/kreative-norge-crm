@@ -202,6 +202,21 @@ export type ProcessedOrganizationImage = {
 };
 
 export type OrganizationImageState = {
+  brave_search_enabled: boolean;
+  approval_text: string;
+  public_image: {
+    enabled: boolean;
+    kind: "asset" | "system_fallback";
+    reason: string;
+    image: null | {
+      kind: "asset" | "system_fallback";
+      alt_text: string;
+      credit: string | null;
+      square: {url: string; width: number; height: number};
+      landscape: {url: string; width: number; height: number};
+      share: {url: string; width: number; height: number};
+    };
+  };
   expected_revision: number;
   active_selection: null | {
     id: number;

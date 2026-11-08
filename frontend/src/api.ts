@@ -450,6 +450,7 @@ export async function approveOrganizationImage(
     expected_revision: number;
     alt_text: string;
     public_credit: string;
+    rights_confirmed: boolean;
   },
 ): Promise<{ selection_id: number; revision: number; status: string; event_id: number }> {
   return request(organizationImagePath(tenantId, organizationId, "approve"), {
@@ -463,6 +464,18 @@ export async function getOrganizationImageState(
   organizationId: number,
 ): Promise<OrganizationImageState> {
   return request(organizationImagePath(tenantId, organizationId, "state"));
+}
+
+export async function publishOrganizationImage(tenantId: number, organizationId: number, expectedRevision: number) {
+  return request<{release_id: string; revision: number}>(organizationImagePath(tenantId, organizationId, "publish"), {
+    method: "POST", body: JSON.stringify({expected_revision: expectedRevision, confirmed: true}),
+  });
+}
+
+export async function useOrganizationImageFallback(tenantId: number, organizationId: number, expectedRevision: number) {
+  return request(organizationImagePath(tenantId, organizationId, "fallback"), {
+    method: "POST", body: JSON.stringify({expected_revision: expectedRevision, confirmed: true}),
+  });
 }
 
 export async function createOrganization(

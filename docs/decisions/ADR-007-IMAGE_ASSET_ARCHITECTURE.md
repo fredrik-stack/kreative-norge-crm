@@ -2,6 +2,17 @@
 
 ## Status
 
+**Implementeringspresisering2026-11-08:** Eksisterende bildearkitektur gjenbrukes
+for en eksplisitt Editor/API-overgang fra intern rights approval til offentlig
+release, med expected revision, låsing/reautorisering og samme permanente
+reservation ved retry. Approval publiserer ikke skjult. PUBLIC-preview og ordinær
+fallback gjenbruker projeksjon/selection-historikk; formell deny er separat.
+Brave begrenses server-side til én uttrykkelig identifisert, aktiv kundekonto,
+uten gruppe-/staff-/superuserfallback, i påvente av senere flerbrukeravtaler.
+Ingen schemaendring, ny bildearkitektur eller generelt avtalesystem.
+[Kontrakt, eiermandat og faktisk leveransestatus](../architecture/SECURITY_AND_ROLES.md#editor-bildepublisering-og-en-brave-konto--kodeleveranse-2026-11-08).
+
+
 Godkjent som arkitekturgrunnlag og verifisert gjennom fase 3A–3F. Fase 3A, de isolerte fase 3B.1- og 3B.2-prototypene og fase 3B.1R med representativ kvalitetsvalidering er gjennomført. Fase 3B.3 har fastsatt separat UUIDv4-basert public release identity, canonical public release keys og varig release-reservasjon. Fase 3B.3-A har implementert den additive organization-typed release-aggregaten, canonical key-builderen, immutable historisk mapping og atomisk feature-gated opprettelse i databasedomenet. Fase 3C.7 har implementert intern processing/storage, og fase 3D.1 har implementert første offisielle website/Open Graph-kandidatflyt til eksplisitt Organization-selection bak det fortsatt avslåtte kode-default-flagget. Fase 3D.2 er implementert og verifisert som tidligere dokumentert; Brave-integrasjonen er likevel **operativt ikke aktiv** for ordinære Editor-sluttbrukere. [ADR-008](ADR-008-HETZNER_ONE_SERVER_STORAGE_AND_BACKUP_BASELINE.md) velger lokal one-server media og kryptert Hetzner Storage Box-backup som operasjonell MVP. [ADR-009](ADR-009-PUBLIC_IMAGE_RUNTIME_RELEASE_DELIVERY_AND_RESTORE_SAFE_DENY_STATE.md) formaliserer fase 3E-runtimearkitekturen; 3E.1A–3E.1C er `ACTIVE`, 3E.2 er `CLOSED / SHADOW VERIFIED`, og 3E.3 API/PUBLIC/head-cutover samt 3E.4 formell takedown/tenant-checksum-deny er `CLOSED / ACTIVE` i staging. Fase 3F read-only legacyovergang, typed Import-kontrakt, restore og orphan-gate er `CLOSED / VERIFIED`; `IMPORT_IMAGE_DECISIONS_ENABLED` er fortsatt av i shared staging. Fase 3 er dermed avsluttet. Kode-/eksempelstandardene for nye takedown- og import-image-writes er fortsatt av.
 
 **Beslutningsdato:** 2026-07-30
