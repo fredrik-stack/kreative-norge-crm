@@ -90,7 +90,7 @@ class BraveProviderAdapterTests(SimpleTestCase):
         self.assertEqual(params["search_lang"], ["nb"])
         self.assertEqual(params["safesearch"], ["strict"])
         self.assertEqual(params["spellcheck"], ["false"])
-        self.assertEqual(params["count"], ["30"])
+        self.assertEqual(params["count"], ["200"])
         self.assertEqual(calls[0][1]["X-Subscription-Token"], "server-secret")
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].source_domain, "official.example")
@@ -98,6 +98,24 @@ class BraveProviderAdapterTests(SimpleTestCase):
         self.assertIsNone(results[0].publisher)
         self.assertIsNone(results[0].width)
         self.assertIsNone(results[0].height)
+
+    @override_settings(BRAVE_IMAGE_SEARCH_API_KEY="synthetic-only")
+    def test_maximum_batch_is_bounded_and_query_is_unchanged(self):
+        transport = Mock(return_value=(200, "application/json", json.dumps({"results": [
+            {"properties": {"url": f"https://images.example/{index}.jpg"}} for index in range(210)]}).encode()))
+        results = search_brave_images('"Synthetic actor" site:public.example', transport=transport)
+        self.assertEqual(len(results), 200)
+        parameters = parse_qs(urlsplit(transport.call_args.args[0]).query)
+        self.assertEqual(parameters["q"], ['"Synthetic actor" site:public.example'])
+        self.assertEqual(parameters["count"], ["200"])
+
+    def test_visible_suggestions_use_name_and_known_profile_without_private_url_parts(self):
+        from crm.services.images.brave import query_suggestions
+        organization = Organization(name="4/4 FORUM FOR TAKT OG TONE", facebook_url="https://www.facebook.com/synthetic-profile?tracking=secret#private")
+        suggestions = query_suggestions(organization)
+        self.assertIn({"label": "Navn med ord", "query": "FORUM FOR TAKT OG TONE"}, suggestions)
+        self.assertTrue(any(v["label"] == "Kjent Facebook-profil" for v in suggestions))
+        self.assertNotIn("secret", str(suggestions));self.assertNotIn("private", str(suggestions))
 
     @override_settings(BRAVE_IMAGE_SEARCH_API_KEY="")
     def test_missing_key_is_controlled_before_transport(self):

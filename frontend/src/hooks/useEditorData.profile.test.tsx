@@ -172,3 +172,19 @@ it('confirmed actor deletion clears only its cache/links, retains people and exc
   expect(result.current.persons).toEqual(people);
   expect(result.current.organizationHasUnsavedChanges).toBe(false);
 });
+
+it('refreshes only derived image preview and preserves unsaved fields, tags and tenant scope', async () => {
+  const { result } = await editor();
+  const org = result.current.selectedOrganization!;
+  act(() => {
+    result.current.setDraft(draft => ({ ...draft, note: 'unsaved synthetic note' }));
+    result.current.setOrganizationTagInput('unsaved synthetic tag');
+  });
+  act(() => result.current.updateOrganizationImagePreview(1, org.id, 'https://public.example/media/new-square.webp'));
+  expect(result.current.selectedOrganization?.preview_image_url).toBe('https://public.example/media/new-square.webp');
+  expect(result.current.organizations.find(o => o.id===org.id)?.preview_image_url).toBe('https://public.example/media/new-square.webp');
+  expect(result.current.draft.note).toBe('unsaved synthetic note');
+  expect(result.current.organizationTagInput).toBe('unsaved synthetic tag');
+  act(() => result.current.updateOrganizationImagePreview(999, org.id, 'https://wrong.example/'));
+  expect(result.current.selectedOrganization?.preview_image_url).toBe('https://public.example/media/new-square.webp');
+});

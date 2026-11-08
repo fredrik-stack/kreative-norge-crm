@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
 import { loginAsEditor, setupMockEditorApi } from "./mockEditorApi";
 
 test("legacy candidates are listed without network preview until explicit selection", async ({ page }) => {
@@ -58,6 +59,16 @@ test("official candidate can be processed, previewed, and explicitly locked", as
   const state = await setupMockEditorApi(page);
   state.organizations[0].image_asset_feature_enabled = true;
   let activeRevision = 0;
+  let released = false;
+  const imageBody = readFileSync(new URL("../fixtures/editor-image-synthetic.png", import.meta.url));
+  const imageUrl = "/synthetic-public-image.png";
+  await page.route("**/synthetic-public-image.png", route => route.fulfill({status: 200, contentType: "image/png", body: imageBody}));
+  await page.route("**/api/tenants/1/organizations/10/images/publish/", async route => {
+    expect(route.request().postDataJSON()).toEqual({expected_revision: 1, confirmed: true});
+    released = true;
+    state.organizations[0].preview_image_url = imageUrl;
+    await route.fulfill({status: 200, contentType: "application/json", body: JSON.stringify({release_id:"synthetic-release",revision:1})});
+  });
 
   await page.route("**/api/tenants/1/organizations/10/images/state/", async (route) => {
     await route.fulfill({
@@ -66,6 +77,8 @@ test("official candidate can be processed, previewed, and explicitly locked", as
       body: JSON.stringify({
         brave_search_enabled: true,
         expected_revision: activeRevision,
+        public_image: {enabled:true, kind: released ? "asset" : "system_fallback", reason: released ? "asset" : "release_missing",
+          image: released ? {kind:"asset",alt_text:"Syntetisk bilde",credit:"Fotograf",square:{url:imageUrl,width:512,height:512},landscape:{url:imageUrl,width:800,height:450},share:{url:imageUrl,width:1200,height:630}} : null},
         active_selection: activeRevision
           ? {
               id: 1,
@@ -102,7 +115,7 @@ test("official candidate can be processed, previewed, and explicitly locked", as
     });
   });
   await page.route("**/api/tenants/1/organizations/10/images/candidate-preview/", async (route) => {
-    await route.fulfill({ status: 200, contentType: "image/webp", body: "candidate-preview" });
+    await route.fulfill({ status: 200, contentType: "image/png", body: imageBody });
   });
   await page.route("**/api/tenants/1/organizations/10/images/process/", async (route) => {
     const payload = route.request().postDataJSON();
@@ -128,7 +141,7 @@ test("official candidate can be processed, previewed, and explicitly locked", as
     });
   });
   await page.route("**/api/tenants/1/organizations/10/images/rendition-preview/", async (route) => {
-    await route.fulfill({ status: 200, contentType: "image/webp", body: "rendition-preview" });
+    await route.fulfill({ status: 200, contentType: "image/png", body: imageBody });
   });
   await page.route("**/api/tenants/1/organizations/10/images/approve/", async (route) => {
     const payload = route.request().postDataJSON();
@@ -164,8 +177,21 @@ test("official candidate can be processed, previewed, and explicitly locked", as
   await page.getByRole("button", { name: "Godkjenn og lås bilde" }).click();
   await expect(page.getByText("Internt godkjent bilde")).toBeVisible();
   await expect(page.getByText("Revisjon 1")).toBeVisible();
+  await expect(page.locator(`img[src="${imageUrl}"]`)).toHaveCount(0);
+  const publicPanel = page.getByLabel("Bilde på PUBLIC", {exact:true});
+  expect(await publicPanel.evaluate(element => element.parentElement?.lastElementChild === element)).toBe(true);
+  await publicPanel.screenshot({path: test.info().outputPath("01-public-action-last.png")});
+  await page.getByRole("button", {name:"Ta bildet i bruk på PUBLIC"}).click();
+  await expect(page.getByText("Bildet er i bruk på PUBLIC")).toBeVisible();
+  await expect(page.locator('.profile-image-entry img').first()).toHaveAttribute('src', imageUrl);
+  await publicPanel.screenshot({path: test.info().outputPath("02-published-image.png")});
   await page.locator("summary").filter({hasText:/^Forhåndsvisning/}).click();
   await expect(page.getByRole("heading", { name: "Public Preview (legacy)" })).toBeVisible();
+  await page.getByRole("link", {name:"Aktører",exact:true}).click();
+  await expect(page.locator(`.editor-card-grid img[src="${imageUrl}"]`)).toBeVisible();
+  await page.locator(".editor-card-grid").getByRole("button", {name:"Kreativ Demo AS"}).click();
+  await expect(page.getByRole("dialog").locator(`img[src="${imageUrl}"]`)).toBeVisible();
+  await page.getByRole("dialog").screenshot({path: test.info().outputPath("03-editor-card-detail.png")});
 });
 
 test("direct URL can be previewed, cropped live, processed, and approved with blank alt text", async ({ page }) => {
@@ -530,7 +556,7 @@ test("Brave search is mocked with exact manual query, privacy copy, private prev
   const query = page.getByLabel("Forslått søk");
   await expect(query).toHaveValue("Kreativ Demo AS Oslo");
   await query.fill("Festspillene Helgeland logo");
-  await page.getByRole("button", { name: "Søk", exact: true }).click();
+  await page.getByRole("button", { name: "Nytt søk", exact: true }).click();
   await expect(page.getByText("Eksempelavisen · publisher.example")).toBeVisible();
   await expect(page.getByText("Kontroller at du har lov til å bruke bildet før du godkjenner.")).toBeVisible();
   await page.getByRole("button", { name: /Festspillene Helgeland/ }).click();

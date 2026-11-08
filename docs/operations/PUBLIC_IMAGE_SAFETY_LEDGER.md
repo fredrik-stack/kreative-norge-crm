@@ -16,6 +16,22 @@ Kommandoen skriver bare aggregert JSON til stdout: publisert antall, asset/fallb
 
 Faktisk 3E.1A-aktiveringsevidens, inkludert repository-separasjon, raw-`rm`-restrisiko, separat transaction recovery av probe og DENIED-head, restartpersistens og containerisolasjon, finnes i [stagingrapporten 2026-08-20](../status/STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md). Bridge-, peer-, mount- og delivery-backup-/restoreevidensen finnes i [3E.1B-foundationrapporten](../status/STAGING_PHASE_3E1B_FOUNDATION_2026-08-23.md), mens faktisk reserve/materialize/activate- og crash/retry-evidens finnes i [3E.1B-aktiveringsrapporten](../status/STAGING_PHASE_3E1B_MATERIALIZATION_ACTIVATION_2026-08-23.md).
 
+## Avgrenset batchlesing – kodeleveranse2026-11-08
+
+`authorize_many` er en additiv read-only bridgeoperasjon: payload `items` har
+1–24 eksisterende authorize-payloads.16KiB og protokollversjon1 består. Hvert
+svar har inputindex, tenant/org og vanlig autorisasjon; samme READY/read-fence,
+scope/checksum/terminalpolicy og writerpreferanse som single authorize.
+Ingen ankere/ledgerstate repareres eller skrives. Klient avviser avvikende
+rekkefølge/scope/identitet/cursor. Ukjent eldre bridge gir fail-closed, ingen
+per-kort single-retry. Byte-serving kontrollerer fortsatt nyeste state selv.
+
+Dette er nødvendig for Editor-listens ytelse. Hostkomponenten må være oppdatert
+og read-only-verifisert før ny API deployes under koordinert skrivefrys og
+backup-/restoreporter. Runtime/ledgerkonfigurasjon, peers, units, schema og gater
+endres ikke. Rollback bevarer ledger/deny; single authorize er bakoverkompatibel.
+[Kontrakt, tester og faktisk leveransestatus](../architecture/SECURITY_AND_ROLES.md#avgrenset-bilderetting--2026-11-08).
+
 ## 1. Implementert kontrakt
 
 `image_safety/` er en ren Python 3-/SQLite-komponent uten Django- eller PostgreSQL-avhengighet. Den implementerer:

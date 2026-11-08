@@ -423,8 +423,10 @@ def get_brave_search_context(
     require_brave_user(actor)
     organization = _organization(tenant_id, organization_id)
     context = build_search_context(organization)
+    from .brave import query_suggestions
     return {
         "suggested_query": context.suggested_query,
+        "query_suggestions": list(query_suggestions(organization)),
         "query_sources": list(context.query_sources),
         "municipalities": list(context.municipalities),
         "categories": list(context.categories),

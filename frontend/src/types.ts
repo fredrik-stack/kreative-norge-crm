@@ -178,6 +178,7 @@ export type OrganizationImageQuerySource =
   | "manual_edit";
 
 export type OrganizationImageSearchContext = {
+  query_suggestions?: Array<{ label: string; query: string }>;
   suggested_query: string;
   query_sources: OrganizationImageQuerySource[];
   municipalities: string[];

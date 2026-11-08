@@ -132,13 +132,8 @@ def _selection_releases(
     return tuple(selection.public_releases.all())
 
 
-def project_public_image(
-    organization: Organization,
-    *,
-    bridge: ImageSafetyBridgeClient | None = None,
-) -> PublicImageProjectionResult:
-    """Resolve one fail-closed public image without storage or state mutation."""
-
+def _projection_scope(organization: Organization):
+    """One shared DB/scope contract for individual and batched projection."""
     if not organization.is_published:
         return _fallback("organization_unpublished")
 
@@ -174,6 +169,30 @@ def project_public_image(
     except PublicReleaseMappingInvalid:
         return _fallback("release_mapping_invalid")
 
+    return selection, release, mappings
+
+
+def _authorization_payload(release, mapping, variant):
+    return dict(
+        release_id=str(release.release_id), tenant_id=release.tenant_id,
+        organization_id=release.organization_id, variant=variant,
+        public_storage_key=mapping.public_storage_key,
+        artifact_checksum_sha256=mapping.artifact_checksum_sha256_snapshot,
+        source_checksum_sha256=release.rendition_set.asset.checksum_sha256,
+    )
+
+
+def project_public_image(
+    organization: Organization,
+    *,
+    bridge: ImageSafetyBridgeClient | None = None,
+) -> PublicImageProjectionResult:
+    """Resolve one fail-closed public image without storage or state mutation."""
+    scope = _projection_scope(organization)
+    if isinstance(scope, PublicImageProjectionResult):
+        return scope
+    selection, release, mappings = scope
+
     bridge = bridge or ImageSafetyBridgeClient(timeout=5.0)
     cursors: list[int] = []
     authorize_count = 0
@@ -181,15 +200,7 @@ def project_public_image(
         mapping = mappings[variant]
         authorize_count += 1
         try:
-            authorization = bridge.authorize(
-                release_id=str(release.release_id),
-                tenant_id=release.tenant_id,
-                organization_id=release.organization_id,
-                variant=variant,
-                public_storage_key=mapping.public_storage_key,
-                artifact_checksum_sha256=mapping.artifact_checksum_sha256_snapshot,
-                source_checksum_sha256=release.rendition_set.asset.checksum_sha256,
-            )
+            authorization = bridge.authorize(**_authorization_payload(release, mapping, variant))
         except ImageSafetyBridgeError:
             return _fallback("safety_unavailable", authorize_count=authorize_count)
         if not authorization.authorized:
@@ -220,3 +231,44 @@ def project_public_image(
         authorize_count=authorize_count,
         safety_cursor=min(cursors) if cursors else None,
     )
+
+
+def project_public_image_catalog(organizations, *, bridge=None):
+    """Request-local batch transport around the same authoritative projector.
+
+    Querysets must use prefetch_public_image_projection. No persisted grant or
+    cache: serving authorizes again. An old/unavailable bridge fails closed.
+    """
+    organizations = tuple(organizations)
+    payloads = []
+    for organization in organizations:
+        scope = _projection_scope(organization)
+        if not isinstance(scope, PublicImageProjectionResult):
+            _, release, mappings = scope
+            payloads.extend(_authorization_payload(release, mappings[v], v)
+                            for v in sorted(REQUIRED_RELEASE_VARIANTS))
+    decisions = {}
+    key = lambda payload: tuple(sorted(payload.items()))
+    for start in range(0, len(payloads), 24):
+        bridge = bridge or ImageSafetyBridgeClient(timeout=5.0)
+        chunk = payloads[start:start + 24]
+        try:
+            results = bridge.authorize_many(chunk)
+            if len(results) != len(chunk):
+                raise ImageSafetyBridgeError("safety_unavailable", "Incomplete safety batch.", retryable=True)
+            decisions.update((key(payload), result) for payload, result in zip(chunk, results))
+        except ImageSafetyBridgeError as error:
+            # One unavailable bridge must not multiply its timeout per page.
+            decisions.update((key(payload), error) for payload in payloads[start:])
+            break
+
+    class RequestAuthorization:
+        def authorize(self, **payload):
+            decision = decisions.get(key(payload))
+            if decision is None or isinstance(decision, ImageSafetyBridgeError):
+                raise ImageSafetyBridgeError("safety_unavailable", "Safety batch unavailable.", retryable=True)
+            return decision
+
+    authority = RequestAuthorization()
+    return {organization.pk: project_public_image(organization, bridge=authority)
+            for organization in organizations}

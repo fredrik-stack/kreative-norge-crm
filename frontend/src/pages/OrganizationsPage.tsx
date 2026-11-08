@@ -652,6 +652,7 @@ function OrganizationEditorPanel(props: {
               tenantId={editor.tenantId!}
               organizationId={editor.selectedOrgId}
               organizationName={editor.selectedOrganization.name}
+              onImageChanged={url => editor.updateOrganizationImagePreview(editor.tenantId!, editor.selectedOrgId as number, url)}
             />
               </ProfileSection>
             </div>
@@ -820,6 +821,7 @@ export function OrganizationImagePanel(props: {
   tenantId: number;
   organizationId: number;
   organizationName: string;
+  onImageChanged?: (url: string | null) => void;
 }) {
   const { tenantId, organizationId, organizationName } = props;
   const objectUrls = useRef<string[]>([]);
@@ -831,6 +833,8 @@ export function OrganizationImagePanel(props: {
   const selectedPreviewRequest = useRef(0);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const [candidates, setCandidates] = useState<OrganizationImageCandidate[]>([]);
+  const [braveVisibleCount, setBraveVisibleCount] = useState(0);
+  const BRAVE_PAGE_SIZE = 12;
   const [legacyCandidates, setLegacyCandidates] = useState<OrganizationImageCandidate[]>([]);
   const [candidatePreviews, setCandidatePreviews] = useState<Record<string, string | null>>({});
   const [candidateOriginalPreviews, setCandidateOriginalPreviews] = useState<Record<string, string>>({});
@@ -943,16 +947,39 @@ export function OrganizationImagePanel(props: {
     setCandidatePreviews({});
     setCandidateOriginalPreviews({});
     setCandidates(nextCandidates);
+    setBraveVisibleCount(0);
+    setLastSearch(null);
     clearSelectedCandidate();
     enqueueCandidatePreviews(nextCandidates, generation);
   }
 
-  function appendCandidates(nextCandidates: OrganizationImageCandidate[], generation: number) {
-    const additions = nextCandidates.filter((candidate) => !candidateRefs.current.has(candidate.candidate_ref));
-    if (additions.length === 0) return;
-    additions.forEach((candidate) => candidateRefs.current.add(candidate.candidate_ref));
-    setCandidates((current) => [...current, ...additions]);
-    enqueueCandidatePreviews(additions, generation);
+  const braveCandidates = candidates.filter(candidate => candidate.provider === "brave_image_search");
+  const visibleBraveRefs = new Set(braveCandidates.slice(0, braveVisibleCount).map(candidate => candidate.candidate_ref));
+  const visibleCandidates = candidates.filter(candidate => candidate.provider !== "brave_image_search" || visibleBraveRefs.has(candidate.candidate_ref));
+
+  function replaceBraveCandidates(next: OrganizationImageCandidate[], generation: number) {
+    candidateSetVersion.current += 1;
+    candidatePreviewQueue.current = [];
+    const oldRefs = new Set(braveCandidates.map(candidate => candidate.candidate_ref));
+    const retained = candidates.filter(candidate => !oldRefs.has(candidate.candidate_ref));
+    const keepPreviews = (previews: Record<string, string | null>) => {
+      const old = Object.fromEntries(Object.entries(previews).filter(([ref]) => oldRefs.has(ref)));
+      revokePreviewUrls(old);
+      return Object.fromEntries(Object.entries(previews).filter(([ref]) => !oldRefs.has(ref)));
+    };
+    setCandidatePreviews(keepPreviews(candidatePreviews));
+    setCandidateOriginalPreviews(keepPreviews(candidateOriginalPreviews) as Record<string, string>);
+    candidateRefs.current = new Set([...retained, ...next].map(candidate => candidate.candidate_ref));
+    setCandidates([...retained, ...next]);
+    setBraveVisibleCount(Math.min(BRAVE_PAGE_SIZE, next.length));
+    clearSelectedCandidate();
+    enqueueCandidatePreviews([...retained.filter(candidate => candidatePreviews[candidate.candidate_ref] === undefined), ...next.slice(0, BRAVE_PAGE_SIZE)], generation);
+  }
+
+  function showMoreBraveResults() {
+    const nextCount = Math.min(braveVisibleCount + BRAVE_PAGE_SIZE, braveCandidates.length);
+    enqueueCandidatePreviews(braveCandidates.slice(braveVisibleCount, nextCount), scopeGeneration.current);
+    setBraveVisibleCount(nextCount);
   }
 
   async function loadPreviews(
@@ -976,6 +1003,7 @@ export function OrganizationImagePanel(props: {
     const state = await getOrganizationImageState(tenantId, organizationId);
     if (scopeGeneration.current !== generation) return;
     setImageState(state);
+    if (state.public_image?.enabled) props.onImageChanged?.(state.public_image.image?.square.url ?? null);
     if (state.active_selection) {
       setAltText(state.active_selection.alt_text);
       setPublicCredit(state.active_selection.public_credit);
@@ -1008,6 +1036,7 @@ export function OrganizationImagePanel(props: {
     candidateRefs.current = new Set();
     candidatePreviewQueue.current = [];
     setCandidates([]);
+    setBraveVisibleCount(0);
     setLegacyCandidates([]);
     setCandidatePreviews({});
     setCandidateOriginalPreviews({});
@@ -1090,7 +1119,6 @@ export function OrganizationImagePanel(props: {
     setMunicipalityExplicit(false);
     setSelectedCategoryId(null);
     setSelectedPersonId(null);
-    setLastSearch(null);
   }
 
   async function onOpenBraveSearch() {
@@ -1155,7 +1183,7 @@ export function OrganizationImagePanel(props: {
       });
       if (scopeGeneration.current !== generation) return;
       setLastSearch({ query: result.search_query, sources: result.query_sources });
-      appendCandidates(result.candidates, generation);
+      replaceBraveCandidates(result.candidates, generation);
       clearSelectedCandidate();
     } catch (nextError) {
       if (scopeGeneration.current === generation) setError(imageFlowError(nextError, "brave"));
@@ -1416,28 +1444,6 @@ export function OrganizationImagePanel(props: {
         <div className="empty-state compact">Ingen aktivt valgt bilde ennå.</div>
       ) : null}
 
-      {imageState?.public_image?.enabled ? (
-        <div className="image-active-state" aria-label="Bilde på PUBLIC">
-          <strong>{imageState.public_image.kind === "asset" ? "Bildet er i bruk på PUBLIC" : "PUBLIC bruker standardbilde"}</strong>
-          {imageState.public_image.image ? <ImagePreviewGrid urls={{
-            square: imageState.public_image.image.square.url,
-            landscape: imageState.public_image.image.landscape.url,
-            share: imageState.public_image.image.share.url,
-          }} label="Forhåndsvisning fra PUBLIC" /> : null}
-          {imageState.public_image.reason === "organization_unpublished" ? (
-            <p className="muted">Aktørprofilen må være publisert før bildet kan tas i bruk på PUBLIC.</p>
-          ) : imageState.active_selection?.kind === "asset" ? (
-            <>
-              <p className="muted">Intern godkjenning publiserer ikke bildet. Denne handlingen tar det godkjente bildet i bruk på den publiserte aktørprofilen.</p>
-              {processed ? <p className="muted">Godkjenn det bearbeidede bildet før det tas i bruk på PUBLIC.</p> : null}
-              <button type="button" className="primary-button" disabled={busy !== null || processed !== null || imageState.public_image.kind === "asset"} onClick={() => onPublicImageCommand(false)}>
-                {busy === "publish" ? "Tar bildet i bruk..." : "Ta bildet i bruk på PUBLIC"}
-              </button>
-              <button type="button" className="ghost-button" disabled={busy !== null} onClick={() => onPublicImageCommand(true)}>Bruk standardbilde i stedet</button>
-            </>
-          ) : null}
-        </div>
-      ) : null}
 
       {legacyCandidates.length > 0 ? (
         <div className="image-source-section" aria-label="Tidligere lagrede bilder">
@@ -1470,7 +1476,7 @@ export function OrganizationImagePanel(props: {
 
       {candidates.length > 0 || uploadFile ? (
         <div className="image-candidate-grid">
-          {candidates.map((candidate) => (
+          {visibleCandidates.map((candidate) => (
             <button
               type="button"
               key={candidate.candidate_ref}
@@ -1513,6 +1519,16 @@ export function OrganizationImagePanel(props: {
         <div className="empty-state compact">Ingen kandidater funnet fra offisiell nettside. Prøv en alternativ kilde.</div>
       ) : busy === null ? (
         <div className="empty-state compact">Klikk «Finn bilder» for å hente kandidater fra offisiell nettside.</div>
+      ) : null}
+
+      {lastSearch ? (
+        <div className="image-source-section" aria-label="Flere søkeresultater" aria-live="polite">
+          <p>Viser {Math.min(braveVisibleCount, braveCandidates.length)} av {braveCandidates.length} treff fra dette søket.</p>
+          {braveVisibleCount < braveCandidates.length ? (
+            <button type="button" className="ghost-button" disabled={busy !== null} onClick={showMoreBraveResults}>Vis flere bilder</button>
+          ) : <p className="muted">{braveCandidates.length ? "Ingen flere treff i dette resultatsettet. Endre søket for å prøve noe annet." : "Ingen treff. Prøv et annet søkeforslag eller rediger søket."}</p>}
+          <p className="meta">«Vis flere» viser flere av de hentede treffene. «Nytt søk» erstatter forrige bildesøk.</p>
+        </div>
       ) : null}
 
       {selectedRef && selectedOriginalLoading ? (
@@ -1558,6 +1574,17 @@ export function OrganizationImagePanel(props: {
                       }}
                     />
                   </Field>
+                  <div className="image-choice-row" aria-label="Alternative søkeforslag">
+                    {(searchContext.query_suggestions ?? []).map(suggestion => (
+                      <button type="button" className="ghost-button" key={suggestion.label} disabled={busy !== null}
+                        onClick={() => {
+                          setSearchQuery(suggestion.query); setSearchQueryEdited(true);
+                          setSelectedMunicipality(null); setMunicipalityExplicit(false);
+                          setSelectedCategoryId(null); setSelectedPersonId(null);
+                        }}>{suggestion.label}: {suggestion.query}</button>
+                    ))}
+                  </div>
+                  <p className="meta">Søket sendes slik det står. Strenge søk kan gi færre treff. Søkefiltre som site: er ikke garantert i bilde-API-et.</p>
                   <div className="image-query-explanation">
                     <span><strong>Basert på:</strong> {currentQuerySources.map((source) => QUERY_SOURCE_LABELS[source] ?? source).join(" + ")}</span>
                     <span className="meta"><strong>Ikke brukt:</strong> {unusedQuerySources.join(", ")}</span>
@@ -1625,7 +1652,7 @@ export function OrganizationImagePanel(props: {
 
                   <div className="image-source-actions">
                     <button type="button" className="primary-button" disabled={!searchQuery.trim() || busy !== null} onClick={onBraveSearch}>
-                      {busy === "brave" ? "Søker..." : "Søk"}
+                      {busy === "brave" ? "Søker..." : "Nytt søk"}
                     </button>
                     <button type="button" className="ghost-button" disabled={busy !== null} onClick={resetSearchSuggestion}>
                       Tilbakestill til forslag
@@ -1831,6 +1858,29 @@ export function OrganizationImagePanel(props: {
           </button>
         </div>
       ) : null}
+      {imageState?.public_image?.enabled ? (
+        <div className="image-active-state" aria-label="Bilde på PUBLIC">
+          <strong>{imageState.public_image.kind === "asset" ? "Bildet er i bruk på PUBLIC" : "PUBLIC bruker standardbilde"}</strong>
+          {imageState.public_image.image ? <ImagePreviewGrid urls={{
+            square: imageState.public_image.image.square.url,
+            landscape: imageState.public_image.image.landscape.url,
+            share: imageState.public_image.image.share.url,
+          }} label="Forhåndsvisning fra PUBLIC" /> : null}
+          {imageState.public_image.reason === "organization_unpublished" ? (
+            <p className="muted">Aktørprofilen må være publisert før bildet kan tas i bruk på PUBLIC.</p>
+          ) : imageState.active_selection?.kind === "asset" ? (
+            <>
+              <p className="muted">Intern godkjenning publiserer ikke bildet. Denne handlingen tar det godkjente bildet i bruk på den publiserte aktørprofilen.</p>
+              {processed ? <p className="muted">Godkjenn det bearbeidede bildet før det tas i bruk på PUBLIC.</p> : null}
+              <button type="button" className="primary-button" disabled={busy !== null || processed !== null || imageState.public_image.kind === "asset"} onClick={() => onPublicImageCommand(false)}>
+                {busy === "publish" ? "Tar bildet i bruk..." : "Ta bildet i bruk på PUBLIC"}
+              </button>
+              <button type="button" className="ghost-button" disabled={busy !== null} onClick={() => onPublicImageCommand(true)}>Bruk standardbilde i stedet</button>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+
     </section>
   );
 }

@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.db.models import Prefetch
 from django.contrib.auth import authenticate, login, logout
 import importlib
 from dataclasses import asdict
@@ -259,11 +261,28 @@ class OrganizationViewSet(DomainProtectedDestroyMixin, viewsets.ModelViewSet):
         return response
 
     def get_queryset(self):
-        qs = (
-            Organization.objects.select_related("tenant")
-            .order_by("name")
-            .prefetch_related("org_people__person__contacts", "tags", "subcategories__category")
+        public_contacts = PersonContact.objects.filter(is_public=True).order_by(
+            "-is_primary", "type", "value"
         )
+        active_people = (
+            OrganizationPerson.objects.filter(status="ACTIVE")
+            .select_related("person")
+            .order_by("person__full_name")
+            .prefetch_related(Prefetch(
+                "person__contacts", queryset=public_contacts, to_attr="_editor_public_contacts"
+            ))
+        )
+        qs = (
+            Organization.objects.select_related("tenant").order_by("name")
+            .prefetch_related(
+                "tags", "categories", "subcategories__category",
+                Prefetch("org_people", queryset=active_people, to_attr="_editor_active_people"),
+            )
+        )
+
+        if settings.PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED:
+            from .services.images.projection import prefetch_public_image_projection
+            qs = prefetch_public_image_projection(qs)
 
         tenant_id = self.kwargs.get("tenant_id")
         if tenant_id is not None:
@@ -279,6 +298,10 @@ class OrganizationViewSet(DomainProtectedDestroyMixin, viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.save()
+        # Prefetch to_attr is not invalidated by DRF after a publication edit.
+        if hasattr(serializer.instance, "_public_image_projection_selections"):
+            del serializer.instance._public_image_projection_selections
+
 
     @action(detail=True, methods=["post"], url_path="refresh-preview")
     def refresh_preview(self, request, tenant_id=None, pk=None):

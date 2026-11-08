@@ -18,7 +18,7 @@ from .fetch import SecureImageFetchError, normalize_external_url
 
 BRAVE_API_HOST = "api.search.brave.com"
 BRAVE_API_PATH = "/res/v1/images/search"
-BRAVE_RESULT_COUNT = 30
+BRAVE_RESULT_COUNT = 200
 BRAVE_RESPONSE_MAX_BYTES = 2 * 1024 * 1024
 BRAVE_TIMEOUT_SECONDS = 10.0
 MAX_QUERY_LENGTH = 400
@@ -183,6 +183,38 @@ def _validate_query(value: object) -> str:
     if any(ord(character) < 32 and character not in {"\t"} for character in value):
         raise BraveImageSearchError("invalid_query", "Søketeksten inneholder ugyldige tegn.")
     return value
+
+
+def query_suggestions(organization: Organization) -> tuple[dict[str, str], ...]:
+    """Visible, opt-in alternatives using only actor name/public social fields."""
+    name = organization.name.strip()
+    words = " ".join(word for word in name.split() if any(c.isalpha() for c in word)) or name
+    suggestions = [
+        {"label": "Eksakt navn", "query": '"' + name.replace('"', ' ') + '"'},
+        {"label": "Navn med ord", "query": words},
+        {"label": "Logo", "query": words + " logo"},
+        {"label": "Profilbilde", "query": words + " profilbilde"},
+    ]
+    for field, label in (("facebook_url", "Kjent Facebook-profil"), ("instagram_url", "Kjent Instagram-profil")):
+        value = getattr(organization, field, None)
+        if value:
+            try:
+                url = urlsplit(normalize_external_url(value))
+                # Discard query/fragment; never send a token-bearing URL/refinement.
+                domain = "facebook.com" if field == "facebook_url" else "instagram.com"
+                host = (url.hostname or "").lower().rstrip(".")
+                if (host == domain or host.endswith("." + domain)) and url.path.strip("/"):
+                    suggestions.append({"label": label, "query": words + " " + url.netloc + url.path})
+            except (SecureImageFetchError, ValueError):
+                pass
+    seen = set()
+    unique = []
+    for item in suggestions:
+        query = item["query"]
+        if query.strip() and len(query) <= MAX_QUERY_LENGTH and len(query.split()) <= MAX_QUERY_WORDS and query not in seen:
+            seen.add(query)
+            unique.append(item)
+    return tuple(unique)
 
 
 def build_search_context(organization: Organization) -> BraveSearchContext:

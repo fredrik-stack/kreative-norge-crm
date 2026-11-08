@@ -1,5 +1,111 @@
 # Security and Roles
 
+## Avgrenset bilderetting – 2026-11-08
+
+**Mandat:** Tre konkrete funn fra eiers brukertest, etter PR #109/#110.
+Ingen endring av reelle aktørbilder, massekonvertering, nye medlemmer,
+shared-/writer-/notataktivering eller produksjonsdeploy. Eksisterende ADR-007/009
+styrer; ingen ny bilderesolver, modell/migrasjon eller generell rettighetsplattform.
+
+### Årsak og implementert kontrakt
+
+1. PUBLIC-status/handling lå foran kandidatvalg og behandling. Hele PUBLIC-
+   blokken ligger nå etter processing/preview/rights approval; ingen automatisk
+   publisering. Aktiv intern status kan fortsatt sees øverst.
+2. Editor-serializeren brukte legacy `get_preview_image_url()`, mens PUBLIC brukte
+   PublicImageProjection. Når eksisterende PUBLIC-cutover er på, kommer Editors
+   avledede preview fra samme projeksjon og square-URL. Uten release, ved
+   unpublished/fallback/deny eller utilgjengelig safety vises systemfallback,
+   aldri privat artifact eller legacyomvei. Med cutover av beholdes gammel
+   legacykontrakt; legacyfelter/kandidater endres ikke.
+3. Panelet oppdaterte bare egen state. Frisk serverprojeksjon oppdaterer nå bare
+   `preview_image_url` i Editor-listen, slik at kort/modal/detalj endres straks.
+   Tenant/org og komponentgenerasjon avgrenser svaret. Skjemasynk ignorerer bare
+   denne avledede feltendringen, og bevarer ulagrede profilfelt/tags.
+4. Brave hentet30 treff, appendet gjentatte søk og forhåndslastet alle previews.
+   Ett nytt søk erstatter nå bare forrige Brave-sett; øvrige kandidatkilder
+   beholdes. Count200 er providerens dokumenterte maksimum uten offset.
+   Bare12 resultater vises/previewhentes først; «Vis flere bilder» viser neste12
+   fra samme sett uten nytt providerkall. Original hentes først ved valg og
+   processing først ved eksplisitt handling. Nytt søk og tomt/uttømt sett merkes.
+
+Synlige opt-in-forslag bruker eksakt navn, ordnavn uten rene talltoken,
+logo/profilbilde og lagret sosial profil. Query/fragment fra sosial URL fjernes;
+ingen notater/tags/kontakter brukes. Forslaget fyller bare tekstfeltet; eier
+sender den synlige, redigerbare queryen med en egen handling. Manuell query
+beholdes uendret. Anførselstegn/site: er dokumentert for Brave generelt, men
+imagekontrakten lover ikke operatorfiltrering; ingen slik garanti gis i UI.
+CountryNO/search_langnb/strict/spellcheckfalse, eksakt eierbinding, no-store,
+servernøkkel, signerte30-minutters refs og ingen persistent søkeresultathistorikk
+består. Resultatsettet finnes transient i panelet og erstattes ved nytt søk/
+aktørskifte. Ingen providerbytte, scraping eller Facebook-tilgangsomgåelse.
+
+### Listeytelse og eksisterende safetygrense
+
+Editor bruker eksisterende projection-prefetch samt prefetch av kategorier og
+aktive personers offentlige kontakter. Én og åtte aktører med personkontakter
+har samme SQL-antall. Ny smal `authorize_many` pakker inntil24 eksisterende
+variantforespørsler i hver16KiB-ramme (åtte assetkort per full batch), med ett
+READY-/read-fence per batch. Samme scope-, checksum- og terminalkontroll som
+single authorize brukes. Antall bridgeforbindelser er ceil(3×assetkort/24),
+ikke tre forbindelser per kort; fallback uten release gir ingen authorizekall.
+Svar bindes til rekkefølge/tenant/org/release/variant og én cursor per batch.
+Første bridgefeil stopper videre batchkall, så timeout ikke multipliseres.
+
+Projeksjonsbeslutninger gjenbrukes bare i samme serializerrequest. Ukjent/gammel
+eller utilgjengelig bridge gir fail-closed fallback uten single-call-retry.
+Serving reautoriserer fortsatt hver byteforespørsel; batchsvaret er aldri et
+varig grant. Writer-preferred locking, socket/peergrense,16KiB-ramme, ledger/
+ankre/deny, schema og mutable operasjoner er uendret. Dette er en nødvendig
+transportutvidelse for listeytelsen, ikke en parallell bilderesolver.
+
+### Målrettet sammenligning og tester
+
+[Sanitert Brave-sammenligning](../status/evidence/editor-image-fixes-2026-11-08/brave-comparison.json)
+omfatter seks eierautoriserte, sekvensielle READ ONLY-spørringer for testaktøren.
+Dagens forslag ga20 treff/2 med navneord i tittel eller sidelenke; ordnavn og
+Mo i Rana ga10/5 og første navnematch på plass1. Tre strenge/quoted varianter
+ga0, og søk med profilens path alene ga200 uten navnematch. Ingen Facebook-
+kildetreff ble funnet. Tallene er en enkel tekstheuristikk, ikke redaksjonell
+relevans eller bilderett. Ingen rå treff/URL-er, credentials eller individuelle
+profilhashverdier lagres i Git. Testaktørens data/bilder ble ikke endret.
+[Providerens bildekontrakt](https://api-dashboard.search.brave.com/api-reference/images/image_search)
+og [operatordokumentasjon](https://api-dashboard.search.brave.com/documentation/resources/search-operators)
+ble kontrollert2026-11-08. Gjentatt query er ikke en ny resultatside.
+
+Full isolert PostgreSQL16-regresjon bestod765 tester; etterfølgende målrettede
+kjøringer55/44 dekker count/forslag, kontakt-prefetch, batchgrenser og fail-fast. Frontend76 tester/build og fem
+bilde-E2E er grønne; E2E bekrefter umiddelbar oppdatering av kort/modal uten
+refresh, egen PUBLIC-handling nederst og bevarte rettighetsporter. Safety65
+tester inkluderer batchgrenser, én health-read, exact scope, deny og stale head;
+klienttester avviser feil lengde/rekkefølge/scope/cursor og malformed tillatelse.
+Ingen migrasjon er oppdaget. CI på endelig reviewet head er neste leveransegate.
+
+Kort **syntetisk** visuelt grunnlag fra ekte frontend med mock-API:
+[PUBLIC-handling nederst](../status/evidence/editor-image-fixes-2026-11-08/01-public-action-last.png),
+[publisert bilde](../status/evidence/editor-image-fixes-2026-11-08/02-published-image.png),
+[oppdatert Editor-modal](../status/evidence/editor-image-fixes-2026-11-08/03-editor-card-detail.png).
+Disse er ikke skjermbilder av eiers reelle aktører eller en ny visuell eieraksept.
+
+### Kontrollert staging og rollback
+
+Staging er ikke endret av denne kodeleveransen ennå. Eier vedlikeholder reelle
+kort; skrivefrys koordineres før API stoppes, og fersk baseline tas først da.
+Grønn main-CI, pre/post-backup/fullverify/isolert restore og normal timerstatus
+kreves. Godkjent hostbridgekode oppdateres/restartes før ny API tas i bruk;
+gammel single authorize må fortsatt fungere. API/frontend bygges fra eksakt
+merge på eksisterende immutable baser uten dependency-/infrastrukturoppgradering,
+automatisk migrate/seed/collectstatic eller endret miljø.
+
+Stagingverifisering er read-only mot reelle profiler; ingen nye bildewrites.
+Alle CRM-rader/media og ledgerens aktuelle READY-head/deny/historikk må være
+bevart, sammen med DB-identitet/schema0039 og fem avslåtte gater. Ved avvik
+stoppes videreføring. API-rollback til PR #109 kan beholde den additive bridge-
+leseoperasjonen; ingen schema-/data-/media-/ledger-reverse. Rollback til eldre
+kode uten eierbinding krever fortsatt at Brave tømmes effektivt/persistent først.
+Dokumentasjonsmerge deployes ikke og neste produktetappe starter ikke automatisk.
+
+
 ## Editor-bildepublisering og en Brave-konto – kodeleveranse 2026-11-08
 
 **Mandat:** Ferdigstill eksisterende bildevalg→PUBLIC etter ADR-007/008/009.
