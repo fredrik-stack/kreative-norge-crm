@@ -65,10 +65,11 @@ bildevalg, ikke formell takedown eller sletting av historikk.
 Eier har2026-11-08 bekreftet personlig API-kundeforhold, egen tidligere
 kundeavtaleaksept og ingen særvilkår. Den uttrykkelig navngitte CRM-kontoen er
 kontrollert aktiv med eksisterende bilderettigheter; identiteten bindes privat.
-Aktivt abonnement/nøkkel skal bekreftes med et avgrenset live API-kall før
-aktivering. Nøkkel var tom i runtime og18 kjente private konfigurasjonskopier;
-sikker, privat ny innlegging av eksisterende nøkkel er etterspurt. Ingen nøkkel
-eller kontoid publiseres i Git. Ingen avtaleaksept opprettes i CRM-modellene.
+Eksisterende nøkkel ble lagt inn via privat kanal; et avgrenset livekall ga
+HTTP200/30 kandidater. Dette er teknisk tilgangs-/abonnementsbevis, ikke en ny
+juridisk godkjenning. Før innleggingen var nøkkelen tom i runtime og18 kjente
+private kopier. Den er nå kun server-side med eksakt eierbinding. Ingen nøkkel,
+resultatinnhold eller kontoid publiseres i Git. Ingen CRM-avtaleaksept er opprettet.
 
 [Brave Terms,1. september2026](https://api-dashboard.search.brave.com/documentation/resources/terms-of-service)
 definerer End Users som tredjeparter (§1); §4(c) gjelder disse. Med eier som
@@ -104,7 +105,7 @@ bruker-deaktivering, stale/feil scope/rolle og uautorisert Brave er dekket.
 Full lokal regresjon bestod759 tester; etterfølgende målrettet kjøring60 tester
 og siste utvidede publiseringsintegrasjon11 tester.
 Frontend73 tester/build og fem etablerte bilde-E2E-reiser er grønne. Endelig
-review/PR/CI-status følger GitHub; ingen stagingdeploy/Brave-aktivering påstås ennå.
+review/PR/CI-status er verifisert nedenfor. Main-CI bestod763 backendtester.
 
 Staging krever grønn main-CI, pre/post-backup, fullverify og isolert restore,
 eksakt API/frontendbundle, bevaring av reelle CRM-rader, media og safety,
@@ -113,6 +114,77 @@ og ledger er irreversible historikk; testaktøren avsluttes upublisert, ikke med
 sletting av historikk. Alle fem tilgangs-/writer-/notatgater holdes av. Ved
 Brave-credential-/abonnementsavvik stanses bare Brave-aktivering; resten av
 bildereisen kan leveres. Ingen produksjonssetting eller automatisk neste fase.
+
+
+### Faktisk stagingevidens 2026-11-08
+
+PR [#109](https://github.com/fredrik-stack/kreative-norge-crm/pull/109), eksakt
+API/frontend-kilde `4c2ca2b88dd51d982956935248445e0a104ed0b5`, er levert.
+Separat review/re-review på base `8fb6c7c` → head `bfbb911` hadde ingen blokkere.
+PR-CI [42514192844](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/42514192844)
+og main-CI [42514894245](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/42514894245)
+er SUCCESS6/6. Pinned Playwright1.58.2 bruker nå Ubuntu24.04 i bare E2E-jobben;
+ingen dependencyoppgradering eller staginginfrastrukturendring.
+[Sanitert evidens](../status/evidence/editor-image-staging-2026-11-08/checks.json)
+er målt 2026-11-08T19:45:27Z. Private profiler/fingerprints, manifests,
+credentials og rå søkeresultater er ikke publisert.
+
+API-image er `sha256:6e41f92835c6b883b602aeda7d0ad640758126ecd85354bc5f1d30ded40bc867`,
+web-image `sha256:fec7d924299688e11402cb29d109697bc4cfea4aea0e47696145b5c9a100bc74`.
+API-kilde og frontendbundle er identitetskontrollert; eksisterende immutable
+baser bevarer alle dependencies/Nginx. API starter direkte Gunicorn uten
+migrate/seed/collectstatic. DB-container,0039 og tom migrasjonsplan er uendret.
+Bare Brave-key og eksakt eierbinding er endret i privat persistent miljø.
+Fem tenant-/forvaltnings-/shared-/writer-/notatgater er effektivt/varig av.
+Brave ga HTTP200/30 kandidater; syntetisk annen superuser ble avvist før provider.
+Faktisk runtime-kontekst og eierbinding ble også kontrollert READ ONLY.
+Ingen ny real-user-session eller reelle brukere/medlemskap/avtaler er opprettet.
+
+Den eksisterende, eksakt avgrensede syntetiske testaktøren ble midlertidig
+publisert og deretter returnert til upublisert tilstand med aktivt standardbilde.
+To eide syntetiske PNG-er fulgte ekte upload/crop/zoom/private previews/approval/
+release/anker/aktivering, PUBLIC API/HTML og alle tre bytekontrollerte Nginx-URL-er.
+Manglende bekreftelse/stale ble avvist; samme revisjon gjenbrukte release-UUID;
+erstatning avviste gammel serving-URL. Historikken ble beholdt:2 assets/2 sett/
+6 renditions/3 selections/3 reviewevents/2 releaser/6 release-renditions og
+14 nye filer. Bare testprofilens timestamp/UUID-stamp og gamle selections status
+endres som tilsiktet metadata/historikk; profilens øvrige felt og PUBLIC-valg
+ble bevart. Alle øvrige gamle rader i56 tabeller, realprofiler/revisjoner/
+notater/tags/relasjoner, gamle media/static og PUBLIC-katalog/eksisterende
+bildebytes er bevart. Medlemskap0; avtale-/forvaltnings-/canonical audit,
+notatoverlays og kopibatch fortsatt0.
+
+Safety er READY13→17: bare to reserve/activate-par på testreleasene. Eldre
+ledgerprefix/states/keys/ankere, checksum-deny og legacyguard er bevart.
+Første etterkontroll leste feilaktig bare ledger_events(V1). Bildereisen var
+allerede kvittert PASS og ble aldri gjentatt. Separat reviewet V1/V2-readback
+bandt avledet prefix til opprinnelig bevart anchor13 og verifisert kjede;
+original privat baseline er urørt. Ingen data-/media-/schema-/ledger-reverse.
+
+En ekstra HTTPS-kontroll fant at deploymentarkivets implicit assets-mappe var
+0700. Nginx returnerte derfor appskallet for JS/CSS, og feilresponsene ble
+cachet eksternt. Separat reviewet **web-only** retting satte mapper0755/filer0644
+og ga de to identiske JS/CSS-filene revisionsuffiks; bare to indexreferanser
+endres. Faktisk offentlig index peker nå på byte- og Content-Type-verifiserte
+HTTPS-filer. Serveradressens HTML-probe fikk Cloudflare403; den faktiske
+HTTPS-index-/assetkontrollen ble derfor utført fra eiermaskinen, uten bypass.
+Ingen CDN-konfigurasjon/purge, API-/DB-/miljøendring eller ny
+bildeprøve. Frontend-E2E/test/build og ekte backendreise er bevisene; Chrome-
+interaksjon ble avbrutt av brukeraktivitet, og ny visuell eieraksept påstås ikke.
+
+Pre-backup `kreative-norge-staging-20261108T193053Z` og post-backup
+`kreative-norge-staging-20261108T193546Z` bestod fullverify og arkiv-ID-/
+dump-checksumbundet isolert PostgreSQL16-restore. Post-restore kontrollerte0039,
+tomme tilgangs-/notatregistre og stamps. Ingen prune/compact/live restore;
+restorevolumer er ryddet og installerte moduler uendret. Den ferske postporten
+ble gjenbrukt før webrettingen, med bevis for helt identiske DB-rader/config/
+media/ledger etter rettingen. Alle tre timere er active/enabled.
+
+Prosjekteier kan nå bruke Editor-reisen selv: godkjenn rettigheter/kreditering,
+publiser profilen om ønskelig og velg separat «Ta bildet i bruk på PUBLIC».
+Brave-treff gir ingen bilderett. Ingen masseredigering er utført. Flere brukere,
+ny juridisk kunde/avtaler og fem avslåtte produktgater krever senere egne mandat.
+Dokumentasjonsleveransen følger separat review/PR/merge/CI og deployes ikke.
 
 
 ## Streng tenantmodus – stagingverifisert med gaten av, 2026-11-08

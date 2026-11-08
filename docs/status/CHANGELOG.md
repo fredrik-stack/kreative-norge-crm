@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-08 – Editor-bilder til PUBLIC og Brave for eier, stagingverifisert
+
+- Eksplisitt rettighetsgodkjenning og separat PUBLIC-handling, offentlig preview,
+  bildeerstatning og standardbilde med bevart immutable historikk.
+- Brave er server-side begrenset til én eksplisitt aktiv eierkonto og liveverifisert;
+  andre kontoer får ingen søketilgang fra roller/staff/superuser.
+- PR #109, grønn review/CI og kontrollert API/frontenddeploy uten migrasjon.
+  Syntetisk bildereise, HTTPS-assets, databevaring, backup/restore og safetyREADY17.
+- Ingen reelle aktørbilder/masseredigering; fem øvrige produktgater er av.
+  [Evidens og bevisgrenser](../architecture/SECURITY_AND_ROLES.md#editor-bildepublisering-og-en-brave-konto--kodeleveranse-2026-11-08).
+
+
 ## 2026-11-08 – Første tilgangsreise, inaktiv lokal kodeleveranse
 
 - Separate scopede fullmakter for medlemskap og avtalepublisering, uten

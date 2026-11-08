@@ -1,18 +1,26 @@
 # Kreative Norge CRM – dokumentasjon
 
-## Editor-bilder til PUBLIC – kodeleveranse 2026-11-08
+## Editor-bilder til PUBLIC – stagingverifisert 2026-11-08
 
-Eksplisitt rights approval og separat «Ta bildet i bruk på PUBLIC» kobler
-Editor til eksisterende immutable release-/materialiserings-/safetyflyt.
-Egen standardbildehandling og PUBLIC-projection-preview inngår; ingen skjult
-publisering, legacy-URL-konvertering eller ny migrasjon. Brave er server-side
-begrenset til én eksplisitt aktiv konto, default ingen, uten rollefallback.
-Kun prosjekteier skal bruke CRM frem til solid v1; flerbrukeraktivering utsettes.
-[Mandat, diagnose, tester, avtale-/credential- og driftsporter](architecture/SECURITY_AND_ROLES.md#editor-bildepublisering-og-en-brave-konto--kodeleveranse-2026-11-08).
-Kode er lokalt testet; separat review/PR/merge/CI og staging gjenstår. Nøkkel og
-aktivt Brave-abonnement er ennå ikke liveverifisert. Ingen reelle aktørbilder,
-brukere/medlemskap, andre produktområder eller fem tilgangs-/writer-/notatgater
-endres. Daterte eldre leveranser nedenfor er historikk.
+PR #109 / API og frontend fra `4c2ca2b88dd51d982956935248445e0a104ed0b5`
+er levert etter separat review/re-review og grønn PR-/main-CI,6/6.
+Brave er liveverifisert og aktivert **bare for prosjekteierens eksplisitte konto**:
+HTTP200/30 kandidater, annen syntetisk superuser avvist før provider. Ingen nye
+brukere, medlemskap eller avtaler. Kun eier bruker CRM frem til solid v1.
+
+Den dedikerte syntetiske bildereisen bestod processing/crop/zoom, eksplisitt
+rights approval, separat PUBLIC-release, tre offentlige renditions, erstatning,
+replay og fallback. Testaktøren er igjen upublisert; immutable historikk beholdes.
+Ingen reelle aktørbilder eller gamle bilde-URL-er er automatisk endret.
+Skjema0039/tom migrasjonsplan, reelle CRM-data og fem avslåtte tilgangs-/writer-/
+notatgater er bevart. Safety er READY17 med bare fire forventede nye hendelser.
+Pre/post-backup/fullverify/isolert restore og normale timere er verifisert.
+Webretting av statiske rettigheter og cache-URL-er beholder identiske JS/CSS-bytes;
+faktiske HTTPS-assets og appskallets referanser er kontrollert.
+[Kontrakt, sanitert evidens og bevisgrenser](architecture/SECURITY_AND_ROLES.md#editor-bildepublisering-og-en-brave-konto--kodeleveranse-2026-11-08).
+Eier kan nå ferdigstille aktørkort selv med separat bildepublisering og egen
+rettighetsvurdering. Ingen ny visuell eieraksept eller neste produktetappe påstås.
+Dokumentasjonsmerge utløser ingen ny deploy; eldre daterte leveranser er historikk.
 
 
 ## Streng tenantmodus – teknisk stagingverifisert, fortsatt av 2026-11-08
