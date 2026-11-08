@@ -1,5 +1,18 @@
 # Roadmap
 
+## Første autoriserte tilgangsreise – lokal kodeleveranse 2026-11-08
+
+Eiergodkjente, separate forvaltningsfullmakter er presisert i ADR-011 §9a.
+Additiv0039, kontrollert sentral utpekning, scoped medlemskapsforvaltning,
+juridisk referert avtalepublisering og eksplisitt egenaksept/tilbakekalling har
+serveroperasjoner og en liten Editor-flate. Gammel medlemskaps-Admin er read-only.
+Ny `ACCESS_MANAGEMENT_ENABLED` er default av, sammen med writer/shared/notat.
+Ingen reelle medlemskap, avtaler, aksepter, fullmakter eller data-apply; ingen
+stagingdeploy. [Kontrakt, oppstart, tester og bevaringsgrenser](../architecture/SECURITY_AND_ROLES.md#forvaltningsfullmakter-og-første-tilgangsreise--2026-11-08).
+Separat review/PR/ordinær merge og CI følger GitHub. Eksisterende legacytilgang
+og fallback må fortsatt samordnes før aktivering; hele 6A er ikke ferdig.
+
+
 ## ADR-011 trinn 9 – teknisk stagingverifisert, inaktiv writer 2026-11-08
 
 PR #103 / kode `06e65947b90483ec242e1cdd657a7835debe60ec` er deployet API-only

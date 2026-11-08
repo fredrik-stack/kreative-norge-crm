@@ -84,6 +84,8 @@ DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() == "true"
 
 CANONICAL_WRITER_ENABLED = _read_fail_closed_bool("CANONICAL_WRITER_ENABLED", default=False)
 
+ACCESS_MANAGEMENT_ENABLED = _read_fail_closed_bool("ACCESS_MANAGEMENT_ENABLED", default=False)
+
 SHARING_ACCESS_ENABLED = _read_fail_closed_bool("SHARING_ACCESS_ENABLED", default=False)
 
 SHARING_DOMAIN_SHADOW_ENABLED = _read_fail_closed_bool(

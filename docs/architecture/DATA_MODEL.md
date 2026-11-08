@@ -1,5 +1,25 @@
 # Data Model
 
+## Første tilgangsreise – additiv0039, 2026-11-08
+
+`AccessManagementGrant` er immutable sentral utpekning av én bruker til enten
+medlemskapsforvaltning i eksakt tenant/domain eller avtalepublisering i eksakt
+domain uten tenant. Request-UUID er unik; operatør, mandat og tid bevares.
+`AccessManagementGrantRevocation` er immutable én-til-én tilbakekalling.
+`MembershipManagementAudit` bevarer minimale historiske ID-er, før/etter rolle/
+aktivstatus og tidspunkt, atomisk med støttet medlemsendring. Alle tre tabeller
+har ORM- og SQL UPDATE/DELETE-vern; fullmaktens scopetype har CHECK-constraint.
+Ingen modeller er registrert i Admin. TenantMemberships gamle Admin er read-only.
+
+SharingAgreement får `legal_approval_reference` med tom default. Eksakt tekst og
+avtale-/aksept-/revokasjonsaudit gjenbrukes; ingen reelle rader seedes. Reverse
+avvises ved ny historikk eller juridisk referanse. Eksisterende medlemskap,
+roller og CRM-data endres ikke av schema. Kun lokal syntetisk validering;
+ingen staging/schema-apply. Alle nye operasjoner krever egen default-off gate,
+uten endring av shared/writer/notatgater eller legacyautoritet.
+[Full kontrakt og aktiveringsavhengigheter](SECURITY_AND_ROLES.md#forvaltningsfullmakter-og-første-tilgangsreise--2026-11-08).
+
+
 ## 0038 – faktisk stagingtilstand 2026-11-08
 
 Eksakt API-kode `06e6594` og bare0038 er teknisk stagingverifisert. Ny audit er

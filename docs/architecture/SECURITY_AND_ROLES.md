@@ -1,5 +1,167 @@
 # Security and Roles
 
+## Forvaltningsfullmakter og første tilgangsreise – 2026-11-08
+
+**Mandat:** Eiergodkjent presisering i ADR-011 §9a etter main `6843192`.
+Lokal implementering, syntetiske PostgreSQL 16-tester, dokumentasjon, separat
+review, PR/ordinær merge og main-CI. Ingen staging, reelle medlemmer/avtaler/
+aksepter, datakopiering eller aktivering. Dette avløser den tidligere uavklarte
+forvaltningsmyndigheten i daterte trinn-8-avsnitt nedenfor; legacyautoritet består.
+
+### Smal forvaltningsgrense
+
+`crm/services/access_management.py` og `crm/access_management_views.py` har to
+uavhengige fullmakter i immutable `AccessManagementGrant`. Hver sentral
+utpekning binder bruker, handling, eksakt domain, eventuell eksakt tenant,
+operatør-ID, mandat, request-UUID og tidspunkt. `AccessManagementGrantRevocation`
+er en separat immutable tilbakekalling. Ingen eksisterende rolle, Django-gruppe,
+staff eller superuser utsteder eller erstatter disse fullmaktene. En forvalter
+kan ikke endre eget medlemskap, egen rolle, utstede nye fullmakter eller delegere
+videre. Ingen runtime-API eller Admin registrerer/utsteder grants.
+
+Medlemskapsfullmakt gir liste/endre/opprette medlemskap for eksisterende aktive
+kontoer i angitt tenant, inklusive rolle og aktivstatus. En inaktiv målbruker kan
+fortsatt få sitt eksisterende medlemskap avsluttet med uendret rolle, men får
+ikke nytt medlemskap, ny rolle eller reaktivering. Aktiv forvalter kreves alltid.
+Målbrukerens eksakte brukernavn revalideres fra låst rad etter venting; endret
+binding gir STALE_TARGET uten write/audit. Ingen nye brukerkontoer,
+brukerregistersøk, tenants eller domainbindinger opprettes. Nytt medlemskap krever
+`expected_updated_at=null`; eksisterende medlemskap krever eksakt lest
+`updated_at`. Stale endringer avvises; uendret replay er no-op bare ved samme
+snapshot. Hver faktisk endring og `MembershipManagementAudit` er atomiske.
+Auditen lagrer bare actor-/target-/grant-/tenant-/domain-ID, før/etter rolle og
+aktivstatus og tidspunkt. Ingen notater, kontakter eller brukerprofiler kopieres.
+Django Admins gamle medlemskapsflate er nå skrivebeskyttet, også for superuser;
+modellene for nye fullmakter og historikk er ikke Admin-registrert.
+
+Publisering krever egen domainfullmakt, eksplisitt godkjenningsbekreftelse og en
+ikke-tom `legal_approval_reference` til faktisk juridisk godkjenning. Referansen
+bevares på immutable SharingAgreement; den gir ingen teknisk bruker juridisk
+myndighet. Eksakt tekst beholdes uten trimming. Eksisterende monotont stigende
+versjon/virkningstid og DB-generert SharingAccessAudit gjenbrukes atomisk.
+Serveren kan ikke avgjøre juridisk godkjenningens gyldighet; operatør må kontrollere
+beviset. Ingen reell tekst seedes eller publiseres av denne leveransen.
+
+Alle writes har egen outer/durable READ COMMITTED-transaksjon, 2s låse- og
+30s statement-timeout. Domain låses før brukere (stigende PK ved flere), så
+fullmakt og nødvendig medlemskap. Brukeraktivitet, scope og tilbakekalling
+revalueres etter låseventing. Forvaltningsoperasjoner og offline tilbakekalling
+serialiseres på samme domain. DB-feil/tapt svar gir fast
+`OUTCOME_REQUIRES_READBACK`, uten rå SQL-/feltverdier eller automatisk retry.
+Dette beviser ikke rollback ved ukjent commitutfall. Hent ferskt medlemskap,
+avtale-/akseptstatus eller oppstartsrecord før nytt forsøk.
+
+### Egen avtale og liten Editor-flate
+
+`/access` gjenbruker Editorens paneler, skjemafelt og knapper. Navigasjonslenken
+vises bare når ny forvaltning er aktivert. Brukeren ser gjeldende eksakte tekst
+og versjon for egne aktive, gyldige medlemskap, merker selv en tom checkbox og
+utfører eksplisitt aksept. Actor utledes bare fra session; request kan ikke velge
+annen bruker. Aksept krever ikke allerede akseptert avtale eller shared gate.
+Eksisterende DB-trigger avviser en versjon som ble erstattet før INSERT.
+
+Aksept gjelder bruker/domain. Et annet aktivt medlemskap i samme domain kan
+bruke samme aksept; det opprettes ingen andre medlemskap av aksept. Ny versjon
+krever ny aksept fra effective_at uten grace. Tidligere aksepter vises separat;
+egen tilbakekalling er mulig etter medlemskapsopphør, uten å slette historikk.
+API-et krever aktiv autentisert bruker; DB-grunnmuren beholder også støtte for
+å bevare tilbakekalling etter inaktivering gjennom privilegert drift. Ingen
+administrativ tilbakekalling på andres vegne er innført.
+
+Forvalter ser bare tildelte tenants/domains, med enkel medlemskapsliste/skjema
+og publiseringsskjema. En gruppeadmin kan senere utpekes eksplisitt gjennom
+samme scopede lagring; tenantrollen alene gir ingen slik rett nå.
+
+API-er under `/api/auth/access-management/` (session-auth og CSRF):
+
+- GET roten: egen status, gyldige medlemskap, nåværende tekst, egne aksepter og
+  egne fullmaktsscope. Avtalepublisister får i tillegg eksakt publisert tekst og
+  metadata i eget tildelt domain for kontroll/read-back. Ingen CRM-profiler eller andre brukeres aksepter.
+- GET/POST `domains/<domain>/tenants/<tenant>/memberships/`: scoped medlemskap.
+- POST `domains/<domain>/agreements/`: publisering med juridisk referanse.
+- POST `domains/<domain>/acceptances/`: eksplisitt egenaksept av eksakt versjon.
+- POST `acceptances/<acceptance>/revoke/`: bare egen tilbakekalling, idempotent.
+
+Ingen av disse rutene bruker legacyrollefallback eller gir shared capabilities.
+`assess_access()` er uendret og leser de samme faktiske medlems-/akseptradene.
+Positive policytester aktiverer shared bare isolert med syntetiske fixtures;
+ingen runtimegate endres. Endepunktene returnerer ikke et gjenbrukbart grant.
+
+### Kontrollert oppstart og separat aktivering
+
+`ACCESS_MANAGEMENT_ENABLED=False` er ny fail-closed standard; context gir bare
+`enabled=false` og tomme lister når av. Andre operasjoner stopper før dataendring.
+Writer/shared/notatgater forblir av. Før senere reell oppstart kreves eget mandat
+med operatør, annen navngitt mottaker, eksakt handling og tenant/domain, samt
+kontroll av databaseidentitet og juridisk referanse der relevant.
+
+`appoint_access_manager` er bare privilegert offline drift. Det utpeker ikke en
+administrator fordi vedkommende er Django-superuser. Operatørens eksisterende
+aktive ID er sporbar identitet; kontrollert OS-/DB-tilgang og separat mandat er
+det operative autorisasjonsgrunnlaget. Selvutpekning avvises. Ingen slik kommando
+er kjørt mot reelle data i denne leveransen.
+
+1. Innhent separat, konkret godkjenning og verifiser miljø/database/backup etter
+   etablerte driftsporter. Skriv bare en mandat-ID, aldri hemmeligheter, i referansen.
+2. Uten `--apply` skriver kommandoen bare PLAN_ONLY; dette er **ikke** en verifisert
+   DB-plan, og ingen forbindelse eller brukersjekk utføres.
+3. Ved senere godkjent kjøring: begrens teknisk aktivering til kontrollert prosess,
+   angi `--apply --operator-id --user-id --domain-id --action --request-id
+   --mandate-reference --expected-database` og `--tenant-id` bare for medlemskap.
+   Databasenavnet må matche verifisert forbindelse; navnet alene beviser ikke miljø.
+4. Kontroller record-ID og alle scope-/mandatfelter i privat read-back. Samme
+   request-UUID med identiske parametere gjenbruker historisk record, mens endret
+   innhold avvises. Replay gjenoppliver aldri en tilbakekalt fullmakt.
+5. Opphør av fullmakt bruker samme kommando med separat mandat og
+   `--revoke-grant-id`, operatør, databasereferanse og `--apply`. Ingen rolle kan
+   selv delegere eller utstede fullmakter i runtime.
+
+Medlemskapsopprettelse/rolleendring kan påvirke **dagens legacytilgang**.
+`is_active=False` stanser bare ny policy; gammel fallback og medlemslesing ignorerer
+fortsatt dette feltet. Før reell aktivering må gamle API-/Admin-/importinnganger
+samordnes eller avvises, og opphør må ha en faktisk tilgangsstengingskontrakt.
+Aksept oppretter ikke nye CRM-lesere, canonical writes, overlays eller PUBLIC-endring.
+
+### Skjema, rollback og bevisgrenser
+
+Additiv0039 legger til tre tomme tabeller, immutable PostgreSQL-vern og juridisk
+referanse med tom default på eksisterende avtaler; ingen seed eller gammel
+medlemskaps-/rolle-/dataendring. Eksisterende avtaler endres ikke semantisk.
+Reverse stopper ved enhver ny historikk eller juridisk referanse. Etter første
+semantiske endring beholdes schema/historikk og det rettes framover. API-rollback
+må ikke gjenåpne den gamle skrivbare medlemskaps-Adminen eller miste ny deny-state.
+
+Restore kan ellers gjenopplive medlemskap, fullmakter eller aksepter. Hold ny
+forvaltning og shared/writer/notat av etter restore til nyere tilbakekallinger og
+tilgangstap er reconciliert fra autoritativt bevis; manglende bevis gir fortsatt
+stengt tilgang. Ingen ny ekstern ledger er etablert. Eksisterende image-safety,
+deny-state, historiske identiteter og backup-/restoreprosedyrer er uendret.
+DB-/ORM-tilgang med driftsprivilegier er ingen brukerautorisasjon; WORM-vern
+lover ikke motstand mot privilegert DDL/TRUNCATE eller deaktivering av triggere.
+
+
+### Lokal verifikasjon
+
+Isolert PostgreSQL 16 og bare syntetiske brukere/medlemskap/avtaler. Full backend
+regresjonssuite: 730 grønne før siste read-back-/schemaannotering; senere endringer
+er revalidert med 60 grønne målrettede PostgreSQL-tester (23 nye + 37 eksisterende),
+inklusive reviewretting for opphør av inaktiv konto og fersk målidentitet. Frontend: 70 tester og TypeScript/produksjonsbygg
+grønne. Fire Playwright-reiser bruker syntetiske API-svar, ikke staging eller
+ekte avtaler. Desktop-/mobil-/forvalter-/publisistbilder er visuelt kontrollert:
+[egenaksept](../status/evidence/access-journey-2026-11-08/member.png),
+[mobil](../status/evidence/access-journey-2026-11-08/mobile.png),
+[medlemskap](../status/evidence/access-journey-2026-11-08/manager.png),
+[publisering](../status/evidence/access-journey-2026-11-08/publisher.png).
+
+Negative tester omfatter selvendring/selvutpekning, global rolle-/superuserbypass,
+feil tenant/domain/fullmakt, tilbakekalt fullmakt, inaktiv bruker/medlemskap,
+manglende og erstattet aksept, CSRF og forsøk på å velge annen actor. PostgreSQL
+samtidighetsprøver dekker reautorisering etter tilbakekalling, stale samtidige
+medlemswrites og låsetimeout; auditfeil ruller kildeendring tilbake. Additiv
+migrasjon bevarer gammel medlemsstate, seed er tom og reverse stanser ved ny
+historikk/juridisk bevis. Separate 64 image-safety-tester er grønne. Ingen rå
+notater, reelle persondata eller individuelle profilhashverdier er publisert.
+
 ## Stagingverifisering av trinn 9 – 2026-11-08
 
 **STAGING VERIFIED / WRITER INACTIVE** innen uttrykkelig mandat: eksakt PR #103-

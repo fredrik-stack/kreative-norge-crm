@@ -153,6 +153,7 @@ export function resetMockEditorData() {
 }
 
 export const handlers = [
+  http.get("/api/auth/access-management/", () => HttpResponse.json({enabled:false,memberships:[],grants:[],acceptances:[],published_agreements:[]})),
   http.get("/api/auth/session/", () => {
     return HttpResponse.json(sessionState);
   }),

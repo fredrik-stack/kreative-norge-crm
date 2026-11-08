@@ -2186,6 +2186,7 @@ class SharingAgreement(SharingRecord):
     version = models.PositiveIntegerField()
     # Exact approved text, with no normalization. No actual text is seeded.
     text = models.TextField()
+    legal_approval_reference = models.CharField(max_length=200, blank=True, default="")
     effective_at = models.DateTimeField()
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -2252,3 +2253,46 @@ class CanonicalWriteAudit(SharingRecord):
             models.CheckConstraint(condition=models.Q(entity_type__in=["organization", "person"]), name="canonical_audit_entity_type"),
             models.CheckConstraint(condition=models.Q(action__in=["edit_shared_core", "edit_published_core"]), name="canonical_audit_action"),
         ]
+
+
+class AccessManagementGrant(SharingRecord):
+    """Explicit central appointment; never derived from a Django/tenant role."""
+    class Action(models.TextChoices):
+        MANAGE_TENANT_MEMBERSHIPS = "manage_tenant_memberships", "Administrere medlemskap"
+        PUBLISH_SHARING_AGREEMENT = "publish_sharing_agreement", "Publisere delingsavtale"
+
+    request_id = models.UUIDField(unique=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    sharing_domain = models.ForeignKey(SharingDomain, on_delete=models.PROTECT)
+    tenant = models.ForeignKey(Tenant, null=True, blank=True, on_delete=models.PROTECT)
+    action = models.CharField(max_length=32, choices=Action.choices)
+    appointed_by_id = models.PositiveBigIntegerField()
+    mandate_reference = models.CharField(max_length=200)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta(SharingRecord.Meta):
+        abstract = False
+        constraints = [models.CheckConstraint(condition=(
+            models.Q(action="manage_tenant_memberships", tenant__isnull=False)
+            | models.Q(action="publish_sharing_agreement", tenant__isnull=True)
+        ), name="access_grant_exact_scope")]
+
+
+class AccessManagementGrantRevocation(SharingRecord):
+    grant = models.OneToOneField(AccessManagementGrant, on_delete=models.PROTECT, related_name="revocation")
+    actor_id = models.PositiveBigIntegerField()
+    mandate_reference = models.CharField(max_length=200)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class MembershipManagementAudit(SharingRecord):
+    actor_id = models.PositiveBigIntegerField()
+    target_user_id = models.PositiveBigIntegerField()
+    tenant_id = models.PositiveBigIntegerField()
+    sharing_domain_id = models.PositiveBigIntegerField()
+    grant_id = models.PositiveBigIntegerField()
+    previous_role = models.CharField(max_length=24, null=True)
+    role = models.CharField(max_length=24)
+    previous_active = models.BooleanField(null=True)
+    is_active = models.BooleanField()
+    occurred_at = models.DateTimeField()

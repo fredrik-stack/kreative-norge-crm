@@ -347,6 +347,38 @@ Konseptuelle capabilitygrenser omfatter minst:
 Endelige navn kan tilpasses repoets capabilitystandard uten å svekke denne
 semantikken.
 
+### 9a. Eksplisitte forvaltningsfullmakter – eiergodkjent 2026-11-08
+
+Prosjekteier har uttrykkelig godkjent følgende to uavhengige fullmakter:
+
+- `MANAGE_TENANT_MEMBERSHIPS`: administrere eksisterende brukeres medlemskap og
+  roller i eksplisitt tildelte tenants, bundet til deres eksakte SharingDomain.
+- `PUBLISH_SHARING_AGREEMENT`: publisere godkjent avtaleversjon i ett eksplisitt
+  SharingDomain. Tenantfullmakt gir aldri denne domainfullmakten, eller omvendt.
+
+Første versjon bruker sentralt utpekte forvaltere. Fullmakt følger aldri av
+Django-grupper, staff, superuser eller tenantrolle. Ingen selvutnevnelse,
+selvheving eller videre delegering er tillatt. Første og senere sentrale
+utpekninger/tilbakekallinger krever separat mandat og kontrollert, sporbar
+operatørprosedyre. Arkitekturen tillater senere eksplisitt tildeling til
+Gruppeadmin i eget Musikkontor, men ingen delegasjonsreise implementeres nå.
+
+Juridisk godkjenning av teksten ligger hos MUSIKKONTORET AS eller formelt
+bemyndiget representant. Teknisk publiseringsfullmakt er ikke juridisk
+myndighet. Publisering skal referere til den konkrete juridiske godkjenningen;
+ingen reell tekst eller standardaksept seedes. Brukeren kan bare akseptere og
+tilbakekalle egen aksept. Akseptreisen skal kunne brukes før aksept og krever
+derfor egen autentisert medlemskapsgrense, ikke positiv shared capability.
+
+Første levering gjenbruker TenantMembership, SharingAgreement/Acceptance/
+Revocation og eksisterende audit. Nye forvaltningshandlinger skal reautorisere
+under atomisk låsing og bevare audit, avvise feil tenant/domain og selvendring,
+og ikke åpne noen shared data-rute. Dagens legacyfallback er fortsatt en
+separat aktiveringsavhengighet: medlemsrolle kan endre gammel CRM-adgang,
+mens `is_active=False` alene ikke stopper legacytilgang.
+
+[Implementasjons-, oppstarts- og bevaringskontrakt](../architecture/SECURITY_AND_ROLES.md#forvaltningsfullmakter-og-første-tilgangsreise--2026-11-08).
+
 ### 10. Én PUBLIC-identitet og publication authority
 
 Én canonical Organization har én offentlig identitet, én PUBLIC-side og én

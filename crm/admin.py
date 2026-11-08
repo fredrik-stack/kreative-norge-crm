@@ -33,6 +33,16 @@ class TenantMembershipAdmin(admin.ModelAdmin):
     list_filter = ("tenant", "role")
     search_fields = ("tenant__name", "user__username", "user__email")
 
+    # Membership mutations use the scoped, audited service, including for superusers.
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
 
 class PersonContactInlineFormSet(BaseInlineFormSet):
     def save_new(self, form, commit=True):
