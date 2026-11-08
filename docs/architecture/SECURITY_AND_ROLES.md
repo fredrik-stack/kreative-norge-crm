@@ -1,5 +1,161 @@
 # Security and Roles
 
+## ADR-011 trinn 9 – inaktiv canonical writer, 2026-11-08
+
+**Mandat:** Én liten, additiv implementeringsleveranse etter `8283431`, med lokal
+isolert PostgreSQL16 og syntetiske data, dokumentasjon, commit/push/draft PR,
+separat review/re-review, ordinær merge ved grønn CI og kontroll av main-CI.
+Ingen stagingdeploy/schema-apply, reelle medlemskap/avtaler/aksepter,
+notatkopiering, shared-aktivering eller produksjon. Godkjent ADR-011 §5/9 og
+migreringstrinn9 er arkitekturgrunnlaget; ingen ny generell rettighetsplattform.
+
+### Begrenset feltkontrakt og innganger
+
+`crm/services/canonical_writer.py` har to interne innganger: `get_revision()` og
+`write_core(expected_revision, values, ...)`. Bare eksisterende canonical core:
+
+| Objekt | Tillatt patch | Utenfor kontrakten |
+| --- | --- | --- |
+| Organization | `name`, `description` | Alle andre felt, inklusive kontakt, org.nr., bilde, sted og publication |
+| Person | `full_name` | Alle andre felt, inklusive tittel/kontakt/sted og relasjoner |
+
+Modellenes gjeldende type, lengde, blank/null og validering gjenbrukes uten
+trimming eller normalisering. Description bevarer NULL/tom streng/whitespace/
+tekst. Navn er strenger med modellens påkrevde verdi og maks255. Patchen må ha
+minst én faktisk endring; ukjente felt, ugyldige verdier og no-op avvises før
+oppdatering/audit. Ingen generell serializer-/feltmotor eller importsammenfletting.
+Organisasjonsnummer/telefon normaliseres ikke som sideeffekt. Importkonflikter
+og typed review inngår ikke her; dagens importruter består.
+
+Handling må eksplisitt være `EDIT_SHARED_CORE` eller `EDIT_PUBLISHED_CORE`.
+En publisert Organization avvises med vanlig core-capability, også etter venting
+på en samtidig publiseringsendring. PUBLISH-capability gir ikke core-write.
+Person har ingen global published-state og kan ikke bruke published-core-action.
+Ingen publiseringsflagg, notater, tags, kontakter, relasjoner, steder, bilder
+eller assignments skrives. Eksisterende PUBLIC-lesing er autoritativ; en senere
+UI-/writeraktivering må vise den delte/offentlige effekten av core-endringer.
+
+Ingen aktive ruter importerer eller kaller tjenesten. Ny auditmodell er ikke
+Adminregistrert. Ny stamp er skjult i Admin og eksisterende API/PUBLIC-serializers.
+Det finnes ingen snapshot-/write-API eller ny Editor-/Import-UX.
+
+### Atomisk autorisasjon og samtidighet
+
+Begge fail-closed gates må være True: `CANONICAL_WRITER_ENABLED` og
+`SHARING_ACCESS_ENABLED`; begge default False. Gaten sjekkes ved inngang og
+før oppdatering. Caller må binde user-ID og aktiv tenant til autentisert request;
+caller-supplied AccessDecision/grant aksepteres aldri. Staging har fortsatt0
+medlemskap; tjenesten lager ingen brukere, roller, medlemskap eller aksepter.
+
+Tjenesten krever PostgreSQL og egen ytterste durable transaksjon, med autocommit
+på ved kall. Nestet/manuelt åpen callertransaksjon avvises. Inne i grensen settes
+READ COMMITTED eksplisitt, lock_timeout2s og statement_timeout30s. Ingen check
+før lås anses som autorisasjonsbevis.
+
+Låserekkefølge: SharingDomain FOR UPDATE → bruker FOR UPDATE → tenant FOR SHARE →
+TenantMembership FOR UPDATE → profil FOR UPDATE → eksakt assignment FOR UPDATE.
+Domain/bruker følger avtale-/aksept-/revokasjonstriggernes orden. Tenant SHARE er
+kompatibel med legacyprofilvernets SHARE. Dette låser også relevante endringer
+av brukerstatus, medlemsrolle/-aktivitet, scope og publisering. Tilgang vurderes
+**på nytt etter venting** med trinn8-policyen: aktiv bruker, eksplisitt aktivt
+medlemskap, eksakt domain, gjeldende ikke-tilbakekalt aksept, relevant capability
+og egen eksakt objektassignment. Ingen global gruppe- eller superuserfallback.
+
+Revokasjon/ny avtaleversjon følger samme domainlås; medlems-/brukerendringer
+konflikter med sine radlåser. En allerede committet endring leses ferskt etter
+venting; en senere konkurrerende endring må vente til writerens commit. En
+framtidig avtales effective_at kan passere uten radendring: derfor kontrollerer
+selve UPDATE-statementet også gjeldende agreement ved sitt statement_timestamp.
+Ingen skjult grace fra tidligere policyvurdering. Audit får samme tidspunkt som
+oppdateringen. PostgreSQL-låsene gir serialisert rekkefølge, ikke tilbakevirkende
+annullering av en allerede autorisert og committet handling.
+
+Lock timeout/deadlock/connectionfeil avviser uten blind retry. Ved tapt
+COMMIT-svar kan utfallet være ukjent; koden returnerer
+`WRITE_OUTCOME_REQUIRES_READBACK`, ikke et løfte om rollback eller idempotent
+replay. Caller må hente fersk tilstand/audit og avklare utfallet før nytt forsøk.
+Ingen generell batch-/idempotensplattform er innført.
+
+### Expected revision og eksplisitt legacygrense
+
+`Revision` binder entity_type, PK og SharingDomain til to verdier:
+
+- **Canonical counter:** maks immutable audit-revisjon for objektet, startet på0.
+  Økes med nøyaktig1 ved hver vellykket servicewrite. Telleren er aldri en
+  komplett legacy-/profilrevisjon eller en autorisasjon.
+- **UUID-stamp:** DB-generert endringsmarkør for akkurat dette feltsettet og
+  Organization.is_published. Gamle ORM/save/update/bulk og direkte SQL som endrer
+  disse verdiene fornyer stamp, også ved endring→tilbake til samme verdi (ABA).
+  En gammel ORM-instans kan ikke sette stamp tilbake; andre feltoppdateringer
+  beholder gjeldende DB-stamp. Stamp er metadata, ikke audithistorikk.
+
+Eksakt kombinasjon må fortsatt matche under profillås. Feil scope, foreldet
+counter/stamp eller publiseringskontekst gir ingen delvis lagring. To samtidige
+writers med samme snapshot kan ikke begge committe. Canonical core-patch,
+updated_at, DB-stamp og immutable audit commit/rollback samlet; en auditfeil
+ruller også profil/stamp/tid tilbake. Audit inneholder actor, tenant, assignment,
+domain, agreement, objekttype/-ID, handling, tidspunkt, forrige/neste revisjon,
+stamp og endrede **feltnavn**. Ingen navn/beskrivelse, private notater, rå kontakt-
+eller andre feltverdier lagres i audit eller logges av tjenesten.
+
+UUID-metadata legges til i0038 og triggerne vedlikeholder den også når writer er
+av. Dette er den nødvendige stale-garantien mot fortsatt aktive legacywrites,
+ikke aktivering av delt redigering. Alle tidligere feltverdier og gamle
+normaliserings-/publiserings-/slette-/import-/image-/safetykontrakter består.
+Tjenestens SQL-patch endrer bare de eksplisitte feltene og updated_at; den kjører
+ikke Model.save-sideeffekter for felter utenfor kontrakten.
+
+**Bevisgrense:** Private felt, tags/M2M, kontakter, relasjoner, sted, bilder,
+andre core-felt, authoritets-/rollehistorikk og urelaterte writes inngår ikke i
+stamp/teller. De valgte feltene overskriver aldri disse dataene. En positiv
+snapshotvurdering er ingen grant; reautorisering kreves alltid. DB-/ORM-tilgang
+er privilegert drift og kan omgå application-writer; denne leveransen lover ikke
+sikkerhet mot DB-administrator som deaktiverer triggere, forfalsker audit eller
+bruker DDL/TRUNCATE. Ingen slik adgang gis til sluttbrukere.
+
+### Migrasjon, rollback og senere aktivering
+
+0038 legger bare til metadatafeltene, auditens tomme tabell/constraints og smale
+triggere; ingen legacyfelt eller reelle avtaler/medlemskap/data flyttes. Additiv
+API-kode kan rulles tilbake med nytt schema beholdt. Reverse tillates bare uten
+canonical audit og med READ COMMITTED/profil- og auditlåser; før semantisk bruk
+kan schema testes reverse/forward uten tap av gamle felt. Etter første write
+bevares audit, profil, assignments og avtaler; slå av writer og rett framover.
+
+Restore/rollback kan ikke gjenbruke gamle snapshots som godkjente grants eller
+la gammel DB overstyre nyere tilbakekalling/deny. Writers holdes av, aksept- og
+tilgangstap reconcileres og ferske revisionsnapshots kreves før senere åpning.
+Bildeledger/deny og historisk image-state beholdes etter ADR-009; ingen ny ekstern
+canonical-ledger eller restoregaranti utenfor eksisterende kontrakt er påstått.
+
+Før faktisk shared redigering må alle gamle skrivbare innganger overføres
+samlet: API, Editor, Admin, import og privilegerte ORM/SQL-jobber skal bruke samme
+handlingsautorisasjon/revision/audit eller være eksplisitt stengt. Legacyfallback
+må da være fjernet/avgrenset fra de aktiverte reisene. UI må beskrive delt og
+PUBLIC-effekt; nye felt utover første kontrakt trenger eksplisitt scope og
+stale-/auditdekning. Nåværende smale trigger er **ikke** en slik samlet cutover.
+Avtale-/akseptflyt, reelle medlemskap/rollemapping, privat notatovergang,
+image-home, tags og øvrige ADR-011-porter gjenstår. Denne leveransen aktiverer
+eller ferdigmelder ikke hele trinn7/8/9/6A.
+
+### Lokal validering
+
+Syntetisk PostgreSQL16 dekker positive Organization-/Personpatcher, nøyaktige
+verdier og begrenset audit, gate-off, feil tenant/domain/assignment, inaktiv
+bruker/medlemskap, reader/superuser-/gruppeavvisning, manglende/tilbakekalt aksept,
+publisert actor-capability, stale snapshots, legacy-API/ORM/SQL/ABA og uendret
+counter for gamle writes. Separate forbindelser tester samtidige writes,
+medlems-/brukerendring, revokasjon i begge rekkefølger, legacyendring under venting,
+lock timeout og effective_at som passeres mellom policy og UPDATE. Python- og
+reell DB-auditfeil ruller tilbake profilen; audit er immutable i ORM/SQL.
+Migrasjonstest bevarer alle gamle felt gjennom forward/reverse/forward og
+stopper reverse ved audit. To eldre migrasjonstestoppsett er tilpasset den nye metadata-kolonnen og
+gjenoppretting av gjeldende migrasjonsleaf; gamle felter kontrolleres fortsatt
+eksakt. Modell-/migrasjons-
+samsvar og separat image-safety-regresjon inngår. Faktisk siste test/review/CI
+publiseres i PR-en; ingen nye staging-/browser-/eierbevis er påstått.
+
+
 ## Stagingverifisering av trinn 8 – 2026-11-07
 
 **STAGING VERIFIED, INACTIVE** innen det uttrykkelige mandatet: lever eksakt API

@@ -593,6 +593,7 @@ class Organization(DomainBindingMixin):
     )
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="organizations")
 
+    canonical_write_stamp = models.UUIDField(default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     org_number = models.CharField(max_length=32, null=True, blank=True)
     email = models.EmailField(null=True, blank=True)
@@ -1492,6 +1493,7 @@ class Person(DomainBindingMixin):
     )
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="persons")
 
+    canonical_write_stamp = models.UUIDField(default=uuid.uuid4, editable=False)
     full_name = models.CharField(max_length=255)
     title = models.CharField(max_length=255, null=True, blank=True)
     email = models.EmailField(null=True, blank=True)
@@ -2224,3 +2226,29 @@ class SharingAccessAudit(SharingRecord):
     class Meta(SharingRecord.Meta):
         abstract = False
         constraints = [models.UniqueConstraint(fields=["event", "record_id"], name="sharing_audit_event_record")]
+
+
+class CanonicalWriteAudit(SharingRecord):
+    # Historical snapshots; no cascade/reassociation of action evidence.
+    actor_id = models.PositiveBigIntegerField()
+    tenant_id = models.PositiveBigIntegerField()
+    assignment_id = models.PositiveBigIntegerField()
+    sharing_domain_id = models.PositiveBigIntegerField()
+    agreement_id = models.PositiveBigIntegerField()
+    entity_type = models.CharField(max_length=16, choices=[("organization", "Organization"), ("person", "Person")])
+    entity_id = models.PositiveBigIntegerField()
+    action = models.CharField(max_length=24)
+    previous_revision = models.PositiveBigIntegerField()
+    revision = models.PositiveBigIntegerField()
+    write_stamp = models.UUIDField()
+    changed_fields = models.JSONField()
+    occurred_at = models.DateTimeField()
+
+    class Meta(SharingRecord.Meta):
+        abstract = False
+        constraints = [
+            models.UniqueConstraint(fields=["entity_type", "entity_id", "revision"], name="canonical_audit_entity_revision"),
+            models.CheckConstraint(condition=models.Q(revision=models.F("previous_revision")+1), name="canonical_audit_next_revision"),
+            models.CheckConstraint(condition=models.Q(entity_type__in=["organization", "person"]), name="canonical_audit_entity_type"),
+            models.CheckConstraint(condition=models.Q(action__in=["edit_shared_core", "edit_published_core"]), name="canonical_audit_action"),
+        ]

@@ -82,6 +82,8 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-change-me")
 
 DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() == "true"
 
+CANONICAL_WRITER_ENABLED = _read_fail_closed_bool("CANONICAL_WRITER_ENABLED", default=False)
+
 SHARING_ACCESS_ENABLED = _read_fail_closed_bool("SHARING_ACCESS_ENABLED", default=False)
 
 SHARING_DOMAIN_SHADOW_ENABLED = _read_fail_closed_bool(
