@@ -234,7 +234,8 @@ class SharingFoundationMigrationTests(TransactionTestCase):
     new = ("crm", "0037_sharing_access_foundation")
 
     def tearDown(self):
-        MigrationExecutor(connection).migrate([self.new])
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
         super().tearDown()
 
     def test_additive_forward_empty_reverse_and_history_guard(self):

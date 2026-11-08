@@ -240,6 +240,8 @@ class FoundationMigrationTests(TransactionTestCase):
                 actual = list(state.get_model("crm", name).objects.values())
                 if target == leaves and name in ("Tenant", "Organization", "Person"):
                     self.assertTrue(all(row.pop("sharing_domain_id") is None for row in actual))
+                if target == leaves and name in ("Organization", "Person"):
+                    self.assertTrue(all(row.pop("canonical_write_stamp") is not None for row in actual))
                 self.assertEqual(actual, rows)
             if target == leaves:
                 for name in ("SharingDomain", "OrganizationTenantAssignment", "PersonTenantAssignment"):

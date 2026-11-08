@@ -1,5 +1,31 @@
 # Data Model
 
+## ADR-011 trinn 9 – additiv0038, kodegrunnmur 2026-11-08
+
+`Organization.canonical_write_stamp` og `Person.canonical_write_stamp` er skjulte,
+ikke-redigerbare UUID-felt. Eksisterende rader får kun ny metadata ved migrasjon;
+ingen legacyfelt, domener, assignments, medlemskap eller avtaler endres. En
+PostgreSQL-trigger fornyer stamp ved innsetting og ved faktisk endring av
+Organization name/description/is_published eller Person full_name. Andre
+oppdateringer bevarer DB-stamp, også når en gammel ORM-instans sender gammel
+stamp tilbake. Feltet er utelatt fra Admin og eksisterende serializers.
+
+`CanonicalWriteAudit` er immutable med historiske actor-/tenant-/assignment-/
+domain-/agreement-/objekt-ID-er, handlingsnavn, forrige/neste canonical revisjon,
+stamp, endrede **feltnavn** og tidspunkt. Ingen rå feltverdier eller privatdata.
+ID-er er snapshots uten CASCADE; ingen reassosiering eller skjult profilbeskyttelse
+innføres via nye FK-er. Unik objekt/revisjon, neste=forrige+1 og gyldig type/
+handling er DB-begrenset. UPDATE/DELETE avvises også i SQL via eksisterende
+historikkvern. Dette verner mot vanlig mutasjon, ikke privilegert DDL/TRUNCATE.
+
+Canonical revisjon beregnes fra immutable audit under profillås og teller bare
+støttede servicewrites. Ingen separat skrivbar counter/cache/hubmodell opprettes.
+Reverse av0038 avvises ved enhver audithistorikk og krever READ COMMITTED og
+profil-/auditlåser. Etter første semantiske write: behold schema/audit, slå av
+writer og rett framover. [Full låse-, stale-, rollback- og cutoverkontrakt](SECURITY_AND_ROLES.md#adr-011-trinn-9--inaktiv-canonical-writer-2026-11-08).
+Ingen staging/schema-apply eller funksjonell shared redigering i denne leveransen.
+
+
 ## 0037 – faktisk stagingtilstand 2026-11-07
 
 API-kode `d410e8e` er teknisk stagingverifisert med bare0037 anvendt og tom

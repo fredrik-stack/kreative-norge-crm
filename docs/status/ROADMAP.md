@@ -1,5 +1,24 @@
 # Roadmap
 
+## ADR-011 trinn 9 – inaktiv canonical writer, 2026-11-08
+
+Første avgrensede writer-grunnmur er implementert for Organization `name`/
+`description` og Person `full_name`. `CANONICAL_WRITER_ENABLED` og
+`SHARING_ACCESS_ENABLED` har default False og må begge være True før tjenesten
+kan brukes. Ingen eksisterende API/Editor/Admin/import/PUBLIC-rute er koblet til
+writertjenesten. Legacydata og gamle skriveruter er fortsatt autoritative.
+[Mandat, låsing, revisjon/audit og overgangskontrakt](../architecture/SECURITY_AND_ROLES.md#adr-011-trinn-9--inaktiv-canonical-writer-2026-11-08).
+
+Additiv0038 legger til skjult UUID-stamp på begge profiler og immutable
+`CanonicalWriteAudit`. Revisjon krever både canonical teller og aktuell stamp;
+relevante legacyendringer gjør gamle snapshots ugyldige uten å utgi telleren
+som revisjon/audit for gamle writes. Bare ny metadata berøres av DB-triggerne;
+gamle feltverdier, normaliseringer og brukerreiser består.
+Ingen stagingdeploy/schema-apply, medlemmer, avtaler/aksepter, notatkopiering,
+shared-aktivering eller autoritetsovergang inngår. Trinn7 og hele trinn8/9/6A
+er ikke lukket; faktisk review/PR/merge/CI følger GitHub.
+
+
 ## ADR-011 trinn 8 – teknisk stagingverifisert, inaktivt 2026-11-07
 
 PR #101 / kode `d410e8e2e5e4a671edbd755f527d7eb52fe8103a` er API-only deployet

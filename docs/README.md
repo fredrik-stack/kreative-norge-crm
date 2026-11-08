@@ -1,5 +1,14 @@
 # Kreative Norge CRM – dokumentasjon
 
+## ADR-011 trinn 9 – inaktiv canonical writer, 2026-11-08
+
+Additiv0038 og en smal writer for Organization navn/beskrivelse og Person navn
+forbereder atomisk reautorisering, expected revision og audit. Begge gater er
+av; ingen aktive ruter eller staging er endret. UUID-stamp beskytter mot gamle
+writes innen feltkontrakten, mens canonical teller bare teller nye servicewrites.
+[Kontrakt og gjenværende overgang](architecture/SECURITY_AND_ROLES.md#adr-011-trinn-9--inaktiv-canonical-writer-2026-11-08).
+
+
 ## ADR-011 trinn 8 – teknisk stagingverifisert, inaktivt 2026-11-07
 
 API-kode `d410e8e` og bare0037 er levert med tomme historikktabeller, 22 validerte
