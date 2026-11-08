@@ -24,7 +24,9 @@ Teknisk godkjenning og klargjøring kan være flere varige servertrinn innen én
 brukerhandling. Ved delvis/ukjent svar skal frisk state og eksplisitt teknisk
 fullføring brukes, uten blind replay eller falsk suksess. Stagingdatavern følger
 [den varige eierregelen](../development/WORKFLOW.md#levende-redaksjonelle-stagingdata--eierregel-2026-11-08).
-Beslutningen er godkjent; implementasjon/verifikasjon følger prosjektstatus.
+Beslutningen er implementert i PR #113 /efba875 og teknisk stagingverifisert
+2026-11-09 med kun0040, bevarte data/bytes og grønne driftsporter.
+[Faktisk evidens og bevisgrenser](../architecture/SECURITY_AND_ROLES.md#samlet-bildebekreftelse-og-zoom-ut--2026-11-08).
 
 **Avgrenset rettingsleveranse2026-11-08:** Editor bruker samme PUBLIC-projeksjon
 for thumbnails ved aktiv cutover og oppdaterer avledet bildestate uten å berøre

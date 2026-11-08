@@ -1,7 +1,7 @@
 # Feature: Public
 
 
-## Ett bekreftet aktørbilde – lokal implementasjon 2026-11-08
+## Ett bekreftet aktørbilde – stagingverifisert 2026-11-09
 
 Foto kan zoomes ut til10 % med hvit bakgrunn, eller inn til300 %. Standard er100 %.
 Etter preview, rettighetsbekreftelse og eventuell kreditering brukes én handling:
@@ -11,7 +11,9 @@ selv er bekreftet for offentlig visning. Samme release følger senere publiserin
 avpublisering sperrer bilde-URL-ene igjen. Ved teknisk feil kan bekreftelsen
 fullføres eksplisitt uten nytt bildevalg eller automatisk retry.
 [Kontrakt, tester og status](../architecture/SECURITY_AND_ROLES.md#samlet-bildebekreftelse-og-zoom-ut--2026-11-08).
-Staging er foreløpig forrige leveranse nedenfor; eldre v1-bildevalg omskrives ikke.
+PR #113 /efba875 og bare0040 er stagingverifisert med leseprober; nye positive
+bildereiser er syntetisk testet lokalt/CI. Editor viser upubliserte bilder privat,
+mens PUBLIC forblir sperret. Eldre v1-bildevalg omskrives ikke.
 
 ## Bilderedigering – avgrenset retting, stagingverifisert 2026-11-08
 

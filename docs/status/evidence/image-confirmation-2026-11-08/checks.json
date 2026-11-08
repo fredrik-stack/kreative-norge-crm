@@ -1,0 +1,216 @@
+{
+  "backup": {
+    "all_timers_normal": true,
+    "both_full_repository_verified": true,
+    "both_same_archive_isolated_pg16_restored": true,
+    "installed_modules_unchanged": true,
+    "no_live_restore": true,
+    "no_prune_compact": true,
+    "no_restore_volumes_left": true,
+    "post": {
+      "archive": "kreative-norge-staging-20261108T230040Z",
+      "archive_id": "f048f9c736c1637aca96a0aad51444f72c8133dbba078a730af9aeab0c5d6e71",
+      "dump_sha256": "8a2433315aa7b47434073acce8ae0e387adba100fb961e958feefcd548da186d",
+      "no_new_volumes": true,
+      "restore": true,
+      "verified": true
+    },
+    "pre": {
+      "archive": "kreative-norge-staging-20261108T225929Z",
+      "archive_id": "5f693d98871d0503af424a97ac1a634d91a8ff53363bc791bb8f11f931b3642a",
+      "dump_sha256": "a947196654e8baf628065f4e57e756a38ff2b3e71ddd768a1bbe096fc447d4f7",
+      "no_new_volumes": true,
+      "restore": true,
+      "verified": true
+    }
+  },
+  "boundaries": {
+    "new_users_memberships_grants_agreements_acceptances": false,
+    "new_visual_owner_approval_claimed": false,
+    "notes_copy_or_plan": false,
+    "production_deploy": false,
+    "real_profile_or_image_writes": 0,
+    "real_v2_approval_or_completion": false,
+    "shared_canonical_note_activation": false
+  },
+  "code": {
+    "backend_tests": 776,
+    "base_main": "a186c9966801a9d2c8b3f958e28dfa4c894ac6f2",
+    "ci_jobs_successful": 6,
+    "frontend_tests": 78,
+    "image_e2e": 6,
+    "main_ci": 42532217146,
+    "merge": "efba875976564cf181fd8177c268bfce4e632e3c",
+    "pr": 113,
+    "pr_ci": 42531766177,
+    "reviewed_head": "4c98a87206a1dbf63ce0495f875f590b5353e30b"
+  },
+  "database": {
+    "existing_migration_rows_including_pks_preserved": true,
+    "existing_rows_fields_relationships_timestamps_stamps_preserved": true,
+    "identity_verified": true,
+    "image_event_rows_after": 24,
+    "image_event_rows_before": 24,
+    "management_agreement_canonical_audit_overlays_batches_still_empty": true,
+    "memberships": {
+      "inactive": 0,
+      "total": 0
+    },
+    "only_new_metadata": "one django_migrations row and changed zoom constraint",
+    "organization_rows": 128,
+    "person_rows": 157,
+    "remaining_migrations": 0,
+    "schema": "0040_image_zoom_out",
+    "table_count": 56,
+    "zoom_constraint_after": "CHECK (((zoom >= 0.1) AND (zoom <= (3)::numeric)))",
+    "zoom_constraint_before": "CHECK (((zoom >= (1)::numeric) AND (zoom <= (3)::numeric)))"
+  },
+  "evidence_exported_at_utc": "2026-11-08T23:04:33.270731+00:00",
+  "flags": {
+    "ACCESS_MANAGEMENT_ENABLED": false,
+    "CANONICAL_WRITER_ENABLED": false,
+    "IMAGE_ASSET_FEATURE_ENABLED": true,
+    "IMPORT_IMAGE_DECISIONS_ENABLED": false,
+    "PUBLIC_IMAGE_API_SCHEMA_ENABLED": true,
+    "PUBLIC_IMAGE_PROJECTION_ENABLED": true,
+    "PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED": true,
+    "PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED": true,
+    "PUBLIC_IMAGE_SERVING_ENABLED": true,
+    "PUBLIC_IMAGE_TAKEDOWN_ENABLED": true,
+    "SHARING_ACCESS_ENABLED": false,
+    "SHARING_DOMAIN_SHADOW_ENABLED": false,
+    "STRICT_TENANT_ACCESS_ENABLED": false,
+    "TENANT_NOTE_OVERLAYS_ENABLED": false
+  },
+  "frontend_bundle": {
+    "index_only_two_references_changed": true,
+    "js_css_bytes_unchanged": true,
+    "lockfile_sha256": "7d657eb63887d784dbaf95fbd87b7801f5b1bc57f6f5a928e2cfc6c473599fb0",
+    "name_mapping": {
+      "assets/index-BSwkw6jP.css": "assets/index-BSwkw6jP-efba875.css",
+      "assets/index-vywduW2R.js": "assets/index-vywduW2R-efba875.js"
+    },
+    "node_version": "v22.11.0",
+    "promoted_files": {
+      "assets/index-BSwkw6jP-efba875.css": "b6e58c658ece3ca52af924b25e7abc43655a25a71952367250b8d365a6df3a99",
+      "assets/index-vywduW2R-efba875.js": "53db97918d4abda26e7550f6e8e8eede1233c681269d55f716ed387a5f480a92",
+      "index.html": "37ae4f7e6cf8e527310837daa1c78407028508dcc27605236fa192def147927f"
+    },
+    "source_commit": "efba875976564cf181fd8177c268bfce4e632e3c",
+    "source_files": {
+      "assets/index-BSwkw6jP.css": "b6e58c658ece3ca52af924b25e7abc43655a25a71952367250b8d365a6df3a99",
+      "assets/index-vywduW2R.js": "53db97918d4abda26e7550f6e8e8eede1233c681269d55f716ed387a5f480a92",
+      "index.html": "84b2ce8d1555aee0bb65bf374caa01f07234ffc743954357d899f948900bf446"
+    }
+  },
+  "helper_sha256": {
+    "db-read.py": "f17e1b219096ce83deaa11fa2f0cb1e8d1d2372851ebcbea5ab84a4b1f07dcdc",
+    "image-readback.py": "fe343ed9aad3c9db3c4e44bdfe7027872c035abda1157fff9d40cd4712d88542",
+    "stage.py": "703654ca99e5e3cd059fb30b0f4d7f78127883cbb93ed4203dbeb2f450b45581"
+  },
+  "image_readback": {
+    "asset_matches": 9,
+    "brave_count": 200,
+    "database_writes": 0,
+    "editor_tenant_lists": 7,
+    "exact_scope_allowed_wrong_tenant_denied": true,
+    "existing_unpublished_private_preview_checked": 1,
+    "fallback_matches": 113,
+    "five_gates_off": true,
+    "maximum_batch_size": 15,
+    "no_v2_approval_or_completion_created": true,
+    "nonowner_denied": true,
+    "owner_suggestions_available": true,
+    "private_list_batch_calls": 3,
+    "private_list_single_authorize_or_legacy_calls": 0,
+    "private_variant_checks": 30,
+    "provider_calls": 0,
+    "published_previews_equal_public": 122,
+    "real_detail_preview_matches": true,
+    "status": "READ_ONLY_IMAGE_PASS"
+  },
+  "management_gate_checks": {
+    "authenticated_context_empty_disabled": true,
+    "denied_operations": 5,
+    "membership_admin_readonly_superuser": true,
+    "new_history_not_admin_registered": true
+  },
+  "migration": {
+    "isolation": "READ COMMITTED",
+    "lock_timeout": "2s",
+    "only_migration": "0040_image_zoom_out",
+    "seed_or_data_apply": false,
+    "statement_timeout": "30s"
+  },
+  "owner_write_freeze": {
+    "announced": true,
+    "approximate_minutes": 3,
+    "baseline_after_pause": true,
+    "prior_owner_pause_accepted": true,
+    "released_after_final_checks": true
+  },
+  "preservation": {
+    "all_old_media_static_bytes": true,
+    "ledger_full_bytes_and_history_deny": true,
+    "new_safety_events": 0,
+    "no_profile_image_approval_completion_or_ledger_writes": true,
+    "private_files_retained_outside_git": true,
+    "public_catalog_and_all_three_existing_asset_fallback_variant_bytes": true,
+    "safety_cursor_after": 33,
+    "safety_cursor_before": 33,
+    "safety_ready": true
+  },
+  "proof_limits": [
+    "Real staging checks were READ ONLY and reused an existing operator with server-side forced authentication; no session creation or positive image write.",
+    "Single-confirmation published/unpublished journeys and white50% preview are six local synthetic E2E, backed by real PostgreSQL/ledger/serving tests; no new visual owner acceptance.",
+    "Only existing unpublished prepared image is checked privately if present; no real profile is changed to manufacture positive staging evidence.",
+    "Fresh preservation baseline was captured after the announced owner pause; prior cursor/count snapshots are historical evidence only."
+  ],
+  "public_https": {
+    "all_public_https_assets_match": true,
+    "cdn_config_or_purge_changed": false,
+    "checked_at_utc": "2026-11-08T23:01:07.312966+00:00",
+    "files": {
+      "assets/index-BSwkw6jP-efba875.css": {
+        "mime": "text/css",
+        "sha256": "b6e58c658ece3ca52af924b25e7abc43655a25a71952367250b8d365a6df3a99",
+        "source_bytes_match": true,
+        "status": 200
+      },
+      "assets/index-vywduW2R-efba875.js": {
+        "mime": "application/javascript",
+        "sha256": "53db97918d4abda26e7550f6e8e8eede1233c681269d55f716ed387a5f480a92",
+        "source_bytes_match": true,
+        "status": 200
+      },
+      "index.html": {
+        "html_hash_not_compared_because_edge_injection": true,
+        "mime": "text/html",
+        "new_asset_references": true,
+        "old_asset_references_absent": true,
+        "status": 200
+      }
+    },
+    "source_commit": "efba875976564cf181fd8177c268bfce4e632e3c"
+  },
+  "runtime": {
+    "api_commit": "efba875976564cf181fd8177c268bfce4e632e3c",
+    "api_image": "sha256:0efd042b895dbe3960dca322f8d74e94c298d0f4563e56a9086fed2723722f27",
+    "api_web_dependencies_unchanged": true,
+    "db_image": "sha256:49767d69e57428bc8229d8427521605e90b230c908d19542644d92b77dc1984d",
+    "environment_host_bridge_and_database_container_unchanged": true,
+    "frontend_source_commit": "efba875976564cf181fd8177c268bfce4e632e3c",
+    "nginx_units_peers_and_operative_config_unchanged": true,
+    "previous_code": "2a86bb4df23d8aa87c31e70568adfa965bd30bc1",
+    "web_image": "sha256:ff94c2282b16d3d8b8e8534c12ac0154eeccc5fe6aa7c925558da339651e5203"
+  },
+  "status": "STAGING_VERIFIED",
+  "technical_reads": {
+    "admin_lists": 2,
+    "admin_note_forms": 2,
+    "api_details": 6,
+    "api_lists": 14,
+    "authenticated_session": true,
+    "operator_reused": true
+  }
+}

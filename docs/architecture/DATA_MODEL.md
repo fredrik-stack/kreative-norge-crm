@@ -1,20 +1,30 @@
 # Data Model
 
-## Samlet bildebekreftelse og zoom ut – lokal leveranse 2026-11-08
+## Samlet bildebekreftelse og zoom ut – stagingverifisert 2026-11-09
 
-Eiergodkjent videreføring av ADR-007/009: Fotozoom10–300 %, standard100 %, med
-hvit bakgrunn under100 %. Én «Bekreft og bruk bildet»-handling erstatter de
-separate PUBLIC-/standardbildevalgene. Klargjort bilde følger aktørens senere
-publiseringsvalg; upubliserte aktører og bildebytes er offentlig utilgjengelige.
-Eksisterende v1-bildevalg, immutable artefakter og historikk konverteres ikke.
+[PR #113](https://github.com/fredrik-stack/kreative-norge-crm/pull/113), eksakt
+API/frontend `efba875976564cf181fd8177c268bfce4e632e3c`, er levert etter separat
+review/re-review og grønn PR-/main-CI, 6/6. Fotozoom er 10–300 %, standard 100 %,
+med hvit flate under 100 %. «Bekreft og bruk bildet» erstatter de separate
+PUBLIC-/standardbildevalgene. Samme godkjente bilde brukes privat i Editor og
+følger aktørens senere publiseringsvalg; PUBLIC-URL-er for upubliserte avvises.
+Gamle bildevalg/bytes/historikk er bevart og v1-godkjenninger konverteres ikke.
 
-Kun schema0040 utvider zoom-constrainten; ingen data-apply. Tidligere metadata/
-bilder beholdes, og schema-reverse stoppes hvis zoom-ut-oppskrifter finnes.
-[Kontrakt, tester og kontrollbilder](SECURITY_AND_ROLES.md#samlet-bildebekreftelse-og-zoom-ut--2026-11-08).
+Kun schema 0040 utvider zoom-constrainten. Etter varslet eierpause bestod fersk
+kontroll av alle 56 tabeller: gamle rader, tidsstempler, relasjoner og stamps er
+bevart. Bare én ny migrasjonsrad og tilsiktet constraint er endret. 122 publiserte
+Editor-previews er like PUBLIC (9 asset /113 fallback); én eksisterende privat
+preview var lesbar for operatøren og avvist anonymt. Tre safety-batcher for syv
+lister, ingen single-/legacykall per kort. Ingen profil-/bildewrite, v2-godkjenning,
+notatkopiering eller aktivering av de fem avslåtte gatene. READY33→33; miljø,
+DB-container, hostbridge og gamle media/static er uendret. Pre/post-backup,
+fullverify/isolert restore, faktiske HTTPS-assets og normale timere er grønne.
+[Kontrakt, sanitert evidens og kontrollbilder](SECURITY_AND_ROLES.md#samlet-bildebekreftelse-og-zoom-ut--2026-11-08).
+
 [Varig eierregel](../development/WORKFLOW.md#levende-redaksjonelle-stagingdata--eierregel-2026-11-08)
-bevarer levende redaksjonelle data og krever fersk baseline og varslet skrivefrys.
-Lokal kode foreligger; separat review/PR/merge/CI og staging gjenstår. Forrige
-verifiserte staging er fortsatt PR #111 /2a86bb4/schema0039 nedenfor.
+bevarer levende redaksjonelle data og krever ferske planer/baselines og varslet
+skrivefrys. Pausen er opphevet. Ingen ny visuell eieraksept påstås; dokumentasjons-
+merge deployes ikke. Eldre daterte runtime-/testtall nedenfor er historikk.
 
 ## Avgrenset bilderetting – stagingverifisert 2026-11-08
 
@@ -497,7 +507,7 @@ Databasen håndhever globalt unike release-ID-er og public keys, unik variant og
 
 Parent-locking av `ImageRenditionSet` ble vurdert i 3B.3-A-rettingen, men ikke lagt til uten en konkret reproducerbar blocker. Tjenesten låser selection-raden og de tre konkrete rendition-radene den fryser; senere endring av levende parentmetadata kan ikke omskrive release-relasjonene eller snapshottene. En sterkere lås skal først innføres sammen med en konkret samtidig writer og en test som beviser nødvendig integritets- eller sikkerhetsgaranti.
 
-Databaseconstraints håndhever positive dimensjoner og filstørrelser, fokus i intervallet 0–1, zoom i intervallet 1–3 og tenant-avgrenset unikhet for storage keys, rendition-sett og varianter. Checksum er bevisst ikke globalt unik. `clean()` avviser tenant-mismatch mellom asset og rendition-sett og mellom rendition-sett og rendition. Den interne fase 3C.7-tjenesten håndhever samme scope, alle metadatafeltene og komplett `square`/`landscape`/`share` før aggregate-et kan committes; vanlige direkte ORM-skriveruter til disse tre grunnmodellene er fortsatt ikke gjort immutable eller eksklusive.
+Databaseconstraints håndhever positive dimensjoner og filstørrelser, fokus i intervallet 0–1, zoom i intervallet 0.1–3 etter0040 (default1.0000) og tenant-avgrenset unikhet for storage keys, rendition-sett og varianter. Checksum er bevisst ikke globalt unik. `clean()` avviser tenant-mismatch mellom asset og rendition-sett og mellom rendition-sett og rendition. Den interne fase 3C.7-tjenesten håndhever samme scope, alle metadatafeltene og komplett `square`/`landscape`/`share` før aggregate-et kan committes; vanlige direkte ORM-skriveruter til disse tre grunnmodellene er fortsatt ikke gjort immutable eller eksklusive.
 
 For selection håndhever databasen unik revisjon per tenant/organisasjon, maksimalt én `active`-rad, positiv revisjon og eksklusivt valg mellom asset/rendition-sett og systemfallback. Asset-selection kan ha eksakt tom `alt_text`; verdien får ingen skjult fallback til aktørnavnet. En eksplisitt systemfallback-selection må fortsatt ha ikke-tom tekst gjennom et betinget databaseconstraint og fallbacktjenesten. `locked_by` og `locked_at` er obligatoriske, og bruker samt rendition-sett er beskyttet med `PROTECT`. Selection dupliserer ikke asset, fit, fokus, zoom eller prosesseringsversjon; asset og presentasjonsoppskrift nås gjennom det eksakte rendition-settet.
 
@@ -507,7 +517,7 @@ For selection håndhever databasen unik revisjon per tenant/organisasjon, maksim
 
 Schema-migrasjon `0027` er uten datarewrite og kan reverseres så lenge ingen blank asset-alt eller blankt event-alt-snapshot er lagret. Etter første blanke rad er migrasjonen forward-only: de gamle nonempty-constraintene blokkerer reverse. Operativ rollback er da feature-off og en fremoverrettet retting; en pre-deploy-backup må tas og verifiseres før aktivering. Eksisterende verdier skal ikke omskrives, og aktørnavn skal aldri innføres som skjult alttekstfallback. En målrettet PostgreSQL-migrasjonstest verifiserer både at reverse blokkeres og at databasen forblir på `0027` med de blanke radene intakte.
 
-Schema-migrasjon `0028` legger til non-null `zoom` med semantisk default `1.0000` og et databaseconstraint på 1–3. Render-config-hashen inkluderer zoom, slik at samme asset/fokus/zoom er idempotent mens en endret zoom oppretter et annet immutable rendition-sett og andre artifact keys. Migrasjonen kan reverseres før non-default zoom finnes. En reverse-guard blokkerer feltfjerning etter at non-default zoom er lagret, fordi feltap ellers ville gjort historiske rendition-sett tvetydige; operativ rollback er da feature-off eller fremoverrettet retting etter verifisert backup.
+Schema-migrasjon `0028` la til non-null `zoom` med semantisk default `1.0000` og historisk constraint på1–3. `0040` utvider bare constrainten til0.1–3, uten radendring; reverse stoppes etter lagret zoom<1. Render-config-hashen inkluderer zoom, slik at samme asset/fokus/zoom er idempotent mens en endret zoom oppretter et annet immutable rendition-sett og andre artifact keys. Migrasjonen kan reverseres før non-default zoom finnes. En reverse-guard blokkerer feltfjerning etter at non-default zoom er lagret, fordi feltap ellers ville gjort historiske rendition-sett tvetydige; operativ rollback er da feature-off eller fremoverrettet retting etter verifisert backup.
 
 Kilde-URL-snapshots lagres uendret, men bare som HTTP/HTTPS uten URL-brukernavn/passord, fragment eller kjente credentials-, signatur-, token-, AWS-, Google- eller Azure SAS-parametere. `upload` og `brave_image_search` kan ha tom source-URL; andre ikke-tomme source types krever URL. Brave-unntaket er bevisst fordi standardvilkårene begrenser persistent lagring/caching av providerresultater. Valideringen gjør ingen fetch, DNS-oppslag eller annen nettverks-I/O.
 

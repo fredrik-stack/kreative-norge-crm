@@ -11,6 +11,9 @@ bruker samme release uten ny bildeavgjørelse eller ny skrivebivirkning på
 profilen. Eldre valg migreres ikke automatisk. Varige DB-trinn fullføres før
 tilhørende eksterne sideeffekter; én brukerhandling er ikke et løfte om én
 transaksjon på tvers av PostgreSQL, filesystem og safety-ledger.
+PR #113 /efba875 er stagingverifisert2026-11-09 med bare0040 og lesebevis,
+uten nye reelle bilder, godkjenninger eller ledgerhendelser.
+[Full evidens](../architecture/SECURITY_AND_ROLES.md#samlet-bildebekreftelse-og-zoom-ut--2026-11-08).
 
 **Avgrenset rettingsleveranse2026-11-08:** Editor bruker samme PUBLIC-projeksjon
 for thumbnails ved aktiv cutover og oppdaterer avledet bildestate uten å berøre

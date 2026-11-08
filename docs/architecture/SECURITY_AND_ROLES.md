@@ -74,7 +74,8 @@ Målrettet PostgreSQL16-kjøring65 tester (modeller/processing/API) og full
 frontend78/TS/bygg samt seks syntetiske bilde-E2E er grønne. Full isolert PostgreSQL16-regresjon776 er nå grønn. Første kjøring hadde én
 utdatert zoomassert, som er rettet. Separat review fant at upubliserte Editor-
 kort fortsatt viste fallback; privat, scoped forhåndsvisning retter funnet.
-Begge brukerreiser består i de seks bilde-E2E. Re-review på nytt head og CI følger. [Lokal schema-bevaring](../status/evidence/image-confirmation-2026-11-08/local-migration.json)
+Begge brukerreiser består i de seks bilde-E2E. Re-review uten blokkere og grønn
+PR-/main-CI, 6/6, er verifisert på endelig head/merge. [Lokal schema-bevaring](../status/evidence/image-confirmation-2026-11-08/local-migration.json)
 bekrefter0039→0040, uendrede historiske rader/tidsstempler/nøkler/bytes,
 idempotent nytt zoom-ut-sett og blokkert reverse etter bruk.
 
@@ -92,16 +93,65 @@ brukere, bilder, aksepter, medlemskap eller juridiske avtaler opprettes.
 
 ### Leveranse- og staginggrense
 
-Lokal implementasjon, docs og tester foreligger. Review/PR/merge/CI og staging
-skal ha hver sin faktiske status; schema0039/PR #111 er fortsatt siste verifiserte
-runtime. Ved godkjent stagingetappe kreves fersk baseline etter varslet eierpause,
-pre/post-backup/fullverify/isolert restore og eksplisitt kun0040. Sammenlign gamle
-rader/bytes/stamps separat fra én ny django_migrations-rad og tilsiktet endret
-zoom-constraint; ingen datareparasjon. Behold miljø, dependencies, DB-container,
-media/static og fem avslåtte gater. Ingen testwrites mot reelle stagingprofiler.
-[Den varige eierregelen](../development/WORKFLOW.md#levende-redaksjonelle-stagingdata--eierregel-2026-11-08)
-gjelder alle senere planer, inventarer, shadow og modelloverganger. Dokumentasjons-
-merge deployes ikke i seg selv. Ingen neste produktetappe starter automatisk.
+[PR #113](https://github.com/fredrik-stack/kreative-norge-crm/pull/113) er
+ordinært merget som `efba875976564cf181fd8177c268bfce4e632e3c`. Separat review
+bandt base `a186c9966801a9d2c8b3f958e28dfa4c894ac6f2` til første head `f072c1d`;
+funnet om upubliserte Editor-kort ble rettet og re-reviewet uten blokkere på
+`4c98a87206a1dbf63ce0495f875f590b5353e30b`. PR-CI42531766177 og main-CI42532217146
+er SUCCESS, 6/6. Runtime-mål og dette reviewede headet har identisk Git-tre.
+
+**Stagingverifisert 2026-11-09 (Europe/Oslo):** Etter varslet eierpause ble fersk
+baseline tatt på tidligere runtime2a86bb4/schema0039. Pre-backup/fullverify og
+arkivbundet isolert PostgreSQL16-restore bestod før eksplisitt kun0040 med
+MigrationExecutor, READ COMMITTED,2s lock-/30s statement-timeout. Ingen seed,
+post_migrate eller profil-/bilde-/data-apply. Bare én django_migrations-rad og
+zoom-constrainten er ny metadata. Gamle migrasjonsrader, inkludert PK-er, og alle
+øvrige rader i56 tabeller, felter, relasjoner, tidsstempler og canonical-stamps er
+bevart; medlemskap0→0 og forvaltnings-/avtalehistorikk, canonical-audit, overlays
+og kopibatch er fortsatt tomme. Sluttplanen er tom.
+
+Eksakt API/frontend er bygget på eksisterende immutable baser, med uendrede
+Python-/webavhengigheter, Docker/Compose, mounts, Nginx, peers, units og øvrig
+konfigurasjon. Ingen automatisk migrate/collectstatic ved API-start. Hostbridge
+og miljø er byteidentiske; fem tilgangs-/writer-/notatgater er effektivt og varig
+av, øvrige flagg og Brave-eierbinding uendret. Frontend JS/CSS har de samme bytes
+som kildebygget under suffiks `-efba875`, og bare to indexreferanser er endret.
+Workerrettigheter0755/0644, origin og faktiske offentlige HTTPS-bytes/MIME samt
+indexreferanser bestod; ingen CDN-konfigurasjon eller purge. Edge-HTML-fullhash
+brukes ikke fordi mellomleddet kan injisere script.
+
+Read-only operatørkontroll viste122 publiserte Editor-previews lik PUBLIC:
+9 asset /113 fallback. Reell detalj stemte; én allerede eksisterende upublisert
+privat preview returnerte200/private-no-store med operatør og403 anonymt. Ingen
+reell profil ble endret for å lage et positivt testtilfelle. Syv tenantlister
+brukte tre authorize_many-batcher med30 variantkontroller, maksimum15 i én,
+uten single-/legacykall per kort. Eksakt scope og eier-/ikke-eiergrense er
+verifisert; ingen providerkall, v2-bildegodkjenning eller complete-write ble utført.
+API-/session-/Admin-lesing og deaktivert forvaltning, inklusive superusers
+read-only medlemskaps-Admin, består. Dette er server-side forced authentication
+innen READ ONLY; ingen ny virkelig brukerlogin eller visuell eieraksept påstås.
+
+Alle gamle private/public/delivery-/Django-staticbytes og PUBLIC-katalogens tre
+asset-/fallbackvarianter er bevart. Ledgerbytes/deny/historisk state og READY-
+read-/anchorcursor33 er uendret; null nye hendelser. ImageReviewEvent er24→24.
+Dette er den ferske frysebaselinen, ikke tidligere snapshots av eiers arbeid.
+Post-backup/fullverify/isolert restore av samme arkiv, inklusive0040 og eksakt
+constraint, bestod. Ingen live-restore, prune/compact eller gjenstående restore-
+volumer; installerte backupmoduler er uendret og alle tre timere active/enabled.
+Skrivefrysen var omtrent tre minutter og er opphevet; normal redigering kan fortsette.
+
+[Sanitert kontrollkvittering](../status/evidence/image-confirmation-2026-11-08/checks.json)
+bevarer kilde-/image-/bundle-/helperidentitet, aggregerte kontroller og pre/post-
+arkiv-ID/dumpchecksums. Private data-/miljøfingerprints og operatørfiler ligger
+utenfor Git. Runtimeverifikasjonen var lesebasert; positive nye bildereiser og
+zoom-ut er testet med syntetiske data lokalt/CI, ikke med reelle stagingprofiler.
+
+Ved senere API/frontendrollback beholdes additiv0040 og alle registrerte verdier.
+Ingen schema-/data-/media-/ledger-reverse for å tvinge gammel validering. Ukjent
+schema-commitstatus leses før videreføring; migrering replayes ikke blindt.
+Fremoverrettet retting foretrekkes. [Den varige eierregelen](../development/WORKFLOW.md#levende-redaksjonelle-stagingdata--eierregel-2026-11-08)
+gjelder senere planer, inventarer, shadow og6A–6C-mapping. Dokumentasjonsmerge
+utløser ingen ny deploy; ingen neste produktetappe starter automatisk.
 
 
 ## Avgrenset bilderetting – 2026-11-08
