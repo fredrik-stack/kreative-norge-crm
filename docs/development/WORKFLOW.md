@@ -52,6 +52,25 @@ ChatGPT følger ikke lokale VS Code-endringer automatisk. Endringer må være pu
 - lokal Docker brukes for risikofylte endringer, databaseendringer, større refaktorering og arbeid som bør verifiseres før push
 - staging brukes for helhetlig bruker- og integrasjonstest i servermiljø
 
+### Levende redaksjonelle stagingdata – eierregel 2026-11-08
+
+Prosjekteier skal kunne vedlikeholde eksisterende aktør- og personprofiler i
+staging parallelt med videre v1-utvikling. Stagingdatabasen er levende
+redaksjonelle arbeidsdata. Nye migreringsplaner, inventarer og shadowkontroller
+skal bygge på fersk datatilstand; historiske snapshots er daterte bevis og er
+ikke autoritative for senere data-apply.
+
+Ingen reset, restore til live database, datarydding, automatisk overskriving
+eller annen destruktiv handling uten uttrykkelig mandat. Isolerte restoretester
+skal fortsatt brukes ved gjeldende driftsporter. Ved overgang til nye modeller
+i 6A–6C bevares registrerte verdier med eksplisitt mapping og kontroll der det
+trengs. En godkjent schema-/kodedelivering gir ikke i seg selv data-applyfullmakt.
+
+Deploy eller dataoperasjoner som krever skrivefrys varsles med tydelig start og
+slutt. Baseline tas etter den avtalte pausen, og normal redigering frigis så
+snart nødvendige kontroller er fullført. Hold pausen avgrenset; utvikling og
+datavedlikehold skal foregå parallelt uten unødvendige stopp.
+
 ## Oppstart av en planleggingsøkt med ChatGPT
 
 Ved ny ChatGPT-samtale kan prosjekteier lime inn `$fortsett-prosjekt` og siste `CHATGPT SESSION SUMMARY`. ChatGPT skal:

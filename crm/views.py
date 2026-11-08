@@ -603,6 +603,66 @@ class OrganizationViewSet(DomainProtectedDestroyMixin, viewsets.ModelViewSet):
         from .services.images.publication import publish_organization_image
         return self._public_image_command(request, tenant_id, pk, publish_organization_image)
 
+    @action(detail=True, methods=["post"], url_path="images/complete")
+    def complete_image(self, request, tenant_id=None, pk=None):
+        from .services.images.publication import complete_organization_image
+        return self._public_image_command(request, tenant_id, pk, complete_organization_image)
+
+    @action(detail=True, methods=["get"], url_path=r"images/active-preview/(?P<revision>[0-9]+)/(?P<variant>square|landscape|share)")
+    def active_image_preview(self, request, tenant_id=None, pk=None, revision=None, variant=None):
+        """Authenticated current image, including an unpublished actor.
+
+        Never accepts a caller-selected release, storage key or publication bypass.
+        The public media route always retains its default publication requirement.
+        """
+        from django.contrib.auth import get_user_model
+        from .models import OrganizationImageRelease, OrganizationImageSelection
+        from .services.images.candidates import _validate_actor
+        from .services.images.serving import prepare_public_image, PublicImageNotFound, PublicImageUnavailable
+        from .services.images.publication import publication_enabled
+        if not publication_enabled():
+            return Response(status=404)
+        revision = int(revision)
+        if not 0 < revision <= 9223372036854775807:
+            return Response(status=404)
+        actor = get_user_model().objects.filter(pk=request.user.pk, is_active=True).first()
+        if actor is None:
+            return Response(status=403)
+        if not actor.is_superuser and not TenantMembership.objects.filter(
+            user_id=actor.pk, tenant_id=int(tenant_id), is_active=True,
+        ).exists():
+            return Response(status=403)
+        try:
+            _validate_actor(actor, int(tenant_id), allow_reader=True)
+            organization = self.get_object()
+            selection = OrganizationImageSelection.objects.filter(
+                tenant_id=int(tenant_id), organization_id=organization.pk,
+                revision=revision, status=OrganizationImageSelection.Status.ACTIVE,
+                selection_kind=OrganizationImageSelection.SelectionKind.ASSET,
+            ).first()
+            if selection is None:
+                return Response(status=404)
+            release = OrganizationImageRelease.objects.filter(selection_id=selection.pk).first()
+            if release is None:
+                return Response(status=404)
+            mapping = release.renditions.filter(variant=variant).first()
+            if mapping is None:
+                return Response(status=404)
+            from image_safety.release_keys import PUBLIC_RELEASE_EXTENSIONS
+            prepared = prepare_public_image(release_id=str(release.release_id), variant=variant,
+                extension=PUBLIC_RELEASE_EXTENSIONS[mapping.output_format], require_published=False)
+        except ImageCandidateFlowError as error:
+            return self._image_error_response(error)
+        except PublicImageNotFound:
+            return Response(status=404)
+        except PublicImageUnavailable:
+            return Response(status=503)
+        response = HttpResponse(status=200, content_type=prepared.content_type)
+        response["Content-Length"] = str(prepared.content_length)
+        response["X-Accel-Redirect"] = prepared.internal_redirect
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
+
     @action(detail=True, methods=["post"], url_path="images/fallback")
     def image_fallback(self, request, tenant_id=None, pk=None):
         from .services.images.publication import use_organization_image_fallback

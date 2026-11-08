@@ -126,7 +126,7 @@ class OrganizationListSerializer(serializers.ListSerializer):
         if settings.PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED:
             from .services.images.projection import project_public_image_catalog
             data = list(data.all() if hasattr(data, "all") else data)
-            self.child._editor_image_projection_cache = project_public_image_catalog(data)
+            self.child._editor_image_projection_cache = project_public_image_catalog(data, for_editor=True)
         return super().to_representation(data)
 
 
@@ -312,7 +312,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
             cache = getattr(self, "_editor_image_projection_cache", {})
             result = cache.get(obj.pk)
             if result is None:
-                result = project_public_image(obj)
+                result = project_public_image(obj, for_editor=True)
             return result.projection.square.url
         return obj.get_preview_image_url()
 

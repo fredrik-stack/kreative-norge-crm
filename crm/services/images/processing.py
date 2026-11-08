@@ -12,9 +12,11 @@ from PIL import Image, ImageCms, ImageOps, UnidentifiedImageError
 
 MAX_SOURCE_BYTES = 15 * 1024 * 1024
 MAX_SOURCE_PIXELS = 36_000_000
-MIN_COVER_ZOOM = 1.0
+MIN_COVER_ZOOM = 0.1
+DEFAULT_COVER_ZOOM = 1.0
 MAX_COVER_ZOOM = 3.0
 PROCESSING_PROFILE = "phase3c-pillow-v1"
+ZOOM_OUT_PROCESSING_PROFILE = "phase3c-pillow-white-frame-v2"
 VALIDATION_VERSION = "phase3c-validation-v1"
 
 SOURCE_MIME_TYPES = {
@@ -156,9 +158,9 @@ def normalize_zoom(fit_mode: str, zoom: float | None) -> float:
     if fit_mode == "contain":
         if zoom is not None:
             raise ImageProcessingError("invalid_zoom", "Contain processing does not accept zoom.")
-        return MIN_COVER_ZOOM
+        return DEFAULT_COVER_ZOOM
     if zoom is None:
-        return MIN_COVER_ZOOM
+        return DEFAULT_COVER_ZOOM
     try:
         value = float(zoom)
     except (TypeError, ValueError) as error:
@@ -223,7 +225,7 @@ def _cover_crop_box(
     source_size: tuple[int, int],
     target_size: tuple[int, int],
     focus: tuple[float, float],
-    zoom: float = MIN_COVER_ZOOM,
+    zoom: float = DEFAULT_COVER_ZOOM,
 ) -> tuple[int, int, int, int]:
     source_width, source_height = source_size
     target_width, target_height = target_size
@@ -235,8 +237,12 @@ def _cover_crop_box(
     else:
         crop_width = max(1, round(source_width / zoom))
         crop_height = max(1, round(crop_width / target_ratio))
-    left = min(max(0, round(focus[0] * source_width - crop_width / 2)), source_width - crop_width)
-    top = min(max(0, round(focus[1] * source_height - crop_height / 2)), source_height - crop_height)
+    def position(source, crop, alignment):
+        if crop > source:
+            return round((source - crop) * alignment)
+        return min(max(0, round(alignment * source - crop / 2)), source - crop)
+    left = position(source_width, crop_width, focus[0])
+    top = position(source_height, crop_height, focus[1])
     return left, top, left + crop_width, top + crop_height
 
 
@@ -265,7 +271,23 @@ def _render_cover(
             "upscale_required",
             f"Source crop {crop_width}x{crop_height} cannot produce {target[0]}x{target[1]} without upscaling.",
         )
-    return image.crop(crop).resize(target, Image.Resampling.LANCZOS)
+    if zoom >= 1:
+        # Preserve the existing processing recipe and historical output exactly.
+        return image.crop(crop).resize(target, Image.Resampling.LANCZOS)
+    # Compose at final rendition size. Never allocate a source-sized padded
+    # canvas: 10% zoom could otherwise expand a 36MP source to 3.6 billion pixels.
+    visible = (max(0, crop[0]), max(0, crop[1]), min(image.width, crop[2]), min(image.height, crop[3]))
+    destination = (
+        round((visible[0] - crop[0]) * target[0] / crop_width),
+        round((visible[1] - crop[1]) * target[1] / crop_height),
+        round((visible[2] - crop[0]) * target[0] / crop_width),
+        round((visible[3] - crop[1]) * target[1] / crop_height),
+    )
+    size = (max(1, destination[2] - destination[0]), max(1, destination[3] - destination[1]))
+    content = image.crop(visible).resize(size, Image.Resampling.LANCZOS).convert("RGBA")
+    canvas = Image.new("RGB", target, "white")
+    canvas.paste(content, destination[:2], content.getchannel("A"))
+    return canvas
 
 
 def _encode(image: Image.Image, output_format: str) -> bytes:
@@ -417,5 +439,5 @@ def process_uploaded_image(
         focus_x=normalized_focus_x,
         focus_y=normalized_focus_y,
         zoom=normalized_zoom,
-        processing_version=PROCESSING_PROFILE,
+        processing_version=ZOOM_OUT_PROCESSING_PROFILE if fit_mode == "cover" and normalized_zoom < 1 else PROCESSING_PROFILE,
     )

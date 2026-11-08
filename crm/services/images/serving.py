@@ -94,6 +94,7 @@ def prepare_public_image(
     variant: str,
     extension: str,
     bridge: ImageSafetyBridgeClient | None = None,
+    require_published: bool = True,
 ) -> PreparedPublicImage:
     if not settings.PUBLIC_IMAGE_SERVING_ENABLED:
         raise PublicImageNotFound("Public image serving is disabled.")
@@ -104,7 +105,7 @@ def prepare_public_image(
 
     release = _load_release(canonical_id)
     try:
-        mappings = validated_release_mappings(release)
+        mappings = validated_release_mappings(release, require_published=require_published)
     except PublicReleaseScopeInactive as error:
         raise PublicImageNotFound(str(error)) from error
     except PublicReleaseMappingInvalid as error:

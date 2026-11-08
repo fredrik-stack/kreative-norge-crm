@@ -167,7 +167,7 @@ class ImageProcessingAdapterTests(TestCase):
         default = process_uploaded_image(upload(data), fit_mode="cover")
         explicit = process_uploaded_image(upload(data), fit_mode="cover", zoom=1)
         zoomed = process_uploaded_image(upload(data), fit_mode="cover", zoom=2)
-        self.assertEqual(default.zoom, MIN_COVER_ZOOM)
+        self.assertEqual(default.zoom, 1.0)
         self.assertEqual(
             [item.checksum_sha256 for item in default.renditions],
             [item.checksum_sha256 for item in explicit.renditions],
@@ -176,10 +176,32 @@ class ImageProcessingAdapterTests(TestCase):
             [item.checksum_sha256 for item in default.renditions],
             [item.checksum_sha256 for item in zoomed.renditions],
         )
-        for value in (0.99, MAX_COVER_ZOOM + 0.01, "many", float("nan")):
+        for value in (0.09, MAX_COVER_ZOOM + 0.01, "many", float("nan")):
             with self.subTest(value=value), self.assertRaises(ImageProcessingError) as context:
                 process_uploaded_image(upload(data), fit_mode="cover", zoom=value)
             self.assertEqual(context.exception.code, "invalid_zoom")
+
+    def test_zoom_out_has_white_frame_preserves_source_and_uses_new_profile(self):
+        data=image_bytes("PNG",size=(1600,900))
+        result=process_uploaded_image(upload(data,name="image.png",content_type="image/png"),fit_mode="cover",zoom=0.5)
+        self.assertEqual(result.source.original_bytes,data)
+        self.assertEqual(result.processing_version,"phase3c-pillow-white-frame-v2")
+        for rendition in result.renditions:
+            with Image.open(BytesIO(rendition.encoded_bytes)) as image:
+                self.assertEqual(image.size,(rendition.width,rendition.height))
+                pixel=image.convert("RGB").getpixel((0,0))
+                self.assertTrue(all(value>=245 for value in pixel),pixel)
+        self.assertEqual(_cover_crop_box((1600,900),(512,512),(0.5,0.5),0.5),(-100,-450,1700,1350))
+
+    def test_minimum_zoom_allocates_only_final_canvas_and_still_rejects_upscale(self):
+        from crm.services.images.processing import _render_cover
+        image=Image.new("RGB",(100,60),"red")
+        original_new=Image.new
+        with patch("crm.services.images.processing.Image.new",wraps=original_new) as allocate:
+            rendered=_render_cover(image,(512,512),(0.5,0.5),0.1)
+        self.assertEqual(rendered.size,(512,512))
+        self.assertEqual(allocate.call_args.args[:2],("RGB",(512,512)))
+        with self.assertRaises(ImageProcessingError):_render_cover(image,(1200,630),(0.5,0.5),0.1)
 
     def test_cover_crop_geometry_clamps_focus_and_never_leaves_empty_space(self):
         cases = (

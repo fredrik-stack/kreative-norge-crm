@@ -6,15 +6,60 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import connection, transaction
 
-from crm.models import Organization, OrganizationImageSelection, TenantMembership
+from crm.models import Organization, OrganizationImageSelection, OrganizationImageRelease, ImageReviewEvent, TenantMembership
 from .projection import project_public_image
 from .releases import create_organization_image_release
+from .bridge_client import ImageSafetyBridgeClient, ImageSafetyBridgeError
 from .selections import (
     ALLOWED_SELECTION_ROLES, ExpectedRevisionConflictError,
     ImageSelectionPermissionDenied, remove_organization_image_to_fallback,
 )
 
 logger = logging.getLogger("crm.images.publication")
+
+
+def _has_actor_image_approval(selection):
+    # Historical v1 approvals are never silently migrated to the new intent.
+    return ImageReviewEvent.objects.filter(
+        tenant_id=selection.tenant_id, organization_id=selection.organization_id,
+        selection_id=selection.pk, selection_revision_snapshot=selection.revision,
+        rendition_set_id=selection.rendition_set_id,
+        approval_text_version_snapshot="image-approval-v2-actor-image",
+        event_type__in=(ImageReviewEvent.EventType.SELECTION_LOCKED, ImageReviewEvent.EventType.SELECTION_REPLACED),
+    ).exists()
+
+
+def image_use_state(selection):
+    """Authenticated advisory state, including unpublished preparation.
+
+    This never grants public access. Projection and serving retain their strict
+    published check; completion reauthorizes and locks the exact revision.
+    """
+    if selection is None or selection.selection_kind != OrganizationImageSelection.SelectionKind.ASSET:
+        return {"pending": False, "ready": False}
+    if not publication_enabled() or not _has_actor_image_approval(selection):
+        return {"pending": False, "ready": False}
+    from .release_validation import validated_release_mappings, PublicReleaseValidationError
+    from .materialization import ImageMaterializationError, verify_materialized_rendition
+    from .serving import _materialization_input
+    from .projection import _authorization_payload
+    try:
+        release = OrganizationImageRelease.objects.select_related(
+            "organization", "selection", "rendition_set__asset"
+        ).prefetch_related("renditions__rendition").get(selection_id=selection.pk)
+        mappings = validated_release_mappings(release, require_published=False)
+        variants = sorted(mappings)
+        decisions = ImageSafetyBridgeClient(timeout=5).authorize_many([
+            _authorization_payload(release, mappings[v], v) for v in variants
+        ])
+        if len(decisions) != 3 or not all(decision.authorized for decision in decisions):
+            return {"pending": True, "ready": False}
+        for mapping in mappings.values():
+            verify_materialized_rendition(_materialization_input(release, mapping))
+    except (OrganizationImageRelease.DoesNotExist, PublicReleaseValidationError,
+            ImageSafetyBridgeError, ImageMaterializationError):
+        return {"pending": True, "ready": False}
+    return {"pending": False, "ready": True}
 
 
 class ImagePublicationError(ValueError):
@@ -91,6 +136,26 @@ def publish_organization_image(**options):
         logger.info("public_image_ready actor_user_id=%s tenant_id=%s organization_id=%s selection_id=%s revision=%s release_id=%s",
                     options['actor'].pk, organization.tenant_id, organization.pk, selection.pk, selection.revision, result.release.release_id)
         return {"release_id": str(result.release.release_id), "revision": selection.revision, "public_image": state}
+
+
+def complete_organization_image(**options):
+    """Second durable server step of the single image confirmation UI action.
+
+    Approval was committed by the preceding HTTP request. Keeping that boundary
+    also protects strict tenant mode from rollback/reuse of reserved selection
+    identities if the external safety or filesystem step fails.
+    """
+    with _authorized_organization(**options) as (organization, selection):
+        if not _has_actor_image_approval(selection):
+            raise ImagePublicationError("image_confirmation_required", "Velg og bekreft bildet i gjeldende bildeflyt.", 409)
+        result = create_organization_image_release(selection=selection)
+        state = image_use_state(selection)
+        if not state["ready"]:
+            raise ImagePublicationError("publication_unverified", "Bildet er godkjent, men klargjøringen kunne ikke bekreftes. Last inn status før du fullfører på nytt.", 503)
+        logger.info("actor_image_ready actor_user_id=%s tenant_id=%s organization_id=%s selection_id=%s revision=%s release_id=%s",
+                    options['actor'].pk, organization.tenant_id, organization.pk, selection.pk, selection.revision, result.release.release_id)
+        return {"release_id": str(result.release.release_id), "revision": selection.revision,
+                "image_use": state, "public_image": public_image_state(organization)}
 
 
 def use_organization_image_fallback(**options):

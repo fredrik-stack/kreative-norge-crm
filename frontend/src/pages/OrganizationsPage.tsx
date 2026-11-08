@@ -28,8 +28,7 @@ import {
   processOrganizationImage,
   processUploadedOrganizationImage,
   searchBraveImages,
-  publishOrganizationImage,
-  useOrganizationImageFallback,
+  completeOrganizationImage,
 } from "../api";
 import type {
   OrganizationImageCandidate,
@@ -677,7 +676,8 @@ const IMAGE_VARIANT_SIZES: Record<ImageVariant, readonly [number, number]> = {
   landscape: [800, 450],
   share: [1200, 630],
 };
-const MIN_COVER_ZOOM = 1;
+const MIN_COVER_ZOOM = 0.1;
+const DEFAULT_COVER_ZOOM = 1;
 const MAX_COVER_ZOOM = 3;
 const MAX_CANDIDATE_PREVIEW_CONCURRENCY = 4;
 
@@ -846,7 +846,7 @@ export function OrganizationImagePanel(props: {
   const [imageKind, setImageKind] = useState<"photo" | "logo">("photo");
   const [focusX, setFocusX] = useState(0.5);
   const [focusY, setFocusY] = useState(0.5);
-  const [zoom, setZoom] = useState(MIN_COVER_ZOOM);
+  const [zoom, setZoom] = useState(DEFAULT_COVER_ZOOM);
   const [processed, setProcessed] = useState<ProcessedOrganizationImage | null>(null);
   const [processedPreviews, setProcessedPreviews] = useState<Partial<Record<ImageVariant, string>>>({});
   const [activePreviews, setActivePreviews] = useState<Partial<Record<ImageVariant, string>>>({});
@@ -1003,7 +1003,9 @@ export function OrganizationImagePanel(props: {
     const state = await getOrganizationImageState(tenantId, organizationId);
     if (scopeGeneration.current !== generation) return;
     setImageState(state);
-    if (state.public_image?.enabled) props.onImageChanged?.(state.public_image.image?.square.url ?? null);
+    if (state.public_image?.enabled) props.onImageChanged?.(
+      state.editor_preview_image_url !== undefined ? state.editor_preview_image_url : state.public_image.image?.square.url ?? null,
+    );
     if (state.active_selection) {
       setAltText(state.active_selection.alt_text);
       setPublicCredit(state.active_selection.public_credit);
@@ -1019,6 +1021,7 @@ export function OrganizationImagePanel(props: {
       setAltText("");
       setPublicCredit("");
     }
+    return state;
   }
 
   function invalidateProcessing() {
@@ -1048,7 +1051,7 @@ export function OrganizationImagePanel(props: {
     setImageKind("photo");
     setFocusX(0.5);
     setFocusY(0.5);
-    setZoom(MIN_COVER_ZOOM);
+    setZoom(DEFAULT_COVER_ZOOM);
     setProcessed(null);
     setProcessedPreviews({});
     setActivePreviews({});
@@ -1245,7 +1248,7 @@ export function OrganizationImagePanel(props: {
     setError(null);
     setFocusX(0.5);
     setFocusY(0.5);
-    setZoom(MIN_COVER_ZOOM);
+    setZoom(DEFAULT_COVER_ZOOM);
     invalidateProcessing();
     if (candidateOriginalPreviews[candidateRef]) {
       setSelectedOriginalLoading(false);
@@ -1284,7 +1287,7 @@ export function OrganizationImagePanel(props: {
     setSelectedOriginalLoading(false);
     setFocusX(0.5);
     setFocusY(0.5);
-    setZoom(MIN_COVER_ZOOM);
+    setZoom(DEFAULT_COVER_ZOOM);
     invalidateProcessing();
   }
 
@@ -1302,7 +1305,7 @@ export function OrganizationImagePanel(props: {
   function resetCropRecipe() {
     setFocusX(0.5);
     setFocusY(0.5);
-    setZoom(MIN_COVER_ZOOM);
+    setZoom(DEFAULT_COVER_ZOOM);
     invalidateProcessing();
   }
 
@@ -1350,7 +1353,7 @@ export function OrganizationImagePanel(props: {
     setBusy("approve");
     setError(null);
     try {
-      await approveOrganizationImage(tenantId, organizationId, {
+      const approval = await approveOrganizationImage(tenantId, organizationId, {
         approval_ref: processed.approval_ref,
         expected_revision: imageState.expected_revision,
         alt_text: altText.trim(),
@@ -1358,11 +1361,21 @@ export function OrganizationImagePanel(props: {
         rights_confirmed: true,
       });
       if (scopeGeneration.current !== generation) return;
-      await loadState(generation);
-      if (scopeGeneration.current !== generation) return;
+      // Approval is a committed request before external release work begins.
       invalidateProcessing();
+      if (imageState.public_image?.enabled) {
+        await completeOrganizationImage(tenantId, organizationId, approval.revision);
+      }
+      if (scopeGeneration.current !== generation) return;
+      await loadState(generation);
     } catch (nextError) {
-      if (scopeGeneration.current === generation) setError(imageFlowError(nextError));
+      if (scopeGeneration.current === generation) {
+        setError(imageFlowError(nextError));
+        try {
+          const fresh = await loadState(generation);
+          if (scopeGeneration.current === generation && fresh?.image_use?.pending) invalidateProcessing();
+        } catch { /* keep the original failure; never replay the approval */ }
+      }
     } finally {
       if (scopeGeneration.current === generation) setBusy(null);
     }
@@ -1374,21 +1387,18 @@ export function OrganizationImagePanel(props: {
       ? candidateOriginalPreviews[selectedRef] ?? null
       : null;
 
-  async function onPublicImageCommand(fallback: boolean) {
-    if (!imageState?.active_selection) return;
+  async function onCompleteImage() {
+    if (!imageState?.active_selection || !imageState.image_use?.pending) return;
     const generation = scopeGeneration.current;
-    setBusy(fallback ? "fallback" : "publish"); setError(null);
+    setBusy("approve"); setError(null);
     try {
-      const command = fallback ? useOrganizationImageFallback : publishOrganizationImage;
-      await command(tenantId, organizationId, imageState.expected_revision);
+      await completeOrganizationImage(tenantId, organizationId, imageState.expected_revision);
       if (scopeGeneration.current !== generation) return;
       await loadState(generation);
-      if (fallback && scopeGeneration.current === generation) invalidateProcessing();
     } catch (nextError) {
       if (scopeGeneration.current === generation) {
         setError(imageFlowError(nextError));
-        // Re-read authority after stale/uncertain responses; never replay a write.
-        try { await loadState(generation); } catch { /* keep the original failure */ }
+        try { await loadState(generation); } catch { /* no automatic write retry */ }
       }
     } finally {
       if (scopeGeneration.current === generation) setBusy(null);
@@ -1422,7 +1432,7 @@ export function OrganizationImagePanel(props: {
     <section className="organization-image-panel" aria-labelledby="organization-image-heading">
       <div className="sidebar-header">
         <div>
-          <p className="eyebrow small">Intern bildeflyt</p>
+          <p className="eyebrow small">Aktørens bilde</p>
           <h2 id="organization-image-heading">Aktørbilde</h2>
         </div>
         <button type="button" className="ghost-button" onClick={onDiscover} disabled={busy !== null}>
@@ -1435,7 +1445,7 @@ export function OrganizationImagePanel(props: {
       {error ? <div className="inline-banner warn" role="alert">{error}</div> : null}
       {imageState?.active_selection ? (
         <div className="image-active-state">
-          <strong>{imageState.active_selection.kind === "asset" ? "Internt godkjent bilde" : "Standardbilde valgt"}</strong>
+          <strong>{imageState.active_selection.kind === "asset" ? "Godkjent aktørbilde" : "Standardbilde valgt"}</strong>
           <span className="meta">Revisjon {imageState.active_selection.revision}</span>
           <span className="meta">{imageState.active_selection.alt_text || "Ingen alt-tekst"}</span>
           <ImagePreviewGrid urls={activePreviews} label="Forhåndsvisning av aktivt bilde" />
@@ -1730,7 +1740,7 @@ export function OrganizationImagePanel(props: {
             </Field>
             {imageKind === "photo" ? (
               <div className="image-focus-and-preview">
-                <p className="muted">Foto fyller bildeflaten. Juster utsnittet med fokus og zoom.</p>
+                <p className="muted">Juster utsnittet med fokus og zoom. Under 100 % vises hvit bakgrunn rundt bildet.</p>
                 <div className="image-focus-controls">
                   <fieldset className="image-focus-group">
                     <legend>Horisontalt</legend>
@@ -1848,37 +1858,28 @@ export function OrganizationImagePanel(props: {
             <input type="checkbox" checked={rightsConfirmed} onChange={event => setRightsConfirmed(event.target.checked)} />
             {imageState?.approval_text || "Jeg bekrefter at bildet kan publiseres, og at nødvendige rettigheter og kreditering er avklart."}
           </label>
-          <p className="muted">Et søketreff gir ikke publiseringsrett. Godkjenningen lagres internt; PUBLIC krever en egen handling.</p>
+          <p className="muted">Et søketreff gir ikke publiseringsrett. Det bekreftede bildet brukes for aktøren og følger med når aktøren vises offentlig.</p>
           <button type="button" className="primary-button" onClick={onApprove} disabled={busy !== null || !rightsConfirmed}>
             {busy === "approve"
               ? "Godkjenner..."
               : imageState?.active_selection
-                ? "Godkjenn og erstatt bilde"
-                : "Godkjenn og lås bilde"}
+                ? "Bekreft og erstatt bildet"
+                : "Bekreft og bruk bildet"}
           </button>
         </div>
       ) : null}
-      {imageState?.public_image?.enabled ? (
-        <div className="image-active-state" aria-label="Bilde på PUBLIC">
-          <strong>{imageState.public_image.kind === "asset" ? "Bildet er i bruk på PUBLIC" : "PUBLIC bruker standardbilde"}</strong>
-          {imageState.public_image.image ? <ImagePreviewGrid urls={{
-            square: imageState.public_image.image.square.url,
-            landscape: imageState.public_image.image.landscape.url,
-            share: imageState.public_image.image.share.url,
-          }} label="Forhåndsvisning fra PUBLIC" /> : null}
-          {imageState.public_image.reason === "organization_unpublished" ? (
-            <p className="muted">Aktørprofilen må være publisert før bildet kan tas i bruk på PUBLIC.</p>
-          ) : imageState.active_selection?.kind === "asset" ? (
-            <>
-              <p className="muted">Intern godkjenning publiserer ikke bildet. Denne handlingen tar det godkjente bildet i bruk på den publiserte aktørprofilen.</p>
-              {processed ? <p className="muted">Godkjenn det bearbeidede bildet før det tas i bruk på PUBLIC.</p> : null}
-              <button type="button" className="primary-button" disabled={busy !== null || processed !== null || imageState.public_image.kind === "asset"} onClick={() => onPublicImageCommand(false)}>
-                {busy === "publish" ? "Tar bildet i bruk..." : "Ta bildet i bruk på PUBLIC"}
-              </button>
-              <button type="button" className="ghost-button" disabled={busy !== null} onClick={() => onPublicImageCommand(true)}>Bruk standardbilde i stedet</button>
-            </>
-          ) : null}
+      {busy === "approve" && !processed && !imageState?.image_use?.pending ? <p role="status">Lagrer og klargjør bildet...</p> : null}
+      {imageState?.image_use?.pending && !processed ? (
+        <div className="image-active-state" role="status">
+          <p>Bildet er godkjent. Klargjøringen må fullføres før hele bildevalget er ferdig.</p>
+          <button type="button" className="primary-button" disabled={busy !== null} onClick={onCompleteImage}>
+            {busy === "approve" ? "Fullfører..." : "Fullfør bildebekreftelsen"}
+          </button>
         </div>
+      ) : imageState?.image_use?.ready ? (
+        <p className="muted" role="status">{imageState.public_image.reason === "organization_unpublished"
+          ? "Bildet er bekreftet. Det blir offentlig når du publiserer aktøren."
+          : "Bildet er bekreftet og brukes for aktøren i Editor CRM og PUBLIC."}</p>
       ) : null}
 
     </section>
@@ -1951,8 +1952,11 @@ export function calculateCoverCrop(
     width = Math.max(1, roundHalfEven(source[0] / zoom));
     height = Math.max(1, roundHalfEven(width / targetRatio));
   }
-  const left = Math.min(Math.max(0, roundHalfEven(focusX * source[0] - width / 2)), source[0] - width);
-  const top = Math.min(Math.max(0, roundHalfEven(focusY * source[1] - height / 2)), source[1] - height);
+  const position = (size: number, crop: number, alignment: number) => crop > size
+    ? roundHalfEven((size - crop) * alignment) || 0
+    : Math.min(Math.max(0, roundHalfEven(alignment * size - crop / 2)), size - crop);
+  const left = position(source[0], width, focusX);
+  const top = position(source[1], height, focusY);
   return { left, top, width, height };
 }
 

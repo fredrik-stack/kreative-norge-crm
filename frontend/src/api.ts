@@ -466,6 +466,12 @@ export async function getOrganizationImageState(
   return request(organizationImagePath(tenantId, organizationId, "state"));
 }
 
+export async function completeOrganizationImage(tenantId: number, organizationId: number, expectedRevision: number) {
+  return request<{release_id: string; revision: number}>(organizationImagePath(tenantId, organizationId, "complete"), {
+    method: "POST", body: JSON.stringify({expected_revision: expectedRevision, confirmed: true}),
+  });
+}
+
 export async function publishOrganizationImage(tenantId: number, organizationId: number, expectedRevision: number) {
   return request<{release_id: string; revision: number}>(organizationImagePath(tenantId, organizationId, "publish"), {
     method: "POST", body: JSON.stringify({expected_revision: expectedRevision, confirmed: true}),

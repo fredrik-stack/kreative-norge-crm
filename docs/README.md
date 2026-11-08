@@ -1,5 +1,21 @@
 # Kreative Norge CRM – dokumentasjon
 
+## Samlet bildebekreftelse og zoom ut – lokal leveranse 2026-11-08
+
+Eiergodkjent videreføring av ADR-007/009: Fotozoom10–300 %, standard100 %, med
+hvit bakgrunn under100 %. Én «Bekreft og bruk bildet»-handling erstatter de
+separate PUBLIC-/standardbildevalgene. Klargjort bilde følger aktørens senere
+publiseringsvalg; upubliserte aktører og bildebytes er offentlig utilgjengelige.
+Eksisterende v1-bildevalg, immutable artefakter og historikk konverteres ikke.
+
+Kun schema0040 utvider zoom-constrainten; ingen data-apply. Tidligere metadata/
+bilder beholdes, og schema-reverse stoppes hvis zoom-ut-oppskrifter finnes.
+[Kontrakt, tester og kontrollbilder](architecture/SECURITY_AND_ROLES.md#samlet-bildebekreftelse-og-zoom-ut--2026-11-08).
+[Varig eierregel](development/WORKFLOW.md#levende-redaksjonelle-stagingdata--eierregel-2026-11-08)
+bevarer levende redaksjonelle data og krever fersk baseline og varslet skrivefrys.
+Lokal kode foreligger; separat review/PR/merge/CI og staging gjenstår. Forrige
+verifiserte staging er fortsatt PR #111 /2a86bb4/schema0039 nedenfor.
+
 ## Avgrenset bilderetting – stagingverifisert 2026-11-08
 
 [PR #111](https://github.com/fredrik-stack/kreative-norge-crm/pull/111), eksakt

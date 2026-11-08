@@ -935,7 +935,7 @@ def get_organization_image_state(
     _feature_guard()
     _validate_actor(actor, tenant_id, allow_reader=True)
     organization = _organization(tenant_id, organization_id)
-    from .publication import public_image_state
+    from .publication import public_image_state, image_use_state
     from .brave import brave_user_allowed
     from .selections import IMAGE_APPROVAL_TEXT
     selection = OrganizationImageSelection.objects.filter(
@@ -947,10 +947,14 @@ def get_organization_image_state(
     # advisory; commands always re-lock/re-authorize the expected revision.
     organization._public_image_projection_selections = [selection] if selection else []
     common = {
+        "image_use": image_use_state(selection),
         "public_image": public_image_state(organization),
         "brave_search_enabled": brave_user_allowed(actor) and bool(settings.BRAVE_IMAGE_SEARCH_API_KEY),
         "approval_text": IMAGE_APPROVAL_TEXT,
     }
+    if settings.PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED:
+        from .projection import project_public_image
+        common["editor_preview_image_url"] = project_public_image(organization, for_editor=True).projection.square.url
     if selection is None:
         return {"active_selection": None, "expected_revision": 0, **common}
     preview_ref = None

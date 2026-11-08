@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 import os
 import inspect
 from pathlib import Path
@@ -3506,17 +3507,17 @@ class ImageDomainModelTests(TestCase):
                         )
 
     def test_rendition_set_zoom_is_inclusive_and_database_constrained(self):
-        lower = self.create_rendition_set(zoom=1)
+        lower = self.create_rendition_set(zoom=Decimal("0.1"))
         upper_asset = self.create_asset(storage_key="assets/zoom-upper.jpeg", checksum=self.checksum_b)
         upper = self.create_rendition_set(
             asset=upper_asset,
             render_hash=self.checksum_c,
             zoom=3,
         )
-        self.assertEqual(lower.zoom, 1)
+        self.assertEqual(lower.zoom, Decimal("0.1"))
         self.assertEqual(upper.zoom, 3)
 
-        for invalid_value in (0.9999, 3.0001):
+        for invalid_value in (0.0999, 3.0001):
             with self.subTest(invalid_value=invalid_value):
                 asset = self.create_asset(
                     storage_key=f"assets/zoom-{str(invalid_value).replace('.', '_')}.jpeg",
