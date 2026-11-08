@@ -426,7 +426,7 @@ class ImageRenditionSet(models.Model):
                 name="image_rset_focus_y_range",
             ),
             models.CheckConstraint(
-                condition=models.Q(zoom__gte=1, zoom__lte=3),
+                condition=models.Q(zoom__gte=Decimal("0.1"), zoom__lte=3),
                 name="image_rset_zoom_range",
             ),
         ]

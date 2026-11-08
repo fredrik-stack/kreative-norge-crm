@@ -1,5 +1,15 @@
 # Changelog
 
+
+## 2026-11-08 – Samlet bildebekreftelse og zoom ut, lokal kode
+
+- Eiergodkjent fotozoom10–300 %, standard100 %, med hvit flate ved zoom ut.
+- Én bekreftelse erstatter separate PUBLIC-/standardbildevalg. Forberedt bilde
+  følger senere offentliggjøring, med fortsatt sperret serving før publisering.
+- Kun additiv zoom-constraint0040; gamle data/bytes/historikk bevares.
+- Varig arbeidsregel for parallelle redaksjonelle stagingdata er lagret i WORKFLOW.
+- [Kontrakt og verifikasjonsstatus](../architecture/SECURITY_AND_ROLES.md#samlet-bildebekreftelse-og-zoom-ut--2026-11-08).
+
 ## 2026-11-08 – Avgrenset bilderetting, stagingverifisert
 
 - PUBLIC-handlingen avslutter bildeflyten; intern approval forblir separat.

@@ -203,6 +203,7 @@ export type ProcessedOrganizationImage = {
 };
 
 export type OrganizationImageState = {
+  image_use?: { pending: boolean; ready: boolean };
   brave_search_enabled: boolean;
   approval_text: string;
   public_image: {

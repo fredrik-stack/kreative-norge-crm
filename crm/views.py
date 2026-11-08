@@ -603,6 +603,11 @@ class OrganizationViewSet(DomainProtectedDestroyMixin, viewsets.ModelViewSet):
         from .services.images.publication import publish_organization_image
         return self._public_image_command(request, tenant_id, pk, publish_organization_image)
 
+    @action(detail=True, methods=["post"], url_path="images/complete")
+    def complete_image(self, request, tenant_id=None, pk=None):
+        from .services.images.publication import complete_organization_image
+        return self._public_image_command(request, tenant_id, pk, complete_organization_image)
+
     @action(detail=True, methods=["post"], url_path="images/fallback")
     def image_fallback(self, request, tenant_id=None, pk=None):
         from .services.images.publication import use_organization_image_fallback

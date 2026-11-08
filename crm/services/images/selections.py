@@ -26,11 +26,12 @@ from .safety_guards import (
 )
 
 
-IMAGE_APPROVAL_TEXT_VERSION = "image-approval-v1"
+IMAGE_APPROVAL_TEXT_VERSION = "image-approval-v2-actor-image"
 IMAGE_APPROVAL_TEXT = (
     "Jeg bekrefter at bildet er relevant for aktøren, at det kommer fra aktøren "
     "selv, en offisiell kilde eller en annen kilde som tillater bruken, og at det "
-    "kan publiseres i Kreative Norge og tilhørende kort- og delingsvisninger."
+    "kan publiseres i Kreative Norge og tilhørende kort- og delingsvisninger. "
+    "Bildet brukes for aktøren i Editor CRM og følger med når aktøren vises offentlig."
 )
 
 REQUIRED_RENDITION_VARIANTS = frozenset(

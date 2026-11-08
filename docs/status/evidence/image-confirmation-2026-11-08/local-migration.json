@@ -1,0 +1,8 @@
+{
+  "historical_rows_timestamps_keys_bytes_preserved": true,
+  "new_zoom_out_idempotent": true,
+  "only_crm_delta": "0040_image_zoom_out",
+  "reverse_rejected_before_schema_change": true,
+  "staging_contacted": false,
+  "status": "LOCAL_PG16_MIGRATION_PASS"
+}

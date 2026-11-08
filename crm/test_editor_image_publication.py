@@ -87,7 +87,7 @@ class EditorPublicationTests(TransactionTestCase):
         ledger=PublicImageSafetyLedger(Path(self.temporary.name)/'safety'/'ledger.sqlite3');ledger.initialize();ledger.upgrade_schema_v2()
         anchor=workflow.InProcessAnchor();anchor_current_head(ledger,anchor,expected_repository_id=workflow.IN_PROCESS_REPOSITORY_ID)
         self.bridge=workflow.InProcessSafetyBridgeClient(SafetyBridgeOperations(ledger=ledger,anchor_backend=anchor,expected_repository_id=workflow.IN_PROCESS_REPOSITORY_ID))
-        for module in ('releases','projection','serving','safety_guards'):
+        for module in ('releases','projection','serving','safety_guards','publication'):
             p=patch(f'crm.services.images.{module}.ImageSafetyBridgeClient',return_value=self.bridge);p.start();self.addCleanup(p.stop)
         self.client=APIClient();self.client.force_authenticate(self.user)
         self.root=f'/api/tenants/{self.tenant.pk}/organizations/{self.target.pk}/images/'
@@ -210,6 +210,7 @@ class EditorPublicationTests(TransactionTestCase):
         result=self.publish(revision)
         self.assertEqual(result.status_code,409,result.data)
         self.assertEqual(result.json()['code'],'image_denied')
+        self.assertEqual(self.complete(revision).status_code,409)
         self.assertEqual(self.public()['image']['kind'],'system_fallback')
         self.assertEqual(OrganizationImageRelease.objects.count(),1)
 
@@ -243,4 +244,85 @@ class EditorPublicationTests(TransactionTestCase):
             get_user_model().objects.filter(pk=self.user.pk).update(is_active=False)
         worker.join(6);self.assertFalse(worker.is_alive());self.assertEqual(errors,[])
         self.assertEqual(responses[0].status_code,403)
+        self.assertEqual(OrganizationImageRelease.objects.count(),0)
+
+    def complete(self,revision):
+        return self.client.post(self.root+'complete/',{'expected_revision':revision,'confirmed':True},format='json')
+
+    def test_one_image_confirmation_prepares_published_actor_and_is_idempotent(self):
+        revision=self.approve(self.upload(),0)
+        self.assertTrue(self.client.get(self.root+'state/').json()['image_use']['pending'])
+        result=self.complete(revision);self.assertEqual(result.status_code,200,result.data)
+        self.assertTrue(result.data['image_use']['ready'])
+        self.assertEqual(self.public()['image']['kind'],'asset')
+        self.assertEqual(self.complete(revision).data['release_id'],result.data['release_id'])
+        self.assertEqual(OrganizationImageRelease.objects.count(),1)
+        self.assertEqual(ImageReviewEvent.objects.filter(organization=self.target).count(),1)
+
+    def test_unpublished_preparation_is_private_and_same_release_follows_later_publication(self):
+        Organization.objects.filter(pk=self.target.pk).update(is_published=False)
+        revision=self.approve(self.upload(),0)
+        result=self.complete(revision);self.assertEqual(result.status_code,200,result.data)
+        self.assertEqual(result.data['public_image']['reason'],'organization_unpublished')
+        release=OrganizationImageRelease.objects.get(selection__revision=revision,organization=self.target)
+        from crm.services.images.public_urls import build_public_media_url
+        paths=[urlsplit(build_public_media_url(m.public_storage_key)).path for m in release.renditions.all()]
+        for path in paths:self.assertEqual(APIClient().get(path).status_code,404)
+        self.assertFalse(any(r['org_number']=='synthetic-public' for r in APIClient().get('/api/public/actors/').json()))
+        count=ImageReviewEvent.objects.count()
+        Organization.objects.filter(pk=self.target.pk).update(is_published=True)
+        self.assertEqual(self.public()['image']['kind'],'asset')
+        for path in paths:self.assertEqual(APIClient().get(path).status_code,200)
+        self.assertEqual(OrganizationImageRelease.objects.get(organization=self.target).pk,release.pk)
+        self.assertEqual(ImageReviewEvent.objects.count(),count)
+        Organization.objects.filter(pk=self.target.pk).update(is_published=False)
+        for path in paths:self.assertEqual(APIClient().get(path).status_code,404)
+
+    @override_settings(STRICT_TENANT_ACCESS_ENABLED=True)
+    def test_strict_failed_completion_preserves_committed_approval_and_reuses_reservation(self):
+        revision=self.approve(self.upload(),0)
+        from crm.services.images.bridge_client import ImageSafetyBridgeUnavailable
+        original=self.bridge.activate
+        failed=[False]
+        def lost_response(**kwargs):
+            answer=original(**kwargs)
+            if not failed[0]:
+                failed[0]=True
+                raise ImageSafetyBridgeUnavailable('safety_unavailable','Synthetic lost response',retryable=True)
+            return answer
+        with patch.object(self.bridge,'activate',side_effect=lost_response):
+            self.assertEqual(self.complete(revision).status_code,503)
+            self.assertEqual(self.target.image_selections.get(status='active').revision,revision)
+            result=self.complete(revision)
+        self.assertEqual(result.status_code,200,result.data)
+        self.assertEqual(self.target.image_selections.count(),1)
+        self.assertEqual(OrganizationImageRelease.objects.count(),1)
+
+    def test_completion_requires_exact_revision_confirmation_and_current_membership(self):
+        revision=self.approve(self.upload(),0)
+        self.assertEqual(self.complete(0).status_code,409)
+        self.assertEqual(self.client.post(self.root+'complete/',{'expected_revision':revision,'confirmed':'true'},format='json').status_code,400)
+        TenantMembership.objects.filter(user=self.user).update(is_active=False)
+        self.assertEqual(self.complete(revision).status_code,403)
+        self.assertEqual(OrganizationImageRelease.objects.count(),0)
+
+    def test_completion_never_upgrades_historical_approval_or_disabled_runtime(self):
+        with patch('crm.services.images.selections.IMAGE_APPROVAL_TEXT_VERSION','image-approval-v1'):
+            revision=self.approve(self.upload(),0)
+        result=self.complete(revision)
+        self.assertEqual(result.status_code,409,result.data)
+        self.assertEqual(result.data['code'],'image_confirmation_required')
+        self.assertEqual(OrganizationImageRelease.objects.count(),0)
+        with override_settings(PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED=False):
+            self.assertEqual(self.complete(revision).status_code,404)
+        self.assertEqual(self.target.image_selections.count(),1)
+
+    def test_completion_rejects_wrong_tenant_and_newer_selection(self):
+        revision=self.approve(self.upload(),0)
+        newer=self.approve(self.upload('blue'),revision)
+        self.assertEqual(self.complete(revision).status_code,409)
+        other=Tenant.objects.create(name='Other',slug='completion-other')
+        TenantMembership.objects.create(user=self.user,tenant=other,role='redigerer')
+        wrong=self.root.replace(f'/tenants/{self.tenant.pk}/',f'/tenants/{other.pk}/')
+        self.assertEqual(self.client.post(wrong+'complete/',{'expected_revision':newer,'confirmed':True},format='json').status_code,404)
         self.assertEqual(OrganizationImageRelease.objects.count(),0)

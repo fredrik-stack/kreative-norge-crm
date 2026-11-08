@@ -2,6 +2,26 @@
 
 ## Status
 
+**Eierbeslutning 2026-11-08 – samlet bildebekreftelse og zoom ut:** Nytt bilde
+bekreftes i én brukerhandling for Editor CRM og PUBLIC. De separate valgene
+«Ta bildet i bruk på PUBLIC» og «Bruk standardbilde i stedet» fjernes fra
+bildeseksjonen. Rettighetsbekreftelse, kreditering, immutable selections/releases,
+expected revision og safety/deny består. Godkjent bilde følger aktøren når
+brukeren senere bekrefter offentlig visning; en upublisert aktør og dens
+bilde-URL-er skal fortsatt være offentlig utilgjengelige. Ingen automatisk
+omlegging av eldre bildevalg eller aktørens publiseringsflagg.
+
+Fotozoom utvides nedover (første implementasjon: 10 %), med hvit bakgrunn der bildet ikke fyller
+flaten. Standard er fortsatt 100 %; 100–300 % og eksisterende artefakter bevares.
+Klient/server skal bruke samme geometri, uten oppskalering eller kilde-stor
+paddingallokering. Nye zoom-ut-artefakter får egen processing-version.
+Dette presiserer eldre cover-/zoom- og separate PUBLIC-handlingsføringer.
+Teknisk godkjenning og klargjøring kan være flere varige servertrinn innen én
+brukerhandling. Ved delvis/ukjent svar skal frisk state og eksplisitt teknisk
+fullføring brukes, uten blind replay eller falsk suksess. Stagingdatavern følger
+[den varige eierregelen](../development/WORKFLOW.md#levende-redaksjonelle-stagingdata--eierregel-2026-11-08).
+Beslutningen er godkjent; implementasjon/verifikasjon følger prosjektstatus.
+
 **Avgrenset rettingsleveranse2026-11-08:** Editor bruker samme PUBLIC-projeksjon
 for thumbnails ved aktiv cutover og oppdaterer avledet bildestate uten å berøre
 profilutkast. PUBLIC-handlingen avslutter bildeflyten. Brave count200 og klient-

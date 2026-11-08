@@ -4,6 +4,13 @@
 
 ## Status
 
+**Varig eierregel 2026-11-08:** [Levende redaksjonelle stagingdata](../development/WORKFLOW.md#levende-redaksjonelle-stagingdata--eierregel-2026-11-08)
+vedlikeholdes parallelt med 6A–6C. Mapping og bevaringskontroller skal omfatte
+verdier registrert etter tidligere inventarer. Enhver senere data-apply trenger
+fersk plan og eksplisitt scope; et historisk snapshot er aldri applyautoritet.
+Ingen automatisk reset, live-restore eller overskriving. Historisk image state,
+deny og tenantprivate verdier bevares etter gjeldende kontrakter.
+
 Godkjent målarkitektur – ikke implementert
 
 **Beslutningsdato:** 2026-08-31

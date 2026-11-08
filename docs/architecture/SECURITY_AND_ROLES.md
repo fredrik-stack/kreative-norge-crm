@@ -1,5 +1,92 @@
 # Security and Roles
 
+
+## Samlet bildebekreftelse og zoom ut – 2026-11-08
+
+**Eierbeslutning:** Hvit bakgrunn når foto zoomes ut; ett bekreftet bilde brukes
+for aktøren og følger senere bekreftet offentlig visning. Beslutningen presiserer
+eldre krav om to separate UI-avgjørelser. Den endrer ikke aktørens publiserings-
+flagg, rettighetskrav, historikk, safety/deny eller krav til frisk autorisasjon.
+
+### Implementert avgrensning
+
+- Fotozoom er10–300 %, standard/reset fortsatt100 %. Klient/server bruker samme
+  heltallsgeometri; ved plass utenfor kilden plasseres bildet på hvit flate.
+  Komposisjonen skjer ved endelig renditionstørrelse, uten en potensielt enorm
+  kildecanvas. Ingen oppskalering. Logo/contain og foto≥100 % beholder tidligere
+  oppskrift. Bare foto<100 % bruker `phase3c-pillow-white-frame-v2`; zoom, profil
+  og output identifiserer nye immutable nøkler. Eksisterende bytes omskrives ikke.
+- Additiv schema0040 utvider kun `image_rset_zoom_range` til0.1–3.0. Default,
+  kolonner, relasjoner og alle rader beholdes. Reverse avvises før schemaendring
+  hvis en zoom<1 finnes; behold0040 ved API/frontendrollback og bruk fortrinnsvis
+  fremoverrettet retting. Ingen automatisk data-apply eller regenerering.
+- Editor fjerner «Ta bildet i bruk på PUBLIC» og «Bruk standardbilde i stedet».
+  Rettighetscheckbox og kreditering beholdes før «Bekreft og bruk bildet» /
+  «Bekreft og erstatt bildet». Ny `image-approval-v2-actor-image` lagres i
+  eksisterende immutable ImageReviewEvent. V1-events endres ikke.
+- Én brukerhandling består av to varige servertrinn: eksisterende POST
+  `images/approve/`, deretter POST `images/complete/` med eksakt expected_revision
+  og confirmed=true. Første HTTP-request er ferdigcommittet før releasearbeid;
+  dette gjelder også streng tenantmodus og bevarer reserverte selection-ID-er
+  ved feil i ekstern ledger/filesystem. Ingen ny batchplattform eller bakgrunnsjobb.
+- Complete gjenbruker eksisterende låste bruker-/medlemskaps-/tenant-/Organization-
+  og selectiongrense, reautorisering og expected revision. Bare eksakt aktiv
+  asset-selection med v2-snapshot kan fullføres. Gamle v1-approvals, fallback,
+  feil tenant, inaktivt medlemskap og stale revisjon avvises. Global tilgang
+  følger eksisterende imagekontrakt; shared/canonical/notatgater aktiveres ikke.
+- Samme reserve→immutable binding→materialisering→read-back→activate gjenbrukes.
+  Release kan klargjøres selv om aktøren er upublisert. Bare den autentiserte
+  klargjøringskontrollen bruker `validated_release_mappings(require_published=False)`;
+  ordinær projection og byte-serving bruker fortsatt defaultTrue. Ukjent URL
+  gir ikke tilgang. Senere is_published=True gjør samme godkjente release synlig
+  uten ny bildeskriving; False sperrer igjen. Ingen profilskriver-hook/signaler.
+- Read-only `image_use` er advisory pending/ready, med samme mappingvalidering,
+  frisk bridgeautorisasjon for alle tre varianter og filintegritet. Den gir
+  aldri et varig grant. Ved delvis/ukjent svar leses frisk state, og brukeren
+  kan eksplisitt «Fullfør bildebekreftelsen». Approval eller skriverute replayes
+  aldri automatisk. Suksess meldes først etter klargjøring; tidligere godkjenning
+  er bevart hvis dette trinnet feiler. Ingen tomt svar tolkes som ready.
+
+Gamle publish/fallback-endepunkter beholdes som kompatibilitetsinnganger, med
+uendret autorisasjon og sikkerhetsgrenser; de brukes ikke av ny Editor. Eldre
+upubliserte/v1-valg oppgraderes ikke automatisk. Systemfallback ved manglende/
+avvist bilde og formell takedown/deny består; fjerning av UI-valget sletter
+ikke et bilde, en release eller historikk. Ingen reelle aktørbilder endres.
+
+### Verifisering og bevisgrenser
+
+Målrettet PostgreSQL16-kjøring65 tester (modeller/processing/API) og full
+frontend78/TS/bygg samt fem syntetiske bilde-E2E er grønne. Full backendregresjon
+kjørte775 tester med ett funn: en gammel assert avviste99,99 %. Den er rettet
+til10 %-grensen og inngår i de65 grønne testene. Endelig fullkjøring følger CI. [Lokal schema-bevaring](../status/evidence/image-confirmation-2026-11-08/local-migration.json)
+bekrefter0039→0040, uendrede historiske rader/tidsstempler/nøkler/bytes,
+idempotent nytt zoom-ut-sett og blokkert reverse etter bruk.
+
+Syntetisk frontend med mock-API, ikke reelle stagingprofiler:
+[hvit50 %-preview](../status/evidence/image-confirmation-2026-11-08/00-zoom-out-white.png),
+[én bildebekreftelse](../status/evidence/image-confirmation-2026-11-08/01-one-confirmation.png),
+[Editor-kort/modal](../status/evidence/image-confirmation-2026-11-08/03-editor-card-detail.png).
+Backendtesten bruker reell lokal processing/ledger/delivery og verifiserer404
+for tre forberedte bilde-URL-er før publisering,200 etter og404 ved avpublisering,
+uten ny release/event ved profilendringen. Tapt aktiveringssvar i streng modus
+bevarer godkjent selection og fullføres med samme reservasjon. Negative scope-,
+consent-, capability-, deny- og stale-kontroller er dekket. Ingen nye reelle
+brukere, bilder, aksepter, medlemskap eller juridiske avtaler opprettes.
+
+### Leveranse- og staginggrense
+
+Lokal implementasjon, docs og tester foreligger. Review/PR/merge/CI og staging
+skal ha hver sin faktiske status; schema0039/PR #111 er fortsatt siste verifiserte
+runtime. Ved godkjent stagingetappe kreves fersk baseline etter varslet eierpause,
+pre/post-backup/fullverify/isolert restore og eksplisitt kun0040. Sammenlign gamle
+rader/bytes/stamps separat fra én ny django_migrations-rad og tilsiktet endret
+zoom-constraint; ingen datareparasjon. Behold miljø, dependencies, DB-container,
+media/static og fem avslåtte gater. Ingen testwrites mot reelle stagingprofiler.
+[Den varige eierregelen](../development/WORKFLOW.md#levende-redaksjonelle-stagingdata--eierregel-2026-11-08)
+gjelder alle senere planer, inventarer, shadow og modelloverganger. Dokumentasjons-
+merge deployes ikke i seg selv. Ingen neste produktetappe starter automatisk.
+
+
 ## Avgrenset bilderetting – 2026-11-08
 
 **Mandat:** Tre konkrete funn fra eiers brukertest, etter PR #109/#110.

@@ -2,6 +2,16 @@
 
 ## Status
 
+**Eierpresisering 2026-11-08:** [ADR-007s samlede bildebekreftelse](ADR-007-IMAGE_ASSET_ARCHITECTURE.md#status)
+erstatter to separate UI-avgjørelser. Release kan klargjøres for et godkjent
+bilde mens aktøren er upublisert. Dette er ingen offentlig tilgang: ordinær
+projection og byte-serving må fortsatt kreve publisert aktør, aktiv eksakt
+selection, gyldig mapping og fersk safety-autorisasjon. Senere offentliggjøring
+bruker samme release uten ny bildeavgjørelse eller ny skrivebivirkning på
+profilen. Eldre valg migreres ikke automatisk. Varige DB-trinn fullføres før
+tilhørende eksterne sideeffekter; én brukerhandling er ikke et løfte om én
+transaksjon på tvers av PostgreSQL, filesystem og safety-ledger.
+
 **Avgrenset rettingsleveranse2026-11-08:** Editor bruker samme PUBLIC-projeksjon
 for thumbnails ved aktiv cutover og oppdaterer avledet bildestate uten å berøre
 profilutkast. PUBLIC-handlingen avslutter bildeflyten. Brave count200 og klient-

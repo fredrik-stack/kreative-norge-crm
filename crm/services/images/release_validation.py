@@ -26,6 +26,7 @@ class PublicReleaseMappingInvalid(PublicReleaseValidationError):
 
 def validated_release_mappings(
     release: OrganizationImageRelease,
+    *, require_published: bool = True,
 ) -> dict[str, OrganizationImageReleaseRendition]:
     """Validate the domain invariants shared by projection and byte serving."""
 
@@ -40,7 +41,7 @@ def validated_release_mappings(
         or selection.status != OrganizationImageSelection.Status.ACTIVE
         or selection.selection_kind
         != OrganizationImageSelection.SelectionKind.ASSET
-        or not release.organization.is_published
+        or (require_published and not release.organization.is_published)
     ):
         raise PublicReleaseScopeInactive(
             "Release scope or publication is not active."

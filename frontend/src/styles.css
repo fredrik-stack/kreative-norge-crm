@@ -790,7 +790,7 @@ select,
   width: 100%;
   overflow: hidden;
   border-radius: 10px;
-  background: #f4f4f1;
+  background: #fff;
 }
 
 .image-live-crop-frame.square {
