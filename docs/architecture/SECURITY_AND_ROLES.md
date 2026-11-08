@@ -1,5 +1,84 @@
 # Security and Roles
 
+## Streng tenantmodus – stagingverifisert med gaten av, 2026-11-08
+
+PR [#107](https://github.com/fredrik-stack/kreative-norge-crm/pull/107), eksakt
+merge/API-kode `276592cf0ad77960dd83187b3e002afcc2edd3ab`, er teknisk
+stagingverifisert **2026-11-08 15:48:30 UTC / 16:48:30 CET**.
+[Sanitert bevarings- og driftsevidens](../status/evidence/strict-tenant-staging-2026-11-08/checks.json).
+
+Kodeleveransen har separat skrivebeskyttet review/re-review på base
+`e10566c7ae20eb92b04eeba9413902ac1f5f53ca` → head
+`4669359c33c35540517382197fed51164016a2d2`, uten gjenværende blokkere.
+PUBLIC-testfunnet ble rettet til faktisk anonym actors-rute med publisert
+syntetisk aktør/bilde/lenke og HTTP200. Lokal PostgreSQL16-regresjon bestod
+750 tester; 18 målrettede grensetester og siste skjerpede PUBLIC-test bestod.
+PR-CI [42495335446](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/42495335446)
+og main-CI [42495870458](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/42495870458)
+er SUCCESS6/6; endelig CI-head har752 backendtester og bestått Editor API-smoke.
+
+### Runtime, gater og lesekontroll
+
+Bare API er byttet fra `8cc160e` til `276592c`, med image
+`sha256:9f524dec2b106a423e07ab0547d7d7ddbd2ffc48a6d0a71dc347c14ea7485d0e`.
+172 relevante kildefiler matcher eksakt Git-arkiv. Eksisterende immutable base
+bevarer interpreter/pakker; ingen dependencyinstallasjon eller oppgradering.
+API starter direkte Gunicorn, uten migrate/seed/collectstatic. Skjema er fortsatt
+0039 med tom migrasjonsplan; ingen schema- eller data-apply er utført.
+
+Frontend/container er identisk med PR #105 / `8cc160e`, image
+`sha256:19f408668d9a637083ff2bf3ef303ff3c36b89c48e900f32999690835e9ce169`.
+Bundle-, image- og originbytes er bevart. Eksisterende nginxkonfigurasjon er
+testet og reloadet etter API-bytte for å fornye upstream-DNS; web er ikke
+rekreert. Databasecontainer/image/starttid/restarttall, mounts, miljø,
+Docker/Compose, Caddy/prosess/konfigurasjon og media/static er uendret.
+
+Alle fem gater er **effektivt og varig False**: `STRICT_TENANT_ACCESS_ENABLED`,
+`ACCESS_MANAGEMENT_ENABLED`, `SHARING_ACCESS_ENABLED`, `CANONICAL_WRITER_ENABLED`
+og `TENANT_NOTE_OVERLAYS_ENABLED`. Alle er unset i uendret miljø og bruker
+verifisert default False; øvrige featureflagg er bevart. Streng modus er ikke
+forsøkt aktivert, heller ikke midlertidig mot reelle data.
+
+Eksisterende autorisert operatør er gjenbrukt i server-side lesekontroller,
+innen REPEATABLE READ READ ONLY:14 modellister, seks detaljer, to Admin-lister,
+to gamle notatfeltformer og autentisert session består. Disabled management-
+context er tom, fem syntetiske negative prober avvises før skrivergrensen under
+både SQL-write-avvisning og DB READ ONLY. Medlemskaps-Admin er fortsatt read-only
+også for superuser. PUBLIC API/HTML/lenker og seks bilde-/fallbackvarianter er
+bevart. Ingen ny login/session, credentialeksport eller generell browser-/UX-runde.
+
+### Bevaring og driftsporter
+
+Full før-/etterkontroll av **alle56 tabeller** viser samme gamle feltverdier,
+relasjoner, PK-er, tidsstempler, publiseringsvalg og auth/session/roller.
+Schema-/constraint-/trigger-/funksjonsmetadata er uendret; ingen kolonner eller
+migrasjonsrader normaliseres bort. Canonical UUID-stamps på128 Organization og
+157 Person er bevart. Medlemskap0→0; forvaltnings- og avtalehistorikk,
+SharingAccessAudit, CanonicalWriteAudit, overlays og notatkopibatch har fortsatt0 rader.
+Ingen individuelle profilhashverdier, UUID-stamps eller rå notater publiseres.
+
+Ferske pre- og postcheckpoints bestod backup, full repository/archive-data verify
+og isolert PostgreSQL16-restore. Kvitteringene er bundet til eksakt arkiv-ID og
+dumpchecksum, med ny arkividentitetsread-back. Begge restores kontrollerte også
+0039-strukturen og tom historikk. Installerte driftsscripts er uendret; private
+kopier fjernet prune/compact og skjerpet arkiv-/schemakontroll. Ingen retention-
+sletting eller live restore. Restorecontainere og tilhørende volumer er ryddet.
+
+Safety er READY på samme ledger/repository og cursor13; ledgerbytes/historikk,
+image-state og deny-state er uendret. Alle tre timere er active/enabled,
+backup-/verifyservices er inactive. Separat review av private deploy-/read-back-
+/evidensverktøy fant ingen gjenværende blokkere; nginx-reloadfunnet ble rettet
+før runtimeendring. Kun godkjent TARGET-binding endret helperen etter review.
+
+**Leveranseskille:** Den strenge grunnmuren er teknisk stagingverifisert med
+gaten av. Gammel tilgang er fortsatt aktiv og legacydata autoritative. Ingen
+reelle brukere/medlemmer/roller/fullmakter/avtaler/aksepter/tilbakekallinger,
+notatkopi/-plan, canonical testwrites eller aktivering er utført. Neste avgrensede
+steg krever separat eiergodkjent bruker-/tenant-/rollemapping og oppstartsmandat,
+deretter kontrollert medlemskapsetablering og særskilt aktiveringsbeslutning.
+Shared/writer/notat krever fortsatt egne porter. Dokumentasjonsmerge deployes ikke.
+
+
 ## Streng legacytenanttilgang – implementasjonskontrakt 2026-11-08
 
 `STRICT_TENANT_ACCESS_ENABLED` er en egen **default False** innstilling, uavhengig
@@ -78,10 +157,10 @@ Django-roller; deres privilegerte driftskontrakt består.
    skal automatisk gjenåpne tilgang eller gjenopplive slettede private notater.
    Eksisterende safety-ledger, deny-state og historisk image-state består.
 
-Stagingdelen av denne leveransen skal ha streng modus effektivt/varig av,
-0 medlemskap og øvrige gater av. Ingen aktivering eller reelle tester av positive
-forvaltningsreiser inngår. Faktisk deploy, bevaring og backupbevis publiseres
-først etter gjennomført driftsetappe.
+Stagingdelen er gjennomført med streng modus effektivt/varig av,0 medlemskap
+og øvrige gater av; se datert stagingevidens øverst. Ingen aktivering eller reelle
+tester av positive forvaltningsreiser inngikk. Oppstartsprosedyren ovenfor er
+fortsatt planlagt og krever separat godkjenning.
 
 ### Verifikasjon
 

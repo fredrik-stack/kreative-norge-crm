@@ -1,0 +1,149 @@
+{
+  "all_fields_relations_pk_timestamps_publication_auth_sessions_and_schema_preserved": true,
+  "all_tables_preserved": 56,
+  "api_dependencies_preserved": true,
+  "api_image": "sha256:9f524dec2b106a423e07ab0547d7d7ddbd2ffc48a6d0a71dc347c14ea7485d0e",
+  "backup_services_inactive": true,
+  "browser_or_general_ux_round": false,
+  "canonical_or_profile_testwrites": false,
+  "canonical_stamp_counts": {
+    "crm_organization": {
+      "non_null": 128,
+      "rows": 128
+    },
+    "crm_person": {
+      "non_null": 157,
+      "rows": 157
+    }
+  },
+  "canonical_stamps_preserved": true,
+  "checkpoint_receipts": {
+    "post": {
+      "archive_identity_read_back": true,
+      "backup": true,
+      "dump_checksum_bound": true,
+      "full_repository_and_archive_verify": true,
+      "isolated_postgresql16_restore": true,
+      "no_new_volumes": true
+    },
+    "pre": {
+      "archive_identity_read_back": true,
+      "backup": true,
+      "dump_checksum_bound": true,
+      "full_repository_and_archive_verify": true,
+      "isolated_postgresql16_restore": true,
+      "no_new_volumes": true
+    }
+  },
+  "code_commit": "276592cf0ad77960dd83187b3e002afcc2edd3ab",
+  "database_container_preserved": true,
+  "database_identity_preserved": true,
+  "deployment": "API_ONLY",
+  "disabled_management_checks": {
+    "authenticated_context_empty_disabled": true,
+    "denied_operations": 5,
+    "membership_admin_readonly_superuser": true,
+    "new_history_not_admin_registered": true
+  },
+  "docker_compose_caddy_and_installed_operational_scripts_preserved": true,
+  "empty_history_rows": {
+    "crm_accessmanagementgrant": 0,
+    "crm_accessmanagementgrantrevocation": 0,
+    "crm_canonicalwriteaudit": 0,
+    "crm_membershipmanagementaudit": 0,
+    "crm_organizationnoteoverlay": 0,
+    "crm_personnoteoverlay": 0,
+    "crm_sharingaccessaudit": 0,
+    "crm_sharingagreement": 0,
+    "crm_sharingagreementacceptance": 0,
+    "crm_sharingagreementrevocation": 0,
+    "crm_tenantnotecopybatch": 0
+  },
+  "environment_mounts_media_static_preserved": true,
+  "evidence_version": 1,
+  "frontend_container_image_bundle_origin_preserved": true,
+  "frontend_image": "sha256:19f408668d9a637083ff2bf3ef303ff3c36b89c48e900f32999690835e9ce169",
+  "frontend_source_changes": false,
+  "frontend_source_commit": "8cc160e84162e94c11069e1ab52683496753e71a",
+  "gates": {
+    "ACCESS_MANAGEMENT_ENABLED": {
+      "effective": false,
+      "file_setting": "unset_default_false",
+      "persistent_false": true
+    },
+    "CANONICAL_WRITER_ENABLED": {
+      "effective": false,
+      "file_setting": "unset_default_false",
+      "persistent_false": true
+    },
+    "SHARING_ACCESS_ENABLED": {
+      "effective": false,
+      "file_setting": "unset_default_false",
+      "persistent_false": true
+    },
+    "STRICT_TENANT_ACCESS_ENABLED": {
+      "effective": false,
+      "file_setting": "unset_default_false",
+      "persistent_false": true
+    },
+    "TENANT_NOTE_OVERLAYS_ENABLED": {
+      "effective": false,
+      "file_setting": "unset_default_false",
+      "persistent_false": true
+    }
+  },
+  "helper_hashes": {
+    "db-read.py": "e1eed8c2d7201839856ca1ae269116e3d491dafd9d243b617403e1a278a8a8c8",
+    "export-evidence.py": "d98a0a969b0db810ffdbece11b305c0c03a85a404d1b5ccf22a0980dcf4d60aa",
+    "stage.py": "698563c602fad4b036833c566afcedba039b70322ca0a0e7ab8bfe5d020fdd6f"
+  },
+  "membership_rows_after": 0,
+  "membership_rows_before": 0,
+  "migrate_seed_collectstatic_executed": false,
+  "new_login_session_or_credential_export": false,
+  "nginx_existing_config_tested_and_reloaded": true,
+  "note_copy_or_plan_executed": false,
+  "other_feature_flags_preserved": true,
+  "previous_api_commit": "8cc160e84162e94c11069e1ab52683496753e71a",
+  "prune_compact": false,
+  "public_api_html_links_and_six_image_variants_preserved": true,
+  "real_users_memberships_roles_grants_agreements_acceptances_revocations_changed": false,
+  "remaining_migrations": 0,
+  "restore_containers_remaining": 0,
+  "review_base": "e10566c7ae20eb92b04eeba9413902ac1f5f53ca",
+  "review_head": "4669359c33c35540517382197fed51164016a2d2",
+  "safety_cursor": 13,
+  "safety_ledger_repository_identity_and_bytes_preserved": true,
+  "safety_ready": true,
+  "schema": "0039_access_management_journey",
+  "schema_changed": false,
+  "source_files_checked": 172,
+  "source_main_ci": 42495870458,
+  "source_pr": 107,
+  "source_pr_ci": 42495335446,
+  "status": "STAGING_VERIFIED",
+  "strict_or_shared_activation": false,
+  "technical_authenticated_read_checks": {
+    "admin_lists": 2,
+    "admin_note_forms": 2,
+    "api_details": 6,
+    "api_lists": 14,
+    "authenticated_session": true,
+    "operator_reused": true
+  },
+  "timers": {
+    "kreative-norge-backup": {
+      "active": true,
+      "enabled": true
+    },
+    "kreative-norge-backup-verify": {
+      "active": true,
+      "enabled": true
+    },
+    "kreative-norge-image-safety-health": {
+      "active": true,
+      "enabled": true
+    }
+  },
+  "verified_at_utc": "2026-11-08T15:48:30.442403+00:00"
+}

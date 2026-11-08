@@ -1,5 +1,21 @@
 # Kreative Norge CRM – dokumentasjon
 
+## Streng tenantmodus – teknisk stagingverifisert, fortsatt av 2026-11-08
+
+PR #107 / eksakt API `276592cf0ad77960dd83187b3e002afcc2edd3ab` er levert
+API-only etter grønn review/re-review, PR-CI42495335446 og main-CI42495870458,
+6/6. Frontend er uendret PR #105/8cc160e; skjema0039 og tom migrasjonsplan består.
+Alle fem gater, inklusive ny streng tenantmodus, er effektivt/varig av.
+Alle56 tabeller og eksisterende schema/auth/session/notater/tags/revisjoner/
+bilder/PUBLIC er bevart; medlemskap0→0, avtale-/forvaltningshistorikk/audit/
+overlays/kopibatch fortsatt0. Pre/post-backup/fullverify/isolert PostgreSQL16-
+restore og normale timere/safetyREADY13 er verifisert. Ingen reelle
+rettighetsendringer, testwrites, kopiering eller aktivering.
+[Detaljert evidens, kontrakt og neste separate gate](architecture/SECURITY_AND_ROLES.md#streng-tenantmodus--stagingverifisert-med-gaten-av-2026-11-08).
+Dokumentasjonsmerge utløser ingen ny deploy. Gammel fallback består aktiv frem
+til separat kontrollert medlemskapsetablering og aktiveringsbeslutning.
+
+
 ## Streng legacytenanttilgang – inaktiv kodeleveranse 2026-11-08
 
 Egen default-off `STRICT_TENANT_ACCESS_ENABLED` gjør eksplisitt aktivt
@@ -8,7 +24,7 @@ import/eksport og bildehandlinger når separat aktivert. Global rolle gir da
 ingen adgang; eksisterende uscopede Admin-/operatørinnganger sperres. Avtaleaksept
 kreves ikke for ren legacytenanttilgang. Avslått modus bevarer dagens adferd.
 Ingen migrasjon eller reell data-/rettighetsendring. Stagingverifisering med
-alle fem gater av gjenstår til godkjent merge/CI og driftsporter er oppfylt.
+alle fem gater av er senere gjennomført som beskrevet øverst.
 [Kontrakt, tester, oppstart og rollback](architecture/SECURITY_AND_ROLES.md#streng-legacytenanttilgang--implementasjonskontrakt-2026-11-08).
 
 
