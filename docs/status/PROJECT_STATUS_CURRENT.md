@@ -1,5 +1,31 @@
 # Project Status Current
 
+## ADR-011 trinn 9 – teknisk stagingverifisert, inaktiv writer 2026-11-08
+
+PR #103 / kode `06e65947b90483ec242e1cdd657a7835debe60ec` er deployet API-only
+etter grønn main-CI42469412699,6/6. Bare additiv0038 er anvendt med eksplisitt
+MigrationExecutor, READ COMMITTED og2s/30s timeouts, uten seed/post_migrate.
+Migrasjonsplanen er tom. CanonicalWriteAudit har0 rader,13 constraints er
+validerte, tre triggere er aktive og én funksjon matcher godkjent kilde.
+[Mandat, faktisk evidens og grenser](../architecture/SECURITY_AND_ROLES.md#stagingverifisering-av-trinn-9--2026-11-08).
+
+Alle gamle feltverdier, relasjoner, publication, PK-er og tidsstempler i52
+eksisterende tabeller er bevart. Nye UUID-stamps er kontrollert separat:
+128 Organization og157 Person har NOT NULL uuid-metadata, stabil fra første
+schema-readback gjennom API-/post-checkpoint-/sluttkontroll. Ingen profil-/
+canonical testwrites er utført i staging. Legacykompatibilitet støttes av
+allerede grønne lokale/CI-tester og read-only kilde-/trigger-/leseverifikasjon.
+
+Writer/shared/notatgater er effektivt/varig av; audit, avtalehistorikk, overlays
+og kopibatch er tomme. Medlemskapstall er0→0. Frontend/DB-container, dependencies,
+miljø/media/static og PUBLIC er bevart; safety er READY på samme cursor13.
+Pre/post-backup, fullverify og arkivbundet isolert restore bestod, timere er
+active/enabled og restorecontainere/volumer ryddet. Dokumentasjonen følger
+separat review/PR/ordinær merge/CI; dokumentasjonsmerge deployes ikke.
+Ingen aktivering, notatkopi/-plan eller autoritetsovergang. Trinn7 og hele
+trinn8/9/6A er fortsatt åpne; ingen neste produktetappe er startet.
+
+
 ## ADR-011 trinn 9 – inaktiv canonical writer, 2026-11-08
 
 Første avgrensede writer-grunnmur er implementert for Organization `name`/
