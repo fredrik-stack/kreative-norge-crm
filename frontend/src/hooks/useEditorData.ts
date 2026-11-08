@@ -139,6 +139,8 @@ export function useEditorData() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [tenantId, setTenantId] = useState<number | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const currentTenantId = useRef(tenantId);
+  currentTenantId.current = tenantId;
   const [persons, setPersons] = useState<Person[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -274,6 +276,9 @@ export function useEditorData() {
     setLinkedPersonSaveState("idle");
   }, [tenantId, selectedOrgId, selectedTenant?.default_phone_region]);
 
+  const organizationFormState = JSON.stringify(selectedOrganization
+    ? { ...selectedOrganization, preview_image_url: undefined } : null);
+
   useEffect(() => {
     if (selectedOrgId === "new") {
       setDraft({ ...emptyDraft, phone_region: selectedTenant?.default_phone_region ?? null });
@@ -312,7 +317,10 @@ export function useEditorData() {
     setOrganizationTagInput(formatTagInput(selectedOrganization.tags ?? []));
     if (!organizationWriting.current) setSaveState("idle");
     setOrganizationFieldErrors({});
-  }, [selectedOrgId, selectedOrganization, selectedTenant?.default_phone_region]);
+    // A fresh server-derived image must not reset unsaved profile fields.
+    // organizationFormState includes all persisted fields except the preview.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedOrgId, organizationFormState, selectedTenant?.default_phone_region]);
 
   const visibleOrganizations = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
@@ -479,6 +487,13 @@ export function useEditorData() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [hasUnsavedChanges]);
+
+  function updateOrganizationImagePreview(expectedTenantId: number, organizationId: number, url: string | null) {
+    if (currentTenantId.current !== expectedTenantId) return;
+    setOrganizations(current => current.map(organization =>
+      organization.id === organizationId && organization.tenant === expectedTenantId && organization.preview_image_url !== url
+        ? { ...organization, preview_image_url: url } : organization));
+  }
 
   async function reloadOrganizations(nextSelectedId?: number | "new") {
     if (!tenantId) return;
@@ -919,6 +934,7 @@ export function useEditorData() {
     availablePersonsForLink,
     onSubmit,
     onRefreshOrganizationPreview,
+    updateOrganizationImagePreview,
     onCreateLink,
     onCreateLinkedPerson,
     onDeletePerson,

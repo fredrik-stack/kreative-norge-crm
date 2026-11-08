@@ -481,8 +481,12 @@ class ImageSafetyBridgeClient:
             {"protocol_version", "operation", "result", "authorization"},
             "Authorization response",
         )
+        return self._parse_authorization(response["authorization"], requested_release_id, variant)
+
+    @staticmethod
+    def _parse_authorization(value, requested_release_id, variant):
         authorization = _require_object(
-            response["authorization"],
+            value,
             {
                 "authorized",
                 "category",
@@ -498,8 +502,8 @@ class ImageSafetyBridgeClient:
         cursor = authorization["read_cursor"]
         if (
             not isinstance(authorization["authorized"], bool)
-            or authorization["category"]
-            not in {
+            or not isinstance(authorization["category"], str)
+            or authorization["category"] not in {
                 "authorized", "unknown", "not_active", "scope_mismatch",
                 "checksum_denied",
             }
@@ -525,6 +529,25 @@ class ImageSafetyBridgeClient:
             variant=variant,
             read_cursor=cursor,
         )
+
+    def authorize_many(self, items: list[dict]) -> tuple[BridgeAuthorization, ...]:
+        if not 1 <= len(items) <= 24:
+            raise ImageSafetyBridgeError("invalid_request", "Authorization batch is out of bounds.", retryable=False)
+        response = _require_object(self._request("authorize_many", {"items": items}),
+            {"protocol_version", "operation", "result", "items"}, "Authorization batch response")
+        values = response["items"]
+        if not isinstance(values, list) or len(values) != len(items):
+            raise ImageSafetyBridgeUnavailable("safety_unavailable", "Authorization batch length mismatch.", retryable=True)
+        results = []
+        for index, (item, value) in enumerate(zip(items, values)):
+            value = _require_object(value, {"index", "tenant_id", "organization_id", "authorization"}, "Authorization batch entry")
+            if any(type(value[key]) is not int or value[key] != expected for key, expected in (
+                ("index", index), ("tenant_id", item["tenant_id"]), ("organization_id", item["organization_id"]))):
+                raise ImageSafetyBridgeUnavailable("safety_unavailable", "Authorization batch scope mismatch.", retryable=True)
+            results.append(self._parse_authorization(value["authorization"], item["release_id"], item["variant"]))
+        if len({result.read_cursor for result in results}) != 1:
+            raise ImageSafetyBridgeUnavailable("safety_unavailable", "Authorization batch cursor mismatch.", retryable=True)
+        return tuple(results)
 
     def deny(
         self,

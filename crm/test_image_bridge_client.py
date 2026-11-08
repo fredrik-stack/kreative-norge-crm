@@ -399,3 +399,27 @@ class ImageSafetyBridgeClientTests(SimpleTestCase):
             socket_path=self.socket_path, timeout=1
         ).legacy_guard(tenant_id=1, organization_id=2)
         self.assertTrue(legacy.blocked)
+
+    def test_batch_response_binds_order_scope_length_and_shared_cursor(self):
+        from unittest.mock import patch
+        from copy import deepcopy
+        item = dict(release_id=self.release_id, tenant_id=1, organization_id=2, variant="square",
+            public_storage_key=build_public_release_key(self.release_id, "square", "webp"),
+            artifact_checksum_sha256="a" * 64, source_checksum_sha256="b" * 64)
+        value = {"protocol_version": 1, "operation": "authorize_many", "result": "success", "items": [
+            {"index": i, "tenant_id": 1, "organization_id": 2, "authorization": {
+                "authorized": True, "category": "authorized", "release_id": self.release_id,
+                "variant": "square", "read_cursor": 11}} for i in range(2)]}
+        client = ImageSafetyBridgeClient(socket_path=self.socket_path)
+        with patch.object(client, "_request", return_value=value):
+            self.assertEqual(len(client.authorize_many([item, item])), 2)
+        invalid = []
+        for field, changed in (("index", True), ("tenant_id", 99), ("organization_id", 99)):
+            bad = deepcopy(value); bad["items"][0][field] = changed; invalid.append(bad)
+        bad = deepcopy(value); bad["items"].reverse(); invalid.append(bad)
+        bad = deepcopy(value); bad["items"].pop(); invalid.append(bad)
+        bad = deepcopy(value); bad["items"][1]["authorization"]["read_cursor"] = 12; invalid.append(bad)
+        bad = deepcopy(value); bad["items"][0]["authorization"]["authorized"] = "true"; invalid.append(bad)
+        for bad in invalid:
+            with self.subTest(bad=bad), patch.object(client, "_request", return_value=bad):
+                with self.assertRaises(ImageSafetyBridgeUnavailable):client.authorize_many([item, item])

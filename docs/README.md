@@ -1,5 +1,18 @@
 # Kreative Norge CRM – dokumentasjon
 
+## Avgrenset bilderetting – kodeleveranse 2026-11-08
+
+Prosjekteiers tre brukerfunn er rettet lokalt: PUBLIC-handlingen avslutter
+bildeflyten, Editor-thumbnail bruker samme autoritative projeksjon som PUBLIC,
+og Brave har synlige søkeforslag og «Vis flere» i puljer på12 fra opptil200 treff.
+Intern godkjenning er fortsatt separat fra PUBLIC-release. Bildeoppdateringer
+bevarer ulagrede profilfelt/tags. Prefetch og avgrenset read-only safety-batch
+unngår DB-/bridgekall per kort. Ingen migrasjon eller nye produktgater.
+[Kontrakt, diagnose, tester og bevisgrenser](architecture/SECURITY_AND_ROLES.md#avgrenset-bilderetting--2026-11-08).
+Separat review/PR/merge/CI og staging gjenstår; PR #109/#110-status nedenfor er
+forrige verifiserte runtime. Eierens reelle kort og fem avslåtte gater bevares.
+
+
 ## Editor-bilder til PUBLIC – stagingverifisert 2026-11-08
 
 PR #109 / API og frontend fra `4c2ca2b88dd51d982956935248445e0a104ed0b5`

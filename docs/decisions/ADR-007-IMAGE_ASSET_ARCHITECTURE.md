@@ -2,6 +2,15 @@
 
 ## Status
 
+**Avgrenset rettingsleveranse2026-11-08:** Editor bruker samme PUBLIC-projeksjon
+for thumbnails ved aktiv cutover og oppdaterer avledet bildestate uten å berøre
+profilutkast. PUBLIC-handlingen avslutter bildeflyten. Brave count200 og klient-
+puljer på12 erstatter gjentatte30-treffssøk; søkeforslag er synlige/opt-in.
+Avgrenset read-only authorize_many gjenbruker eksisterende safetykontrakt og
+løser konkret bridge-N+1 i Editor-listen, uten nye grants eller ledgerendring.
+[Implementasjon og leveransestatus](../architecture/SECURITY_AND_ROLES.md#avgrenset-bilderetting--2026-11-08).
+
+
 **Implementeringspresisering2026-11-08:** Eksisterende bildearkitektur gjenbrukes
 for en eksplisitt Editor/API-overgang fra intern rights approval til offentlig
 release, med expected revision, låsing/reautorisering og samme permanente

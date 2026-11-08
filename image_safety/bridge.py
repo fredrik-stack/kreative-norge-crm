@@ -27,10 +27,11 @@ from .ledger import (
 
 PROTOCOL_VERSION = 1
 MAX_FRAME_BYTES = 16 * 1024
+MAX_AUTHORIZATION_BATCH = 24
 FRAME_TIMEOUT_SECONDS = 5.0
 OPERATION_TIMEOUT_SECONDS = 45.0
 SUPPORTED_OPERATIONS = frozenset(
-    {"reserve", "activate", "authorize", "deny", "check_checksum", "legacy_guard"}
+    {"reserve", "activate", "authorize", "authorize_many", "deny", "check_checksum", "legacy_guard"}
 )
 TAKEDOWN_REASON_CODES = frozenset(
     {"rights_request", "privacy_safety", "legal_compliance", "editorial_policy"}
@@ -160,6 +161,14 @@ def _authorization_payload(value: object) -> dict[str, Any]:
     return payload
 
 
+def _authorization_batch_payload(value: object) -> dict[str, Any]:
+    payload = _strict_object(value, {"items"}, "Authorization batch")
+    items = payload["items"]
+    if not isinstance(items, list) or not 1 <= len(items) <= MAX_AUTHORIZATION_BATCH:
+        raise BridgeProtocolError("invalid_request", "Authorization batch is out of bounds.")
+    return {"items": [_authorization_payload(item) for item in items]}
+
+
 def _deny_payload(value: object) -> dict[str, Any]:
     payload = _strict_object(
         value,
@@ -248,6 +257,8 @@ def _request(value: object) -> tuple[str, dict[str, Any]]:
         return operation, _reservation_payload(request["payload"])
     if operation == "authorize":
         return operation, _authorization_payload(request["payload"])
+    if operation == "authorize_many":
+        return operation, _authorization_batch_payload(request["payload"])
     if operation == "deny":
         return operation, _deny_payload(request["payload"])
     if operation == "check_checksum":
@@ -444,46 +455,60 @@ class SafetyBridgeOperations:
                 }
             raise AssertionError("unreachable mutation operation")
 
+    def _authorization(self, payload: Mapping[str, Any], cursor: int) -> dict[str, Any]:
+        checksum_denied = self.ledger.checksum_denied(
+            tenant_id=payload["tenant_id"],
+            source_checksum_sha256=payload["source_checksum_sha256"],
+        )
+        state = self.ledger.release_state(payload["release_id"])
+        category = "unknown"
+        authorized = False
+        if checksum_denied:
+            category = "checksum_denied"
+        elif state is not None:
+            category = "not_active"
+            if state["state"] == "active":
+                reservation = state["reservation"]
+                rendition = reservation["variants"].get(payload["variant"])
+                expected_scope = (
+                    reservation["tenant_id"] == payload["tenant_id"]
+                    and reservation["organization_id"]
+                    == payload["organization_id"]
+                    and rendition is not None
+                    and rendition["public_storage_key"]
+                    == payload["public_storage_key"]
+                    and rendition["artifact_checksum_sha256"]
+                    == payload["artifact_checksum_sha256"]
+                )
+                authorized = bool(expected_scope)
+                category = "authorized" if authorized else "scope_mismatch"
+        return {
+            "authorized": authorized, "category": category,
+            "release_id": payload["release_id"], "variant": payload["variant"],
+            "read_cursor": cursor,
+        }
+
     def _execute_authorize(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         with self._lifecycle_gate.read():
             health = self._require_ready_read_only()
-            checksum_denied = self.ledger.checksum_denied(
-                tenant_id=payload["tenant_id"],
-                source_checksum_sha256=payload["source_checksum_sha256"],
-            )
-            state = self.ledger.release_state(payload["release_id"])
-            category = "unknown"
-            authorized = False
-            if checksum_denied:
-                category = "checksum_denied"
-            elif state is not None:
-                category = "not_active"
-                if state["state"] == "active":
-                    reservation = state["reservation"]
-                    rendition = reservation["variants"].get(payload["variant"])
-                    expected_scope = (
-                        reservation["tenant_id"] == payload["tenant_id"]
-                        and reservation["organization_id"]
-                        == payload["organization_id"]
-                        and rendition is not None
-                        and rendition["public_storage_key"]
-                        == payload["public_storage_key"]
-                        and rendition["artifact_checksum_sha256"]
-                        == payload["artifact_checksum_sha256"]
-                    )
-                    authorized = bool(expected_scope)
-                    category = "authorized" if authorized else "scope_mismatch"
             return {
-                "protocol_version": PROTOCOL_VERSION,
-                "operation": "authorize",
-                "result": "success",
-                "authorization": {
-                    "authorized": authorized,
-                    "category": category,
-                    "release_id": payload["release_id"],
-                    "variant": payload["variant"],
-                    "read_cursor": health.read_cursor,
-                },
+                "protocol_version": PROTOCOL_VERSION, "operation": "authorize",
+                "result": "success", "authorization": self._authorization(payload, health.read_cursor),
+            }
+
+    def _execute_authorize_many(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        # One bounded read fence/health check. Never anchors, repairs or mutates.
+        # Serving still reauthorizes each byte request after this advisory read.
+        with self._lifecycle_gate.read():
+            health = self._require_ready_read_only()
+            return {
+                "protocol_version": PROTOCOL_VERSION, "operation": "authorize_many",
+                "result": "success", "items": [
+                    {"index": index, "tenant_id": item["tenant_id"],
+                     "organization_id": item["organization_id"],
+                     "authorization": self._authorization(item, health.read_cursor)}
+                    for index, item in enumerate(payload["items"])
+                ],
             }
 
     def _execute_checksum_check(self, payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -517,6 +542,8 @@ class SafetyBridgeOperations:
     def execute(self, operation: str, payload: Mapping[str, Any]) -> dict[str, Any]:
         if operation == "authorize":
             return self._execute_authorize(payload)
+        if operation == "authorize_many":
+            return self._execute_authorize_many(payload)
         if operation == "check_checksum":
             return self._execute_checksum_check(payload)
         if operation == "legacy_guard":
@@ -690,7 +717,7 @@ class SafetyBridgeServer:
             self._validate_peer(connection)
             request = receive_frame(connection)
             operation = request.get("operation") if isinstance(request, dict) else None
-            if operation == "authorize":
+            if operation in {"authorize", "authorize_many"}:
                 future = self.authorization_executor.submit(
                     handle_request, request, self.operations
                 )

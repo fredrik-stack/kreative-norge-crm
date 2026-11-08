@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-08 – Avgrenset bilderetting, lokal kodeleveranse
+
+- PUBLIC-handlingen avslutter bildeflyten; intern approval forblir separat.
+- Editor-thumbnail gjenbruker PUBLIC-projeksjon og oppdateres uten refresh,
+  med bevarte ulagrede felt og batch/prefetch fremfor N+1.
+- Brave: synlige forslag, nytt sett per søk, count200 og «Vis flere» på12 treff.
+- [Kontrakt, tester og syntetiske skjermbilder](../architecture/SECURITY_AND_ROLES.md#avgrenset-bilderetting--2026-11-08).
+  Separat review/merge/CI og koordinert staging gjenstår; ingen reelle bildeendringer.
+
+
 ## 2026-11-08 – Editor-bilder til PUBLIC og Brave for eier, stagingverifisert
 
 - Eksplisitt rettighetsgodkjenning og separat PUBLIC-handling, offentlig preview,

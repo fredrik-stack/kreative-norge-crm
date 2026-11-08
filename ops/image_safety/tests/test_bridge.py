@@ -443,6 +443,40 @@ class BridgeOperationTests(BridgeFixture):
         self.assertEqual(response["authorization"]["category"], "not_active")
 
 
+class BatchAuthorizationTests(BridgeFixture):
+    def test_bounded_batch_reuses_exact_authorization_and_one_health_read(self):
+        reserved = handle_request(reserve_request(), self.operations)
+        release_id = reserved["reservation"]["release_id"]
+        handle_request(activate_request(release_id), self.operations)
+        items = [authorize_request(release_id)["payload"],
+                 authorize_request(release_id, tenant_id=9)["payload"],
+                 authorize_request(release_id, organization_id=9)["payload"],
+                 authorize_request(release_id, checksum="b" * 64)["payload"]]
+        head, archives = self.ledger.head(), dict(self.anchor.archives)
+        with patch.object(self.operations, "_health", wraps=self.operations._health) as health:
+            result = handle_request({"protocol_version": 1, "operation": "authorize_many", "payload": {"items": items}}, self.operations)
+        self.assertEqual(health.call_count, 1)
+        self.assertEqual(result["result"], "success")
+        self.assertEqual([v["authorization"]["authorized"] for v in result["items"]], [True, False, False, False])
+        self.assertEqual(self.ledger.head(), head)
+        self.assertEqual(self.anchor.archives, archives)
+        maximum = {"protocol_version": 1, "operation": "authorize_many", "payload": {"items": [items[0]] * 24}}
+        self.assertLessEqual(len(encode_frame(maximum)), MAX_FRAME_BYTES + 4)
+        maximum_response = handle_request(maximum, self.operations)
+        self.assertEqual(len(maximum_response["items"]), 24)
+        self.assertLessEqual(len(encode_frame(maximum_response)), MAX_FRAME_BYTES + 4)
+        for invalid in ([], items * 7, [items[0] | {"extra": True}]):
+            response = handle_request({"protocol_version": 1, "operation": "authorize_many", "payload": {"items": invalid}}, self.operations)
+            self.assertEqual(response["code"], "invalid_request")
+        self.ledger.deny_release(event_id="synthetic-denial", release_id=release_id, reason_code="rights_request")
+        # An unanchored newer head is fail-closed; reads never repair it.
+        response = handle_request({"protocol_version": 1, "operation": "authorize_many", "payload": {"items": items}}, self.operations)
+        self.assertEqual(response["code"], "safety_unavailable")
+        anchor_current_head(self.ledger, self.anchor, expected_repository_id=REPOSITORY_ID)
+        response = handle_request({"protocol_version": 1, "operation": "authorize_many", "payload": {"items": items}}, self.operations)
+        self.assertFalse(any(v["authorization"]["authorized"] for v in response["items"]))
+
+
 class BridgeV2TakedownTests(BridgeOperationTests):
     def setUp(self):
         super().setUp()
@@ -517,6 +551,9 @@ class BridgeV2TakedownTests(BridgeOperationTests):
         self.assertEqual(
             authorization["authorization"]["category"], "checksum_denied"
         )
+        batch = handle_request({"protocol_version": 1, "operation": "authorize_many",
+            "payload": {"items": [authorize_request(release_id, source_checksum="d" * 64)["payload"]]}}, self.operations)
+        self.assertEqual(batch["items"][0]["authorization"]["category"], "checksum_denied")
         self.assertTrue(self.ledger.health(expected_repository_id=REPOSITORY_ID).ready)
 
     def test_same_source_bytes_can_activate_in_a_different_tenant(self):

@@ -121,6 +121,15 @@ class SubcategorySerializer(serializers.ModelSerializer):
         read_only_fields = ["slug", "created_at"]
 
 
+class OrganizationListSerializer(serializers.ListSerializer):
+    def to_representation(self, data):
+        if settings.PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED:
+            from .services.images.projection import project_public_image_catalog
+            data = list(data.all() if hasattr(data, "all") else data)
+            self.child._editor_image_projection_cache = project_public_image_catalog(data)
+        return super().to_representation(data)
+
+
 class OrganizationSerializer(serializers.ModelSerializer):
     phone_dial_uri = serializers.SerializerMethodField()
     phone_country_calling_code_hint = serializers.SerializerMethodField()
@@ -167,6 +176,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
+        list_serializer_class = OrganizationListSerializer
         model = Organization
         fields = [
             "id",
@@ -285,12 +295,9 @@ class OrganizationSerializer(serializers.ModelSerializer):
         return None
 
     def get_active_people(self, obj):
-        qs = (
-            obj.org_people
-            .filter(status="ACTIVE")
-            .select_related("person")
-            .order_by("person__full_name")
-        )
+        qs = getattr(obj, "_editor_active_people", None)
+        if qs is None:
+            qs = obj.org_people.filter(status="ACTIVE").select_related("person").order_by("person__full_name")
         return OrganizationPersonNestedSerializer(qs, many=True).data
 
     def get_primary_link(self, obj):
@@ -300,6 +307,13 @@ class OrganizationSerializer(serializers.ModelSerializer):
         return obj.get_primary_link_field()
 
     def get_preview_image_url(self, obj):
+        if settings.PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED:
+            from .services.images.projection import project_public_image
+            cache = getattr(self, "_editor_image_projection_cache", {})
+            result = cache.get(obj.pk)
+            if result is None:
+                result = project_public_image(obj)
+            return result.projection.square.url
         return obj.get_preview_image_url()
 
 class PersonContactSerializer(serializers.ModelSerializer):
@@ -464,7 +478,9 @@ class PersonForOrganizationSerializer(serializers.ModelSerializer):
         fields = ["id", "full_name", "title", "municipality", "public_contacts"]
 
     def get_public_contacts(self, obj):
-        qs = obj.contacts.filter(is_public=True).order_by("-is_primary", "type", "value")
+        qs = getattr(obj, "_editor_public_contacts", None)
+        if qs is None:
+            qs = obj.contacts.filter(is_public=True).order_by("-is_primary", "type", "value")
         return PublicPersonContactSerializer(qs, many=True).data
 
 

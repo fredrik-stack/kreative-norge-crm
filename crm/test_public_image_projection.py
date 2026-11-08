@@ -197,6 +197,64 @@ class PublicImageProjectionTests(TestCase):
             )
         )
 
+    def _additional_editor_actor(self, index):
+        organization = Organization.objects.create(tenant=self.tenant, name=f"Catalog {index}", is_published=True)
+        selection = OrganizationImageSelection.objects.create(tenant=self.tenant, organization=organization,
+            selection_kind="asset", rendition_set=self.rendition_set, revision=1, status="active",
+            locked_by=self.user, locked_at=timezone.now())
+        rid = str(uuid.uuid4())
+        release = OrganizationImageRelease.objects._insert_from_release_service([
+            OrganizationImageRelease(release_id=rid, tenant=self.tenant, organization=organization,
+                selection=selection, selection_revision_snapshot=1, rendition_set=self.rendition_set, key_schema_version=1)])[0]
+        OrganizationImageReleaseRendition.objects._insert_from_release_service([
+            OrganizationImageReleaseRendition(release=release, rendition=m.rendition, variant=m.variant,
+                output_format=m.output_format, artifact_storage_key_snapshot=m.artifact_storage_key_snapshot,
+                artifact_checksum_sha256_snapshot=m.artifact_checksum_sha256_snapshot,
+                public_storage_key=build_public_release_key(rid, m.variant, m.output_format)) for m in self.mappings])
+        self._editor_contact(organization, index)
+
+    def _editor_contact(self, organization, index):
+        person = Person.objects.create(tenant=self.tenant, full_name=f"Synthetic contact {index}")
+        OrganizationPerson.objects.create(tenant=self.tenant, organization=organization, person=person, status="ACTIVE")
+        PersonContact.objects.create(tenant=self.tenant, person=person, type="EMAIL", value=f"public{index}@example.no", is_public=True)
+        PersonContact.objects.create(tenant=self.tenant, person=person, type="EMAIL", value=f"private{index}@example.no", is_public=False)
+
+    @override_settings(PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED=True, PUBLIC_IMAGE_API_SCHEMA_ENABLED=True)
+    def test_editor_list_detail_share_public_projection_without_n_plus_one(self):
+        from rest_framework.test import APIClient
+        client = APIClient();self.user.is_superuser=True;client.force_authenticate(self.user)
+        path = f"/api/tenants/{self.tenant.pk}/organizations/"
+        self._editor_contact(self.organization, -1)
+        def authorize_many(_, items):
+            return tuple(ProjectionBridge(timeout=5).authorize(**item) for item in items)
+        with patch.object(ProjectionBridge, "authorize_many", authorize_many, create=True):
+            with CaptureQueriesContext(connection) as first_queries:
+                first = client.get(path)
+            for index in range(7):self._additional_editor_actor(index)
+            with CaptureQueriesContext(connection) as many_queries, patch.object(ProjectionBridge, "authorize_many", wraps=ProjectionBridge(timeout=5).authorize_many) as batch:
+                many = client.get(path)
+            self.assertEqual(many.status_code, 200)
+            self.assertEqual(len(many.json()), 8)
+            self.assertEqual(batch.call_count, 1)
+            self.assertEqual(len(first_queries), len(many_queries))
+            self.assertNotIn("private", str(many.json()))
+            detail = client.get(path+str(self.organization.pk)+"/")
+            public = self.client.get("/api/public/actors/998544092/")
+            self.assertEqual(first.json()[0]["preview_image_url"], public.json()["image"]["square"]["url"])
+            self.assertEqual(detail.json()["preview_image_url"], public.json()["image"]["square"]["url"])
+            self._additional_editor_actor(8)
+            with patch.object(ProjectionBridge, "authorize_many", wraps=ProjectionBridge(timeout=5).authorize_many) as next_batch:
+                self.assertEqual(len(client.get(path).json()), 9)
+                self.assertEqual(next_batch.call_count, 2)
+            with patch.object(ProjectionBridge, "authorize_many", side_effect=ImageSafetyBridgeUnavailable("safety_unavailable", "Synthetic", retryable=True)) as unavailable:
+                self.assertTrue(all("fallback-square.png" in r["preview_image_url"] for r in client.get(path).json()))
+                self.assertEqual(unavailable.call_count, 1)
+        # Legacy remains available as candidates, never a fallback around deny.
+        ProjectionBridge.category_by_variant = {"share": "checksum_denied"}
+        self.assertIn("fallback-square.png", client.get(path+str(self.organization.pk)+"/").json()["preview_image_url"])
+        self.organization.is_published=False;self.organization.save()
+        self.assertIn("fallback-square.png", client.get(path+str(self.organization.pk)+"/").json()["preview_image_url"])
+
     def prefetched_organization(self):
         return prefetch_public_image_projection(
             Organization.objects.filter(pk=self.organization.pk)

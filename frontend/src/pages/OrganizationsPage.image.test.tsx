@@ -390,7 +390,7 @@ describe("OrganizationImagePanel", () => {
     expect(within(screen.getByLabelText("Bildesøk")).getByText(/Basert på:/).parentElement).toHaveTextContent(
       "redigert av redaktør",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Søk" }));
+    await userEvent.click(screen.getByRole("button", { name: "Nytt søk" }));
     await waitFor(() => expect(api.searchBraveImages).toHaveBeenCalledWith(1, 10, {
       query: "Kreativ Demo AS Bodø konsert",
       municipality: null,
@@ -445,7 +445,7 @@ describe("OrganizationImagePanel", () => {
     await userEvent.click(screen.getByRole("button", { name: "Finn bilder" }));
     await userEvent.click(screen.getByRole("button", { name: "Søk etter flere bilder" }));
     await screen.findByLabelText("Forslått søk");
-    await userEvent.click(screen.getByRole("button", { name: "Søk" }));
+    await userEvent.click(screen.getByRole("button", { name: "Nytt søk" }));
 
     const candidate = await screen.findByRole("button", { name: /Kreativ Demo på scenen/ });
     expect(screen.getByText("Eksempelavisen · publisher.example")).toBeInTheDocument();
@@ -608,6 +608,60 @@ describe("OrganizationImagePanel", () => {
     expect(api.getImageSearchContext).not.toHaveBeenCalled();
     expect(api.searchBraveImages).not.toHaveBeenCalled();
   });
+  it("shows Brave results in local batches, defers hidden previews, replaces searches and sends visible suggestions explicitly", async () => {
+    vi.mocked(URL.createObjectURL).mockReturnValue("blob:preview");
+    api.getImageSearchContext.mockResolvedValue({
+      suggested_query: "4/4 FORUM FOR TAKT OG TONE Rana", query_sources: ["organization_name"],
+      municipalities: [], categories: [], people: [],
+      query_suggestions: [{label: "Navn med ord", query: "FORUM FOR TAKT OG TONE"}],
+    });
+    const candidates = Array.from({length: 25}, (_, index) => ({
+      candidate_ref: `brave-${index}`, source_type: "brave_image_search", provider: "brave_image_search",
+      source_label: "Bildesøk", source_title: `Brave image ${index}`, source_domain: "public.example",
+      width: 1800, height: 1200, technical_status: "ready_for_preview",
+    }));
+    api.searchBraveImages.mockResolvedValue({search_query: "FORUM FOR TAKT OG TONE", query_sources: ["manual_edit"], candidates});
+    render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Synthetic" />);
+    await userEvent.click(await screen.findByRole("button", {name: "Finn bilder"}));
+    await userEvent.click(await screen.findByRole("button", {name: "Søk etter flere bilder"}));
+    await userEvent.click(await screen.findByRole("button", {name: /Navn med ord:/}));
+    expect(api.searchBraveImages).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", {name: "Nytt søk"}));
+    expect(api.searchBraveImages).toHaveBeenCalledWith(1, 10, expect.objectContaining({query: "FORUM FOR TAKT OG TONE", query_edited: true, category_id: null, person_id: null}));
+    await screen.findByText("Viser 12 av 25 treff fra dette søket.");
+    await waitFor(() => expect(api.getCandidatePreview).toHaveBeenCalledTimes(13));
+    expect(screen.queryByText("Brave image 12")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", {name: "Vis flere bilder"}));
+    await screen.findByText("Viser 24 av 25 treff fra dette søket.");
+    await waitFor(() => expect(api.getCandidatePreview).toHaveBeenCalledTimes(25));
+    expect(api.searchBraveImages).toHaveBeenCalledTimes(1);
+    await userEvent.click(screen.getByRole("button", {name: "Vis flere bilder"}));
+    await screen.findByText("Brave image 24");
+    expect(screen.queryByRole("button", {name: "Vis flere bilder"})).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", {name: "Nytt søk"}));
+    await screen.findByText("Viser 12 av 25 treff fra dette søket.");
+    expect(screen.getAllByText("Brave image 0")).toHaveLength(1);
+    expect(screen.queryByText("Brave image 24")).not.toBeInTheDocument();
+  });
+
+  it("places PUBLIC after source selection and approval and reports fresh projection to Editor", async () => {
+    const changed = vi.fn();
+    const state = {expected_revision: 4, brave_search_enabled: true, active_selection: {
+      id: 3, revision: 4, kind: "asset", alt_text: "Synthetic", public_credit: "", variants: []},
+      public_image: {enabled: true, kind: "system_fallback", reason: "release_missing", image: {square:{url:"https://public.example/fallback.png"},landscape:{url:"https://public.example/fallback-land.png"},share:{url:"https://public.example/fallback-share.png"}}}};
+    api.getOrganizationImageState.mockResolvedValue(state);
+    render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Synthetic" onImageChanged={changed} />);
+    const publish = await screen.findByRole("button", {name:"Ta bildet i bruk på PUBLIC"});
+    const find = screen.getByRole("button", {name:"Finn bilder"});
+    expect(find.compareDocumentPosition(publish) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(publish.closest('section')?.lastElementChild).toBe(screen.getByLabelText("Bilde på PUBLIC"));
+    expect(changed).toHaveBeenCalledWith("https://public.example/fallback.png");
+    api.getOrganizationImageState.mockResolvedValue({...state, public_image:{enabled:true,kind:"asset",reason:"asset",image:{square:{url:"https://public.example/new.png"},landscape:{url:"https://public.example/land.png"},share:{url:"https://public.example/share.png"}}}});
+    await userEvent.click(publish);
+    await waitFor(() => expect(changed).toHaveBeenLastCalledWith("https://public.example/new.png"));
+  });
+
+
 });
 
 describe("calculateCoverCrop", () => {

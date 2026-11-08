@@ -1,0 +1,64 @@
+{
+  "metrics_are_title_or_page_name_matches_not_editorial_approval": true,
+  "profile_images_changed": false,
+  "queries_compared": 6,
+  "raw_results_retained": false,
+  "requested_count": 200,
+  "rows": [
+    {
+      "facebook_source_count": 0,
+      "name_match_first_position": 7,
+      "provider_count": 200,
+      "query_label": "current_suggestion",
+      "results": 20,
+      "status": "PASS",
+      "title_or_page_name_matches": 2
+    },
+    {
+      "facebook_source_count": 0,
+      "name_match_first_position": null,
+      "provider_count": 200,
+      "query_label": "exact_name",
+      "results": 0,
+      "status": "PASS",
+      "title_or_page_name_matches": 0
+    },
+    {
+      "facebook_source_count": 0,
+      "name_match_first_position": null,
+      "provider_count": 200,
+      "query_label": "word_name_profile",
+      "results": 0,
+      "status": "PASS",
+      "title_or_page_name_matches": 0
+    },
+    {
+      "facebook_source_count": 0,
+      "name_match_first_position": null,
+      "provider_count": 200,
+      "query_label": "facebook_operator",
+      "results": 0,
+      "status": "PASS",
+      "title_or_page_name_matches": 0
+    },
+    {
+      "facebook_source_count": 0,
+      "name_match_first_position": 1,
+      "provider_count": 200,
+      "query_label": "word_name_plain",
+      "results": 10,
+      "status": "PASS",
+      "title_or_page_name_matches": 5
+    },
+    {
+      "facebook_source_count": 0,
+      "name_match_first_position": null,
+      "provider_count": 200,
+      "query_label": "known_facebook_profile",
+      "results": 200,
+      "status": "PASS",
+      "title_or_page_name_matches": 0
+    }
+  ],
+  "scope": "owner_authorized_targeted_READ_ONLY"
+}
