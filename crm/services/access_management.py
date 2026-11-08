@@ -40,13 +40,15 @@ def boundary():
         raise ManagementError("OUTCOME_REQUIRES_READBACK") from None
 
 
-def _lock(domain_id, *user_ids):
+def _lock(domain_id, *user_ids, active_user_ids=None):
     positive(domain_id, *user_ids)
     if not SharingDomain.objects.select_for_update().filter(pk=domain_id).exists():
         raise ManagementError("ACCESS_DENIED")
     users = list(get_user_model().objects.select_for_update().filter(pk__in=user_ids).order_by("pk"))
-    if {u.pk for u in users} != set(user_ids) or any(not u.is_active for u in users):
+    required_active = set(user_ids) if active_user_ids is None else set(active_user_ids)
+    if {u.pk for u in users} != set(user_ids) or any(not u.is_active and u.pk in required_active for u in users):
         raise ManagementError("ACCESS_DENIED")
+    return {u.pk: u for u in users}
 
 
 def _grant(actor_id, domain_id, action, tenant_id=None):
@@ -96,15 +98,22 @@ def set_membership(*, actor_id, tenant_id, domain_id, username, role, is_active,
         # Look up the existing account only; no account creation or user enumeration.
         # Lock the domain before users, matching agreement/writer lock order.
         target = get_user_model().objects.filter(username=username).first()
-        _lock(domain_id, *sorted({actor_id, target.pk} if target else {actor_id}))
+        users = _lock(domain_id, *sorted({actor_id, target.pk} if target else {actor_id}), active_user_ids={actor_id})
         grant = _grant(actor_id, domain_id, Grant.Action.MANAGE_TENANT_MEMBERSHIPS, tenant_id)
-        if target is None or not target.is_active:
+        if target is None:
             raise ManagementError("TARGET_UNAVAILABLE")
+        target = users[target.pk]
+        if target.get_username() != username:
+            raise ManagementError("STALE_TARGET")
         if target.pk == actor_id:
             raise ManagementError("SELF_CHANGE_DENIED")
         with connection.cursor() as cursor:
             cursor.execute("SELECT id FROM crm_tenant WHERE id=%s FOR SHARE", [tenant_id])
         row = TenantMembership.objects.select_for_update().filter(user=target, tenant_id=tenant_id).first()
+        # A disabled account may still have a live membership. Permit ending it,
+        # never assigning a new role or (re)activating it while the account is off.
+        if not target.is_active and (row is None or is_active or role != row.role):
+            raise ManagementError("TARGET_UNAVAILABLE")
         previous_role, previous_active = (row.role, row.is_active) if row else (None, None)
         if (row.updated_at.isoformat() if row else None) != expected_updated_at:
             raise ManagementError("STALE_MEMBERSHIP")

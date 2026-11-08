@@ -42,7 +42,7 @@ class ManagementView(APIView):
     def handle_exception(self, exc):
         if isinstance(exc, service.ManagementError):
             code = str(exc)
-            status = 409 if code in {"STALE_MEMBERSHIP", "STALE_AGREEMENT", "ALREADY_ACCEPTED", "OUTCOME_REQUIRES_READBACK"} else 403
+            status = 409 if code in {"STALE_MEMBERSHIP", "STALE_TARGET", "STALE_AGREEMENT", "ALREADY_ACCEPTED", "OUTCOME_REQUIRES_READBACK"} else 403
             return Response({"code": code}, status=status)
         return super().handle_exception(exc)
 

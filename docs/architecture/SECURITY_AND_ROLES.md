@@ -20,7 +20,11 @@ kan ikke endre eget medlemskap, egen rolle, utstede nye fullmakter eller deleger
 videre. Ingen runtime-API eller Admin registrerer/utsteder grants.
 
 Medlemskapsfullmakt gir liste/endre/opprette medlemskap for eksisterende aktive
-kontoer i angitt tenant, inklusive rolle og aktivstatus. Ingen nye brukerkontoer,
+kontoer i angitt tenant, inklusive rolle og aktivstatus. En inaktiv målbruker kan
+fortsatt få sitt eksisterende medlemskap avsluttet med uendret rolle, men får
+ikke nytt medlemskap, ny rolle eller reaktivering. Aktiv forvalter kreves alltid.
+Målbrukerens eksakte brukernavn revalideres fra låst rad etter venting; endret
+binding gir STALE_TARGET uten write/audit. Ingen nye brukerkontoer,
 brukerregistersøk, tenants eller domainbindinger opprettes. Nytt medlemskap krever
 `expected_updated_at=null`; eksisterende medlemskap krever eksakt lest
 `updated_at`. Stale endringer avvises; uendret replay er no-op bare ved samme
@@ -140,7 +144,8 @@ lover ikke motstand mot privilegert DDL/TRUNCATE eller deaktivering av triggere.
 
 Isolert PostgreSQL 16 og bare syntetiske brukere/medlemskap/avtaler. Full backend
 regresjonssuite: 730 grønne før siste read-back-/schemaannotering; senere endringer
-er revalidert med 58 grønne målrettede PostgreSQL-tester (21 nye + 37 eksisterende). Frontend: 70 tester og TypeScript/produksjonsbygg
+er revalidert med 60 grønne målrettede PostgreSQL-tester (23 nye + 37 eksisterende),
+inklusive reviewretting for opphør av inaktiv konto og fersk målidentitet. Frontend: 70 tester og TypeScript/produksjonsbygg
 grønne. Fire Playwright-reiser bruker syntetiske API-svar, ikke staging eller
 ekte avtaler. Desktop-/mobil-/forvalter-/publisistbilder er visuelt kontrollert:
 [egenaksept](../status/evidence/access-journey-2026-11-08/member.png),

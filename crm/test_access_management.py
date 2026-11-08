@@ -90,7 +90,7 @@ class ManagementTests(TransactionTestCase):
     def test_inactive_actor_target_and_revoked_grant(self):
         for user in (self.manager,self.user):
             user.is_active=False; user.save()
-            self.assert_code("ACCESS_DENIED",self.member)
+            self.assert_code("ACCESS_DENIED" if user == self.manager else "TARGET_UNAVAILABLE",self.member)
             user.is_active=True; user.save()
         service.withdraw_appointment(actor_id=self.operator.pk, grant_id=self.grant,
             mandate_reference="SYNTHETIC-REVOCATION", expected_database=connection.settings_dict['NAME'])
@@ -98,6 +98,33 @@ class ManagementTests(TransactionTestCase):
         # Replay is historical evidence; it never revives a revoked appointment.
         self.assertEqual(service.appoint(**self.appointment),self.grant)
         self.assert_code("ACCESS_DENIED",self.member)
+
+    def test_membership_can_end_after_account_inactivation_without_assigning_or_reactivating(self):
+        row=self.member()
+        self.user.is_active=False;self.user.save()
+        self.assert_code('TARGET_UNAVAILABLE',lambda:self.member(expected_updated_at=row['expected_updated_at'],is_active=True))
+        self.assert_code('TARGET_UNAVAILABLE',lambda:self.member(expected_updated_at=row['expected_updated_at'],is_active=False,role='superadmin'))
+        changed=self.member(expected_updated_at=row['expected_updated_at'],is_active=False)
+        self.assertFalse(changed['is_active']);self.assertEqual(MembershipManagementAudit.objects.count(),2)
+        self.user.is_active=True;self.user.save()
+        self.assertFalse(TenantMembership.objects.get().is_active)
+        self.assertEqual(service.context(actor_id=self.user.pk)['memberships'],[])
+        with override_settings(SHARING_ACCESS_ENABLED=True):
+            self.assertEqual(assess_access(user_id=self.user.pk,tenant_id=self.tenant.pk,
+                sharing_domain_id=self.domain.pk,capability=Capability.SHARED_MATCH).code,'INVALID_MEMBERSHIP')
+        other=get_user_model().objects.create_user(username='synthetic-inactive-target',is_active=False)
+        self.assert_code('TARGET_UNAVAILABLE',lambda:self.member(username=other.username,is_active=False))
+        self.assertFalse(TenantMembership.objects.filter(user=other).exists())
+
+    def test_target_username_is_rechecked_after_lock_wait(self):
+        original_lock=service._lock
+        def renamed(domain_id,*user_ids,**kwargs):
+            get_user_model().objects.filter(pk=self.user.pk).update(username='synthetic-renamed')
+            return original_lock(domain_id,*user_ids,**kwargs)
+        with patch.object(service,'_lock',side_effect=renamed):
+            self.assert_code('STALE_TARGET',self.member)
+        self.assertEqual(TenantMembership.objects.count(),0)
+        self.assertEqual(MembershipManagementAudit.objects.count(),0)
 
     def test_membership_audit_failure_rolls_back(self):
         with patch.object(MembershipManagementAudit.objects,"create",side_effect=DatabaseError("secret")):
