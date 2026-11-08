@@ -1003,7 +1003,9 @@ export function OrganizationImagePanel(props: {
     const state = await getOrganizationImageState(tenantId, organizationId);
     if (scopeGeneration.current !== generation) return;
     setImageState(state);
-    if (state.public_image?.enabled) props.onImageChanged?.(state.public_image.image?.square.url ?? null);
+    if (state.public_image?.enabled) props.onImageChanged?.(
+      state.editor_preview_image_url !== undefined ? state.editor_preview_image_url : state.public_image.image?.square.url ?? null,
+    );
     if (state.active_selection) {
       setAltText(state.active_selection.alt_text);
       setPublicCredit(state.active_selection.public_credit);

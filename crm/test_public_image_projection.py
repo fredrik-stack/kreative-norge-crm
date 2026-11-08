@@ -237,6 +237,7 @@ class PublicImageProjectionTests(TestCase):
             self.assertEqual(len(many.json()), 8)
             self.assertEqual(batch.call_count, 1)
             self.assertEqual(len(first_queries), len(many_queries))
+            editor_query_count=len(many_queries)
             self.assertNotIn("private", str(many.json()))
             detail = client.get(path+str(self.organization.pk)+"/")
             public = self.client.get("/api/public/actors/998544092/")
@@ -249,6 +250,13 @@ class PublicImageProjectionTests(TestCase):
             with patch.object(ProjectionBridge, "authorize_many", side_effect=ImageSafetyBridgeUnavailable("safety_unavailable", "Synthetic", retryable=True)) as unavailable:
                 self.assertTrue(all("fallback-square.png" in r["preview_image_url"] for r in client.get(path).json()))
                 self.assertEqual(unavailable.call_count, 1)
+            # The same batching/SQL contract applies to unpublished Editor cards.
+            Organization.objects.filter(tenant=self.tenant).update(is_published=False)
+            with CaptureQueriesContext(connection) as private_queries, patch.object(ProjectionBridge, "authorize_many", wraps=ProjectionBridge(timeout=5).authorize_many) as private_batch:
+                private_rows=client.get(path).json()
+            self.assertEqual(len(private_queries),editor_query_count)
+            self.assertEqual(private_batch.call_count,2)
+            self.assertTrue(all('/images/active-preview/' in r['preview_image_url'] for r in private_rows))
         # Legacy remains available as candidates, never a fallback around deny.
         ProjectionBridge.category_by_variant = {"share": "checksum_denied"}
         self.assertIn("fallback-square.png", client.get(path+str(self.organization.pk)+"/").json()["preview_image_url"])

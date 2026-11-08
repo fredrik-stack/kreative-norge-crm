@@ -267,7 +267,23 @@ class EditorPublicationTests(TransactionTestCase):
         release=OrganizationImageRelease.objects.get(selection__revision=revision,organization=self.target)
         from crm.services.images.public_urls import build_public_media_url
         paths=[urlsplit(build_public_media_url(m.public_storage_key)).path for m in release.renditions.all()]
-        for path in paths:self.assertEqual(APIClient().get(path).status_code,404)
+        for path in paths:
+            self.assertEqual(APIClient().get(path).status_code,404)
+            self.assertEqual(APIClient().get(path+'?for_editor=true&require_published=false').status_code,404)
+        detail=self.client.get(f'/api/tenants/{self.tenant.pk}/organizations/{self.target.pk}/').json()
+        private_url=detail['preview_image_url']
+        self.assertIn('/images/active-preview/',private_url)
+        self.assertEqual(self.client.get(self.root+'state/').json()['editor_preview_image_url'],private_url)
+        private=self.client.get(private_url);self.assertEqual(private.status_code,200,private.data if hasattr(private,'data') else '')
+        self.assertIn('no-store',private['Cache-Control'])
+        self.assertEqual(APIClient().get(private_url).status_code,403)
+        self.assertEqual(self.client.get(private_url.replace(f'/tenants/{self.tenant.pk}/','/tenants/999999/')).status_code,403)
+        TenantMembership.objects.filter(user=self.user).update(is_active=False)
+        self.assertEqual(self.client.get(private_url).status_code,403)
+        TenantMembership.objects.filter(user=self.user).update(is_active=True)
+        get_user_model().objects.filter(pk=self.user.pk).update(is_active=False)
+        self.assertEqual(self.client.get(private_url).status_code,403)
+        get_user_model().objects.filter(pk=self.user.pk).update(is_active=True)
         self.assertFalse(any(r['org_number']=='synthetic-public' for r in APIClient().get('/api/public/actors/').json()))
         count=ImageReviewEvent.objects.count()
         Organization.objects.filter(pk=self.target.pk).update(is_published=True)
@@ -326,3 +342,19 @@ class EditorPublicationTests(TransactionTestCase):
         wrong=self.root.replace(f'/tenants/{self.tenant.pk}/',f'/tenants/{other.pk}/')
         self.assertEqual(self.client.post(wrong+'complete/',{'expected_revision':newer,'confirmed':True},format='json').status_code,404)
         self.assertEqual(OrganizationImageRelease.objects.count(),0)
+
+    def test_private_editor_preview_excludes_history_replacements_and_deny(self):
+        from crm.services.images.takedown import formal_takedown_organization_image
+        Organization.objects.filter(pk=self.target.pk).update(is_published=False)
+        revision=self.approve(self.upload(),0);self.assertEqual(self.complete(revision).status_code,200)
+        path=self.client.get(f'/api/tenants/{self.tenant.pk}/organizations/{self.target.pk}/').json()['preview_image_url']
+        self.assertEqual(self.client.get(path).status_code,200)
+        newer=self.approve(self.upload('blue'),revision);self.assertEqual(self.complete(newer).status_code,200)
+        self.assertEqual(self.client.get(path).status_code,404)
+        next_path=self.client.get(f'/api/tenants/{self.tenant.pk}/organizations/{self.target.pk}/').json()['preview_image_url']
+        self.assertNotEqual(path,next_path)
+        active=self.target.image_selections.get(status='active')
+        formal_takedown_organization_image(actor=self.user,tenant_id=self.tenant.pk,organization_id=self.target.pk,reason_code='rights_request',bridge=self.bridge)
+        self.target.image_selections.filter(status='active').update(status='archived')
+        OrganizationImageSelection.objects.filter(pk=active.pk).update(status='active')
+        self.assertEqual(self.client.get(next_path).status_code,404)

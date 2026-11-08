@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 
 from django.db.models import Prefetch, QuerySet
+from django.urls import reverse
 
 from crm.models import (
     Organization,
@@ -132,9 +133,9 @@ def _selection_releases(
     return tuple(selection.public_releases.all())
 
 
-def _projection_scope(organization: Organization):
+def _projection_scope(organization: Organization, *, for_editor=False):
     """One shared DB/scope contract for individual and batched projection."""
-    if not organization.is_published:
+    if not organization.is_published and not for_editor:
         return _fallback("organization_unpublished")
 
     selections = _active_selections(organization)
@@ -163,7 +164,7 @@ def _projection_scope(organization: Organization):
         return _fallback("release_mapping_invalid")
     release = releases[0]
     try:
-        mappings = validated_release_mappings(release)
+        mappings = validated_release_mappings(release, require_published=not for_editor)
     except PublicReleaseScopeInactive:
         return _fallback("release_scope_inactive")
     except PublicReleaseMappingInvalid:
@@ -186,9 +187,14 @@ def project_public_image(
     organization: Organization,
     *,
     bridge: ImageSafetyBridgeClient | None = None,
+    for_editor: bool = False,
 ) -> PublicImageProjectionResult:
-    """Resolve one fail-closed public image without storage or state mutation."""
-    scope = _projection_scope(organization)
+    """Resolve one fail-closed image without storage or state mutation.
+
+    Default is PUBLIC. Only trusted authenticated Editor serialization opts into
+    unpublished scope, with URLs to its separately authorized byte endpoint.
+    """
+    scope = _projection_scope(organization, for_editor=for_editor)
     if isinstance(scope, PublicImageProjectionResult):
         return scope
     selection, release, mappings = scope
@@ -213,7 +219,10 @@ def project_public_image(
         mapping = mappings[variant]
         rendition = mapping.rendition
         variants[variant] = PublicImageVariant(
-            url=build_public_media_url(mapping.public_storage_key),
+            url=(reverse("tenant-organizations-active-image-preview", kwargs={
+                "tenant_id": organization.tenant_id, "pk": organization.pk,
+                "revision": selection.revision, "variant": variant,
+            }) if for_editor and not organization.is_published else build_public_media_url(mapping.public_storage_key)),
             width=rendition.width,
             height=rendition.height,
         )
@@ -233,7 +242,7 @@ def project_public_image(
     )
 
 
-def project_public_image_catalog(organizations, *, bridge=None):
+def project_public_image_catalog(organizations, *, bridge=None, for_editor=False):
     """Request-local batch transport around the same authoritative projector.
 
     Querysets must use prefetch_public_image_projection. No persisted grant or
@@ -242,7 +251,7 @@ def project_public_image_catalog(organizations, *, bridge=None):
     organizations = tuple(organizations)
     payloads = []
     for organization in organizations:
-        scope = _projection_scope(organization)
+        scope = _projection_scope(organization, for_editor=for_editor)
         if not isinstance(scope, PublicImageProjectionResult):
             _, release, mappings = scope
             payloads.extend(_authorization_payload(release, mappings[v], v)
@@ -270,5 +279,5 @@ def project_public_image_catalog(organizations, *, bridge=None):
             return decision
 
     authority = RequestAuthorization()
-    return {organization.pk: project_public_image(organization, bridge=authority)
+    return {organization.pk: project_public_image(organization, bridge=authority, for_editor=for_editor)
             for organization in organizations}

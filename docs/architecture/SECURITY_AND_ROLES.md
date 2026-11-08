@@ -23,7 +23,8 @@ flagg, rettighetskrav, historikk, safety/deny eller krav til frisk autorisasjon.
 - Editor fjerner «Ta bildet i bruk på PUBLIC» og «Bruk standardbilde i stedet».
   Rettighetscheckbox og kreditering beholdes før «Bekreft og bruk bildet» /
   «Bekreft og erstatt bildet». Ny `image-approval-v2-actor-image` lagres i
-  eksisterende immutable ImageReviewEvent. V1-events endres ikke.
+  eksisterende immutable ImageReviewEvent. V1-events endres ikke. En eksisterende gyldig release kan vises privat i Editor;
+  dette omskriver ikke den gamle godkjenningen.
 - Én brukerhandling består av to varige servertrinn: eksisterende POST
   `images/approve/`, deretter POST `images/complete/` med eksakt expected_revision
   og confirmed=true. Første HTTP-request er ferdigcommittet før releasearbeid;
@@ -35,11 +36,25 @@ flagg, rettighetskrav, historikk, safety/deny eller krav til frisk autorisasjon.
   feil tenant, inaktivt medlemskap og stale revisjon avvises. Global tilgang
   følger eksisterende imagekontrakt; shared/canonical/notatgater aktiveres ikke.
 - Samme reserve→immutable binding→materialisering→read-back→activate gjenbrukes.
-  Release kan klargjøres selv om aktøren er upublisert. Bare den autentiserte
-  klargjøringskontrollen bruker `validated_release_mappings(require_published=False)`;
+  Release kan klargjøres selv om aktøren er upublisert. Bare autentisert
+  klargjøring og Editor-forhåndsvisning bruker `validated_release_mappings(require_published=False)`;
   ordinær projection og byte-serving bruker fortsatt defaultTrue. Ukjent URL
   gir ikke tilgang. Senere is_published=True gjør samme godkjente release synlig
   uten ny bildeskriving; False sperrer igjen. Ingen profilskriver-hook/signaler.
+- Samme eksisterende projector/catalog har en eksplisitt serverstyrt Editor-
+  kontekst. For publiserte aktører brukes uendrede PUBLIC-URL-er; upubliserte
+  aktører får URL til tenant-/aktør-/revisjonsavgrenset GET `images/active-preview/`.
+  Dette lar kort, modal og hero vise bekreftet bilde før offentliggjøring, uten
+  en parallell resolver eller per-kort DB-/bridgekall. `editor_preview_image_url`
+  i autentisert state oppdaterer kortet straks. PUBLIC-state inneholder aldri
+  disse private URL-ene.
+- Ny preview-GET krever eksisterende bilderuntime, aktiv DB-bruker og aktivt
+  medlemskap med leserett i eksakt tenant (eller eksisterende legacy image-
+  superuserunntak), aktiv eksakt selectionrevisjon, samme validerte release og
+  frisk safety-/filkontroll. Den er private/no-store og aksepterer aldri en fri
+  release-ID, key eller requeststyrt publication-bypass. Anonym, feil tenant,
+  inaktiv bruker/medlemskap, gammel revisjon, replacement og deny avvises.
+  PUBLIC-serving beholder default published=True, også ved manipulerte queryer.
 - Read-only `image_use` er advisory pending/ready, med samme mappingvalidering,
   frisk bridgeautorisasjon for alle tre varianter og filintegritet. Den gir
   aldri et varig grant. Ved delvis/ukjent svar leses frisk state, og brukeren
@@ -56,16 +71,18 @@ ikke et bilde, en release eller historikk. Ingen reelle aktørbilder endres.
 ### Verifisering og bevisgrenser
 
 Målrettet PostgreSQL16-kjøring65 tester (modeller/processing/API) og full
-frontend78/TS/bygg samt fem syntetiske bilde-E2E er grønne. Full backendregresjon
-kjørte775 tester med ett funn: en gammel assert avviste99,99 %. Den er rettet
-til10 %-grensen og inngår i de65 grønne testene. Endelig fullkjøring følger CI. [Lokal schema-bevaring](../status/evidence/image-confirmation-2026-11-08/local-migration.json)
+frontend78/TS/bygg samt seks syntetiske bilde-E2E er grønne. Full isolert PostgreSQL16-regresjon776 er nå grønn. Første kjøring hadde én
+utdatert zoomassert, som er rettet. Separat review fant at upubliserte Editor-
+kort fortsatt viste fallback; privat, scoped forhåndsvisning retter funnet.
+Begge brukerreiser består i de seks bilde-E2E. Re-review på nytt head og CI følger. [Lokal schema-bevaring](../status/evidence/image-confirmation-2026-11-08/local-migration.json)
 bekrefter0039→0040, uendrede historiske rader/tidsstempler/nøkler/bytes,
 idempotent nytt zoom-ut-sett og blokkert reverse etter bruk.
 
 Syntetisk frontend med mock-API, ikke reelle stagingprofiler:
 [hvit50 %-preview](../status/evidence/image-confirmation-2026-11-08/00-zoom-out-white.png),
 [én bildebekreftelse](../status/evidence/image-confirmation-2026-11-08/01-one-confirmation.png),
-[Editor-kort/modal](../status/evidence/image-confirmation-2026-11-08/03-editor-card-detail.png).
+[Editor-kort/modal](../status/evidence/image-confirmation-2026-11-08/03-editor-card-detail.png),
+[upublisert aktør med privat Editor-bilde](../status/evidence/image-confirmation-2026-11-08/04-unpublished-editor.png).
 Backendtesten bruker reell lokal processing/ledger/delivery og verifiserer404
 for tre forberedte bilde-URL-er før publisering,200 etter og404 ved avpublisering,
 uten ny release/event ved profilendringen. Tapt aktiveringssvar i streng modus

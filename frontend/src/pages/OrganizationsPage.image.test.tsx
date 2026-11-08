@@ -652,13 +652,15 @@ describe("OrganizationImagePanel", () => {
   });
 
   it("shows preparation without public visibility for an unpublished actor", async () => {
-    api.getOrganizationImageState.mockResolvedValue({expected_revision:4,brave_search_enabled:false,
+    const changed=vi.fn();
+    api.getOrganizationImageState.mockResolvedValue({expected_revision:4,brave_search_enabled:false,editor_preview_image_url:"/api/tenants/1/organizations/10/images/active-preview/4/square/",
       active_selection:{id:3,revision:4,kind:"asset",alt_text:"Synthetic",public_credit:"",variants:[]},
       image_use:{pending:false,ready:true},public_image:{enabled:true,kind:"system_fallback",reason:"organization_unpublished",image:null}});
-    render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Synthetic" />);
+    render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Synthetic" onImageChanged={changed} />);
     expect(await screen.findByText("Bildet er bekreftet. Det blir offentlig når du publiserer aktøren.")).toBeInTheDocument();
     expect(screen.queryByRole("button",{name:/PUBLIC|standardbilde/})).not.toBeInTheDocument();
     expect(api.completeOrganizationImage).not.toHaveBeenCalled();
+    expect(changed).toHaveBeenCalledWith("/api/tenants/1/organizations/10/images/active-preview/4/square/");
   });
 
 

@@ -55,14 +55,16 @@ test("legacy candidates are listed without network preview until explicit select
   await expect.poll(() => previewRequests).toBe(1);
 });
 
-test("official candidate can be processed, previewed, and explicitly locked", async ({ page }) => {
+for (const published of [true, false]) {
+test(`official candidate confirms once for ${published ? "published" : "unpublished"} actor`, async ({ page }) => {
   const state = await setupMockEditorApi(page);
   state.organizations[0].image_asset_feature_enabled = true;
+  state.organizations[0].is_published = published;
   let activeRevision = 0;
   let released = false;
   const imageBody = readFileSync(new URL("../fixtures/editor-image-synthetic.png", import.meta.url));
-  const imageUrl = "/synthetic-public-image.png";
-  await page.route("**/synthetic-public-image.png", route => route.fulfill({status: 200, contentType: "image/png", body: imageBody}));
+  const imageUrl = published ? "/synthetic-public-image.png" : "/api/tenants/1/organizations/10/images/active-preview/1/square/";
+  await page.route(`**${imageUrl}`, route => route.fulfill({status: 200, contentType: "image/png", body: imageBody}));
   await page.route("**/api/tenants/1/organizations/10/images/complete/", async route => {
     expect(route.request().postDataJSON()).toEqual({expected_revision: 1, confirmed: true});
     released = true;
@@ -77,9 +79,10 @@ test("official candidate can be processed, previewed, and explicitly locked", as
       body: JSON.stringify({
         brave_search_enabled: true,
         image_use: {pending: activeRevision > 0 && !released, ready: released},
+        editor_preview_image_url: released ? imageUrl : null,
         expected_revision: activeRevision,
-        public_image: {enabled:true, kind: released ? "asset" : "system_fallback", reason: released ? "asset" : "release_missing",
-          image: released ? {kind:"asset",alt_text:"Syntetisk bilde",credit:"Fotograf",square:{url:imageUrl,width:512,height:512},landscape:{url:imageUrl,width:800,height:450},share:{url:imageUrl,width:1200,height:630}} : null},
+        public_image: {enabled:true, kind: released && published ? "asset" : "system_fallback", reason: !published ? "organization_unpublished" : released ? "asset" : "release_missing",
+          image: released && published ? {kind:"asset",alt_text:"Syntetisk bilde",credit:"Fotograf",square:{url:imageUrl,width:512,height:512},landscape:{url:imageUrl,width:800,height:450},share:{url:imageUrl,width:1200,height:630}} : null},
         active_selection: activeRevision
           ? {
               id: 1,
@@ -183,7 +186,7 @@ test("official candidate can be processed, previewed, and explicitly locked", as
   await page.getByRole("button", { name: "Bekreft og bruk bildet" }).click();
   await expect(page.getByText("Godkjent aktørbilde")).toBeVisible();
   await expect(page.getByText("Revisjon 1")).toBeVisible();
-  await expect(page.getByText("Bildet er bekreftet og brukes for aktøren i Editor CRM og PUBLIC.")).toBeVisible();
+  await expect(page.getByText(published ? "Bildet er bekreftet og brukes for aktøren i Editor CRM og PUBLIC." : "Bildet er bekreftet. Det blir offentlig når du publiserer aktøren.")).toBeVisible();
   await expect(page.getByRole("button", {name:"Ta bildet i bruk på PUBLIC"})).toHaveCount(0);
   await expect(page.getByRole("button", {name:"Bruk standardbilde i stedet"})).toHaveCount(0);
   await expect(page.locator('.profile-image-entry img').first()).toHaveAttribute('src', imageUrl);
@@ -196,6 +199,7 @@ test("official candidate can be processed, previewed, and explicitly locked", as
   await expect(page.getByRole("dialog").locator(`img[src="${imageUrl}"]`)).toBeVisible();
   await page.getByRole("dialog").screenshot({path: test.info().outputPath("03-editor-card-detail.png")});
 });
+}
 
 test("direct URL can be previewed, cropped live, processed, and approved with blank alt text", async ({ page }) => {
   const state = await setupMockEditorApi(page);

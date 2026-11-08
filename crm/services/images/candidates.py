@@ -952,6 +952,9 @@ def get_organization_image_state(
         "brave_search_enabled": brave_user_allowed(actor) and bool(settings.BRAVE_IMAGE_SEARCH_API_KEY),
         "approval_text": IMAGE_APPROVAL_TEXT,
     }
+    if settings.PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED:
+        from .projection import project_public_image
+        common["editor_preview_image_url"] = project_public_image(organization, for_editor=True).projection.square.url
     if selection is None:
         return {"active_selection": None, "expected_revision": 0, **common}
     preview_ref = None

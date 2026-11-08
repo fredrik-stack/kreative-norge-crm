@@ -16,6 +16,10 @@ flaten. Standard er fortsatt 100 %; 100–300 % og eksisterende artefakter bevar
 Klient/server skal bruke samme geometri, uten oppskalering eller kilde-stor
 paddingallokering. Nye zoom-ut-artefakter får egen processing-version.
 Dette presiserer eldre cover-/zoom- og separate PUBLIC-handlingsføringer.
+Editor-kort for upubliserte aktører viser samme bekreftede bilde via beskyttet
+preview-GET. Eksisterende projector/catalog får en betrodd Editor-kontekst;
+PUBLIC-default og offentlige bilde-URL-er krever fortsatt publisert aktør.
+Ingen privat URL skal inngå i PUBLIC-projeksjonen.
 Teknisk godkjenning og klargjøring kan være flere varige servertrinn innen én
 brukerhandling. Ved delvis/ukjent svar skal frisk state og eksplisitt teknisk
 fullføring brukes, uten blind replay eller falsk suksess. Stagingdatavern følger
