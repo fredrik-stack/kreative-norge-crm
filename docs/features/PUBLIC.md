@@ -1,6 +1,6 @@
 # Feature: Public
 
-## Bilderedigering – avgrenset retting2026-11-08
+## Bilderedigering – avgrenset retting, stagingverifisert 2026-11-08
 
 PUBLIC-handlingen ligger etter preview og intern rights approval. Editor bruker
 samme autoritative bilde som PUBLIC ved aktiv cutover og oppdaterer kort/modal
@@ -9,6 +9,9 @@ består. Brave har synlige alternative queryer og opptil200 transient treff i
 puljer på12; «Vis flere» sender ikke et nytt søk og skjulte treff previewhentes
 ikke. Ingen automatisk publisering eller garanti for Facebook-/operatorresultater.
 [Kontrakt, visuelt grunnlag og stagingstatus](../architecture/SECURITY_AND_ROLES.md#avgrenset-bilderetting--2026-11-08).
+PR #111 / eksakt API/frontend `2a86bb4` er stagingverifisert uten bildewrites.
+Alle 122 publiserte Editor-previews samsvarer med PUBLIC (4 asset /118 fallback);
+syntetiske lokale E2E viser umiddelbar oppdatering og PUBLIC-handling nederst.
 
 
 ## Eksplisitt bildeflyt – stagingverifisert2026-11-08

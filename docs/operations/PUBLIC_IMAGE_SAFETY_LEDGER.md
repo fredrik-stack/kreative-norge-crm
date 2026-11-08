@@ -16,7 +16,7 @@ Kommandoen skriver bare aggregert JSON til stdout: publisert antall, asset/fallb
 
 Faktisk 3E.1A-aktiveringsevidens, inkludert repository-separasjon, raw-`rm`-restrisiko, separat transaction recovery av probe og DENIED-head, restartpersistens og containerisolasjon, finnes i [stagingrapporten 2026-08-20](../status/STAGING_PHASE_3E1A_ACTIVATION_2026-08-20.md). Bridge-, peer-, mount- og delivery-backup-/restoreevidensen finnes i [3E.1B-foundationrapporten](../status/STAGING_PHASE_3E1B_FOUNDATION_2026-08-23.md), mens faktisk reserve/materialize/activate- og crash/retry-evidens finnes i [3E.1B-aktiveringsrapporten](../status/STAGING_PHASE_3E1B_MATERIALIZATION_ACTIVATION_2026-08-23.md).
 
-## Avgrenset batchlesing – kodeleveranse2026-11-08
+## Avgrenset batchlesing – stagingverifisert 2026-11-08
 
 `authorize_many` er en additiv read-only bridgeoperasjon: payload `items` har
 1–24 eksisterende authorize-payloads.16KiB og protokollversjon1 består. Hvert
@@ -31,6 +31,11 @@ og read-only-verifisert før ny API deployes under koordinert skrivefrys og
 backup-/restoreporter. Runtime/ledgerkonfigurasjon, peers, units, schema og gater
 endres ikke. Rollback bevarer ledger/deny; single authorize er bakoverkompatibel.
 [Kontrakt, tester og faktisk leveransestatus](../architecture/SECURITY_AND_ROLES.md#avgrenset-bilderetting--2026-11-08).
+PR #111 / `2a86bb4` er levert etter separat helperreview og pre/post-backup/
+fullverify/isolert restore. Bare bridge.py er oppdatert; positiv single/batch,
+feil scope og ukjent release er kontrollert uten writes. Ledgerbytes og
+READY23 er uendret, timere normale. Operatørprober følger gjeldende PUBLIC-shape
+uten intern ID; en proberetting fullførte bare lesebevis, ingen deployreplay.
 
 ## 1. Implementert kontrakt
 

@@ -8,6 +8,8 @@ profilutkast. PUBLIC-handlingen avslutter bildeflyten. Brave count200 og klient-
 puljer på12 erstatter gjentatte30-treffssøk; søkeforslag er synlige/opt-in.
 Avgrenset read-only authorize_many gjenbruker eksisterende safetykontrakt og
 løser konkret bridge-N+1 i Editor-listen, uten nye grants eller ledgerendring.
+PR #111 / `2a86bb4` er teknisk stagingverifisert uten migrasjon/bildewrites,
+med bevarte data/ledger og grønne pre/post-backup-/restoreporter.
 [Implementasjon og leveransestatus](../architecture/SECURITY_AND_ROLES.md#avgrenset-bilderetting--2026-11-08).
 
 
