@@ -70,7 +70,8 @@ Ingen skjult grace fra tidligere policyvurdering. Audit får samme tidspunkt som
 oppdateringen. PostgreSQL-låsene gir serialisert rekkefølge, ikke tilbakevirkende
 annullering av en allerede autorisert og committet handling.
 
-Lock timeout/deadlock/connectionfeil avviser uten blind retry. Ved tapt
+Database-/InterfaceError, inklusive lock timeout/deadlock/connectionfeil,
+sanitiseres til fast feilkode uten rå radverdier/serverdetaljer eller blind retry. Ved tapt
 COMMIT-svar kan utfallet være ukjent; koden returnerer
 `WRITE_OUTCOME_REQUIRES_READBACK`, ikke et løfte om rollback eller idempotent
 replay. Caller må hente fersk tilstand/audit og avklare utfallet før nytt forsøk.
@@ -147,7 +148,8 @@ publisert actor-capability, stale snapshots, legacy-API/ORM/SQL/ABA og uendret
 counter for gamle writes. Separate forbindelser tester samtidige writes,
 medlems-/brukerendring, revokasjon i begge rekkefølger, legacyendring under venting,
 lock timeout og effective_at som passeres mellom policy og UPDATE. Python- og
-reell DB-auditfeil ruller tilbake profilen; audit er immutable i ORM/SQL.
+reell DB-auditfeil ruller tilbake profilen; DB-/forbindelsesfeil sanitiseres både
+før og inne i transaksjonen. Audit er immutable i ORM/SQL.
 Migrasjonstest bevarer alle gamle felt gjennom forward/reverse/forward og
 stopper reverse ved audit. To eldre migrasjonstestoppsett er tilpasset den nye metadata-kolonnen og
 gjenoppretting av gjeldende migrasjonsleaf; gamle felter kontrolleres fortsatt

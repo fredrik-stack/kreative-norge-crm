@@ -7,7 +7,7 @@ from uuid import uuid4
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from django.db import connection, transaction, DatabaseError
+from django.db import connection, transaction, DatabaseError, InterfaceError
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase, RequestFactory, override_settings
 from django.utils import timezone
@@ -273,7 +273,7 @@ class CanonicalWriterTests(TransactionTestCase):
         with connection.cursor() as c:
             c.execute("CREATE FUNCTION crm_synthetic_canonical_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic audit failure'; END $$; CREATE TRIGGER synthetic_canonical_fail BEFORE INSERT ON crm_canonicalwriteaudit FOR EACH ROW EXECUTE FUNCTION crm_synthetic_canonical_fail();")
         try:
-            with self.assertRaises(DatabaseError):self.write(revision)
+            self.assert_code('WRITE_OUTCOME_REQUIRES_READBACK',lambda:self.write(revision))
             self.assertEqual(self.revision(),revision)
             self.org.refresh_from_db();self.assertEqual(self.org.name,'Synthetic')
         finally:
@@ -299,6 +299,17 @@ class CanonicalWriterTests(TransactionTestCase):
             return original(**values)
         with patch.object(CanonicalWriteAudit.objects,'create',side_effect=append):self.write(revision)
         self.assertFalse(errors)
+
+
+    def test_interface_errors_are_sanitized_inside_and_before_transaction(self):
+        revision=self.revision()
+        with patch.object(CanonicalWriteAudit.objects,'create',side_effect=InterfaceError('PRIVATE server diagnostic')):
+            self.assert_code('WRITE_OUTCOME_REQUIRES_READBACK',lambda:self.write(revision))
+        self.assertEqual(self.revision(),revision)
+        with patch.object(connection,'get_autocommit',side_effect=InterfaceError('PRIVATE connect diagnostic')):
+            self.assert_code('WRITE_OUTCOME_REQUIRES_READBACK',self.revision)
+        self.org.refresh_from_db();self.assertEqual(self.org.name,'Synthetic')
+        self.assertEqual(CanonicalWriteAudit.objects.count(),0)
 
 
 class CanonicalWriterMigrationTests(TransactionTestCase):

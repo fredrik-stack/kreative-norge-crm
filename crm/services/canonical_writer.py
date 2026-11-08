@@ -11,7 +11,7 @@ from uuid import UUID
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.db import connection, transaction, OperationalError
+from django.db import connection, transaction, DatabaseError, InterfaceError
 from django.db.models import Max
 
 from crm.models import (
@@ -49,16 +49,19 @@ def _enabled():
 @contextmanager
 def _boundary():
     _enabled()
-    if connection.vendor != "postgresql" or connection.in_atomic_block or not connection.get_autocommit():
+    if connection.vendor != "postgresql" or connection.in_atomic_block:
         raise CanonicalWriteError("OUTER_TRANSACTION_UNSUPPORTED")
     try:
+        if not connection.get_autocommit():
+            raise CanonicalWriteError("OUTER_TRANSACTION_UNSUPPORTED")
         with transaction.atomic(durable=True):
             with connection.cursor() as cursor:
                 cursor.execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED")
                 cursor.execute("SET LOCAL lock_timeout = '2s'")
                 cursor.execute("SET LOCAL statement_timeout = '30s'")
             yield
-    except OperationalError:
+    except (DatabaseError, InterfaceError):
+        # Server errors can contain whole failing rows, including private data.
         # Includes lock timeout, deadlock or a lost connection/COMMIT response.
         # No blind retry: callers must obtain a fresh revision/read back audit.
         raise CanonicalWriteError("WRITE_OUTCOME_REQUIRES_READBACK") from None
