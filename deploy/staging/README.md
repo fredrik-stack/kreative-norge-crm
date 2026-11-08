@@ -86,6 +86,12 @@ users, memberships or CRM agreement acceptances were created. Colleague access
 and any new legal customer require later written agreements/privacy review.
 [Exact contract, immutable runtime identities and evidence](../../docs/architecture/SECURITY_AND_ROLES.md#editor-bildepublisering-og-en-brave-konto--kodeleveranse-2026-11-08).
 
+When rolling API back to code before PR #109, clear both Brave settings in
+persistent configuration and effective runtime before reopening the old API:
+that code does not enforce the new exact-owner boundary. Retain current schema,
+media, immutable releases and newer safety/deny state; never reverse these as
+part of an API rollback.
+
 For controlled static-bundle promotion, include directories with0755 and files
 with0644; verify readability as the Nginx worker, not just root-side hashes.
 Verify actual public HTTPS JS/CSS bytes and Content-Type plus the public index's
