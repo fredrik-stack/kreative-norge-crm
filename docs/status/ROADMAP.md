@@ -1,5 +1,27 @@
 # Roadmap
 
+## Første tilgangsreise – teknisk stagingverifisert, inaktiv 2026-11-08
+
+PR #105 / eksakt API/frontend `8cc160e84162e94c11069e1ab52683496753e71a`
+og bare0039 er levert etter grønn main-CI42488491185,6/6. Tre nye historikktabeller
+er tomme,17 constraints/fem triggere/én kildeidentisk funksjon er verifisert.
+Ny juridisk kolonne er kontrollert separat; migrasjonsplanen er tom.
+[Mandat, faktisk evidens og grenser](../architecture/SECURITY_AND_ROLES.md#stagingverifisering-av-første-tilgangsreise--2026-11-08).
+
+Forvaltning/shared/writer/notat er effektivt/varig av. Faktisk HTTPS/browser
+bekrefter skjult meny, direkte avslått tilgangsside/context og lesebasert
+medlemskaps-Admin; øvrig autentisert API/Admin/session og PUBLIC består.
+Alle gamle data i53 tabeller og canonical-stamps er bevart; medlemskap0→0,
+avtalehistorikk/canonical audit/overlays/batch fortsatt0. Miljø, avhengigheter,
+DB-container, media/static og safety READY/cursor13 er uendret. Pre/post-backup,
+fullverify/isolert restore og normal timerstatus er grønne.
+
+Ingen reell forvaltningsstate, profiltestwrites, notatkopi/-plan eller aktivering.
+Dokumentasjonsmerge utløser ingen deploy. Legacyautoritet og aktiveringsporter
+består; ingen ny produktetappe er startet. Tidligere «ingen staging» gjelder
+kodeleveransens opprinnelige mandat, ikke denne senere driftsetappen.
+
+
 ## Første autoriserte tilgangsreise – lokal kodeleveranse 2026-11-08
 
 Eiergodkjente, separate forvaltningsfullmakter er presisert i ADR-011 §9a.

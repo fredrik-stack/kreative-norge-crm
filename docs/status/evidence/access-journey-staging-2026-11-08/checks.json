@@ -1,0 +1,329 @@
+{
+  "api_dependencies_preserved": true,
+  "api_direct_gunicorn": true,
+  "api_image": "sha256:b2900af8533a6f51b9699b4825bc4993a7b02a93dfe853a3de410dfb308ba703",
+  "api_web_recreated_only": true,
+  "appoint_access_manager_apply": false,
+  "automatic_migrate_collectstatic": false,
+  "backup_services_inactive": true,
+  "browser_checks": {
+    "access_navigation_hidden": true,
+    "actors_and_people_navigation": true,
+    "actual_authenticated_context_http_200_disabled_empty": true,
+    "direct_access_page_disabled": true,
+    "general_ux_or_visual_acceptance": false,
+    "membership_admin_view_only_no_add": true,
+    "method": "native_chrome_existing_authenticated_profile_fresh_ephemeral_tab_get_only",
+    "new_login": false,
+    "session_credential_export": false,
+    "user_tabs_or_drafts_changed": false
+  },
+  "canonical_audit_rows": 0,
+  "canonical_stamp_counts": {
+    "crm_organization": {
+      "non_null": 128,
+      "rows": 128
+    },
+    "crm_person": {
+      "non_null": 157,
+      "rows": 157
+    }
+  },
+  "canonical_stamps_preserved": true,
+  "canonical_writer_functions_or_testwrites": false,
+  "checkpoint_receipts": {
+    "post": {
+      "archive_identity_read_back": true,
+      "dump_checksum_bound": true,
+      "no_new_volumes": true,
+      "restore": true,
+      "schema_validated": true,
+      "verified": true
+    },
+    "pre": {
+      "archive_identity_read_back": true,
+      "dump_checksum_bound": true,
+      "no_new_volumes": true,
+      "restore": true,
+      "schema_validated": false,
+      "verified": true
+    }
+  },
+  "code_commit": "8cc160e84162e94c11069e1ab52683496753e71a",
+  "credential_export_auto_review_rejected": true,
+  "credential_export_executed": false,
+  "database_container_preserved": true,
+  "database_identity_match": true,
+  "disabled_management_checks": {
+    "authenticated_context_empty_disabled": true,
+    "denied_operations": 5,
+    "membership_admin_readonly_superuser": true,
+    "new_history_not_admin_registered": true
+  },
+  "disabled_shared_capabilities_checked": 9,
+  "docker_compose_caddy_preserved": true,
+  "enabled_triggers": [
+    {
+      "enabled": "O",
+      "name": "crm_accessmanagementgrant_immutable",
+      "table": "crm_accessmanagementgrant"
+    },
+    {
+      "enabled": "O",
+      "name": "management_grant_insert",
+      "table": "crm_accessmanagementgrant"
+    },
+    {
+      "enabled": "O",
+      "name": "crm_accessmanagementgrantrevocation_immutable",
+      "table": "crm_accessmanagementgrantrevocation"
+    },
+    {
+      "enabled": "O",
+      "name": "management_revocation_insert",
+      "table": "crm_accessmanagementgrantrevocation"
+    },
+    {
+      "enabled": "O",
+      "name": "crm_membershipmanagementaudit_immutable",
+      "table": "crm_membershipmanagementaudit"
+    }
+  ],
+  "environment_mounts_media_static_preserved": true,
+  "evidence_version": 1,
+  "existing_tables_preserved": 53,
+  "frontend_baseline_reproduced_exactly": true,
+  "frontend_bundles": {
+    "assets/index-CqihExZd.css": "9e7613aad52716f3e899e92af9c75d2eca3cce589cddbdc397c9127240e2902e",
+    "assets/index-D4HvqDnp.js": "07ea7e24b3d845231f694156dfe48e8f53891710087d947dd6c0f88ff8e54b24",
+    "index.html": "d294ebbc5ed61c548d661d6c7b4831dbf62558a32d795866e84b637ab5282966"
+  },
+  "frontend_image_and_origin_bytes_match": true,
+  "frontend_package_manifest_lock_unchanged": true,
+  "frontend_target_built_from_exact_git_archive": true,
+  "gates": {
+    "ACCESS_MANAGEMENT_ENABLED": {
+      "file_setting": "unset_default_false",
+      "persistent_false": true
+    },
+    "CANONICAL_WRITER_ENABLED": {
+      "file_setting": "unset_default_false",
+      "persistent_false": true
+    },
+    "SHARING_ACCESS_ENABLED": {
+      "file_setting": "unset_default_false",
+      "persistent_false": true
+    },
+    "TENANT_NOTE_OVERLAYS_ENABLED": {
+      "file_setting": "unset_default_false",
+      "persistent_false": true
+    }
+  },
+  "helper_hashes": {
+    "db-read.py": "3943c528ff33874c405f0905bdd0ef0329e3ab340b5c5aec78d2669ed1fd33c9",
+    "finish-build.py": "f7a70e54e162119aa598d7e7b883ddc1d397f36107c30623fbc718f72a08dadf",
+    "schema.py": "ce724eed127a8516adadd6ec52ad07881e062528ae2785a071e208f0bb7433ec",
+    "stage.py": "38722502d1f7c7d71241d6f9430d8877bb96fe2c4c344b84ac632d6de189fc40"
+  },
+  "installed_backup_scripts_unchanged": true,
+  "ledger_bytes_and_history_preserved": true,
+  "legacy_profile_testwrites": false,
+  "legal_approval_column": {
+    "max_length": 200,
+    "nonempty_rows": 0,
+    "nullable": false,
+    "type": "character varying"
+  },
+  "lock_timeout_ms": 2000,
+  "membership_rows_after": 0,
+  "membership_rows_before": 0,
+  "migration": "0039_access_management_journey",
+  "migration_isolation": "READ COMMITTED",
+  "new_empty_tables": {
+    "crm_accessmanagementgrant": 0,
+    "crm_accessmanagementgrantrevocation": 0,
+    "crm_membershipmanagementaudit": 0
+  },
+  "new_function_source_matched": true,
+  "new_general_test_round": false,
+  "nginx_50x_preserved": true,
+  "nginx_runtime_dependencies_preserved": true,
+  "note_copy_batches": 0,
+  "note_copy_command_or_plan": false,
+  "npm_install_or_upgrade": false,
+  "old_fields_relations_pk_timestamps_publication_and_auth_sessions_preserved": true,
+  "old_role_api_serializer_and_public_sources_unchanged": true,
+  "old_schema_constraints_triggers_functions_columns_preserved": true,
+  "organization_overlay_rows": 0,
+  "other_feature_flags_preserved": true,
+  "person_overlay_rows": 0,
+  "post_migrate_seed": false,
+  "previous_api_commit": "06e65947b90483ec242e1cdd657a7835debe60ec",
+  "previous_frontend_source_commit": "a49b9d109e2c00f4cb000c31ed21c2a97db9d640",
+  "private_build_packaging_checks_corrected_before_runtime_mutation": true,
+  "prune_compact": false,
+  "public_api_html_and_six_image_variants_preserved": true,
+  "real_users_memberships_grants_agreements_acceptances_revocations_changed": false,
+  "remaining_migrations": 0,
+  "restore_containers_remaining": 0,
+  "safety_cursor": 13,
+  "safety_ready": true,
+  "schema_reverse": false,
+  "sharing_history_rows": {
+    "crm_sharingaccessaudit": 0,
+    "crm_sharingagreement": 0,
+    "crm_sharingagreementacceptance": 0,
+    "crm_sharingagreementrevocation": 0
+  },
+  "source_files_checked": 170,
+  "source_main_ci": 42488491185,
+  "source_pr_ci": 42487776851,
+  "statement_timeout_ms": 30000,
+  "status": "STAGING_VERIFIED",
+  "technical_authenticated_read_checks": {
+    "admin_lists": 2,
+    "admin_note_forms": 2,
+    "api_details": 6,
+    "api_lists": 14,
+    "authenticated_session": true,
+    "operator_reused": true
+  },
+  "timers": {
+    "kreative-norge-backup": {
+      "active": true,
+      "enabled": true
+    },
+    "kreative-norge-backup-verify": {
+      "active": true,
+      "enabled": true
+    },
+    "kreative-norge-image-safety-health": {
+      "active": true,
+      "enabled": true
+    }
+  },
+  "unused_server_session_file_removed": true,
+  "validated_constraints": [
+    {
+      "definition": "CHECK (((((action)::text = 'manage_tenant_memberships'::text) AND (tenant_id IS NOT NULL)) OR (((action)::text = 'publish_sharing_agreement'::text) AND (tenant_id IS NULL))))",
+      "name": "access_grant_exact_scope",
+      "table": "crm_accessmanagementgrant",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "FOREIGN KEY (sharing_domain_id) REFERENCES crm_sharingdomain(id) DEFERRABLE INITIALLY DEFERRED",
+      "name": "crm_accessmanagement_sharing_domain_id_cf72132e_fk_crm_shari",
+      "table": "crm_accessmanagementgrant",
+      "type": "f",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((appointed_by_id >= 0))",
+      "name": "crm_accessmanagementgrant_appointed_by_id_check",
+      "table": "crm_accessmanagementgrant",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "crm_accessmanagementgrant_pkey",
+      "table": "crm_accessmanagementgrant",
+      "type": "p",
+      "validated": true
+    },
+    {
+      "definition": "UNIQUE (request_id)",
+      "name": "crm_accessmanagementgrant_request_id_key",
+      "table": "crm_accessmanagementgrant",
+      "type": "u",
+      "validated": true
+    },
+    {
+      "definition": "FOREIGN KEY (tenant_id) REFERENCES crm_tenant(id) DEFERRABLE INITIALLY DEFERRED",
+      "name": "crm_accessmanagementgrant_tenant_id_45327ef1_fk_crm_tenant_id",
+      "table": "crm_accessmanagementgrant",
+      "type": "f",
+      "validated": true
+    },
+    {
+      "definition": "FOREIGN KEY (user_id) REFERENCES auth_user(id) DEFERRABLE INITIALLY DEFERRED",
+      "name": "crm_accessmanagementgrant_user_id_700344d0_fk_auth_user_id",
+      "table": "crm_accessmanagementgrant",
+      "type": "f",
+      "validated": true
+    },
+    {
+      "definition": "FOREIGN KEY (grant_id) REFERENCES crm_accessmanagementgrant(id) DEFERRABLE INITIALLY DEFERRED",
+      "name": "crm_accessmanagement_grant_id_a7ff7ddb_fk_crm_acces",
+      "table": "crm_accessmanagementgrantrevocation",
+      "type": "f",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((actor_id >= 0))",
+      "name": "crm_accessmanagementgrantrevocation_actor_id_check",
+      "table": "crm_accessmanagementgrantrevocation",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "UNIQUE (grant_id)",
+      "name": "crm_accessmanagementgrantrevocation_grant_id_key",
+      "table": "crm_accessmanagementgrantrevocation",
+      "type": "u",
+      "validated": true
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "crm_accessmanagementgrantrevocation_pkey",
+      "table": "crm_accessmanagementgrantrevocation",
+      "type": "p",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((actor_id >= 0))",
+      "name": "crm_membershipmanagementaudit_actor_id_check",
+      "table": "crm_membershipmanagementaudit",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((grant_id >= 0))",
+      "name": "crm_membershipmanagementaudit_grant_id_check",
+      "table": "crm_membershipmanagementaudit",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "PRIMARY KEY (id)",
+      "name": "crm_membershipmanagementaudit_pkey",
+      "table": "crm_membershipmanagementaudit",
+      "type": "p",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((sharing_domain_id >= 0))",
+      "name": "crm_membershipmanagementaudit_sharing_domain_id_check",
+      "table": "crm_membershipmanagementaudit",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((target_user_id >= 0))",
+      "name": "crm_membershipmanagementaudit_target_user_id_check",
+      "table": "crm_membershipmanagementaudit",
+      "type": "c",
+      "validated": true
+    },
+    {
+      "definition": "CHECK ((tenant_id >= 0))",
+      "name": "crm_membershipmanagementaudit_tenant_id_check",
+      "table": "crm_membershipmanagementaudit",
+      "type": "c",
+      "validated": true
+    }
+  ],
+  "verified_at_utc": "2026-11-08T14:45:07.803819+00:00",
+  "web_image": "sha256:19f408668d9a637083ff2bf3ef303ff3c36b89c48e900f32999690835e9ce169"
+}

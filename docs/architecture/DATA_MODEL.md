@@ -1,5 +1,23 @@
 # Data Model
 
+## 0039 – faktisk stagingtilstand 2026-11-08
+
+Eksakt API/frontend `8cc160e` og bare0039 er teknisk stagingverifisert med tom
+sluttplan. Tre nye tabeller har0 rader,17 constraints er validerte, fem triggere
+er aktive og én ny funksjon matcher kilde. Ny juridisk referanse er NOT NULL
+varchar(200), kontrollert separat; ingen avtaler/referanser er opprettet.
+Alle gamle data i53 tabeller, inklusive canonical UUID-stamps, auth/session,
+roller og tidligere kolonne-/constraint-/trigger-/funksjonsmetadata, er bevart.
+Medlemskap er0→0; eksisterende avtalehistorikk/canonical audit/overlays/batch er0.
+
+Alle fire tilgangs-/writer-/notatgater er effektivt/varig av. Avgrensede
+serverautentiserte og faktiske HTTPS/browserlesekontroller bestod, inklusive
+read-only medlemskaps-Admin. Ingen reell forvaltningshandling eller profilwrite.
+Pre/post-backup/fullverify/isolert restore og normal timer-/safetystatus er grønne.
+[Full kontrakt, bevaring og bevisgrenser](SECURITY_AND_ROLES.md#stagingverifisering-av-første-tilgangsreise--2026-11-08).
+Daterte «ingen staging»-avsnitt nedenfor beskriver tidligere kodeleveranse.
+
+
 ## Første tilgangsreise – additiv0039, 2026-11-08
 
 `AccessManagementGrant` er immutable sentral utpekning av én bruker til enten
