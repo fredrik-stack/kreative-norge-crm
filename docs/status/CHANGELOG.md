@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-08 – Første tilgangsreise, inaktiv lokal kodeleveranse
+
+- Separate scopede fullmakter for medlemskap og avtalepublisering, uten
+  automatisk adgang fra roller/grupper/staff/superuser. Kontrollert sentral oppstart.
+- Liten Editor-side for medlemskapsforvaltning, juridisk referert publisering,
+  eksplisitt egenaksept og tilbakekalling. Eksisterende medlemskaps-Admin er read-only.
+- Additiv0039 og default-off forvaltning; ingen staging, reelle medlemmer/avtaler,
+  notatkopiering eller shared-/writeraktivering. Legacytilgang består separat.
+- [Sikkerhets- og oppstartskontrakt](../architecture/SECURITY_AND_ROLES.md#forvaltningsfullmakter-og-første-tilgangsreise--2026-11-08).
+
+
 ## 2026-11-07 – Admin bare i desktopmenyen
 
 - Eier har godkjent øvrig UI-leveranse fra PR #94–96, med denne ene rettingen.

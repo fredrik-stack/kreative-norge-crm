@@ -2488,3 +2488,16 @@ fieldset.field > legend { padding: 0; margin: 0 0 5px; }
 }
 .compact-editor .editor-card-grid .mini-pill { display:block; }
 .detail-modal .mini-pill { max-width:100%; overflow-wrap:anywhere; }
+
+
+/* Small ADR-011 control plane; inherits Editor buttons, panels and field styling. */
+.access-management-page form { display: grid; gap: 12px; }
+.access-management-page label:not(.access-check) { display: grid; gap: 5px; }
+.access-management-page .access-check { display: flex; align-items: flex-start; gap: 8px; margin-block: 12px; }
+.access-management-page .access-check input { flex: 0 0 auto; margin-top: 4px; }
+.access-management-page textarea { width: 100%; min-height: 160px; box-sizing: border-box; }
+.access-management-page pre { overflow-wrap: anywhere; }
+.access-management-page li { margin-block: 10px; overflow-wrap: anywhere; }
+.access-management-page li button { margin-left: 8px; }
+.access-management-page > .panel { margin-top: 16px; }
+.access-management-page details { margin-block: 16px; }

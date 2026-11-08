@@ -1,3 +1,5 @@
+import { AccessManagementPage } from "./pages/AccessManagementPage";
+import { getManagementContext } from "./api";
 import type { AuthSession } from "./api";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -33,6 +35,11 @@ function AppShell() {
 
 function EditorShell({ username, user, onLogout }: { username: string; user: AuthSession["user"]; onLogout: () => void }) {
   const editor = useEditorData();
+  const [managementEnabled, setManagementEnabled] = useState(false);
+  useEffect(() => { let active = true;
+    getManagementContext().then(value => {if (active) setManagementEnabled(value.enabled);}).catch(() => {});
+    return () => {active = false;};
+  }, []);
   const location = useLocation();
   const navigate = useNavigate();
   const isOrganizationsOverview = location.pathname === "/organizations" || location.pathname === "/";
@@ -115,6 +122,7 @@ function EditorShell({ username, user, onLogout }: { username: string; user: Aut
             <NavLink to="/import" className={({isActive}) => `nav-link ${isActive || location.pathname === "/import-export" ? "active" : ""}`}><EditorIcon name="import" />Import</NavLink>
             <NavLink to="/export" className={({isActive}) => `nav-link ${isActive ? "active" : ""}`}><EditorIcon name="export" />Eksport</NavLink>
           </> : null}
+          {managementEnabled ? <NavLink to="/access" className="nav-link">Tilgang og avtale</NavLink> : null}
           <button type="button" className="nav-link nav-unavailable" disabled title="Kart er ikke tilgjengelig ennå"><EditorIcon name="map" />Kart</button>
           {user?.can_access_admin ? <a href="/admin/" className="nav-link editor-admin-link" onClick={event => { event.preventDefault(); unsavedGuard.requestAction("Admin", () => window.location.assign("/admin/")); }}><EditorIcon name="admin" />Admin</a> : null}
         </nav>
@@ -245,6 +253,7 @@ function EditorShell({ username, user, onLogout }: { username: string; user: Aut
 
       <EditorProvider value={editor}>
         <Routes>
+          <Route path="/access" element={<AccessManagementPage username={username} />} />
           <Route path="/" element={<Navigate to="/organizations" replace />} />
           <Route path="/organizations" element={<OrganizationsPage />} />
           <Route path="/organizations/:orgId" element={<OrganizationsPage />} />

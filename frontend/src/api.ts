@@ -683,3 +683,24 @@ export function getExportJobFileUrl(fileUrl: string | null): string | null {
   if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) return fileUrl;
   return `${API_BASE}${fileUrl}`;
 }
+
+export type ManagementMembership = { username: string; role: string; is_active: boolean; expected_updated_at: string | null };
+export type ManagementContext = {
+  enabled: boolean;
+  published_agreements: {id: number; domain_id: number; version: number; text: string; effective_at: string; legal_approval_reference: string}[];
+  memberships: {tenant_id: number; tenant_name: string; domain_id: number; role: string;
+    agreement: null | {id: number; version: number; text: string; effective_at: string}}[];
+  grants: {action: string; tenant_id: number | null; tenant_name: string | null; domain_id: number; domain_name: string}[];
+  acceptances: {id: number; agreement_id: number; domain_id: number; version: number; revoked: boolean}[];
+};
+export const getManagementContext = () => request<ManagementContext>("/api/auth/access-management/");
+export const getManagedMemberships = (domain: number, tenant: number) =>
+  request<ManagementMembership[]>(`/api/auth/access-management/domains/${domain}/tenants/${tenant}/memberships/`);
+export const saveManagedMembership = (domain: number, tenant: number, data: ManagementMembership) =>
+  request<ManagementMembership>(`/api/auth/access-management/domains/${domain}/tenants/${tenant}/memberships/`, {method: "POST", body: JSON.stringify(data)});
+export const publishSharingAgreement = (domain: number, data: {version: number; text: string; effective_at: string; legal_approval_reference: string; approved: boolean}) =>
+  request(`/api/auth/access-management/domains/${domain}/agreements/`, {method: "POST", body: JSON.stringify(data)});
+export const acceptSharingAgreement = (domain: number, tenant: number, agreement: number) =>
+  request(`/api/auth/access-management/domains/${domain}/acceptances/`, {method: "POST", body: JSON.stringify({tenant_id: tenant, agreement_id: agreement, confirmed: true})});
+export const revokeSharingAcceptance = (id: number) =>
+  request(`/api/auth/access-management/acceptances/${id}/revoke/`, {method: "POST", body: "{}"});

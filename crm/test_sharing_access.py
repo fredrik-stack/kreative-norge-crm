@@ -260,7 +260,9 @@ class SharingFoundationMigrationTests(TransactionTestCase):
             MigrationExecutor(connection).migrate([self.old])
         TenantMembership.objects.filter(pk=member.pk).update(is_active=True)
         domain = SharingDomain.objects.create(name="Synthetic", slug="synthetic")
-        SharingAgreement.objects.create(sharing_domain=domain, version=1, text="Synthetic", created_by_id=user.pk, effective_at=timezone.now())
+        historical = MigrationExecutor(connection).loader.project_state([self.new]).apps
+        historical.get_model("crm", "SharingAgreement").objects.create(sharing_domain_id=domain.pk,
+            version=1, text="Synthetic", created_by_id=user.pk, effective_at=timezone.now())
         with self.assertRaises(RuntimeError), transaction.atomic():
             MigrationExecutor(connection).migrate([self.old])
         self.assertEqual(SharingAccessAudit.objects.count(), 1)

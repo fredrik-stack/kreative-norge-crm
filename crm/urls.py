@@ -1,5 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from .access_management_views import (ManagementContextView, MembershipManagementView,
+    AgreementPublicationView, OwnAcceptanceView, OwnRevocationView)
 from .views import (
     CsrfTokenView,
     SessionView,
@@ -32,6 +34,11 @@ tenant_router.register(r"import-jobs", ImportJobViewSet, basename="tenant-import
 tenant_router.register(r"export-jobs", ExportJobViewSet, basename="tenant-export-jobs")
 
 urlpatterns = [
+    path("auth/access-management/", ManagementContextView.as_view()),
+    path("auth/access-management/domains/<int:domain_id>/tenants/<int:tenant_id>/memberships/", MembershipManagementView.as_view()),
+    path("auth/access-management/domains/<int:domain_id>/agreements/", AgreementPublicationView.as_view()),
+    path("auth/access-management/domains/<int:domain_id>/acceptances/", OwnAcceptanceView.as_view()),
+    path("auth/access-management/acceptances/<int:acceptance_id>/revoke/", OwnRevocationView.as_view()),
     path("auth/csrf/", CsrfTokenView.as_view(), name="auth-csrf"),
     path("auth/session/", SessionView.as_view(), name="auth-session"),
     path("auth/login/", LoginView.as_view(), name="auth-login"),
