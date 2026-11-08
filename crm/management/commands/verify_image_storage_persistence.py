@@ -49,6 +49,8 @@ class Command(BaseCommand):
         parser.add_argument("--token", required=True)
 
     def handle(self, *args, **options):
+        from crm.tenant_access import block_legacy_operator
+        block_legacy_operator()
         token = options["token"]
         if not TOKEN_PATTERN.fullmatch(token):
             raise CommandError("token must contain exactly 32 lowercase hexadecimal characters")

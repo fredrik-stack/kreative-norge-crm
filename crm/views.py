@@ -113,13 +113,16 @@ class CsrfTokenView(APIView):
 
 
 def editor_session_user(user):
+    from .tenant_access import strict_tenant_access, active_memberships
     memberships = TenantMembership.objects.filter(user=user).select_related("tenant").order_by("tenant__name")
+    if strict_tenant_access():
+        memberships = active_memberships(user).select_related("tenant").order_by("tenant__name")
     return {
         "id": user.id,
         "username": user.get_username(),
         "display_name": user.get_full_name().strip() or user.get_username(),
         "is_superuser": user.is_superuser,
-        "can_access_admin": bool(user.is_active and user.is_staff),
+        "can_access_admin": bool(user.is_active and user.is_staff and not strict_tenant_access()),
         "memberships": TenantMembershipSerializer(memberships, many=True).data,
     }
 
@@ -181,6 +184,9 @@ class TenantViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         queryset = Tenant.objects.all().order_by("name")
+        from .tenant_access import strict_tenant_access, active_memberships
+        if strict_tenant_access():
+            return queryset.filter(id__in=active_memberships(self.request.user).values("tenant_id"))
         if self.request.user.is_superuser:
             return queryset
         memberships = TenantMembership.objects.filter(user=self.request.user).select_related("tenant")

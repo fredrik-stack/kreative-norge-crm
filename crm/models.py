@@ -324,7 +324,7 @@ class TenantMembership(models.Model):
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="memberships")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="tenant_memberships")
     role = models.CharField(max_length=24, choices=Role.choices)
-    # Only the new ADR-011 policy uses this; legacy journeys remain unchanged.
+    # ADR-011 and opt-in strict tenant access use this; legacy mode ignores it.
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

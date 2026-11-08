@@ -13,6 +13,8 @@ class Command(BaseCommand):
         parser.add_argument("--force", action="store_true")
 
     def handle(self, *args, **options):
+        from crm.tenant_access import block_legacy_operator
+        block_legacy_operator()
         qs = Organization.objects.all().order_by("id")
         tenant_id = options.get("tenant_id")
         if tenant_id is not None:

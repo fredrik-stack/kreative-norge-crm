@@ -88,6 +88,15 @@ ACCESS_MANAGEMENT_ENABLED = _read_fail_closed_bool("ACCESS_MANAGEMENT_ENABLED", 
 
 SHARING_ACCESS_ENABLED = _read_fail_closed_bool("SHARING_ACCESS_ENABLED", default=False)
 
+# This restricts legacy access, unlike additive feature flags. A malformed value
+# must stop startup rather than silently restore permissive legacy authority.
+_strict_tenant_raw = os.getenv("STRICT_TENANT_ACCESS_ENABLED")
+if _strict_tenant_raw is not None and _strict_tenant_raw.strip().casefold() not in {
+    "1", "true", "yes", "on", "0", "false", "no", "off",
+}:
+    raise ImproperlyConfigured("Invalid STRICT_TENANT_ACCESS_ENABLED boolean")
+STRICT_TENANT_ACCESS_ENABLED = _read_fail_closed_bool("STRICT_TENANT_ACCESS_ENABLED", default=False)
+
 SHARING_DOMAIN_SHADOW_ENABLED = _read_fail_closed_bool(
     "SHARING_DOMAIN_SHADOW_ENABLED", default=False,
 )
@@ -251,6 +260,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'crm.tenant_access.StrictTenantAccessMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

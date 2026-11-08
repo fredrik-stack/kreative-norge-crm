@@ -37,6 +37,8 @@ def incomplete(reason):
 
 
 def _require_scope():
+    from crm.tenant_access import block_legacy_operator
+    block_legacy_operator()
     domains = list(SharingDomain.objects.filter(
         Q(pk=DOMAIN["id"]) | Q(slug=DOMAIN["slug"])
     ).values("id", "slug", "name"))

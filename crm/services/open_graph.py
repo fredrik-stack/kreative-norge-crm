@@ -348,6 +348,9 @@ def refresh_organization_open_graph(
     force: bool = False,
     min_refresh_interval: timedelta = timedelta(hours=12),
 ) -> None:
+    from crm.tenant_access import require_tenant_operation
+    from crm.permissions import WRITE_ROLES
+    require_tenant_operation(organization.tenant_id, WRITE_ROLES)
     primary = organization.get_primary_link()
     now = timezone.now()
 

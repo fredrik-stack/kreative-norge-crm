@@ -413,6 +413,9 @@ def _materialization_inputs(
 def create_organization_image_release(
     *, selection: OrganizationImageSelection
 ) -> OrganizationImageReleaseResult:
+    from crm.tenant_access import require_tenant_operation
+    from crm.permissions import WRITE_ROLES
+    require_tenant_operation(selection.tenant_id, WRITE_ROLES)
     if not (
         settings.IMAGE_ASSET_FEATURE_ENABLED
         and settings.PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED

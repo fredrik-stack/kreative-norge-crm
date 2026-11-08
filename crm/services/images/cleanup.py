@@ -252,6 +252,8 @@ def cleanup_image_storage_orphans(
     minimum_age_hours: int = 24,
     now: float | None = None,
 ) -> ImageOrphanCleanupResult:
+    from crm.tenant_access import block_legacy_operator
+    block_legacy_operator()
     if isinstance(minimum_age_hours, bool) or minimum_age_hours < 0:
         raise ImageOrphanCleanupError("minimum_age_hours must be a non-negative integer.")
     minimum_age_seconds = minimum_age_hours * 60 * 60

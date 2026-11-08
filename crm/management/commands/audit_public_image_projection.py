@@ -19,6 +19,8 @@ class Command(BaseCommand):
     help = "Audit the read-only phase 3E.2 projection for the published catalog."
 
     def handle(self, *args, **options):
+        from crm.tenant_access import block_legacy_operator
+        block_legacy_operator()
         if not settings.PUBLIC_IMAGE_PROJECTION_ENABLED:
             raise CommandError("PUBLIC_IMAGE_PROJECTION_ENABLED must be enabled.")
 

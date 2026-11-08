@@ -253,6 +253,9 @@ def ingest_uploaded_image(
     zoom: float | None = None,
     processing_profile: str = PROCESSING_PROFILE,
 ) -> ImageIngestResult:
+    from crm.tenant_access import require_tenant_operation
+    from crm.permissions import WRITE_ROLES
+    require_tenant_operation(tenant.pk, WRITE_ROLES)
     if not settings.IMAGE_ASSET_FEATURE_ENABLED:
         raise ImageIngestFeatureDisabledError(
             "Image asset feature is disabled; image ingest is unavailable."

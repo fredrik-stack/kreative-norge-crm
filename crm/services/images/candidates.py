@@ -109,6 +109,14 @@ def _feature_guard() -> None:
 
 
 def _validate_actor(actor, tenant_id: int, *, allow_reader: bool = False) -> None:
+    from crm.tenant_access import strict_tenant_access, require_tenant_operation
+    from django.core.exceptions import PermissionDenied
+    if strict_tenant_access():
+        try:
+            require_tenant_operation(tenant_id, TenantMembership.Role.values if allow_reader else ALLOWED_SELECTION_ROLES, actor=actor)
+        except PermissionDenied as error:
+            raise ImageCandidatePermissionDenied() from error
+        return
     if (
         actor is None
         or not getattr(actor, "is_authenticated", False)

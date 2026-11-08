@@ -1,5 +1,17 @@
 # Data Model
 
+## Streng legacytenanttilgang – inaktiv kodeleveranse 2026-11-08
+
+Egen default-off `STRICT_TENANT_ACCESS_ENABLED` gjør eksplisitt aktivt
+medlemskap og relevant rolle autoritativt for tenant-API/session/tenantvalg,
+import/eksport og bildehandlinger når separat aktivert. Global rolle gir da
+ingen adgang; eksisterende uscopede Admin-/operatørinnganger sperres. Avtaleaksept
+kreves ikke for ren legacytenanttilgang. Avslått modus bevarer dagens adferd.
+Ingen migrasjon eller reell data-/rettighetsendring. Stagingverifisering med
+alle fem gater av gjenstår til godkjent merge/CI og driftsporter er oppfylt.
+[Kontrakt, tester, oppstart og rollback](SECURITY_AND_ROLES.md#streng-legacytenanttilgang--implementasjonskontrakt-2026-11-08).
+
+
 ## 0039 – faktisk stagingtilstand 2026-11-08
 
 Eksakt API/frontend `8cc160e` og bare0039 er teknisk stagingverifisert med tom

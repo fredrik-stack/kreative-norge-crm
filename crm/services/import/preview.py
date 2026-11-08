@@ -35,6 +35,9 @@ def _ai_summary(rows: list[ImportRow]) -> dict:
 
 
 def summarize_job_rows(import_job: ImportJob) -> dict:
+    from crm.tenant_access import require_tenant_operation
+    from crm.permissions import WRITE_ROLES
+    require_tenant_operation(import_job.tenant_id, WRITE_ROLES)
     rows = list(import_job.rows.all())
     organization_matches = [row.match_result_json.get("organization", {}) for row in rows]
     person_matches = [row.match_result_json.get("person", {}) for row in rows]
@@ -76,6 +79,9 @@ def summarize_job_rows(import_job: ImportJob) -> dict:
 
 
 def update_job_preview_status(import_job: ImportJob) -> None:
+    from crm.tenant_access import require_tenant_operation
+    from crm.permissions import WRITE_ROLES
+    require_tenant_operation(import_job.tenant_id, WRITE_ROLES)
     summary = summarize_job_rows(import_job)
     import_job.summary_json = summary
     if summary["review_required_rows"] or summary["invalid_rows"]:
@@ -111,6 +117,9 @@ def _row_outcome(normalized_payload: dict, errors: list[str], warnings: list[str
 
 
 def run_import_preview(import_job: ImportJob) -> ImportJob:
+    from crm.tenant_access import require_tenant_operation
+    from crm.permissions import WRITE_ROLES
+    require_tenant_operation(import_job.tenant_id, WRITE_ROLES)
     if not import_job.file:
         raise ValueError("Import job has no file to preview.")
 
@@ -158,6 +167,9 @@ def run_import_preview(import_job: ImportJob) -> ImportJob:
 
 
 def generate_import_job_ai(import_job: ImportJob, *, retry_failed: bool = False, batch_size: int = AI_BATCH_SIZE) -> ImportJob:
+    from crm.tenant_access import require_tenant_operation
+    from crm.permissions import WRITE_ROLES
+    require_tenant_operation(import_job.tenant_id, WRITE_ROLES)
     if batch_size < 1:
         batch_size = AI_BATCH_SIZE
 

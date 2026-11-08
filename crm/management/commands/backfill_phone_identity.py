@@ -36,6 +36,8 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        from crm.tenant_access import block_legacy_operator
+        block_legacy_operator()
         rollback_manifest = options.get("rollback_manifest")
         if rollback_manifest:
             forbidden = (

@@ -51,7 +51,7 @@ class TenantSerializer(serializers.ModelSerializer):
         if request is None or not request.user.is_authenticated:
             return None
         membership = getattr(obj, "_current_user_membership", None)
-        if membership is not None:
+        if membership is not None and not settings.STRICT_TENANT_ACCESS_ENABLED:
             return membership.role
         return get_user_tenant_role(request.user, obj.id)
 

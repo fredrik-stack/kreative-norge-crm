@@ -39,6 +39,8 @@ class Command(BaseCommand):
                             help="Exact SHA externally verified against the reviewed running code/image.")
 
     def handle(self, *args, **options):
+        from crm.tenant_access import block_legacy_operator
+        block_legacy_operator()
         try:
             report = measure(environment=options["environment"], expected_database=options["expected_database"],
                              code_baseline=options["code_baseline"])

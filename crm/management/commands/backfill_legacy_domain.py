@@ -21,6 +21,8 @@ class Command(BaseCommand):
         parser.add_argument("--manifest-path")
 
     def handle(self, *args, **options):
+        from crm.tenant_access import block_legacy_operator
+        block_legacy_operator()
         if options["apply"] and options["read_batch"]:
             raise CommandError("Apply and read-back are separate modes.")
         if options["read_batch"]:

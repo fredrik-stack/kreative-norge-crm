@@ -6,6 +6,9 @@ from django.core.files.base import ContentFile
 
 
 def build_error_report_content(import_job) -> str:
+    from crm.tenant_access import require_tenant_operation
+    from crm.permissions import WRITE_ROLES
+    require_tenant_operation(import_job.tenant_id, WRITE_ROLES)
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow(["row_number", "row_status", "proposed_action", "validation_errors", "warnings"])
@@ -25,6 +28,9 @@ def build_error_report_content(import_job) -> str:
 
 
 def save_error_report(import_job) -> None:
+    from crm.tenant_access import require_tenant_operation
+    from crm.permissions import WRITE_ROLES
+    require_tenant_operation(import_job.tenant_id, WRITE_ROLES)
     content = build_error_report_content(import_job)
     filename = f"import-job-{import_job.id}-error-report.csv"
     import_job.error_report_file.save(filename, ContentFile(content.encode("utf-8")), save=False)
