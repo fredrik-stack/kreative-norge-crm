@@ -2,6 +2,17 @@
 
 ## Status
 
+**Implementeringspresisering2026-11-08:** Eksisterende bildearkitektur gjenbrukes
+for en eksplisitt Editor/API-overgang fra intern rights approval til offentlig
+release, med expected revision, låsing/reautorisering og samme permanente
+reservation ved retry. Approval publiserer ikke skjult. PUBLIC-preview og ordinær
+fallback gjenbruker projeksjon/selection-historikk; formell deny er separat.
+Brave begrenses server-side til én uttrykkelig identifisert, aktiv kundekonto,
+uten gruppe-/staff-/superuserfallback, i påvente av senere flerbrukeravtaler.
+Ingen schemaendring, ny bildearkitektur eller generelt avtalesystem.
+[Kontrakt, eiermandat og faktisk leveransestatus](../architecture/SECURITY_AND_ROLES.md#editor-bildepublisering-og-en-brave-konto--kodeleveranse-2026-11-08).
+
+
 Godkjent arkitekturretning. Fase 3E.1A er implementert og `ACTIVE` i staging som lokal safety-ledger, dedikert off-server Borg-anchor, separat recovery-gate og fail-closed health. Fase 3E.1B.1–3E.1B.2-materialisering er `ACTIVE` etter syntetisk ankret reserve/activate-, crash/restart/retry- og no-clobber-gate. Fase 3E.1C-controlled serving er `CLOSED / ACTIVE` i staging etter separat HTTP-, fail-closed-, restart-, observability- og backup/restore-gate. Fase 3E.2 er `CLOSED / SHADOW VERIFIED`, og fase 3E.3 target-API/PUBLIC/head er `CLOSED / ACTIVE` etter separat aktiverings-, rollback-, browser- og ytelsesgate. Fase 3E.4 ledger-v2/formell takedown er `CLOSED / ACTIVE` etter permanent syntetisk deny, rollback, mediarestore, sikker republisering, restart og backup/restore. Kode-/eksempelstandardene er fortsatt av; de sju runtime-/write-gatene er `True` bare i ignorert stagingkonfigurasjon.
 
 **Beslutningsdato:** 2026-08-17

@@ -24,7 +24,7 @@ from crm.services.images.brave import (
     build_search_context,
     prepare_search_query,
     rank_brave_results,
-    search_brave_images,
+    _search_brave_images as search_brave_images,
 )
 from crm.services.images.candidates import (
     CANDIDATE_REF_SALT,
@@ -180,6 +180,8 @@ class BraveQueryAndCandidateTests(TestCase):
             user=self.actor,
             role=TenantMembership.Role.REDIGERER,
         )
+        brave_scope = override_settings(BRAVE_IMAGE_SEARCH_USER_ID=self.actor.pk)
+        brave_scope.enable(); self.addCleanup(brave_scope.disable)
 
     def test_default_query_uses_only_name_and_exactly_one_municipality(self):
         context = build_search_context(self.organization)
@@ -378,6 +380,8 @@ class BraveImageApiTests(TestCase):
             role=TenantMembership.Role.LESER,
         )
         self.base = f"/api/tenants/{self.tenant.pk}/organizations/{self.organization.pk}/images"
+        brave_scope = override_settings(BRAVE_IMAGE_SEARCH_USER_ID=self.editor.pk)
+        brave_scope.enable(); self.addCleanup(brave_scope.disable)
 
     def test_search_context_and_url_candidate_are_tenant_scoped_writer_actions(self):
         self.client.force_login(self.editor)

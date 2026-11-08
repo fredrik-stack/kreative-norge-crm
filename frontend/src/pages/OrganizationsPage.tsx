@@ -28,6 +28,8 @@ import {
   processOrganizationImage,
   processUploadedOrganizationImage,
   searchBraveImages,
+  publishOrganizationImage,
+  useOrganizationImageFallback,
 } from "../api";
 import type {
   OrganizationImageCandidate,
@@ -847,6 +849,7 @@ export function OrganizationImagePanel(props: {
   const [imageState, setImageState] = useState<OrganizationImageState | null>(null);
   const [altText, setAltText] = useState("");
   const [publicCredit, setPublicCredit] = useState("");
+  const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [officialAttempted, setOfficialAttempted] = useState(false);
   const [sourcePanel, setSourcePanel] = useState<ImageSourcePanel>(null);
   const [searchContext, setSearchContext] = useState<OrganizationImageSearchContext | null>(null);
@@ -859,7 +862,7 @@ export function OrganizationImagePanel(props: {
   const [lastSearch, setLastSearch] = useState<{ query: string; sources: string[] } | null>(null);
   const [directImageUrl, setDirectImageUrl] = useState("");
   const [busy, setBusy] = useState<
-    "state" | "discover" | "search-context" | "brave" | "url" | "process" | "approve" | null
+    "state" | "discover" | "search-context" | "brave" | "url" | "process" | "approve" | "publish" | "fallback" | null
   >(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -991,6 +994,7 @@ export function OrganizationImagePanel(props: {
   }
 
   function invalidateProcessing() {
+    setRightsConfirmed(false);
     revokePreviewUrls(processedPreviews);
     setProcessed(null);
     setProcessedPreviews({});
@@ -1019,6 +1023,7 @@ export function OrganizationImagePanel(props: {
     setProcessed(null);
     setProcessedPreviews({});
     setActivePreviews({});
+    setRightsConfirmed(false);
     setImageState(null);
     setAltText("");
     setPublicCredit("");
@@ -1300,6 +1305,7 @@ export function OrganizationImagePanel(props: {
       if (scopeGeneration.current !== generation) return;
       revokePreviewUrls(processedPreviews);
       setProcessed(result);
+      setRightsConfirmed(false);
       setProcessedPreviews(previews);
     } catch (nextError) {
       if (scopeGeneration.current === generation) {
@@ -1311,7 +1317,7 @@ export function OrganizationImagePanel(props: {
   }
 
   async function onApprove() {
-    if (!processed || !imageState) return;
+    if (!processed || !imageState || !rightsConfirmed) return;
     const generation = scopeGeneration.current;
     setBusy("approve");
     setError(null);
@@ -1321,6 +1327,7 @@ export function OrganizationImagePanel(props: {
         expected_revision: imageState.expected_revision,
         alt_text: altText.trim(),
         public_credit: publicCredit.trim(),
+        rights_confirmed: true,
       });
       if (scopeGeneration.current !== generation) return;
       await loadState(generation);
@@ -1338,6 +1345,27 @@ export function OrganizationImagePanel(props: {
     : selectedRef
       ? candidateOriginalPreviews[selectedRef] ?? null
       : null;
+
+  async function onPublicImageCommand(fallback: boolean) {
+    if (!imageState?.active_selection) return;
+    const generation = scopeGeneration.current;
+    setBusy(fallback ? "fallback" : "publish"); setError(null);
+    try {
+      const command = fallback ? useOrganizationImageFallback : publishOrganizationImage;
+      await command(tenantId, organizationId, imageState.expected_revision);
+      if (scopeGeneration.current !== generation) return;
+      await loadState(generation);
+      if (fallback && scopeGeneration.current === generation) invalidateProcessing();
+    } catch (nextError) {
+      if (scopeGeneration.current === generation) {
+        setError(imageFlowError(nextError));
+        // Re-read authority after stale/uncertain responses; never replay a write.
+        try { await loadState(generation); } catch { /* keep the original failure */ }
+      }
+    } finally {
+      if (scopeGeneration.current === generation) setBusy(null);
+    }
+  }
   const hasSelectedCandidate = Boolean(
     (uploadSelected && uploadFile)
     || (selectedRef && candidateOriginalPreviews[selectedRef]),
@@ -1379,13 +1407,36 @@ export function OrganizationImagePanel(props: {
       {error ? <div className="inline-banner warn" role="alert">{error}</div> : null}
       {imageState?.active_selection ? (
         <div className="image-active-state">
-          <strong>Aktivt bilde</strong>
+          <strong>{imageState.active_selection.kind === "asset" ? "Internt godkjent bilde" : "Standardbilde valgt"}</strong>
           <span className="meta">Revisjon {imageState.active_selection.revision}</span>
           <span className="meta">{imageState.active_selection.alt_text || "Ingen alt-tekst"}</span>
           <ImagePreviewGrid urls={activePreviews} label="Forhåndsvisning av aktivt bilde" />
         </div>
       ) : busy !== "state" ? (
         <div className="empty-state compact">Ingen aktivt valgt bilde ennå.</div>
+      ) : null}
+
+      {imageState?.public_image?.enabled ? (
+        <div className="image-active-state" aria-label="Bilde på PUBLIC">
+          <strong>{imageState.public_image.kind === "asset" ? "Bildet er i bruk på PUBLIC" : "PUBLIC bruker standardbilde"}</strong>
+          {imageState.public_image.image ? <ImagePreviewGrid urls={{
+            square: imageState.public_image.image.square.url,
+            landscape: imageState.public_image.image.landscape.url,
+            share: imageState.public_image.image.share.url,
+          }} label="Forhåndsvisning fra PUBLIC" /> : null}
+          {imageState.public_image.reason === "organization_unpublished" ? (
+            <p className="muted">Aktørprofilen må være publisert før bildet kan tas i bruk på PUBLIC.</p>
+          ) : imageState.active_selection?.kind === "asset" ? (
+            <>
+              <p className="muted">Intern godkjenning publiserer ikke bildet. Denne handlingen tar det godkjente bildet i bruk på den publiserte aktørprofilen.</p>
+              {processed ? <p className="muted">Godkjenn det bearbeidede bildet før det tas i bruk på PUBLIC.</p> : null}
+              <button type="button" className="primary-button" disabled={busy !== null || processed !== null || imageState.public_image.kind === "asset"} onClick={() => onPublicImageCommand(false)}>
+                {busy === "publish" ? "Tar bildet i bruk..." : "Ta bildet i bruk på PUBLIC"}
+              </button>
+              <button type="button" className="ghost-button" disabled={busy !== null} onClick={() => onPublicImageCommand(true)}>Bruk standardbilde i stedet</button>
+            </>
+          ) : null}
+        </div>
       ) : null}
 
       {legacyCandidates.length > 0 ? (
@@ -1471,7 +1522,7 @@ export function OrganizationImagePanel(props: {
       {officialAttempted ? (
         <div className="image-source-section">
           <div className="image-source-actions" aria-label="Alternative bildekilder">
-            <button type="button" className="ghost-button" aria-pressed={sourcePanel === "brave"} disabled={busy !== null} onClick={onOpenBraveSearch}>
+            <button type="button" className="ghost-button" aria-pressed={sourcePanel === "brave"} disabled={busy !== null || !imageState?.brave_search_enabled} onClick={onOpenBraveSearch}>
               Søk etter flere bilder
             </button>
             <button type="button" className="ghost-button" aria-pressed={sourcePanel === "url"} disabled={busy !== null} onClick={() => setSourcePanel("url")}>
@@ -1481,6 +1532,7 @@ export function OrganizationImagePanel(props: {
               Last opp bilde
             </button>
           </div>
+          {!imageState?.brave_search_enabled ? <p className="muted">Bildesøk er ikke aktivert for denne kontoen. Nettside, bilde-URL og upload kan fortsatt brukes.</p> : null}
           <p className="muted">
             Oppgi eventuell kreditering før bildet godkjennes.
           </p>
@@ -1763,8 +1815,14 @@ export function OrganizationImagePanel(props: {
           </Field>
           <Field label="Offentlig kreditering (valgfritt)">
             <input value={publicCredit} onChange={(event) => setPublicCredit(event.target.value)} />
+            <span className="meta">Oppgi kreditering dersom tillatelsen krever det.</span>
           </Field>
-          <button type="button" className="primary-button" onClick={onApprove} disabled={busy !== null}>
+          <label className="checkbox-row">
+            <input type="checkbox" checked={rightsConfirmed} onChange={event => setRightsConfirmed(event.target.checked)} />
+            {imageState?.approval_text || "Jeg bekrefter at bildet kan publiseres, og at nødvendige rettigheter og kreditering er avklart."}
+          </label>
+          <p className="muted">Et søketreff gir ikke publiseringsrett. Godkjenningen lagres internt; PUBLIC krever en egen handling.</p>
+          <button type="button" className="primary-button" onClick={onApprove} disabled={busy !== null || !rightsConfirmed}>
             {busy === "approve"
               ? "Godkjenner..."
               : imageState?.active_selection

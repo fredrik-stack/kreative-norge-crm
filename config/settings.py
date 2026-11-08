@@ -177,6 +177,10 @@ if PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED and not PUBLIC_IMAGE_SERVING_ENABLED:
         "PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED requires PUBLIC_IMAGE_SERVING_ENABLED"
     )
 BRAVE_IMAGE_SEARCH_API_KEY = os.getenv("BRAVE_IMAGE_SEARCH_API_KEY", "").strip()
+_brave_user_id = os.getenv("BRAVE_IMAGE_SEARCH_USER_ID", "").strip()
+if _brave_user_id and (not _brave_user_id.isascii() or not _brave_user_id.isdecimal() or int(_brave_user_id) <= 0):
+    raise ImproperlyConfigured("BRAVE_IMAGE_SEARCH_USER_ID must be a positive user ID")
+BRAVE_IMAGE_SEARCH_USER_ID = int(_brave_user_id) if _brave_user_id else None
 
 # --- Production security settings ---
 if not DEBUG:

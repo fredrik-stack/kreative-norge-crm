@@ -1,5 +1,17 @@
 # Feature: Public
 
+## Eksplisitt bildeflyt – implementert lokalt2026-11-08
+
+Editor skiller internt godkjent bilde fra bildet som brukes offentlig. Etter
+preview og eksplisitt rettighetsbekreftelse velger redaktøren separat «Ta bildet
+i bruk på PUBLIC». Aktørprofilen må allerede være publisert. Preview fra PUBLIC
+bruker samme projeksjon som kort, detalj og bilde-URL-er. Ingen gamle URL-er
+konverteres automatisk. «Bruk standardbilde i stedet» bevarer bildehistorikken;
+rettighets-/personvernkrav håndteres fortsatt med formell takedown.
+[Server-, Brave- og driftskontrakt](../architecture/SECURITY_AND_ROLES.md#editor-bildepublisering-og-en-brave-konto--kodeleveranse-2026-11-08).
+Stagingstatus følger prosjektstatus; kodeleveransen alene betyr ikke aktivering.
+
+
 ## Helhetlig ferdigstilling – presisering 2026-10-24
 
 [PUBLIC-V1 og samlet produktaksept](../status/EDITOR_PUBLIC_UI_COMPLETION_PLAN_2026-10-24.md)

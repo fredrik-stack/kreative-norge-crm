@@ -251,6 +251,13 @@ class OrganizationViewSet(DomainProtectedDestroyMixin, viewsets.ModelViewSet):
     permission_classes = [TenantScopedPermission]
     serializer_class = OrganizationSerializer
 
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        if "/images/" in request.path:
+            response["Cache-Control"] = "private, no-store, max-age=0"
+            response["Pragma"] = "no-cache"
+        return response
+
     def get_queryset(self):
         qs = (
             Organization.objects.select_related("tenant")
@@ -282,8 +289,23 @@ class OrganizationViewSet(DomainProtectedDestroyMixin, viewsets.ModelViewSet):
         return Response(serializer.data)
 
     def _image_error_response(self, error):
+        from .services.images.publication import ImagePublicationError
+        from .services.images.releases import ImageReleaseError, ImageReleaseChecksumDenied, InvalidImageReleaseError
+        from .services.images.bridge_client import ImageSafetyBridgeError
+        from .services.images.materialization import ImageMaterializationError
         code = getattr(error, "code", "image_flow_error")
-        if isinstance(
+        if isinstance(error, ImagePublicationError):
+            response_status = error.status_code
+        elif isinstance(error, BraveImageSearchError) and code == "brave_not_authorized":
+            response_status = status.HTTP_403_FORBIDDEN
+        elif isinstance(error, ImageReleaseChecksumDenied):
+            return Response({"code": "image_denied", "detail": "Bildet er sperret av sikkerhets- eller rettighetsgrunner. Velg et annet bilde."}, status=409)
+        elif isinstance(error, InvalidImageReleaseError):
+            return Response({"code": "image_not_ready", "detail": "Dette bildet kan ikke tas i bruk på PUBLIC. Kontroller gjeldende bildevalg og godkjenning."}, status=409)
+        elif isinstance(error, (ImageReleaseError, ImageSafetyBridgeError, ImageMaterializationError)):
+            response_status = status.HTTP_503_SERVICE_UNAVAILABLE
+            code = "public_release_unavailable"
+        elif isinstance(
             error,
             (
                 ImageCandidatePermissionDenied,
@@ -315,7 +337,10 @@ class OrganizationViewSet(DomainProtectedDestroyMixin, viewsets.ModelViewSet):
         else:
             response_status = status.HTTP_400_BAD_REQUEST
         return Response(
-            {"code": code, "detail": str(error)},
+            {"code": code, "detail": (
+                "Offentlig bilde kunne ikke bekreftes. Kontroller status og prøv samme bilde igjen."
+                if code == "public_release_unavailable" else str(error)
+            )},
             status=response_status,
         )
 
@@ -361,7 +386,7 @@ class OrganizationViewSet(DomainProtectedDestroyMixin, viewsets.ModelViewSet):
                     organization_id=int(pk),
                 )
             )
-        except ImageCandidateFlowError as error:
+        except (ImageCandidateFlowError, BraveImageSearchError) as error:
             return self._image_error_response(error)
 
     @action(detail=True, methods=["post"], url_path="images/brave-search")
@@ -496,6 +521,8 @@ class OrganizationViewSet(DomainProtectedDestroyMixin, viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="images/approve")
     def approve_candidate_image(self, request, tenant_id=None, pk=None):
+        if not isinstance(request.data, dict) or request.data.get("rights_confirmed") is not True:
+            return Response({"code": "rights_confirmation_required", "detail": "Bekreft rettigheter og eventuell kreditering før godkjenning."}, status=400)
         try:
             result = approve_image_candidate(
                 actor=request.user,
@@ -529,6 +556,34 @@ class OrganizationViewSet(DomainProtectedDestroyMixin, viewsets.ModelViewSet):
             )
         except ImageCandidateFlowError as error:
             return self._image_error_response(error)
+
+    def _public_image_command(self, request, tenant_id, pk, command):
+        from .services.images.publication import ImagePublicationError
+        from .services.images.releases import ImageReleaseError
+        from .services.images.bridge_client import ImageSafetyBridgeError
+        from .services.images.materialization import ImageMaterializationError
+        from django.db import OperationalError
+        if not isinstance(request.data, dict) or set(request.data) != {"expected_revision", "confirmed"}:
+            return Response({"code": "invalid_publication", "detail": "Oppgi bare gjeldende revisjon og eksplisitt bekreftelse."}, status=400)
+        self.get_object()
+        try:
+            return Response(command(actor=request.user, tenant_id=int(tenant_id), organization_id=int(pk),
+                expected_revision=request.data['expected_revision'], confirmed=request.data['confirmed']))
+        except (ImagePublicationError, ImageReleaseError, ImageSelectionError,
+                ImageSafetyBridgeError, ImageMaterializationError) as error:
+            return self._image_error_response(error)
+        except OperationalError:
+            return Response({"code": "publication_unverified", "detail": "Handlingen kunne ikke bekreftes. Kontroller status før du prøver igjen."}, status=503)
+
+    @action(detail=True, methods=["post"], url_path="images/publish")
+    def publish_image(self, request, tenant_id=None, pk=None):
+        from .services.images.publication import publish_organization_image
+        return self._public_image_command(request, tenant_id, pk, publish_organization_image)
+
+    @action(detail=True, methods=["post"], url_path="images/fallback")
+    def image_fallback(self, request, tenant_id=None, pk=None):
+        from .services.images.publication import use_organization_image_fallback
+        return self._public_image_command(request, tenant_id, pk, use_organization_image_fallback)
 
     @extend_schema(
         request=inline_serializer(

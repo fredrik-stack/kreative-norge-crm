@@ -140,7 +140,8 @@ jobs:
         run: npm run ci:check
 
   frontend-e2e:
-    runs-on: ubuntu-latest
+    # Locked Playwright rejects Ubuntu26; keep the supported test image.
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16

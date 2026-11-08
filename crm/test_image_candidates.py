@@ -816,6 +816,8 @@ class AlternativeImageSourceFlowTests(TestCase):
             role=TenantMembership.Role.REDIGERER,
         )
         self.image = image_bytes()
+        brave_scope = override_settings(BRAVE_IMAGE_SEARCH_USER_ID=self.actor.pk)
+        brave_scope.enable(); self.addCleanup(brave_scope.disable)
 
     def tearDown(self):
         self.storage_override.disable()

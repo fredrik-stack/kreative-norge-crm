@@ -1,5 +1,120 @@
 # Security and Roles
 
+## Editor-bildepublisering og en Brave-konto – kodeleveranse 2026-11-08
+
+**Mandat:** Ferdigstill eksisterende bildevalg→PUBLIC etter ADR-007/008/009.
+Prosjekteier er eneste reelle bruker frem til solid v1; ingen kollegatilgang,
+streng tenant-/shared-/canonical writer-/notataktivering inngår. Ingen ny
+bildearkitektur, massekonvertering av gamle URL-er eller endring av reelle
+aktørbilder. Bare syntetiske eller dokumenterte, dedikerte testaktører brukes.
+
+### Verifisert diagnose og brukerreise
+
+Én målrettet staginglesing 2026-11-08 brukte REPEATABLE READ READ ONLY, kontrollert
+DB-identitet og eksisterende PublicImageProjection:122 publiserte aktører,
+1 asset og121 fallback. Årsakene var114 no_active_selection og7 release_missing;
+ingen rapporterte safety-/leveringsavvik i disse projeksjonene.105 publiserte
+aktører hadde eldre bildefelt. De overføres ikke automatisk. Totalt fantes10
+aktive selections og4 public releases. Dette er daterte aggregater, ikke en
+individuell bildevurdering eller ny generell inventarfase.
+
+Det konkrete kodegapet var manglende Editor-/API-handling fra internt godkjent
+selection til eksisterende release-tjeneste. Ny, separat «Ta bildet i bruk på
+PUBLIC» gjenbruker reserve→immutable DB-binding→materialisering→read-back→activate.
+Godkjenning viser eksisterende image-approval-v1-tekst og krever eksplisitt
+rettighetsbekreftelse. Eventuell påkrevd kreditering fylles ut før godkjenning.
+Søk, processing og approval publiserer aldri bildet som skjult sideeffekt.
+
+Editor viser internt godkjent bilde separat fra PUBLIC-resultatet. Offentlig
+preview bruker samme PublicImageProjection som offentlig API/HTML og de tre
+square/landscape/share-URL-ene. «Bruk standardbilde i stedet» gjenbruker eksisterende
+removal-to-fallback med ny selectionrevisjon og reviewevent. Det er ordinært
+bildevalg, ikke formell takedown eller sletting av historikk.
+
+### Serverkontrakt og bevaring
+
+- `POST .../images/approve/` krever JSON `rights_confirmed=true` i tillegg til
+  eksisterende signed approval_ref, expected_revision, alt_text og public_credit.
+- `POST .../images/publish/` og `POST .../images/fallback/` mottar **bare**
+  expected_revision (eksakt ikke-negativt heltall) og confirmed (eksakt true).
+  Caller velger aldri selection-ID, release-UUID, checksum eller storagekey.
+- Eksakt tenant/Organization, aktiv DB-bruker og tillatt bilderolle kontrolleres.
+  I eksisterende modus beholdes plattform-superusers bilderett; ellers kreves
+  aktivt eksplisitt writer-medlemskap. Streng modus bruker sin allerede låste
+  tenantoperasjon uten global fallback. Ingen nye shared capabilities innføres.
+- Bruker/medlemskap holdes FOR SHARE, Organization og aktiv selection låses før
+  kontroll av expected_revision.2s lock-/30s statement-timeout; ny vurdering etter
+  venting. Upublisert aktør og systemfallback kan ikke asset-publiseres.
+- Ny revisjon gir ny immutable release-identitet; retry på samme revisjon bruker
+  samme permanente UUID/keys. Stale eller usikkert svar gir kontrollert feil,
+  ny statuslesing og manuell retry, aldri automatisk replay eller overskriving.
+- Gamle selections, reviewevents, release-aggregater, reservations og media
+  beholdes. Gammel selection blir inaktiv ved erstatning; serving/projection
+  avviser den. Ordinær fallback utgir seg ikke for permanent ledger-deny.
+  Formell release-/checksum-deny og restorevern består uendret og vinner alltid.
+- Eksisterende ImageReviewEvent bevarer rights-/krediterings- og approval-actor-
+  snapshots. Immutable release og ledger bevarer lifecycle. Publiseringsforsøk
+  logger bare actor-/tenant-/objekt-/selection-/revisjon-/releaseidentiteter;
+  ingen søk, kilde-URL, notater eller credentials. Ingen ny auditmodell påstås.
+- Ingen migrasjon eller endring i profilfelter, publiseringsvalg, tags, kontakter,
+  relasjoner, canonical-stamps, assignments eller andre aktive brukerreiser.
+  Bilde-API-svar har private/no-store; private bytes får fortsatt ingen publickey.
+
+### Begrenset Brave og manuelt avtalegrunnlag
+
+Eier har2026-11-08 bekreftet personlig API-kundeforhold, egen tidligere
+kundeavtaleaksept og ingen særvilkår. Den uttrykkelig navngitte CRM-kontoen er
+kontrollert aktiv med eksisterende bilderettigheter; identiteten bindes privat.
+Aktivt abonnement/nøkkel skal bekreftes med et avgrenset live API-kall før
+aktivering. Nøkkel var tom i runtime og18 kjente private konfigurasjonskopier;
+sikker, privat ny innlegging av eksisterende nøkkel er etterspurt. Ingen nøkkel
+eller kontoid publiseres i Git. Ingen avtaleaksept opprettes i CRM-modellene.
+
+[Brave Terms,1. september2026](https://api-dashboard.search.brave.com/documentation/resources/terms-of-service)
+definerer End Users som tredjeparter (§1); §4(c) gjelder disse. Med eier som
+kunde og eneste bruker anvendes ikke separat tredjepartsavtale med seg selv.
+Kundens §3(b)-plikter gjelder fortsatt, inklusive transient behandling av
+søkeresultater. Originalbilder krever selvstendige redaksjonelle rettigheter.
+[Privacy Notice,3. november2026](https://api-dashboard.search.brave.com/documentation/resources/privacy-notice)
+beskriver standard query-retensjon opptil90 dager. Senere kollegatilgang krever
+skriftlige brukeravtaler/privacyavklaring og vurdering av juridisk kundeforhold.
+Ingen generell samtykke-/avtalemotor bygges nå.
+
+`BRAVE_IMAGE_SEARCH_USER_ID` er ett eksakt positivt DB-user-ID i privat
+serverkonfigurasjon; default tom gir ingen tilgang. Ugyldig verdi stopper oppstart.
+Bare denne aktive kontoen kan få søkekontekst, kontakte provider og bruke
+kortlivede Brave-refs. Ingen gruppe-, staff- eller superuserfallback. API-key
+alene gir ingen søketilgang. Tjeneste/API håndhever dette server-side, og Editor
+viser serverens tilgjengelighet. Deaktivering eller ny binding avviser gamle
+Brave-refs før ny fetch/processing/approval. Rene transporttester bruker den
+private provideradapteren; denne er ikke en bruker-/API-inngang.
+
+Parametere NO/nb/strict/spellcheck=false/count30, synlig og redigerbar eksakt query,
+opt-in refinements og eksisterende privacy-/rettighetscopy er bevart. Signed refs
+har30 minutters TTL. Ingen persistent kandidat-/søkehistorikk eller providerdump;
+Brave-eventer lagrer fortsatt ingen providerbilde-/side-URL. Nøkkel blir bare i
+godkjent privat serverkonfigurasjon, aldri Git/frontend/logger/chat.
+
+### Tester og kontrollert drift
+
+Syntetisk PostgreSQL16-test følger virkelig API-upload→crop/zoom→rights approval→
+reserve/materialisering/anker/activate→PUBLIC API/HTML og alle tre serving-URL-er.
+Erstatning, fallback, historie, replay, tapt aktiveringssvar, DB-feil, samtidighet,
+bruker-deaktivering, stale/feil scope/rolle og uautorisert Brave er dekket.
+Full lokal regresjon bestod759 tester; etterfølgende målrettet kjøring60 tester
+og siste utvidede publiseringsintegrasjon11 tester.
+Frontend73 tester/build og fem etablerte bilde-E2E-reiser er grønne. Endelig
+review/PR/CI-status følger GitHub; ingen stagingdeploy/Brave-aktivering påstås ennå.
+
+Staging krever grønn main-CI, pre/post-backup, fullverify og isolert restore,
+eksakt API/frontendbundle, bevaring av reelle CRM-rader, media og safety,
+og bare uttrykkelig dokumenterte deltas på dedikert testaktør. PUBLIC-releaser
+og ledger er irreversible historikk; testaktøren avsluttes upublisert, ikke med
+sletting av historikk. Alle fem tilgangs-/writer-/notatgater holdes av. Ved
+Brave-credential-/abonnementsavvik stanses bare Brave-aktivering; resten av
+bildereisen kan leveres. Ingen produksjonssetting eller automatisk neste fase.
+
+
 ## Streng tenantmodus – stagingverifisert med gaten av, 2026-11-08
 
 PR [#107](https://github.com/fredrik-stack/kreative-norge-crm/pull/107), eksakt

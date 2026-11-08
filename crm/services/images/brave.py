@@ -9,6 +9,7 @@ from typing import Callable
 from urllib.parse import urlencode, urlsplit
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 
 from crm.models import Organization, OrganizationPerson
 
@@ -68,6 +69,26 @@ class BraveImageResult:
 
 
 BraveTransport = Callable[[str, dict[str, str], float], tuple[int, str, bytes]]
+
+
+def brave_user_allowed(actor) -> bool:
+    owner_id = getattr(settings, "BRAVE_IMAGE_SEARCH_USER_ID", None)
+    return bool(
+        type(owner_id) is int and owner_id > 0
+        and actor is not None and getattr(actor, "is_authenticated", False)
+        and actor.pk == owner_id
+        and get_user_model().objects.filter(pk=owner_id, is_active=True).exists()
+    )
+
+
+def require_brave_user(actor) -> None:
+    if not brave_user_allowed(actor):
+        raise BraveImageSearchError("brave_not_authorized", "Bildesøk er begrenset til prosjekteierens autoriserte konto.")
+
+
+def search_brave_images(query, *, actor=None, transport=None):
+    require_brave_user(actor)
+    return _search_brave_images(query, transport=transport or _default_transport)
 
 
 def _default_transport(
@@ -331,7 +352,7 @@ def _parse_result(item: object, provider_index: int) -> BraveImageResult | None:
     )
 
 
-def search_brave_images(
+def _search_brave_images(
     query: str,
     *,
     transport: BraveTransport = _default_transport,
