@@ -128,6 +128,14 @@ def _require_feature() -> None:
 
 
 def _require_actor(actor, tenant_id: int) -> None:
+    from crm.tenant_access import strict_tenant_access, require_tenant_operation
+    from django.core.exceptions import PermissionDenied
+    if strict_tenant_access():
+        try:
+            require_tenant_operation(tenant_id, ALLOWED_SELECTION_ROLES, actor=actor)
+        except PermissionDenied as error:
+            raise ImportImageDecisionPermissionDenied() from error
+        return
     if (
         actor is None
         or not getattr(actor, "is_authenticated", False)

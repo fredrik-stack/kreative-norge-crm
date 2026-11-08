@@ -153,6 +153,14 @@ def _validate_identifier(value, field_name: str, *, allow_zero: bool = False) ->
 
 
 def _validate_actor_capability(actor, tenant_id: int) -> None:
+    from crm.tenant_access import strict_tenant_access, require_tenant_operation
+    from django.core.exceptions import PermissionDenied
+    if strict_tenant_access():
+        try:
+            require_tenant_operation(tenant_id, ALLOWED_SELECTION_ROLES, actor=actor)
+        except PermissionDenied as error:
+            raise ImageSelectionPermissionDenied() from error
+        return
     if (
         actor is None
         or not getattr(actor, "is_authenticated", False)

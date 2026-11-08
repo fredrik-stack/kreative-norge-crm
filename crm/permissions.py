@@ -3,6 +3,7 @@ from __future__ import annotations
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 from .models import TenantMembership
+from .tenant_access import strict_tenant_access, strict_role, active_memberships
 
 
 READ_ROLES = {
@@ -28,6 +29,8 @@ IMPORT_EXPORT_ROLES = {
 
 
 def get_user_global_role(user) -> str | None:
+    if strict_tenant_access():
+        return None
     if not user or not user.is_authenticated:
         return None
     if user.is_superuser:
@@ -44,6 +47,8 @@ def get_user_global_role(user) -> str | None:
 
 
 def get_user_tenant_role(user, tenant_id: int | None) -> str | None:
+    if strict_tenant_access():
+        return strict_role(user, tenant_id)
     if not user or not user.is_authenticated:
         return None
     if user.is_superuser:
@@ -101,6 +106,8 @@ class TenantAccessPermission(BasePermission):
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
+            return False
+        if strict_tenant_access() and not active_memberships(request.user).exists():
             return False
         return True
 

@@ -379,6 +379,24 @@ mens `is_active=False` alene ikke stopper legacytilgang.
 
 [Implementasjons-, oppstarts- og bevaringskontrakt](../architecture/SECURITY_AND_ROLES.md#forvaltningsfullmakter-og-første-tilgangsreise--2026-11-08).
 
+### 9b. Kontrollert overgang fra legacyfallback – eiermandat 2026-11-08
+
+En egen, reverserbar og default avslått streng tenantmodus kan gjøre aktivt,
+eksplisitt TenantMembership og relevant rolle autoritativt for eksisterende
+legacytenantarbeid. Ingen Django-gruppe, staff eller superuser gir automatisk
+tilgang. Avslått modus bevarer gammel adferd. Avtaleaksept er ikke et krav for
+ren legacytenanttilgang; shared-kontrakten i §9 består uavhengig.
+
+Alle API-/session-/tenantvalg-, import/eksport-, Admin- og direkte bilde-/
+operatørinnganger må sikres eller uttrykkelig sperres i streng modus før
+aktivering. Uscopecapabel Django Admin sperres i første versjon. Reelle
+medlemskap, fullmakter og aktivering krever separat kontrollert mandat;
+legacytrafikk må være sperret under etablering slik at gammel fallback ikke
+blir alternativ inngang. Tilbakeføring til permissiv fallback etter reell
+rettighetsstenging er ikke en trygg rollback.
+
+[Implementasjons-, oppstarts- og rollbackkontrakt](../architecture/SECURITY_AND_ROLES.md#streng-legacytenanttilgang--implementasjonskontrakt-2026-11-08).
+
 ### 10. Én PUBLIC-identitet og publication authority
 
 Én canonical Organization har én offentlig identitet, én PUBLIC-side og én

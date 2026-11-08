@@ -31,6 +31,8 @@ class Command(BaseCommand):
         parser.add_argument("--manifest-path")
 
     def handle(self, *args, **options):
+        from crm.tenant_access import block_legacy_operator
+        block_legacy_operator()
         try:
             if options["apply"] and options["read_batch"]:
                 raise CommandError("NOTE_COPY_EXCLUSIVE_MODES")

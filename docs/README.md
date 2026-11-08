@@ -1,5 +1,17 @@
 # Kreative Norge CRM – dokumentasjon
 
+## Streng legacytenanttilgang – inaktiv kodeleveranse 2026-11-08
+
+Egen default-off `STRICT_TENANT_ACCESS_ENABLED` gjør eksplisitt aktivt
+medlemskap og relevant rolle autoritativt for tenant-API/session/tenantvalg,
+import/eksport og bildehandlinger når separat aktivert. Global rolle gir da
+ingen adgang; eksisterende uscopede Admin-/operatørinnganger sperres. Avtaleaksept
+kreves ikke for ren legacytenanttilgang. Avslått modus bevarer dagens adferd.
+Ingen migrasjon eller reell data-/rettighetsendring. Stagingverifisering med
+alle fem gater av gjenstår til godkjent merge/CI og driftsporter er oppfylt.
+[Kontrakt, tester, oppstart og rollback](architecture/SECURITY_AND_ROLES.md#streng-legacytenanttilgang--implementasjonskontrakt-2026-11-08).
+
+
 ## Første tilgangsreise – teknisk stagingverifisert, inaktiv 2026-11-08
 
 PR #105 / eksakt API/frontend `8cc160e84162e94c11069e1ab52683496753e71a`

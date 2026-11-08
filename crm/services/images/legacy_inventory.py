@@ -101,6 +101,8 @@ def _has_active_public_release(
 
 
 def audit_legacy_image_sources(*, verbose: bool = False) -> tuple[LegacyImageInventory, list[dict[str, object]]]:
+    from crm.tenant_access import block_legacy_operator
+    block_legacy_operator()
     counters = {field.name: 0 for field in LegacyImageInventory.__dataclass_fields__.values()}
     details: list[dict[str, object]] = []
     releases = OrganizationImageRelease.objects.select_related(

@@ -1,5 +1,98 @@
 # Security and Roles
 
+## Streng legacytenanttilgang – implementasjonskontrakt 2026-11-08
+
+`STRICT_TENANT_ACCESS_ENABLED` er en egen **default False** innstilling, uavhengig
+av forvaltnings-, shared-, writer- og notatgatene. Ugyldig konfigurert boolverdi
+stopper oppstart; den skal ikke stille gjenåpne gammel rollefallback. Dette er
+kodegrunnlag for en senere separat godkjent overgang, ikke aktivert tilgang.
+Ingen migrasjon, medlemskap, rolle eller avtale endres av leveransen.
+
+| Flate | Streng modus | Avslått modus |
+| --- | --- | --- |
+| Session og tenantvalg | Bare aktive, gyldige medlemskap for aktiv DB-bruker; ingen global rolle; Admin-lenke skjult | Eksisterende fallback og medlemsliste bevart |
+| Tenant-API: Organization/Person, relasjoner, kontakter, tags | Eksakt aktivt medlemskap; alle fire roller leser, tre redigerer, superadmin/gruppeadmin sletter | Eksisterende policy bevart |
+| Import/eksport og alle jobbhandlinger | Superadmin/gruppeadmin/redigerer, også ved GET; jobben må tilhøre URL-tenanten | Eksisterende kontrakt bevart |
+| Bilder, kandidater, previews og utvalg | Tenant-API og samme autoriserte operasjon; takedown krever superadmin/gruppeadmin | Eksisterende bilde-/safetykontrakt bevart |
+| Django Admin, inklusive User/Group og actions | Hele Admin-namespace er sperret, også for staff/superuser med medlemskap | Dagens Admin uendret, medlemskaps-Admin fortsatt read-only |
+| Direkte bilde-/import-/OG-operasjoner | Ingen varig rett fra actor eller jobbens created_by; avvises uten allerede autorisert tenantforespørsel | Eksisterende operatørkall bevart |
+| Legacy CLI for reparasjon/backfill/inventar/cleanup/publisering | Eksplisitt sperret; egen scoped operatørkontrakt må godkjennes før bruk i streng runtime | Eksisterende kommandoer bevart |
+| PUBLIC og globale kategorier | Uendret PUBLIC; kategorier er global lesetaksonomi, ikke tenantdata | Uendret |
+| PR #105 forvaltning/egenaksept og offline utpekning | Egen eksplisitt fullmakt og egen gate; ingen ny medlems-/akseptavhengighet for forvalter | Uendret |
+
+`get_user_tenant_role()` leser aktivstatus fra databasen, ikke et gammelt user-
+eller medlemskapsobjekt. Verken Django-grupper, staff eller superuser gir en
+streng tenantrolle. Medlemskap i en annen tenant/domain gir ingen tilgang til
+målet. Ren legacytenanttilgang krever **ikke** avtaleaksept, SharingDomain-
+assignment eller shared capability. Fremtidig shared tilgang beholder alle
+krav i ADR-011; et positivt legacytilgangssvar er aldri et shared grant.
+
+### Transaksjonsgrense og direkte operasjoner
+
+Middleware omslutter tenant-API-operasjonen i én transaksjon. Før tilgang gis,
+låses aktuell domain (hvis bundet), aktiv bruker, eksakt tenant og aktivt
+medlemskap med PostgreSQL FOR SHARE i samme rekkefølge som forvaltningen.
+Tenantens domain kontrolleres igjen etter låsing. Låsene varer gjennom hele
+operasjonen og hindrer samtidig deaktivering, rolleendring og sletting.
+Forespørsel som venter på tilbakekalling, reautoriserer etter ventingen; allerede
+godkjent operasjon fullføres før tilbakekallingen kan committe. Neste forespørsel
+avvises. 2s lock-/30s statement-timeout; autorisasjonslåsefeil gir sanitert503,
+og feilrespons ruller tilbake transaksjonen. Ingen blind automatisk retry.
+
+Bildevalidatorer gjenbruker kun den kortlivede, låste actor/tenant/rolle-grensen.
+Actorløse import-, rapport-, OG- og ingestfunksjoner krever samme grense i
+streng modus. Jobbens created_by og tidligere positiv policyvurdering er ikke
+rettighet. Direkte kall uten slik grense er sperret; lavnivå ORM/SQL, filsystem
+og root/DB-administrasjon er privilegerte driftsflater, ikke autoriserte
+brukerruter. De kan aldri presenteres som medlemskapssikrede API-er.
+
+Sperrede CLI-er: audit_legacy_image_sources, audit_public_image_projection,
+backfill_phone_identity, backfill_legacy_domain, compare_domain_reads,
+copy_legacy_tenant_notes, cleanup_image_storage_orphans,
+verify_image_storage_persistence, publish_existing_email_contacts,
+repair_person_contacts og refresh_organization_previews. Relevante direkte
+backfill-, shadow-, ingest-, release- og cleanupinnganger er også sperret eller
+krever operasjonsgrensen. `check_public_actor_links` leser bare PUBLIC og
+`appoint_access_manager` beholder sin særskilte mandat-/database-/auditkontrakt.
+Eksterne safety-ledger-/backup-/restoreverktøy endres ikke eller kobles til
+Django-roller; deres privilegerte driftskontrakt består.
+
+### Senere kontrollert oppstart og rollback
+
+1. Prosjekteier godkjenner separat eksakte eksisterende brukere, tenants og
+   roller, samt sentrale forvaltere og oppstartsmandat. Ingen mapping utledes
+   automatisk fra grupper/superuser; ingen avtaleaksept seedes.
+2. Sperr ordinær legacytrafikk/Admin i et kontrollert driftsvindu **før** reelle
+   medlemskapsendringer. Etabler fullmakter gjennom eksisterende sporbar,
+   separat godkjent utpekning; bruk PR #105s scoped operasjoner med audit.
+   Isolert forvaltningsprosess kan ha egen teknisk gate uten å åpne runtime.
+3. Kontrollert etablering skjer uten global fallback som alternativ brukerinngang.
+   Sett streng modus på alle API-workers før trafikk åpnes; verifiser eksakt
+   bruker-/tenant-/rolle-scope og negative forsøk. Forvaltningsgate vurderes
+   separat. Shared/writer/notat forblir av inntil egne porter er oppfylt.
+4. Før reell overgang kan kode rulles tilbake med alle data/skjema bevart og
+   flagget av. **Etter reell tilbakekalling/overgang er flagg av ikke en trygg
+   rollback:** gamle grupper/superuser kan gjenopplive tilgang. Behold streng
+   kontroll eller steng trafikken til kompatibel kode/deny-state er verifisert.
+   Ingen schema-reverse, medlemskapsrekonstruksjon eller gammel snapshotrestore
+   skal automatisk gjenåpne tilgang eller gjenopplive slettede private notater.
+   Eksisterende safety-ledger, deny-state og historisk image-state består.
+
+Stagingdelen av denne leveransen skal ha streng modus effektivt/varig av,
+0 medlemskap og øvrige gater av. Ingen aktivering eller reelle tester av positive
+forvaltningsreiser inngår. Faktisk deploy, bevaring og backupbevis publiseres
+først etter gjennomført driftsetappe.
+
+### Verifikasjon
+
+Syntetiske PostgreSQL16-tester dekker rolle-/handlingsmatrise, superuser/grupper,
+inaktiv/stale bruker, ugyldig/inaktivt medlemskap, feil tenant/domain, neste
+forespørsel etter tilbakekalling, alle private routerflater, Admin, direkte
+operatør-/serviceforsøk, scopeopprydding, begge låserekkefølger, lock timeout,
+uavhengige gater og uendret avslått modus/PUBLIC. Full backendregresjon dekker
+import, images, revisjon, audit og safety; faktisk test-/CI-resultat følger PR.
+
+
 ## Stagingverifisering av første tilgangsreise – 2026-11-08
 
 **Gjeldende stagingstatus:** PR #105 / eksakt kode

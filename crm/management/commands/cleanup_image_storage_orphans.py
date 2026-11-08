@@ -25,6 +25,8 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        from crm.tenant_access import block_legacy_operator
+        block_legacy_operator()
         try:
             result = cleanup_image_storage_orphans(
                 apply=options["apply"],

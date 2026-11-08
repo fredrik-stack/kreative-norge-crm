@@ -43,6 +43,8 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        from crm.tenant_access import block_legacy_operator
+        block_legacy_operator()
         apply_changes = options["apply"]
         tenant_filter = options.get("tenant")
         tenant = self._get_tenant(tenant_filter) if tenant_filter else None

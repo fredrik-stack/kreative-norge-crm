@@ -171,6 +171,8 @@ def _plan(mapping):
 
 
 def dry_run(mapping):
+    from crm.tenant_access import block_legacy_operator
+    block_legacy_operator()
     _require_outer_transaction()
     mapping = _mapping(mapping)
     with transaction.atomic(durable=True):
@@ -182,6 +184,8 @@ def dry_run(mapping):
 
 
 def _operator(operator_id):
+    from crm.tenant_access import block_legacy_operator
+    block_legacy_operator()
     if type(operator_id) is not int or not get_user_model().objects.filter(pk=operator_id, is_active=True, is_staff=True, is_superuser=True).exists():
         raise CommandError("An explicit active staff/platform-superuser operator is required.")
 

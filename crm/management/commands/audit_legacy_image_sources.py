@@ -19,6 +19,8 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        from crm.tenant_access import block_legacy_operator
+        block_legacy_operator()
         inventory, details = audit_legacy_image_sources(verbose=options["verbose"])
         payload = {"inventory": inventory.as_dict()}
         if options["verbose"]:

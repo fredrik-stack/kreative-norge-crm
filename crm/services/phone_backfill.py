@@ -380,6 +380,8 @@ def build_phone_backfill_plan(
     target_region: str,
     lock: bool = False,
 ) -> dict:
+    from crm.tenant_access import block_legacy_operator
+    block_legacy_operator()
     target_region = target_region.strip().upper()
     tenants = _validate_scope(
         tenant_ids=tenant_ids,
@@ -618,6 +620,8 @@ def execute_phone_backfill(
     batch_id: str | None = None,
     manifest_path: str | None = None,
 ) -> dict:
+    from crm.tenant_access import block_legacy_operator
+    block_legacy_operator()
     if not apply_changes:
         plan = build_phone_backfill_plan(
             tenant_ids=tenant_ids,
@@ -797,6 +801,8 @@ def execute_phone_backfill_rollback(
     manifest_path: str,
     apply_changes: bool,
 ) -> dict:
+    from crm.tenant_access import block_legacy_operator
+    block_legacy_operator()
     path, manifest = load_phone_backfill_manifest(manifest_path)
     tenant_ids = manifest["tenant_ids"]
     _validate_scope(
