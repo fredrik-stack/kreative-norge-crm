@@ -10,6 +10,9 @@ Eksisterende releases og publiseringsvalg endres ikke automatisk. Ny kompakt
 Brave-flate har eksplisitte egne taggvalg og første nye rad i synsfeltet;
 filvelger og drag-and-drop bruker samme sikre behandling.
 [Implementasjon og leveransestatus](../architecture/SECURITY_AND_ROLES.md#bilderedigering-etter-desktoptest--2026-11-14).
+PR #115 /67a95ad er stagingverifisert uten reelle bildewrites eller migrasjon.
+122 publiserte Editor-previews er like PUBLIC, gamle bytes/historikk er bevart,
+og fem øvrige gater er av. Ingen ny visuell eieraksept påstås.
 Eldre daterte no-upscale-/kildeprioritetsbeskrivelser er overstyrt av ADR-007.
 
 

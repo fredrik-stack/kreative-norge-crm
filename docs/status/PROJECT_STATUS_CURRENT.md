@@ -1,15 +1,23 @@
 # Project Status Current
 
-## Bilderedigering etter desktoptest – lokal retting 2026-11-14
+## Bilderedigering etter desktoptest – stagingverifisert 2026-11-14
 
-Fire avgrensede eierfunn er rettet lokalt: små gyldige bilder resamples til
-onlineformatene, alle bildekilder er tilgjengelige ved bildebytte, Brave har
-kompakt søk med eksplisitte taggvalg og fokus på første nye bilderad, og upload
-støtter drag-and-drop. Ingen migrasjon eller automatisk endring av gamle bilder.
-[Kontrakt og bevaringsgrenser](../architecture/SECURITY_AND_ROLES.md#bilderedigering-etter-desktoptest--2026-11-14).
-Tester/review/CI og bestilt staging er under gjennomføring; ingen ny deploy
-eller visuell eieraksept påstås her. Levende redaksjonelle stagingdata bevares.
+[PR #115](https://github.com/fredrik-stack/kreative-norge-crm/pull/115), eksakt
+API/frontend `67a95ada57344932a667d6f58b612e66c7fc2a5f`, er levert etter separat
+review og grønn PR-/main-CI,6/6. Små gyldige bilder resamples til onlineformatene;
+alle fire kilder er tilgjengelige ved bildebytte. Brave har kompakt søk,
+eksplisitte egne taggvalg og fokus på første nye bilderad. Upload støtter drop.
+Samlet rettighetsbekreftelse og aktørens publiseringsvalg består.
 
+Ingen migrasjon/data-apply. Fersk baseline etter varslet pause bekrefter alle56
+tabellers rader/stamps, kontrollerte schemaobjekter og media/static/ledger uendret.
+122 publiserte Editor-previews er like PUBLIC (11 asset/111 fallback); privat
+preview, eksakt scope og eierbegrenset Brave-context er leseverifisert. READY37→37,
+fem gater av og ingen reelle profil-/bildewrites. Pre/post-backup/fullverify/
+isolert restore, faktisk HTTPS-bundle og normale timere er grønne.
+[Kontrakt, sanitert evidens og syntetisk kontrollgrunnlag](../architecture/SECURITY_AND_ROLES.md#bilderedigering-etter-desktoptest--2026-11-14).
+Pausen er opphevet. Ingen ny visuell eieraksept påstås; dokumentasjonsmerge
+deployes ikke. Tidligere daterte runtime-/testtall nedenfor er historikk.
 
 ## Samlet bildebekreftelse og zoom ut – stagingverifisert 2026-11-09
 

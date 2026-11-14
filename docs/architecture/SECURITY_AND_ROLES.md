@@ -48,6 +48,74 @@ nedenfor er daterte bevis der denne presiseringen overstyrer no-upscale/tag-neve
 
 
 
+### Faktisk stagingevidens 2026-11-14
+
+PR #115 er ordinært merget som `67a95ada57344932a667d6f58b612e66c7fc2a5f`.
+Separat kode-review gjaldt base `34870e0965a56a404a5092fecc8d5d889aaf4cbc` og
+head `b9539fe69b72898a67f60796927eecd4e92b9859`, uten blokkere.
+[Review](https://github.com/fredrik-stack/kreative-norge-crm/pull/115#issuecomment-6884970982),
+[PR-CI43646526081](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/43646526081)
+og [main-CI43647054872](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/43647054872)
+er grønne,6/6. Full CI-backend har778 tester; lokalt777 +1 separat ny test,
+81 frontend/TS/bygg og seks syntetiske bilde-E2E. Ingen migrasjonsdelta.
+
+[Sanitert måling](../status/evidence/image-usability-2026-11-14/checks.json) er
+registrert2026-11-14T22:24:59Z, med ekstern HTTPS-kontroll rett etter.
+Kjørende API og frontend er begge fra eksakt merge, bygget på tidligere
+immutable runtimeimages uten dependencyinstallasjon. API-image er
+`sha256:93d307431bad85a9eeccdfc81be9293a36888b70442764fa096ee5c5c027e85d`;
+web-image `sha256:52e06706da70c77a4406331d679b5364b67fd891b8871b89e2ddf9dc40eaa7b3`.
+DB-container/image, miljø, mounts, operative konfigurasjoner, Docker/Compose,
+Nginx, hostbridge og installerte backup-/safetymoduler er bevart. Ingen
+migrate/collectstatic, seed eller ny infrastruktur. Bundlefiler bruker
+merge-suffiks67a95ad; faktiske HTTPS JS/CSS-bytes/MIME og indexreferanser består.
+Hel HTML-hash sammenlignes ikke over CDN som kan injisere markup.
+
+Fersk baseline ble tatt etter varslet skrivepause; tidligere snapshots ble
+ikke brukt som autoritet. Alle56 tabellers rader/felt/relasjoner/tidsstempler/
+stamps og alle migrasjonsrader er sammenlignet eksakt før/etter. Registrerte
+kolonneegenskaper (type/null/default/tekstlengde), constraintdefinisjoner/-validering,
+triggerdefinisjoner/-status og `crm_%`-funksjonskropper er også eksakt sammenlignet.
+Dette er ikke en full sammenligning av alle indekser, sekvensegenskaper, views,
+eiere, grants eller øvrig kolonne-/funksjonsmetadata. Ingen schema-DDL er kjørt.
+128 Organizations/157 Persons og26 image review events før/etter. Schema er
+fortsatt0040, tom migrasjonsplan og ingen delta i de målte schemakatalogene. Medlemskap0, avtale-/
+forvaltnings-/canonical-audit-/overlay-/kopibatchtabeller fortsatt tomme.
+Fem tilgangs-/writer-/notatgater er effektivt og varig av; øvrige flagg,
+Brave-nøkkel og eksakt eierbinding er uendret. Ingen providerkall eller reelle
+profil-/bildewrites, ny approval/complete, notatplan/-kopi eller aktivering.
+
+Lesekontroller omfatter14 tenant-API-lister, seks detaljer, to Admin-lister/
+notatskjema og autentisert sessionrespons uten å opprette session. Alle122
+publiserte Editor-previews er like PUBLIC:11 asset/111 fallback. Én eksisterende
+upublisert privat preview er lesbar for operatøren/no-store og avvist anonymt.
+Syv aktørlister bruker tre safety-batcher, maks21 elementer, og ingen single-/
+legacykall per kort. Eksakt release-scope tillates og feil tenant avvises.
+Eierens search-context inneholder bare aktørens egne tenanttags; syntetisk
+nonowner avvises før provider. PUBLIC-katalog og representative eksisterende
+asset-/fallbackbytes i alle tre varianter er identiske før/etter.
+
+Eksisterende private originaler, artifacts, historiske releases, media/static og
+hele safety-ledgerens bytes/denyhistorikk bevares; READY/cursor37→37 og null nye
+hendelser. Pre-backup `kreative-norge-staging-20261114T222239Z` og post-backup
+`kreative-norge-staging-20261114T222342Z` har hver full repositoryverifisering og
+isolert PostgreSQL16-restore av samme arkiv-ID/dumpchecksum, med0040/constraints/
+historikk kontrollert. Ingen live restore, prune/compact eller etterlatte
+restorevolumer. Alle tre relevante timere er tilbake aktive/enabled.
+
+Operatørskriptene fikk separat skrivebeskyttet review på SHA-ene i evidensen.
+Én falsk stopprisiko ble rettet før bruk: komplette DB-mountdicts sammenlignes
+etter sortering, uten å utelate egenskaper. Ingen andre kode-/schemaendringer.
+Rollbackbehov oppstod ikke. Eventuell senere API/web-rollback beholder0040,
+alle registrerte verdier, historiske bilder og nyere ledger/deny-state.
+
+Skrivepausen er opphevet. Positive bildehandlinger, taggquery og desktoplayout
+er bevist med syntetiske lokale tester/CI; stagingkontrollene er lesebaserte og
+bruker eksisterende operatør. Ingen ny visuell eieraksept, Bådin-/4/4-bildewrite,
+generell UX-/inventarrunde eller produksjonssetting påstås. Private manifests,
+operatør-/miljøfiler og logger ligger utenfor Git. Dokumentasjonspublisering
+følger egen review/PR/merge/CI og utløser ingen ny deploy.
+
 ## Samlet bildebekreftelse og zoom ut – 2026-11-08
 
 **Eierbeslutning:** Hvit bakgrunn når foto zoomes ut; ett bekreftet bilde brukes
