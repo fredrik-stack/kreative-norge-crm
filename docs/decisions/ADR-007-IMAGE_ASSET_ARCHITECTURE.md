@@ -25,8 +25,11 @@ skjulte ID-refinements. Ingen tags/notater sendes automatisk; dette klassifisere
 ikke legacytags eller endrer shared/PUBLIC/import. Eldre «tags aldri»-føring
 erstattes bare for dette eksplisitte, eierstyrte søkevalget.
 
-Beslutningen er godkjent gjennom denne rettingsbestillingen. Faktisk leveranse-
-og stagingstatus følger prosjektstatus; levende redaksjonelle data bevares.
+Beslutningen er godkjent gjennom denne rettingsbestillingen og implementert i
+PR #115 /67a95ad etter separat review og grønn PR-/main-CI6/6. Kontrollert
+stagingverifisering2026-11-14 bekrefter uendret0040/schema/data/media/ledger
+og grønne backup-/restoreporter. Ingen reelle bildewrites eller ny visuell
+eieraksept. [Evidens og grenser](../architecture/SECURITY_AND_ROLES.md#bilderedigering-etter-desktoptest--2026-11-14).
 
 **Eierbeslutning 2026-11-08 – samlet bildebekreftelse og zoom ut:** Nytt bilde
 bekreftes i én brukerhandling for Editor CRM og PUBLIC. De separate valgene

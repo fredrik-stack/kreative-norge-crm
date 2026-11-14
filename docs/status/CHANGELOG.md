@@ -1,6 +1,23 @@
 # Changelog
 
 
+## 2026-11-14 – Bilderedigering etter desktoptest, stagingverifisert
+
+- Små gyldige bilder resamples til faste onlineformater; visuell vurdering i
+  ferdig preview erstatter hard no-upscale-avvisning. Nye artifacts bruker v3.
+- Alle fire kilder er direkte tilgjengelige også ved erstatning. Upload har
+  drag-and-drop og filvelger; ny processing/godkjenning krever eksplisitt handling.
+- Kompakt Brave-søk, eksplisitte egne tagger i synlig query, og første nye
+  bilderad i synsfeltet. Provider-/rettighets-/eiergrensene består.
+- PR #115 /67a95ad, separat review og grønn PR-/main-CI6/6. Kontrollert API+
+  frontenddeploy uten migrasjon; alle data/schema/media/ledger bevares,
+  READY37→37, backup/fullverify/isolert restore/HTTPS/timere grønne.
+- Skrivepausen er opphevet. Ingen reelle bildewrites, ny visuell eieraksept eller
+  shared-/writer-/notataktivering. Dokumentasjonsmerge gir ingen ny deploy.
+  [Kontrakt, faktiske kontroller og bevisgrenser](../architecture/SECURITY_AND_ROLES.md#bilderedigering-etter-desktoptest--2026-11-14).
+
+
+
 ## 2026-11-09 – Samlet bildebekreftelse og zoom ut, stagingverifisert
 
 - Eiergodkjent fotozoom10–300 %, standard100 %, med hvit flate ved zoom ut.

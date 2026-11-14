@@ -7,6 +7,8 @@ Ingen modell-/schemaendring. `ImageRenditionSet.processing_version` og render-
 config/hash identifiserer ny `phase3c-pillow-online-v3` når valgt oppskrift
 krever oppskalering. Gamle v1-/white-frame-v2-sett og deres bytes beholdes.
 Ingen automatisk konvertering, assignment-, profil-, notat- eller taggwrite.
+PR #115 /67a95ad er nå stagingverifisert: hele0040-schemaet/migrasjonshistorikken
+og alle56 tabellers eksisterende rader/tidsstempler/stamps er eksakt bevart.
 [Kontrakt og faktisk leveransestatus](SECURITY_AND_ROLES.md#bilderedigering-etter-desktoptest--2026-11-14).
 
 
