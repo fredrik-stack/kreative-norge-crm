@@ -2,6 +2,32 @@
 
 ## Status
 
+**Eierbeslutning 2026-11-14 – visuell onlinekvalitet og tilgjengelig bildebytte:**
+Kildeoppløsning er ikke lenger en hard readiness-gate. Gyldige rasterbilder kan
+resamples til de eksisterende onlineformatene; redaktøren vurderer de ferdige
+forhåndsvisningene før rettighetsbekreftelse og bruk. Dette overstyrer eldre
+no-upscale-/minimum-crop-krav. Fil-/pixelgrenser, trygg dekoding, MIME-/ICC-/
+metadatahåndtering, revisjoner, immutable bytes og safety/deny består. Ny
+behandling som trenger oppskalering får egen processing-version; gamle bilder
+regenereres eller overskrives ikke. Ingen schema- eller datamigrering trengs.
+
+Alle fire bildekilder skal være tilgjengelige også når et bilde allerede er
+valgt, uten krav om først å kjøre nettsidesøk. Bildesøk presenteres kompakt med
+resultater etter søkefeltene og første nye rad i synsfeltet. Upload støtter både
+filvelger og drag-and-drop gjennom samme sikre behandling. Funksjoner bevares.
+
+Prosjekteier har bedt om at de to lange Brave-informasjonstekstene fjernes fra
+bildesøket. Dette endrer ikke providerens retensjon eller avtale-/privacygrunnlag
+og åpner ikke for flere brukere. Bare eierkontoen er fortsatt autorisert.
+Tags kan legges til ved uttrykkelig valg av aktørens egne tenanttags. Valgte navn
+skal stå i den synlige, redigerbare queryen før sending, som manuell query uten
+skjulte ID-refinements. Ingen tags/notater sendes automatisk; dette klassifiserer
+ikke legacytags eller endrer shared/PUBLIC/import. Eldre «tags aldri»-føring
+erstattes bare for dette eksplisitte, eierstyrte søkevalget.
+
+Beslutningen er godkjent gjennom denne rettingsbestillingen. Faktisk leveranse-
+og stagingstatus følger prosjektstatus; levende redaksjonelle data bevares.
+
 **Eierbeslutning 2026-11-08 – samlet bildebekreftelse og zoom ut:** Nytt bilde
 bekreftes i én brukerhandling for Editor CRM og PUBLIC. De separate valgene
 «Ta bildet i bruk på PUBLIC» og «Bruk standardbilde i stedet» fjernes fra

@@ -304,7 +304,7 @@ describe("OrganizationImagePanel", () => {
     render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Kreativ Demo AS" />);
     await screen.findByText("Ingen aktivt valgt bilde ennå.");
 
-    expect(screen.queryByRole("button", { name: "Lim inn bilde-URL" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Lim inn bilde-URL" })).toBeEnabled();
     await userEvent.click(screen.getByRole("button", { name: "Finn bilder" }));
     await userEvent.click(screen.getByRole("button", { name: "Lim inn bilde-URL" }));
     await userEvent.type(screen.getByRole("textbox", { name: "Direkte bilde-URL" }), "https://images.example/photo.jpg");
@@ -374,9 +374,9 @@ describe("OrganizationImagePanel", () => {
     await userEvent.click(screen.getByRole("button", { name: "Finn bilder" }));
     await userEvent.click(screen.getByRole("button", { name: "Søk etter flere bilder" }));
 
-    expect(await screen.findByText(
-      "Søket sendes til Brave og kan lagres i opptil 90 dager. Unngå sensitiv eller intern informasjon.",
-    )).toBeInTheDocument();
+    expect(screen.queryByText(/Søket sendes til Brave/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Strenge søk/)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByText("Søkevalg: sted, kategori, tags og person"));
 
     const query = await screen.findByLabelText("Forslått søk");
     expect(query).toHaveValue("Kreativ Demo AS");
@@ -475,7 +475,7 @@ describe("OrganizationImagePanel", () => {
     const file = new File(["image-bytes"], "scene.webp", { type: "image/webp" });
     await userEvent.upload(screen.getByLabelText("Velg JPEG-, PNG- eller WebP-bilde"), file);
     const uploadCandidate = await screen.findByRole("button", { name: /Lastet opp/ });
-    expect(screen.queryByRole("button", { name: "Prosesser valgt bilde" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Prosesser valgt bilde" })).toBeEnabled();
     expect(api.processUploadedOrganizationImage).not.toHaveBeenCalled();
 
     await userEvent.click(uploadCandidate);
@@ -616,6 +616,7 @@ describe("OrganizationImagePanel", () => {
     expect(api.searchBraveImages).not.toHaveBeenCalled();
   });
   it("shows Brave results in local batches, defers hidden previews, replaces searches and sends visible suggestions explicitly", async () => {
+    const scroll = vi.fn(); Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {configurable: true, value: scroll});
     vi.mocked(URL.createObjectURL).mockReturnValue("blob:preview");
     api.getImageSearchContext.mockResolvedValue({
       suggested_query: "4/4 FORUM FOR TAKT OG TONE Rana", query_sources: ["organization_name"],
@@ -636,10 +637,14 @@ describe("OrganizationImagePanel", () => {
     await userEvent.click(screen.getByRole("button", {name: "Nytt søk"}));
     expect(api.searchBraveImages).toHaveBeenCalledWith(1, 10, expect.objectContaining({query: "FORUM FOR TAKT OG TONE", query_edited: true, category_id: null, person_id: null}));
     await screen.findByText("Viser 12 av 25 treff fra dette søket.");
+    expect(document.activeElement).toHaveAttribute("data-brave-result-index", "0");
+    expect(scroll).toHaveBeenCalledWith({block: "start", behavior: "auto"});
+    expect(screen.getByLabelText("Bildesøk").compareDocumentPosition(screen.getByLabelText("Bilderesultater")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await waitFor(() => expect(api.getCandidatePreview).toHaveBeenCalledTimes(13));
     expect(screen.queryByText("Brave image 12")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", {name: "Vis flere bilder"}));
     await screen.findByText("Viser 24 av 25 treff fra dette søket.");
+    expect(document.activeElement).toHaveAttribute("data-brave-result-index", "12");
     await waitFor(() => expect(api.getCandidatePreview).toHaveBeenCalledTimes(25));
     expect(api.searchBraveImages).toHaveBeenCalledTimes(1);
     await userEvent.click(screen.getByRole("button", {name: "Vis flere bilder"}));
@@ -649,6 +654,69 @@ describe("OrganizationImagePanel", () => {
     await screen.findByText("Viser 12 av 25 treff fra dette søket.");
     expect(screen.getAllByText("Brave image 0")).toHaveLength(1);
     expect(screen.queryByText("Brave image 24")).not.toBeInTheDocument();
+  });
+
+  it("keeps every source available for replacing an already approved image without discovery", async () => {
+    api.getOrganizationImageState.mockResolvedValue({expected_revision: 8, brave_search_enabled: true,
+      active_selection: {kind: "asset", revision: 8, alt_text: "Existing", public_credit: "", variants: []}});
+    render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Synthetic" />);
+    await screen.findByText("Revisjon 8");
+    for (const name of ["Finn bilder", "Søk etter flere bilder", "Lim inn bilde-URL", "Last opp bilde"]) {
+      expect(screen.getByRole("button", {name})).toBeEnabled();
+    }
+    await userEvent.click(screen.getByRole("button", {name: "Last opp bilde"}));
+    expect(screen.getByLabelText("Opplastingsområde")).toBeInTheDocument();
+    expect(api.discoverOfficialImages).not.toHaveBeenCalled();
+    expect(api.approveOrganizationImage).not.toHaveBeenCalled();
+  });
+
+  it("uses explicit tags only in the visible exact query and clears them on manual edit and reset", async () => {
+    api.getImageSearchContext.mockResolvedValue({suggested_query: "Demo Oslo", query_sources: ["organization_name", "municipality"], municipalities: ["Oslo"],
+      categories: [{id: 4, name: "Konsert"}], people: [], tags: [{id: 3, name: "jazz"}, {id: 5, name: "scene"}]});
+    render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Demo" />);
+    await screen.findByText("Ingen aktivt valgt bilde ennå.");
+    await userEvent.click(screen.getByRole("button", {name: "Søk etter flere bilder"}));
+    const query = await screen.findByLabelText("Forslått søk");
+    expect(query).toHaveValue("Demo Oslo");
+    await userEvent.click(screen.getByText("Søkevalg: sted, kategori, tags og person"));
+    await userEvent.click(screen.getByRole("button", {name: "Konsert"}));
+    await userEvent.click(screen.getByRole("button", {name: "jazz"}));
+    await userEvent.click(screen.getByRole("button", {name: "scene"}));
+    expect(query).toHaveValue("Demo Oslo Konsert jazz scene");
+    await userEvent.click(screen.getByRole("button", {name: "jazz"}));
+    expect(query).toHaveValue("Demo Oslo Konsert scene");
+    await userEvent.click(screen.getByRole("button", {name: "Nytt søk"}));
+    expect(api.searchBraveImages).toHaveBeenLastCalledWith(1, 10, {
+      query: "Demo Oslo Konsert scene", query_edited: true, municipality: null, category_id: null, person_id: null});
+    await userEvent.type(query, " logo");
+    expect(screen.getByRole("button", {name: "scene"})).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(screen.getByRole("button", {name: "Tilbakestill til forslag"}));
+    expect(query).toHaveValue("Demo Oslo");
+  });
+
+  it("accepts one dropped image locally, preserves it on invalid drops and waits for explicit processing", async () => {
+    vi.mocked(URL.createObjectURL).mockReturnValue("blob:drop");
+    render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Synthetic" />);
+    await screen.findByText("Ingen aktivt valgt bilde ennå.");
+    await userEvent.click(screen.getByRole("button", {name: "Last opp bilde"}));
+    const zone = screen.getByLabelText("Opplastingsområde");
+    const file = new File(["synthetic"], "small.png", {type: "image/png"});
+    fireEvent.dragEnter(zone); expect(zone).toHaveClass("is-dragging");
+    fireEvent.drop(zone, {dataTransfer: {files: [file]}});
+    expect(zone).not.toHaveClass("is-dragging");
+    expect(await screen.findByRole("button", {name: /Lastet opp.*small.png/})).toHaveClass("active");
+    expect(api.processUploadedOrganizationImage).not.toHaveBeenCalled();
+    fireEvent.drop(zone, {dataTransfer: {files: [file, file]}});
+    expect(screen.getByRole("alert")).toHaveTextContent("ett bilde om gangen");
+    fireEvent.drop(zone, {dataTransfer: {files: [new File(["bad"], "bad.svg", {type: "image/svg+xml"})]}});
+    expect(screen.getByRole("alert")).toHaveTextContent("JPEG, PNG eller WebP");
+    expect(screen.getByRole("button", {name: /Lastet opp.*small.png/})).toHaveClass("active");
+    const pending = deferred<never>(); api.processUploadedOrganizationImage.mockReturnValue(pending.promise);
+    await userEvent.click(screen.getByRole("button", {name: "Prosesser valgt bilde"}));
+    fireEvent.drop(zone, {dataTransfer: {files: [new File(["new"], "new.png", {type: "image/png"})]}});
+    expect(screen.queryByText("new.png")).not.toBeInTheDocument();
+    expect(api.processUploadedOrganizationImage).toHaveBeenCalledWith(1, 10, expect.objectContaining({file}));
+    expect(api.approveOrganizationImage).not.toHaveBeenCalled();
   });
 
   it("shows preparation without public visibility for an unpublished actor", async () => {

@@ -205,10 +205,7 @@ test("direct URL can be previewed, cropped live, processed, and approved with bl
   const state = await setupMockEditorApi(page);
   state.organizations[0].image_asset_feature_enabled = true;
   let activeRevision = 0;
-  const imageBody = Buffer.from(
-    "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAQAAABp8Z5+AAAADklEQVR42mNk+M8AAQADAgEAff9qAAAAAElFTkSuQmCC",
-    "base64",
-  );
+  const imageBody = readFileSync("tests/fixtures/editor-image-synthetic.png");
 
   await page.route("**/api/tenants/1/organizations/10/images/state/", async (route) => {
     await route.fulfill({
@@ -339,17 +336,15 @@ test("direct URL can be previewed, cropped live, processed, and approved with bl
   await page.getByRole("checkbox", {name: /Jeg bekrefter/}).check();
   await page.getByRole("button", { name: "Bekreft og bruk bildet" }).click();
   await expect(page.getByText("Godkjent aktørbilde")).toBeVisible();
+  await page.locator(".image-current-picture").evaluate(node => { (node as HTMLDetailsElement).open = true; });
   await expect(page.getByText("Ingen alt-tekst")).toBeVisible();
 });
 
 test("local upload can be processed as a complete uncropped logo without changing PUBLIC fields", async ({ page }) => {
   const state = await setupMockEditorApi(page);
   state.organizations[0].image_asset_feature_enabled = true;
-  let activeRevision = 0;
-  const imageBody = Buffer.from(
-    "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAQAAABp8Z5+AAAADklEQVR42mNk+M8AAQADAgEAff9qAAAAAElFTkSuQmCC",
-    "base64",
-  );
+  let activeRevision = 8;
+  const imageBody = readFileSync("tests/fixtures/editor-image-synthetic.png");
 
   await page.route("**/api/tenants/1/organizations/10/images/state/", async (route) => {
     await route.fulfill({
@@ -413,15 +408,15 @@ test("local upload can be processed as a complete uncropped logo without changin
     expect(route.request().postDataJSON()).toEqual({
       rights_confirmed: true,
       approval_ref: "signed-upload-approval-ref",
-      expected_revision: 0,
+      expected_revision: 8,
       alt_text: "",
       public_credit: "",
     });
-    activeRevision = 1;
+    activeRevision = 9;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ selection_id: 3, revision: 1, status: "active", event_id: 3 }),
+      body: JSON.stringify({ selection_id: 3, revision: 9, status: "active", event_id: 3 }),
     });
   });
 
@@ -430,17 +425,25 @@ test("local upload can be processed as a complete uncropped logo without changin
   await page.locator(".editor-card-grid").getByRole("button", { name: "Kreativ Demo AS" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Rediger" }).click();
   await page.locator("summary").filter({hasText:"Endre bilde"}).click();
-  await page.getByRole("button", { name: "Finn bilder" }).click();
+  await expect(page.getByText("Revisjon 8", {exact: true})).toBeVisible();
+  for (const name of ["Finn bilder", "Søk etter flere bilder", "Lim inn bilde-URL", "Last opp bilde"]) {
+    await expect(page.getByRole("button", {name, exact: true})).toBeEnabled();
+  }
   await page.getByRole("button", { name: "Last opp bilde" }).click();
-  await page.getByLabel("Velg JPEG-, PNG- eller WebP-bilde").setInputFiles({
-    name: "upload.png",
-    mimeType: "image/png",
-    buffer: imageBody,
-  });
+  if (process.env.IMAGE_UX_EVIDENCE_DIR) {
+    await page.getByLabel("Opplastingsområde").scrollIntoViewIfNeeded();
+    await page.screenshot({path: `${process.env.IMAGE_UX_EVIDENCE_DIR}/replace-drop.png`});
+  }
+  const drop = await page.evaluateHandle((bytes) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([new Uint8Array(bytes)], "upload.png", {type: "image/png"}));
+    return transfer;
+  }, [...imageBody]);
+  await page.getByLabel("Opplastingsområde").dispatchEvent("drop", {dataTransfer: drop});
 
   const uploadCandidate = page.getByRole("button", { name: /Lastet opp.*upload\.png/ });
   await expect(uploadCandidate).toBeVisible();
-  await expect(page.getByRole("button", { name: "Prosesser valgt bilde" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Prosesser valgt bilde" })).toBeEnabled();
   await uploadCandidate.click();
   await expect(page.getByLabel("Live crop-preview").getByRole("img")).toHaveCount(3);
   await page.getByLabel("Bildetype").selectOption("logo");
@@ -451,9 +454,12 @@ test("local upload can be processed as a complete uncropped logo without changin
   await page.getByRole("button", { name: "Prosesser valgt bilde" }).click();
   await expect(page.getByRole("textbox", { name: /Alt-tekst \(valgfritt\)/ })).toHaveValue("");
   await page.getByRole("checkbox", {name: /Jeg bekrefter/}).check();
-  await page.getByRole("button", { name: "Bekreft og bruk bildet" }).click();
+  await page.getByRole("button", { name: "Bekreft og erstatt bildet" }).click();
 
   await expect(page.getByText("Godkjent aktørbilde")).toBeVisible();
+  await expect(page.getByText("Revisjon 9", {exact: true})).toBeVisible();
+  await page.locator(".image-current-picture summary").click();
+  await page.locator(".image-current-picture").evaluate(node => { (node as HTMLDetailsElement).open = true; });
   await expect(page.getByText("Ingen alt-tekst")).toBeVisible();
   await page.locator("summary").filter({hasText:/^Forhåndsvisning/}).click();
   await expect(page.getByRole("heading", { name: "Public Preview (legacy)" })).toBeVisible();
@@ -461,13 +467,11 @@ test("local upload can be processed as a complete uncropped logo without changin
   expect(state.organizations[0].og_image_url).toBeNull();
 });
 
-test("Brave search is mocked with exact manual query, privacy copy, private preview, and processing", async ({ page }) => {
+test("Brave search is mocked with exact manual query, first result focus, private preview, and processing", async ({ page }) => {
+  await page.setViewportSize({width: 1440, height: 900});
   const state = await setupMockEditorApi(page);
   state.organizations[0].image_asset_feature_enabled = true;
-  const imageBody = Buffer.from(
-    "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAQAAABp8Z5+AAAADklEQVR42mNk+M8AAQADAgEAff9qAAAAAElFTkSuQmCC",
-    "base64",
-  );
+  const imageBody = readFileSync("tests/fixtures/editor-image-synthetic.png");
 
   await page.route("**/api/tenants/1/organizations/10/images/state/", async (route) => {
     await route.fulfill({
@@ -559,13 +563,23 @@ test("Brave search is mocked with exact manual query, privacy copy, private prev
   await page.locator("summary").filter({hasText:"Endre bilde"}).click();
   await page.getByRole("button", { name: "Finn bilder" }).click();
   await page.getByRole("button", { name: "Søk etter flere bilder" }).click();
-  await expect(page.getByText(/Søket sendes til Brave/)).toBeVisible();
+  await expect(page.getByText(/Søket sendes til Brave/)).toHaveCount(0);
   const query = page.getByLabel("Forslått søk");
   await expect(query).toHaveValue("Kreativ Demo AS Oslo");
+  if (process.env.IMAGE_UX_EVIDENCE_DIR) {
+    await page.getByLabel("Bildesøk").scrollIntoViewIfNeeded();
+    await page.screenshot({path: `${process.env.IMAGE_UX_EVIDENCE_DIR}/search-form.png`});
+  }
   await query.fill("Festspillene Helgeland logo");
   await page.getByRole("button", { name: "Nytt søk", exact: true }).click();
+  const firstResult = page.locator('[data-brave-result-index="0"]');
+  await expect(firstResult).toBeFocused();
+  await expect(firstResult).toBeInViewport({ratio: 0.9});
   await expect(page.getByText("Eksempelavisen · publisher.example")).toBeVisible();
-  await expect(page.getByText("Kontroller at du har lov til å bruke bildet før du godkjenner.")).toBeVisible();
+  await expect(firstResult.locator("img")).toHaveJSProperty("complete", true);
+  await expect(firstResult.locator("img")).toHaveJSProperty("naturalWidth", 1600);
+  if (process.env.IMAGE_UX_EVIDENCE_DIR) await page.screenshot({path: `${process.env.IMAGE_UX_EVIDENCE_DIR}/brave-results.png`});
+  await expect(page.getByText("Kontroller at du har lov til å bruke bildet før du godkjenner.")).toHaveCount(1);
   await page.getByRole("button", { name: /Festspillene Helgeland/ }).click();
   await page.getByRole("button", { name: "Prosesser valgt bilde" }).click();
   await expect(page.getByLabel("Serverens bildeformater").getByRole("img")).toHaveCount(3);

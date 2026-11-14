@@ -430,6 +430,7 @@ def get_brave_search_context(
         "query_sources": list(context.query_sources),
         "municipalities": list(context.municipalities),
         "categories": list(context.categories),
+        "tags": list(organization.tags.filter(tenant_id=tenant_id).order_by("name", "pk").values("id", "name")),
         "people": list(context.people),
     }
 
