@@ -1,5 +1,52 @@
 # Security and Roles
 
+## Bilderedigering etter desktoptest – 2026-11-14
+
+Eiermandatet gjelder fire konkrete rettinger og levering helt til staging.
+[ADR-007](../decisions/ADR-007-IMAGE_ASSET_ARCHITECTURE.md) lagrer den oppdaterte
+kvalitets-/søkeretningen før implementering. Ingen ny rettighets- eller datamodell.
+
+- Gyldige JPEG/PNG/WebP avvises ikke for lav kildeoppløsning eller et lite crop.
+  De faste512²/800×450/1200×630-outputene resamples med eksisterende LANCZOS.
+  Små logoer fyller samme84 % containramme. Ny oppskalering bruker
+  `phase3c-pillow-online-v3`; øvrige oppskrifter beholder v1/white-frame-v2.
+  Originalbytes og gamle immutable artifacts/regler/historikk endres ikke.
+  Redaktøren vurderer de ferdige forhåndsvisningene før eksplisitt rettighetsvalg.
+- Fil-/pixelgrenser, MIME/sniff, dekoding, ICC/sRGB/metadata, secure fetch,
+  tenantautorisasjon, expected revision, releases og frisk safety/deny består.
+- Alle fire bildekilder er direkte tilgjengelige ved første åpning og bildebytte.
+  Aktivt bilde har kompakt, utvidbar status. Søkevalg er samlet i en detaljseksjon;
+  søkefelt/handlinger står før resultater. Nytt søk fokuserer første bilderad;
+  «Vis flere» fokuserer første nye rad, uten nytt providerkall eller skjulte previews.
+- Egen aktørs tenanttags kan velges eksplisitt. Kun synlige navn legges til eksakt
+  redigerbar query med alle strukturerte IDs/kommune null. Ingen tags/notater
+  sendes automatisk eller som skjulte rangeringssignaler. Annen aktørs/tenants
+  tags tilbys ikke; legacytags klassifiseres ikke. Standardforslaget er uendret.
+- De to ønskede informasjonsavsnittene fjernes fra bildeflaten; retensjon, tidligere
+  avtalegrunnlag, rettighetspåminnelse og Brave-begrensning til eierkonto består.
+- Upload bruker samme filvalg-/drop-handler, lokalt blobpreview og ingen opplasting
+  før eksplisitt processing. Ett JPEG/PNG/WebP opptil15MiB; ugyldige/flere filer
+  beholder gjeldende valg. Drop under arbeid ignoreres. Filvelger/tastatur består.
+
+Ingen schemaendring, reell profil-/bildewrite, notatkopi eller tilgangsaktivering
+inngår. Fem default-off gater bevares. Staging krever grønn main-CI, frisk baseline
+etter varslet eierpause, pre/post-backup/fullverify/isolert restore og eksakt
+bevaring av alle rader, schema, timestamps, stamps, media/static og ledger.
+Rollback erstatter bare API/web og beholder0040, historikk og nyere deny-state.
+81 frontendtester/TS/produksjonsbygg og seks syntetiske Chromium-bildereiser er
+grønne. De dekker alle fire kilder uten discovery, valgt bilde→erstatning med
+revisjon8→9, filvelger/drop, privat originalpreview, crop/processing, eksplisitt
+rights approval, upublisert/publisert aktør og første resultat i faktisk viewport.
+[Komprimert søkeflate](../status/evidence/image-usability-2026-11-14/search-form.png),
+[første treff](../status/evidence/image-usability-2026-11-14/brave-results.png) og
+[bildebytte/drop](../status/evidence/image-usability-2026-11-14/replace-drop.png)
+bruker bare syntetisk aktør og egen bildefixture; ingen ny visuell eieraksept.
+Full isolert PostgreSQL16-regresjon777 er grønn, inkludert legacy/PUBLIC/image/
+safety. Én ny separat online-v3-idempotenstest og migrasjonskontroll inngår
+også før levering. Review-/PR-/stagingstatus følger prosjektstatus. Eldre beskrivelser
+nedenfor er daterte bevis der denne presiseringen overstyrer no-upscale/tag-never.
+
+
 
 ## Samlet bildebekreftelse og zoom ut – 2026-11-08
 

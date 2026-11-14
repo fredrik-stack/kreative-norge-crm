@@ -720,8 +720,6 @@ function imageFlowError(error: unknown, operation: ImageFlowOperation = "generic
   }
 
   switch (code) {
-    case "upscale_required":
-      return "Bildet er for lite til å lage alle nødvendige formater uten kvalitetstap. Velg et større bilde.";
     case "invalid_zoom":
     case "invalid_crop_recipe":
       return "Utsnittet er ugyldig. Tilbakestill utsnittet og prøv igjen.";
@@ -832,6 +830,12 @@ export function OrganizationImagePanel(props: {
   const candidatePreviewWorkers = useRef(0);
   const selectedPreviewRequest = useRef(0);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const resultsRef = useRef<HTMLDivElement | null>(null);
+  const dragDepth = useRef(0);
+  const [dragActive, setDragActive] = useState(false);
+  const [resultScroll, setResultScroll] = useState<{ index: number } | null>(null);
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [tagQueryBase, setTagQueryBase] = useState("");
   const [candidates, setCandidates] = useState<OrganizationImageCandidate[]>([]);
   const [braveVisibleCount, setBraveVisibleCount] = useState(0);
   const BRAVE_PAGE_SIZE = 12;
@@ -955,7 +959,10 @@ export function OrganizationImagePanel(props: {
 
   const braveCandidates = candidates.filter(candidate => candidate.provider === "brave_image_search");
   const visibleBraveRefs = new Set(braveCandidates.slice(0, braveVisibleCount).map(candidate => candidate.candidate_ref));
-  const visibleCandidates = candidates.filter(candidate => candidate.provider !== "brave_image_search" || visibleBraveRefs.has(candidate.candidate_ref));
+  const visibleCandidates = lastSearch
+    ? [...braveCandidates.filter(candidate => visibleBraveRefs.has(candidate.candidate_ref)), ...candidates.filter(candidate => candidate.provider !== "brave_image_search")]
+    : candidates.filter(candidate => candidate.provider !== "brave_image_search" || visibleBraveRefs.has(candidate.candidate_ref));
+  const braveResultIndices = new Map(braveCandidates.map((candidate, index) => [candidate.candidate_ref, index]));
 
   function replaceBraveCandidates(next: OrganizationImageCandidate[], generation: number) {
     candidateSetVersion.current += 1;
@@ -980,6 +987,7 @@ export function OrganizationImagePanel(props: {
     const nextCount = Math.min(braveVisibleCount + BRAVE_PAGE_SIZE, braveCandidates.length);
     enqueueCandidatePreviews(braveCandidates.slice(braveVisibleCount, nextCount), scopeGeneration.current);
     setBraveVisibleCount(nextCount);
+    setResultScroll({index: braveVisibleCount});
   }
 
   async function loadPreviews(
@@ -1061,6 +1069,8 @@ export function OrganizationImagePanel(props: {
     setPublicCredit("");
     setOfficialAttempted(false);
     setSourcePanel(null);
+    setDragActive(false); dragDepth.current = 0;
+    setResultScroll(null); setSelectedTagIds([]); setTagQueryBase("");
     setSearchContext(null);
     setSearchQuery("");
     setSearchQueryEdited(false);
@@ -1097,9 +1107,17 @@ export function OrganizationImagePanel(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId, organizationId]);
 
+  useEffect(() => {
+    if (!resultScroll) return;
+    const target = resultsRef.current?.querySelector<HTMLElement>(`[data-brave-result-index="${resultScroll.index}"]`) ?? resultsRef.current;
+    target?.scrollIntoView?.({block: "start", behavior: "auto"});
+    target?.focus({preventScroll: true});
+  }, [resultScroll]);
+
   async function onDiscover() {
     const generation = scopeGeneration.current;
     setOfficialAttempted(true);
+    setSourcePanel(null);
     setBusy("discover");
     setError(null);
     invalidateProcessing();
@@ -1115,6 +1133,7 @@ export function OrganizationImagePanel(props: {
   }
 
   function applySearchContext(context: OrganizationImageSearchContext) {
+    setSelectedTagIds([]); setTagQueryBase("");
     setSearchContext(context);
     setSearchQuery(context.suggested_query);
     setSearchQueryEdited(false);
@@ -1150,24 +1169,39 @@ export function OrganizationImagePanel(props: {
     const nextValue = selectedMunicipality === value && municipalityExplicit ? null : value;
     setSelectedMunicipality(nextValue);
     setMunicipalityExplicit(nextValue !== null);
-    setSearchQuery(buildRefinedSearchQuery(searchContext, nextValue, selectedCategoryId, selectedPersonId));
-    setSearchQueryEdited(false);
+    updateRefinedQuery(nextValue, selectedCategoryId, selectedPersonId);
   }
 
   function updateCategory(categoryId: number) {
     if (!searchContext) return;
     const nextId = selectedCategoryId === categoryId ? null : categoryId;
     setSelectedCategoryId(nextId);
-    setSearchQuery(buildRefinedSearchQuery(searchContext, selectedMunicipality, nextId, selectedPersonId));
-    setSearchQueryEdited(false);
+    updateRefinedQuery(selectedMunicipality, nextId, selectedPersonId);
   }
 
   function updatePerson(personId: number) {
     if (!searchContext) return;
     const nextId = selectedPersonId === personId ? null : personId;
     setSelectedPersonId(nextId);
-    setSearchQuery(buildRefinedSearchQuery(searchContext, selectedMunicipality, selectedCategoryId, nextId));
-    setSearchQueryEdited(false);
+    updateRefinedQuery(selectedMunicipality, selectedCategoryId, nextId);
+  }
+
+  function updateRefinedQuery(municipality: string | null, category: number | null, person: number | null) {
+    if (!searchContext) return;
+    const base = buildRefinedSearchQuery(searchContext, municipality, category, person);
+    setTagQueryBase(base);
+    const names = (searchContext.tags ?? []).filter(tag => selectedTagIds.includes(tag.id)).map(tag => tag.name);
+    setSearchQuery([base, ...names].join(" "));
+    setSearchQueryEdited(names.length > 0);
+  }
+
+  function updateTag(id: number) {
+    if (!searchContext) return;
+    const base = selectedTagIds.length ? tagQueryBase : searchQuery;
+    const ids = selectedTagIds.includes(id) ? selectedTagIds.filter(value => value !== id) : [...selectedTagIds, id];
+    const names = (searchContext.tags ?? []).filter(tag => ids.includes(tag.id)).map(tag => tag.name);
+    setTagQueryBase(base); setSelectedTagIds(ids);
+    setSearchQuery([base, ...names].join(" ")); setSearchQueryEdited(true);
   }
 
   async function onBraveSearch() {
@@ -1179,14 +1213,15 @@ export function OrganizationImagePanel(props: {
     try {
       const result = await searchBraveImages(tenantId, organizationId, {
         query: searchQuery,
-        municipality: searchQueryEdited && !municipalityExplicit ? null : selectedMunicipality,
-        category_id: selectedCategoryId,
-        person_id: selectedPersonId,
+        municipality: searchQueryEdited ? null : selectedMunicipality,
+        category_id: searchQueryEdited ? null : selectedCategoryId,
+        person_id: searchQueryEdited ? null : selectedPersonId,
         query_edited: searchQueryEdited,
       });
       if (scopeGeneration.current !== generation) return;
       setLastSearch({ query: result.search_query, sources: result.query_sources });
       replaceBraveCandidates(result.candidates, generation);
+      setResultScroll({index: 0});
       clearSelectedCandidate();
     } catch (nextError) {
       if (scopeGeneration.current === generation) setError(imageFlowError(nextError, "brave"));
@@ -1227,15 +1262,28 @@ export function OrganizationImagePanel(props: {
   }
 
   function onUploadFile(nextFile: File | null) {
-    if (uploadPreview) revokePreviewUrls({ upload: uploadPreview });
-    setUploadFile(nextFile);
-    clearSelectedCandidate();
-    invalidateProcessing();
-    if (!nextFile) {
-      setUploadPreview(null);
-      return;
+    if (busy !== null) return;
+    if (nextFile && !(["image/jpeg", "image/png", "image/webp"].includes(nextFile.type)
+      || (!nextFile.type && /\.(jpe?g|png|webp)$/i.test(nextFile.name)))) {
+      setError("Velg et bilde i JPEG, PNG eller WebP."); return;
     }
-    setUploadPreview(rememberObjectUrl(nextFile, scopeGeneration.current));
+    if (nextFile && nextFile.size > 15 * 1024 * 1024) {
+      setError("Bildet er for stort. Maksimal filstørrelse er 15 MB."); return;
+    }
+    setError(null);
+    if (uploadPreview) revokePreviewUrls({upload: uploadPreview});
+    setUploadFile(nextFile); clearSelectedCandidate(); invalidateProcessing();
+    setFocusX(0.5); setFocusY(0.5); setZoom(DEFAULT_COVER_ZOOM);
+    setUploadPreview(nextFile ? rememberObjectUrl(nextFile, scopeGeneration.current) : null);
+    setUploadSelected(Boolean(nextFile));
+  }
+
+  function onUploadDrop(event: React.DragEvent<HTMLDivElement>) {
+    event.preventDefault(); event.stopPropagation(); dragDepth.current = 0; setDragActive(false);
+    if (busy !== null) return;
+    const files = Array.from(event.dataTransfer.files);
+    if (files.length !== 1) { setError("Slipp ett bilde om gangen."); return; }
+    onUploadFile(files[0]);
   }
 
   async function selectRemoteCandidate(candidateRef: string) {
@@ -1409,12 +1457,7 @@ export function OrganizationImagePanel(props: {
     || (selectedRef && candidateOriginalPreviews[selectedRef]),
   );
   const currentQuerySources = searchQueryEdited
-    ? [
-        "manual_edit",
-        ...(municipalityExplicit && selectedMunicipality ? ["municipality"] : []),
-        ...(selectedCategoryId ? ["category"] : []),
-        ...(selectedPersonId ? ["person"] : []),
-      ]
+    ? ["manual_edit"]
     : [
         "organization_name",
         ...(selectedMunicipality ? ["municipality"] : []),
@@ -1424,7 +1467,7 @@ export function OrganizationImagePanel(props: {
   const unusedQuerySources = [
     ...(searchContext?.municipalities.length && !selectedMunicipality ? ["kommune"] : []),
     ...(!selectedCategoryId ? ["kategorier"] : []),
-    "tags",
+    ...(!selectedTagIds.length ? ["tags"] : []),
     ...(!selectedPersonId ? ["personer"] : []),
   ];
 
@@ -1435,119 +1478,29 @@ export function OrganizationImagePanel(props: {
           <p className="eyebrow small">Aktørens bilde</p>
           <h2 id="organization-image-heading">Aktørbilde</h2>
         </div>
-        <button type="button" className="ghost-button" onClick={onDiscover} disabled={busy !== null}>
-          {busy === "discover" ? "Finner bilder..." : "Finn bilder"}
-        </button>
+
       </div>
       <p className="muted">
         Finn bilder fra aktørens nettside. Du velger hva som skal brukes.
       </p>
       {error ? <div className="inline-banner warn" role="alert">{error}</div> : null}
       {imageState?.active_selection ? (
-        <div className="image-active-state">
-          <strong>{imageState.active_selection.kind === "asset" ? "Godkjent aktørbilde" : "Standardbilde valgt"}</strong>
-          <span className="meta">Revisjon {imageState.active_selection.revision}</span>
+        <details className="image-active-state image-current-picture">
+          <summary><strong>{imageState.active_selection.kind === "asset" ? "Godkjent aktørbilde" : "Standardbilde valgt"}</strong>
+          <span className="meta">Revisjon {imageState.active_selection.revision}</span></summary>
           <span className="meta">{imageState.active_selection.alt_text || "Ingen alt-tekst"}</span>
           <ImagePreviewGrid urls={activePreviews} label="Forhåndsvisning av aktivt bilde" />
-        </div>
+        </details>
       ) : busy !== "state" ? (
         <div className="empty-state compact">Ingen aktivt valgt bilde ennå.</div>
       ) : null}
 
 
-      {legacyCandidates.length > 0 ? (
-        <div className="image-source-section" aria-label="Tidligere lagrede bilder">
-          <strong>Tidligere lagrede bilder</strong>
-          <p className="muted">
-            Tidligere bilder er forslag. Velg og godkjenn før bruk.
-          </p>
-          <div className="image-candidate-grid">
-            {legacyCandidates.map((candidate) => (
-              <button
-                type="button"
-                key={candidate.candidate_ref}
-                className={`image-candidate-card ${selectedRef === candidate.candidate_ref ? "active" : ""}`}
-                disabled={busy !== null}
-                onClick={() => { void selectRemoteCandidate(candidate.candidate_ref); }}
-              >
-                {candidateOriginalPreviews[candidate.candidate_ref] ? (
-                  <img src={candidateOriginalPreviews[candidate.candidate_ref]} alt="" />
-                ) : (
-                  <span className="empty-state compact">Åpne for å se bildet</span>
-                )}
-                <strong>{candidate.source_label}</strong>
-                <span className="meta">{candidate.source_domain ?? "Ukjent kilde"}</span>
-                <span>{selectedRef === candidate.candidate_ref ? "Valgt bilde" : "Forhåndsvis og velg"}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {candidates.length > 0 || uploadFile ? (
-        <div className="image-candidate-grid">
-          {visibleCandidates.map((candidate) => (
-            <button
-              type="button"
-              key={candidate.candidate_ref}
-              className={`image-candidate-card ${selectedRef === candidate.candidate_ref ? "active" : ""}`}
-              disabled={busy !== null}
-              onClick={() => { void selectRemoteCandidate(candidate.candidate_ref); }}
-            >
-              {candidatePreviews[candidate.candidate_ref] ? (
-                <img src={candidatePreviews[candidate.candidate_ref]!} alt="" />
-              ) : candidatePreviews[candidate.candidate_ref] === null ? (
-                <span className="empty-state compact">Preview utilgjengelig</span>
-              ) : (
-                <span className="empty-state compact">Laster preview...</span>
-              )}
-              <strong>{candidate.source_label}</strong>
-              {candidate.source_title ? <span>{candidate.source_title}</span> : null}
-              <span className="meta">{candidateSourceDetails(candidate)}</span>
-              <span className="meta">
-                {candidate.width && candidate.height ? `${candidate.width} × ${candidate.height}` : "Ukjente dimensjoner"}
-              </span>
-              <span>{selectedRef === candidate.candidate_ref ? "Valgt bilde" : "Velg bilde"}</span>
-            </button>
-          ))}
-          {uploadFile ? (
-            <button
-              type="button"
-              className={`image-candidate-card ${uploadSelected ? "active" : ""}`}
-              disabled={busy !== null}
-              onClick={selectUploadCandidate}
-            >
-              {uploadPreview ? <img src={uploadPreview} alt="" /> : <span className="empty-state compact">Preview utilgjengelig</span>}
-              <strong>Lastet opp</strong>
-              <span>{uploadFile.name}</span>
-              <span className="meta">{Math.max(1, Math.round(uploadFile.size / 1024))} kB · kontrolleres av serveren ved processing</span>
-              <span>{uploadSelected ? "Valgt bilde" : "Velg bilde"}</span>
-            </button>
-          ) : null}
-        </div>
-      ) : busy === null && officialAttempted ? (
-        <div className="empty-state compact">Ingen kandidater funnet fra offisiell nettside. Prøv en alternativ kilde.</div>
-      ) : busy === null ? (
-        <div className="empty-state compact">Klikk «Finn bilder» for å hente kandidater fra offisiell nettside.</div>
-      ) : null}
-
-      {lastSearch ? (
-        <div className="image-source-section" aria-label="Flere søkeresultater" aria-live="polite">
-          <p>Viser {Math.min(braveVisibleCount, braveCandidates.length)} av {braveCandidates.length} treff fra dette søket.</p>
-          {braveVisibleCount < braveCandidates.length ? (
-            <button type="button" className="ghost-button" disabled={busy !== null} onClick={showMoreBraveResults}>Vis flere bilder</button>
-          ) : <p className="muted">{braveCandidates.length ? "Ingen flere treff i dette resultatsettet. Endre søket for å prøve noe annet." : "Ingen treff. Prøv et annet søkeforslag eller rediger søket."}</p>}
-          <p className="meta">«Vis flere» viser flere av de hentede treffene. «Nytt søk» erstatter forrige bildesøk.</p>
-        </div>
-      ) : null}
-
-      {selectedRef && selectedOriginalLoading ? (
-        <div className="empty-state compact" role="status">Henter originalbilde for live crop...</div>
-      ) : null}
-
-      {officialAttempted ? (
         <div className="image-source-section">
           <div className="image-source-actions" aria-label="Alternative bildekilder">
+        <button type="button" className="ghost-button" onClick={onDiscover} disabled={busy !== null}>
+          {busy === "discover" ? "Finner bilder..." : "Finn bilder"}
+        </button>
             <button type="button" className="ghost-button" aria-pressed={sourcePanel === "brave"} disabled={busy !== null || !imageState?.brave_search_enabled} onClick={onOpenBraveSearch}>
               Søk etter flere bilder
             </button>
@@ -1560,22 +1513,21 @@ export function OrganizationImagePanel(props: {
           </div>
           {!imageState?.brave_search_enabled ? <p className="muted">Bildesøk er ikke aktivert for denne kontoen. Nettside, bilde-URL og upload kan fortsatt brukes.</p> : null}
           <p className="muted">
-            Oppgi eventuell kreditering før bildet godkjennes.
+            Velg kilde, tilpass bildet og bekreft rettighetene før bruk.
           </p>
 
           {sourcePanel === "brave" ? (
             <div className="image-source-panel" aria-label="Bildesøk">
               {searchContext ? (
                 <>
-                  <p className="muted">
-                    Søket sendes til Brave og kan lagres i opptil 90 dager. Unngå sensitiv eller intern informasjon.
-                  </p>
                   <Field label={searchQueryEdited ? "Søk" : "Forslått søk"}>
                     <input
+                      onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); if (busy === null) void onBraveSearch(); } }}
                       value={searchQuery}
                       disabled={busy !== null}
                       onChange={(event) => {
                         setSearchQuery(event.target.value);
+                        setSelectedTagIds([]); setTagQueryBase("");
                         setSearchQueryEdited(true);
                         setSelectedMunicipality(null);
                         setMunicipalityExplicit(false);
@@ -1587,19 +1539,20 @@ export function OrganizationImagePanel(props: {
                   <div className="image-choice-row" aria-label="Alternative søkeforslag">
                     {(searchContext.query_suggestions ?? []).map(suggestion => (
                       <button type="button" className="ghost-button" key={suggestion.label} disabled={busy !== null}
+                        title={suggestion.query} aria-label={`${suggestion.label}: ${suggestion.query}`}
                         onClick={() => {
+                          setSelectedTagIds([]); setTagQueryBase("");
                           setSearchQuery(suggestion.query); setSearchQueryEdited(true);
                           setSelectedMunicipality(null); setMunicipalityExplicit(false);
                           setSelectedCategoryId(null); setSelectedPersonId(null);
-                        }}>{suggestion.label}: {suggestion.query}</button>
+                        }}>{suggestion.label}</button>
                     ))}
                   </div>
-                  <p className="meta">Søket sendes slik det står. Strenge søk kan gi færre treff. Søkefiltre som site: er ikke garantert i bilde-API-et.</p>
-                  <div className="image-query-explanation">
-                    <span><strong>Basert på:</strong> {currentQuerySources.map((source) => QUERY_SOURCE_LABELS[source] ?? source).join(" + ")}</span>
-                    <span className="meta"><strong>Ikke brukt:</strong> {unusedQuerySources.join(", ")}</span>
-                  </div>
 
+
+                  <details className="image-search-options">
+                    <summary>Søkevalg: sted, kategori, tags og person</summary>
+                    <div className="image-refinement-grid">
                   {searchContext.municipalities.length > 1 ? (
                     <fieldset className="image-refinement-group">
                       <legend>Refiner med sted</legend>
@@ -1660,6 +1613,21 @@ export function OrganizationImagePanel(props: {
                     </fieldset>
                   ) : null}
 
+                  {(searchContext.tags ?? []).length ? (
+                    <fieldset className="image-refinement-group">
+                      <legend>Legg til tags i søket</legend>
+                      <div className="image-choice-row">
+                        {(searchContext.tags ?? []).map(tag => <button key={tag.id} type="button" className="ghost-button"
+                          aria-pressed={selectedTagIds.includes(tag.id)} disabled={busy !== null} onClick={() => updateTag(tag.id)}>{tag.name}</button>)}
+                      </div>
+                    </fieldset>
+                  ) : null}
+                    </div>
+                  <div className="image-query-explanation">
+                    <span><strong>Basert på:</strong> {currentQuerySources.map((source) => QUERY_SOURCE_LABELS[source] ?? source).join(" + ")}</span>
+                    <span className="meta"><strong>Ikke brukt:</strong> {unusedQuerySources.join(", ")}</span>
+                  </div>
+                  </details>
                   <div className="image-source-actions">
                     <button type="button" className="primary-button" disabled={!searchQuery.trim() || busy !== null} onClick={onBraveSearch}>
                       {busy === "brave" ? "Søker..." : "Nytt søk"}
@@ -1708,18 +1676,118 @@ export function OrganizationImagePanel(props: {
                 type="file"
                 accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
                 disabled={busy !== null}
-                onChange={(event) => onUploadFile(event.target.files?.[0] ?? null)}
+                onChange={(event) => { onUploadFile(event.target.files?.[0] ?? null); event.target.value = ""; }}
               />
-              <div className="file-picker-field">
+              <div className={`image-upload-zone ${dragActive ? "is-dragging" : ""}`} role="group" aria-label="Opplastingsområde"
+                onDragEnter={event => { event.preventDefault(); if (busy === null) { dragDepth.current += 1; setDragActive(true); } }}
+                onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = busy === null ? "copy" : "none"; }}
+                onDragLeave={event => { event.preventDefault(); dragDepth.current = Math.max(0, dragDepth.current - 1); if (!dragDepth.current) setDragActive(false); }}
+                onDrop={onUploadDrop}>
+                <strong>Dra og slipp et bilde her</strong>
+                <div className="file-picker-field">
                 <button type="button" className="ghost-button" disabled={busy !== null} onClick={() => uploadInputRef.current?.click()}>
                   Velg fil
                 </button>
                 <span className="meta">{uploadFile?.name || "Ingen fil valgt"}</span>
               </div>
-              <p className="muted">Velg et bilde i JPEG, PNG eller WebP.</p>
+                </div>
+              <p className="meta">JPEG, PNG eller WebP · maks 15 MB</p>
             </div>
           ) : null}
         </div>
+
+      <div className="image-results" ref={resultsRef} tabIndex={-1} aria-label="Bilderesultater">
+      {candidates.length > 0 || uploadFile ? (
+        <div className="image-candidate-grid">
+          {visibleCandidates.map((candidate) => (
+            <button
+              type="button"
+              key={candidate.candidate_ref}
+              data-brave-result-index={braveResultIndices.get(candidate.candidate_ref)}
+              className={`image-candidate-card ${selectedRef === candidate.candidate_ref ? "active" : ""}`}
+              disabled={busy !== null}
+              onClick={() => { void selectRemoteCandidate(candidate.candidate_ref); }}
+            >
+              {candidatePreviews[candidate.candidate_ref] ? (
+                <img src={candidatePreviews[candidate.candidate_ref]!} alt="" />
+              ) : candidatePreviews[candidate.candidate_ref] === null ? (
+                <span className="empty-state compact">Preview utilgjengelig</span>
+              ) : (
+                <span className="empty-state compact">Laster preview...</span>
+              )}
+              <strong>{candidate.source_label}</strong>
+              {candidate.source_title ? <span>{candidate.source_title}</span> : null}
+              <span className="meta">{candidateSourceDetails(candidate)}</span>
+              <span className="meta">
+                {candidate.width && candidate.height ? `${candidate.width} × ${candidate.height}` : "Ukjente dimensjoner"}
+              </span>
+              <span>{selectedRef === candidate.candidate_ref ? "Valgt bilde" : "Velg bilde"}</span>
+            </button>
+          ))}
+          {uploadFile ? (
+            <button
+              type="button"
+              className={`image-candidate-card ${uploadSelected ? "active" : ""}`}
+              disabled={busy !== null}
+              onClick={selectUploadCandidate}
+            >
+              {uploadPreview ? <img src={uploadPreview} alt="" /> : <span className="empty-state compact">Preview utilgjengelig</span>}
+              <strong>Lastet opp</strong>
+              <span>{uploadFile.name}</span>
+              <span className="meta">{Math.max(1, Math.round(uploadFile.size / 1024))} kB · kontrolleres av serveren ved processing</span>
+              <span>{uploadSelected ? "Valgt bilde" : "Velg bilde"}</span>
+            </button>
+          ) : null}
+        </div>
+      ) : busy === null && officialAttempted ? (
+        <div className="empty-state compact">Ingen kandidater funnet fra offisiell nettside. Prøv en alternativ kilde.</div>
+      ) : busy === null ? (
+        <div className="empty-state compact">Klikk «Finn bilder» for å hente kandidater fra offisiell nettside.</div>
+      ) : null}
+
+      {lastSearch ? (
+        <div className="image-source-section" aria-label="Flere søkeresultater" aria-live="polite">
+          <p>Viser {Math.min(braveVisibleCount, braveCandidates.length)} av {braveCandidates.length} treff fra dette søket.</p>
+          {braveVisibleCount < braveCandidates.length ? (
+            <button type="button" className="ghost-button" disabled={busy !== null} onClick={showMoreBraveResults}>Vis flere bilder</button>
+          ) : <p className="muted">{braveCandidates.length ? "Ingen flere treff i dette resultatsettet. Endre søket for å prøve noe annet." : "Ingen treff. Prøv et annet søkeforslag eller rediger søket."}</p>}
+          <p className="meta">«Vis flere» viser flere av de hentede treffene. «Nytt søk» erstatter forrige bildesøk.</p>
+        </div>
+      ) : null}
+
+      </div>
+
+      {legacyCandidates.length > 0 ? (
+        <div className="image-source-section" aria-label="Tidligere lagrede bilder">
+          <strong>Tidligere lagrede bilder</strong>
+          <p className="muted">
+            Tidligere bilder er forslag. Velg og godkjenn før bruk.
+          </p>
+          <div className="image-candidate-grid">
+            {legacyCandidates.map((candidate) => (
+              <button
+                type="button"
+                key={candidate.candidate_ref}
+                className={`image-candidate-card ${selectedRef === candidate.candidate_ref ? "active" : ""}`}
+                disabled={busy !== null}
+                onClick={() => { void selectRemoteCandidate(candidate.candidate_ref); }}
+              >
+                {candidateOriginalPreviews[candidate.candidate_ref] ? (
+                  <img src={candidateOriginalPreviews[candidate.candidate_ref]} alt="" />
+                ) : (
+                  <span className="empty-state compact">Åpne for å se bildet</span>
+                )}
+                <strong>{candidate.source_label}</strong>
+                <span className="meta">{candidate.source_domain ?? "Ukjent kilde"}</span>
+                <span>{selectedRef === candidate.candidate_ref ? "Valgt bilde" : "Forhåndsvis og velg"}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {selectedRef && selectedOriginalLoading ? (
+        <div className="empty-state compact" role="status">Henter originalbilde for live crop...</div>
       ) : null}
 
       {hasSelectedCandidate ? (

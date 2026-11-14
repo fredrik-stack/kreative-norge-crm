@@ -193,7 +193,7 @@ class ImageProcessingAdapterTests(TestCase):
                 self.assertTrue(all(value>=245 for value in pixel),pixel)
         self.assertEqual(_cover_crop_box((1600,900),(512,512),(0.5,0.5),0.5),(-100,-450,1700,1350))
 
-    def test_minimum_zoom_allocates_only_final_canvas_and_still_rejects_upscale(self):
+    def test_minimum_zoom_allocates_only_final_canvas_even_for_small_sources(self):
         from crm.services.images.processing import _render_cover
         image=Image.new("RGB",(100,60),"red")
         original_new=Image.new
@@ -201,7 +201,7 @@ class ImageProcessingAdapterTests(TestCase):
             rendered=_render_cover(image,(512,512),(0.5,0.5),0.1)
         self.assertEqual(rendered.size,(512,512))
         self.assertEqual(allocate.call_args.args[:2],("RGB",(512,512)))
-        with self.assertRaises(ImageProcessingError):_render_cover(image,(1200,630),(0.5,0.5),0.1)
+        self.assertEqual(_render_cover(image,(1200,630),(0.5,0.5),0.1).size,(1200,630))
 
     def test_cover_crop_geometry_clamps_focus_and_never_leaves_empty_space(self):
         cases = (
@@ -225,7 +225,7 @@ class ImageProcessingAdapterTests(TestCase):
                     places=2,
                 )
 
-    def test_contain_rejects_crop_recipe_and_never_upscales_content(self):
+    def test_small_logo_fills_frame_but_still_rejects_crop_recipe(self):
         data = image_bytes("PNG", size=(40, 20), mode="RGBA")
         default = process_uploaded_image(
             upload(data, name="logo.png", content_type="image/png"),
@@ -240,15 +240,24 @@ class ImageProcessingAdapterTests(TestCase):
                 )
         with Image.open(BytesIO(default.renditions[0].encoded_bytes)) as rendered:
             alpha_box = rendered.convert("RGBA").getchannel("A").getbbox()
-        self.assertEqual((alpha_box[2] - alpha_box[0], alpha_box[3] - alpha_box[1]), (40, 20))
+        self.assertEqual((alpha_box[2] - alpha_box[0], alpha_box[3] - alpha_box[1]), (430, 215))
+        self.assertEqual(default.processing_version, "phase3c-pillow-online-v3")
 
-    def test_cover_rejects_any_missing_mandatory_rendition_due_to_upscale(self):
-        with self.assertRaises(ImageProcessingError) as context:
-            process_uploaded_image(
-                upload(image_bytes("JPEG", size=(300, 300))),
-                fit_mode="cover",
-            )
-        self.assertEqual(context.exception.code, "upscale_required")
+    def test_small_sources_and_tight_crop_produce_all_online_variants_losslessly_at_source(self):
+        for size, zoom in (((300, 300), 1), ((640, 360), 1), ((1600, 900), 3)):
+            with self.subTest(size=size, zoom=zoom):
+                data = image_bytes("JPEG", size=size)
+                result = process_uploaded_image(upload(data), fit_mode="cover", zoom=zoom)
+                replay = process_uploaded_image(upload(data), fit_mode="cover", zoom=zoom)
+                self.assertEqual(result.source.original_bytes, data)
+                self.assertEqual(result.processing_version, "phase3c-pillow-online-v3")
+                self.assertEqual([(r.variant, r.width, r.height) for r in result.renditions],
+                                 [("square", 512, 512), ("landscape", 800, 450), ("share", 1200, 630)])
+                self.assertEqual([r.checksum_sha256 for r in result.renditions],
+                                 [r.checksum_sha256 for r in replay.renditions])
+                for rendition in result.renditions:
+                    with Image.open(BytesIO(rendition.encoded_bytes)) as image:
+                        self.assertEqual(image.size, (rendition.width, rendition.height))
 
     def test_exif_orientation_is_applied_before_rendering(self):
         oriented = process_uploaded_image(
@@ -360,7 +369,7 @@ class ImageProcessingAdapterTests(TestCase):
             self.assertEqual(rendered_rgba.getpixel((256, 256))[3], 255)
             self.assertEqual(
                 (alpha_box[2] - alpha_box[0], alpha_box[3] - alpha_box[1]),
-                (20, 20),
+                (106, 106),
             )
 
 
@@ -485,6 +494,23 @@ class ImageIngestServiceTests(TestCase):
             first.rendition_set.render_config_hash_sha256,
             changed.rendition_set.render_config_hash_sha256,
         )
+
+    def test_online_upscale_retry_is_idempotent_and_preserves_existing_artifacts(self):
+        old = self.ingest(image_bytes("JPEG", size=(1600, 1000)))
+        old_paths = {r.artifact_storage_key: Path(storages["image_renditions_public"].path(r.artifact_storage_key)).read_bytes()
+                     for r in old.renditions}
+        source = image_bytes("JPEG", size=(300, 200))
+        first = self.ingest(source)
+        retry = self.ingest(source)
+        self.assertEqual(first.rendition_set.processing_version, "phase3c-pillow-online-v3")
+        self.assertEqual(first.rendition_set.pk, retry.rendition_set.pk)
+        self.assertFalse(retry.aggregate_created)
+        self.assertFalse(retry.original_storage_created)
+        self.assertEqual(retry.artifact_storage_created, (False, False, False))
+        self.assertEqual(ImageRenditionSet.objects.count(), 2)
+        for key, data in old_paths.items():
+            self.assertEqual(Path(storages["image_renditions_public"].path(key)).read_bytes(), data)
+        self.assertEqual(OrganizationImageRelease.objects.count(), 0)
 
     def test_existing_storage_key_with_different_bytes_fails_closed(self):
         result = self.ingest()

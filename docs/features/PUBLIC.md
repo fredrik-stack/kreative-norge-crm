@@ -1,6 +1,19 @@
 # Feature: Public
 
 
+## Bildebytte og onlinekvalitet – 2026-11-14
+
+Alle fire kilder kan åpnes direkte også når aktøren allerede har et bilde.
+Små gyldige bilder resamples; redaktøren vurderer serverpreview og bekrefter
+rettighetene før samme bilde tas i bruk for Editor og eventuell PUBLIC.
+Eksisterende releases og publiseringsvalg endres ikke automatisk. Ny kompakt
+Brave-flate har eksplisitte egne taggvalg og første nye rad i synsfeltet;
+filvelger og drag-and-drop bruker samme sikre behandling.
+[Implementasjon og leveransestatus](../architecture/SECURITY_AND_ROLES.md#bilderedigering-etter-desktoptest--2026-11-14).
+Eldre daterte no-upscale-/kildeprioritetsbeskrivelser er overstyrt av ADR-007.
+
+
+
 ## Ett bekreftet aktørbilde – stagingverifisert 2026-11-09
 
 Foto kan zoomes ut til10 % med hvit bakgrunn, eller inn til300 %. Standard er100 %.

@@ -1,5 +1,15 @@
 # Data Model
 
+
+## Online-bildebehandling – 2026-11-14
+
+Ingen modell-/schemaendring. `ImageRenditionSet.processing_version` og render-
+config/hash identifiserer ny `phase3c-pillow-online-v3` når valgt oppskrift
+krever oppskalering. Gamle v1-/white-frame-v2-sett og deres bytes beholdes.
+Ingen automatisk konvertering, assignment-, profil-, notat- eller taggwrite.
+[Kontrakt og faktisk leveransestatus](SECURITY_AND_ROLES.md#bilderedigering-etter-desktoptest--2026-11-14).
+
+
 ## Samlet bildebekreftelse og zoom ut – stagingverifisert 2026-11-09
 
 [PR #113](https://github.com/fredrik-stack/kreative-norge-crm/pull/113), eksakt

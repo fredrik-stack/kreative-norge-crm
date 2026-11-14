@@ -1,5 +1,16 @@
 # Kreative Norge CRM – dokumentasjon
 
+## Bilderedigering etter desktoptest – lokal retting 2026-11-14
+
+Fire avgrensede eierfunn er rettet lokalt: små gyldige bilder resamples til
+onlineformatene, alle bildekilder er tilgjengelige ved bildebytte, Brave har
+kompakt søk med eksplisitte taggvalg og fokus på første nye bilderad, og upload
+støtter drag-and-drop. Ingen migrasjon eller automatisk endring av gamle bilder.
+[Kontrakt og bevaringsgrenser](architecture/SECURITY_AND_ROLES.md#bilderedigering-etter-desktoptest--2026-11-14).
+Tester/review/CI og bestilt staging er under gjennomføring; ingen ny deploy
+eller visuell eieraksept påstås her. Levende redaksjonelle stagingdata bevares.
+
+
 ## Samlet bildebekreftelse og zoom ut – stagingverifisert 2026-11-09
 
 [PR #113](https://github.com/fredrik-stack/kreative-norge-crm/pull/113), eksakt
