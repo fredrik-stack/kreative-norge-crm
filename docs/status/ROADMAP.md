@@ -10,7 +10,7 @@ eksplisitte egne taggvalg og fokus på første nye bilderad. Upload støtter dro
 Samlet rettighetsbekreftelse og aktørens publiseringsvalg består.
 
 Ingen migrasjon/data-apply. Fersk baseline etter varslet pause bekrefter alle56
-tabeller/schema/stamps/rader og eksisterende media/static/ledger uendret.
+tabellers rader/stamps, kontrollerte schemaobjekter og media/static/ledger uendret.
 122 publiserte Editor-previews er like PUBLIC (11 asset/111 fallback); privat
 preview, eksakt scope og eierbegrenset Brave-context er leseverifisert. READY37→37,
 fem gater av og ingen reelle profil-/bildewrites. Pre/post-backup/fullverify/

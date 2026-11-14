@@ -10,7 +10,7 @@
 - Kompakt Brave-søk, eksplisitte egne tagger i synlig query, og første nye
   bilderad i synsfeltet. Provider-/rettighets-/eiergrensene består.
 - PR #115 /67a95ad, separat review og grønn PR-/main-CI6/6. Kontrollert API+
-  frontenddeploy uten migrasjon; alle data/schema/media/ledger bevares,
+  frontenddeploy uten migrasjon; data/media/ledger og målte schemaobjekter bevares,
   READY37→37, backup/fullverify/isolert restore/HTTPS/timere grønne.
 - Skrivepausen er opphevet. Ingen reelle bildewrites, ny visuell eieraksept eller
   shared-/writer-/notataktivering. Dokumentasjonsmerge gir ingen ny deploy.

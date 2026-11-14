@@ -50,7 +50,7 @@
     "reviewed_head": "b9539fe69b72898a67f60796927eecd4e92b9859"
   },
   "database": {
-    "all_migration_rows_and_full_schema_preserved": true,
+    "all_migration_rows_preserved": true,
     "all_rows_fields_relationships_timestamps_stamps_preserved": true,
     "identity_verified": true,
     "image_event_rows_after": 26,
@@ -64,7 +64,13 @@
     "person_rows": 157,
     "remaining_migrations": 0,
     "schema": "0040_image_zoom_out",
-    "schema_or_metadata_delta": false,
+    "schema_catalogs_compared": [
+      "columns",
+      "constraints",
+      "triggers",
+      "functions"
+    ],
+    "schema_delta_in_compared_catalogs": false,
     "table_count": 56
   },
   "flags": {
@@ -130,7 +136,8 @@
     "Live staging verification used GET/read-only snapshots and an existing operator, without creating a session or testing real image writes.",
     "Low-resolution processing, explicit tag queries, replacement/drop and first-result viewport behavior are local synthetic tests plus green CI, not new visual owner acceptance.",
     "Fresh preservation baseline was captured after the announced owner pause; prior counts/cursors were historical evidence only.",
-    "No new provider query, existing actor image change, general inventory or general UX test was performed."
+    "No new provider query, existing actor image change, general inventory or general UX test was performed.",
+    "Schema comparison covers columns, constraints, triggers, functions and all migration rows; it does not fingerprint every index, sequence property, view, owner or grant. No schema DDL was executed."
   ],
   "public_https_bundle": {
     "files": {

@@ -72,10 +72,13 @@ merge-suffiks67a95ad; faktiske HTTPS JS/CSS-bytes/MIME og indexreferanser bestå
 Hel HTML-hash sammenlignes ikke over CDN som kan injisere markup.
 
 Fersk baseline ble tatt etter varslet skrivepause; tidligere snapshots ble
-ikke brukt som autoritet. Alle56 tabeller, alle rader/felt/relasjoner/
-tidsstempler/stamps og hele schemaet/migrasjonshistorikken er eksakt bevart.
+ikke brukt som autoritet. Alle56 tabellers rader/felt/relasjoner/tidsstempler/
+stamps og alle migrasjonsrader er sammenlignet eksakt før/etter. Kolonner,
+constraints, triggere og funksjoner er også eksakt sammenlignet. Dette er de
+registrerte schemakatalogene; det er ikke en full sammenligning av alle
+indekser, sekvensegenskaper, views, eiere eller grants. Ingen schema-DDL er kjørt.
 128 Organizations/157 Persons og26 image review events før/etter. Schema er
-fortsatt0040, tom migrasjonsplan, ingen metadataendring. Medlemskap0, avtale-/
+fortsatt0040, tom migrasjonsplan og ingen delta i de målte schemakatalogene. Medlemskap0, avtale-/
 forvaltnings-/canonical-audit-/overlay-/kopibatchtabeller fortsatt tomme.
 Fem tilgangs-/writer-/notatgater er effektivt og varig av; øvrige flagg,
 Brave-nøkkel og eksakt eierbinding er uendret. Ingen providerkall eller reelle
