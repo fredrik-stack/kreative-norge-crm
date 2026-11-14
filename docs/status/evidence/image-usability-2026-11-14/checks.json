@@ -65,10 +65,10 @@
     "remaining_migrations": 0,
     "schema": "0040_image_zoom_out",
     "schema_catalogs_compared": [
-      "columns",
-      "constraints",
-      "triggers",
-      "functions"
+      "column type/null/default/character length",
+      "constraint definitions/validation",
+      "trigger definitions/enabled status",
+      "crm_% function bodies"
     ],
     "schema_delta_in_compared_catalogs": false,
     "table_count": 56
@@ -137,7 +137,7 @@
     "Low-resolution processing, explicit tag queries, replacement/drop and first-result viewport behavior are local synthetic tests plus green CI, not new visual owner acceptance.",
     "Fresh preservation baseline was captured after the announced owner pause; prior counts/cursors were historical evidence only.",
     "No new provider query, existing actor image change, general inventory or general UX test was performed.",
-    "Schema comparison covers columns, constraints, triggers, functions and all migration rows; it does not fingerprint every index, sequence property, view, owner or grant. No schema DDL was executed."
+    "Schema comparison records column type/null/default/character length, constraint definitions/validation, trigger definitions/enabled status, crm_% function bodies and all migration rows. It does not fingerprint every index, sequence property, view, owner, grant or other column/function metadata. No schema DDL was executed."
   ],
   "public_https_bundle": {
     "files": {
