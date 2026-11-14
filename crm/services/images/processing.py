@@ -17,6 +17,7 @@ DEFAULT_COVER_ZOOM = 1.0
 MAX_COVER_ZOOM = 3.0
 PROCESSING_PROFILE = "phase3c-pillow-v1"
 ZOOM_OUT_PROCESSING_PROFILE = "phase3c-pillow-white-frame-v2"
+ONLINE_PROCESSING_PROFILE = "phase3c-pillow-online-v3"
 VALIDATION_VERSION = "phase3c-validation-v1"
 
 SOURCE_MIME_TYPES = {
@@ -248,7 +249,7 @@ def _cover_crop_box(
 
 def _render_contain(image: Image.Image, target: tuple[int, int]) -> Image.Image:
     available = (round(target[0] * 0.84), round(target[1] * 0.84))
-    scale = min(available[0] / image.width, available[1] / image.height, 1.0)
+    scale = min(available[0] / image.width, available[1] / image.height)
     size = (max(1, round(image.width * scale)), max(1, round(image.height * scale)))
     resized = image.resize(size, Image.Resampling.LANCZOS) if size != image.size else image.copy()
     canvas = Image.new("RGBA", target, (0, 0, 0, 0))
@@ -266,11 +267,6 @@ def _render_cover(
     crop = _cover_crop_box(image.size, target, focus, zoom)
     crop_width = crop[2] - crop[0]
     crop_height = crop[3] - crop[1]
-    if crop_width < target[0] or crop_height < target[1]:
-        raise ImageProcessingError(
-            "upscale_required",
-            f"Source crop {crop_width}x{crop_height} cannot produce {target[0]}x{target[1]} without upscaling.",
-        )
     if zoom >= 1:
         # Preserve the existing processing recipe and historical output exactly.
         return image.crop(crop).resize(target, Image.Resampling.LANCZOS)
@@ -395,6 +391,15 @@ def process_uploaded_image(
     if color_status == "untagged_assumed_srgb":
         processing_warnings.append("untagged_assumed_srgb")
 
+    # Resolution is advisory/editorial. Fixed output sizes bound allocations;
+    # keep historical profile identities where the old recipe is unchanged.
+    needs_upscale = False
+    for target in VARIANT_SIZES.values():
+        if fit_mode == "contain":
+            needs_upscale |= min(round(target[0] * 0.84) / width, round(target[1] * 0.84) / height) > 1
+        else:
+            crop = _cover_crop_box((width, height), target, (normalized_focus_x, normalized_focus_y), normalized_zoom)
+            needs_upscale |= crop[2] - crop[0] < target[0] or crop[3] - crop[1] < target[1]
     renditions: list[ProcessedRendition] = []
     for variant, target in VARIANT_SIZES.items():
         rendered = (
@@ -439,5 +444,5 @@ def process_uploaded_image(
         focus_x=normalized_focus_x,
         focus_y=normalized_focus_y,
         zoom=normalized_zoom,
-        processing_version=ZOOM_OUT_PROCESSING_PROFILE if fit_mode == "cover" and normalized_zoom < 1 else PROCESSING_PROFILE,
+        processing_version=ONLINE_PROCESSING_PROFILE if needs_upscale else ZOOM_OUT_PROCESSING_PROFILE if fit_mode == "cover" and normalized_zoom < 1 else PROCESSING_PROFILE,
     )

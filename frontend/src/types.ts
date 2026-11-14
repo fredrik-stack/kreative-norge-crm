@@ -184,6 +184,7 @@ export type OrganizationImageSearchContext = {
   municipalities: string[];
   categories: Array<{ id: number; name: string }>;
   people: Array<{ id: number; name: string }>;
+  tags?: Array<{ id: number; name: string }>;
 };
 
 export type OrganizationImageSearchResult = {

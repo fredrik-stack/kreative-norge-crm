@@ -401,6 +401,21 @@ class BraveImageApiTests(TestCase):
         brave_scope = override_settings(BRAVE_IMAGE_SEARCH_USER_ID=self.editor.pk)
         brave_scope.enable(); self.addCleanup(brave_scope.disable)
 
+    def test_context_exposes_only_actor_own_tenant_tags_without_automatic_query_use(self):
+        own = Tag.objects.create(tenant=self.tenant, name="Explicit jazz")
+        other_actor = Tag.objects.create(tenant=self.tenant, name="Unrelated private tag")
+        other = Tenant.objects.create(name="Other", slug="other-tags")
+        foreign = Tag.objects.create(tenant=other, name="Foreign tag")
+        self.organization.tags.add(own, foreign)
+        self.client.force_login(self.editor)
+        with patch("crm.services.images.candidates.search_brave_images") as provider:
+            response = self.client.get(f"{self.base}/search-context/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["tags"], [{"id": own.pk, "name": own.name}])
+        self.assertEqual(response.json()["suggested_query"], "Tvibit Tromsø")
+        self.assertNotIn("Explicit jazz", json.dumps(response.json()["query_suggestions"]))
+        provider.assert_not_called()
+
     def test_search_context_and_url_candidate_are_tenant_scoped_writer_actions(self):
         self.client.force_login(self.editor)
         context = self.client.get(f"{self.base}/search-context/")
