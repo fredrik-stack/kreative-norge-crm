@@ -79,6 +79,7 @@ export type Person = {
   facebook_url: string | null;
   youtube_url: string | null;
   tags: Tag[];
+  internal_tags?: Pick<Tag, "id" | "name" | "slug">[];
   categories: Category[];
   subcategories: Subcategory[];
   created_at: string;
@@ -140,8 +141,10 @@ export type Organization = {
   primary_link: string | null;
   primary_link_field: string | null;
   preview_image_url: string | null;
+  preview_image_kind?: "asset" | "system_fallback" | "legacy";
   image_asset_feature_enabled: boolean;
   tags: Tag[];
+  internal_tags?: Pick<Tag, "id" | "name" | "slug">[];
   categories: Category[];
   subcategories: Subcategory[];
   created_at: string;
@@ -205,6 +208,7 @@ export type ProcessedOrganizationImage = {
 
 export type OrganizationImageState = {
   editor_preview_image_url?: string | null;
+  editor_preview_image_kind?: "asset" | "system_fallback" | "legacy";
   image_use?: { pending: boolean; ready: boolean };
   brave_search_enabled: boolean;
   approval_text: string;

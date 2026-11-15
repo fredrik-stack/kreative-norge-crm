@@ -259,6 +259,20 @@ class EditorPublicationTests(TransactionTestCase):
         self.assertEqual(OrganizationImageRelease.objects.count(),1)
         self.assertEqual(ImageReviewEvent.objects.filter(organization=self.target).count(),1)
 
+    def test_state_reuses_published_projection_but_reauthorizes_each_new_request(self):
+        revision = self.approve(self.upload(), 0)
+        self.assertEqual(self.complete(revision).status_code, 200)
+        original = self.bridge._request
+        for _ in range(2):
+            with patch.object(self.bridge, "_request", side_effect=original) as calls:
+                state = self.client.get(self.root + "state/")
+            self.assertEqual(state.status_code, 200)
+            self.assertEqual(state.data["editor_preview_image_kind"], "asset")
+            self.assertEqual(state.data["editor_preview_image_url"], state.data["public_image"]["image"]["square"]["url"])
+            operations = [call.args[0] for call in calls.call_args_list]
+            self.assertEqual(operations.count("authorize"), 3)  # One projection, three variants; never twice.
+            self.assertEqual(operations.count("authorize_many"), 1)
+
     def test_unpublished_preparation_is_private_and_same_release_follows_later_publication(self):
         Organization.objects.filter(pk=self.target.pk).update(is_published=False)
         revision=self.approve(self.upload(),0)

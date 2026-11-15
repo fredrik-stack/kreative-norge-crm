@@ -138,7 +138,11 @@ class SharingAccessTests(TestCase):
         self.assertEqual(self.check().code, "AGREEMENT_REQUIRED")
         self.accept(self.agreement)  # New explicit acceptance; history remains.
         self.assertTrue(self.check().allowed)
-        current = self.agree(self.domain, 2, timezone.now())
+        # Policy uses database statement time; host/Docker clocks may differ.
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT statement_timestamp()")
+            effective_now = cursor.fetchone()[0]
+        current = self.agree(self.domain, 2, effective_now)
         self.assertEqual(self.check().code, "AGREEMENT_REQUIRED")
         self.accept(current)
         self.assertTrue(self.check().allowed)

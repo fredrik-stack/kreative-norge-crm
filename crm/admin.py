@@ -116,7 +116,7 @@ class BoundLegacyTenantAdminMixin:
 
 @admin.register(Organization)
 class OrganizationAdmin(BoundLegacyTenantAdminMixin, admin.ModelAdmin):
-    exclude = ("sharing_domain", "canonical_write_stamp")
+    exclude = ("sharing_domain", "canonical_write_stamp", "internal_tags")
     list_display = ("id", "name", "tenant", "org_number", "email", "is_published", "created_at")
     list_filter = ("tenant", "is_published")
     search_fields = ("name", "org_number", "email")
@@ -126,7 +126,7 @@ class OrganizationAdmin(BoundLegacyTenantAdminMixin, admin.ModelAdmin):
 
 @admin.register(Person)
 class PersonAdmin(BoundLegacyTenantAdminMixin, admin.ModelAdmin):
-    exclude = ("sharing_domain", "canonical_write_stamp")
+    exclude = ("sharing_domain", "canonical_write_stamp", "internal_tags")
     list_display = ("id", "full_name", "tenant", "email", "phone", "municipality", "created_at")
     list_filter = ("tenant",)
     search_fields = ("full_name", "email", "phone")

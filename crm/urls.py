@@ -9,6 +9,7 @@ from .views import (
     LogoutView,
     TenantViewSet,
     TagViewSet,
+    InternalTagViewSet,
     CategoryViewSet,
     SubcategoryViewSet,
     OrganizationViewSet,
@@ -26,6 +27,7 @@ router.register(r"subcategories", SubcategoryViewSet, basename="subcategory")
 
 tenant_router = DefaultRouter()
 tenant_router.register(r"tags", TagViewSet, basename="tenant-tags")
+tenant_router.register(r"internal-tags", InternalTagViewSet, basename="tenant-internal-tags")
 tenant_router.register(r"organizations", OrganizationViewSet, basename="tenant-organizations")
 tenant_router.register(r"persons", PersonViewSet, basename="tenant-persons")
 tenant_router.register(r"organization-people", OrganizationPersonViewSet, basename="tenant-organization-people")

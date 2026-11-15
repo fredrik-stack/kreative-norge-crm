@@ -1,5 +1,19 @@
 # Project Status Current
 
+## Editor-bilder og interne tags – lokal retting 2026-11-15
+
+Normal sRGB-status fjernes fra varsler; navnefallback og behovsstyrt henting
+forbedrer Editor-bilder. Historiske interne tags for aktør/person gjeninnføres
+med eiergodkjent legacy-Editor-tilgang og gulgrønn/svart farge. Ingen Tag-mapping,
+PUBLIC-/providerbruk, shared-/writer-/notataktivering eller reell datareparasjon.
+0041 oppretter tomme tabeller lokalt eller adopterer kompatible historiske tabeller
+uten raddataendring. Gamle data bevares; snapshot før apply tas på nytt.
+[Kontrakt og bevisgrenser](../architecture/SECURITY_AND_ROLES.md#editor-bilder-og-historiske-interne-tags--2026-11-15).
+Full tester/review/CI og bestilt staging er under gjennomføring; ingen ny deploy
+eller bestemt ny lagringstid påstås. Forrige stagingkode67a95ad er fortsatt
+siste verifiserte deploy inntil en ny faktisk etappe dokumenteres.
+
+
 ## Bilderedigering etter desktoptest – stagingverifisert 2026-11-14
 
 [PR #115](https://github.com/fredrik-stack/kreative-norge-crm/pull/115), eksakt

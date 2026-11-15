@@ -233,6 +233,8 @@ export const handlers = [
     return HttpResponse.json({ candidates: [] });
   }),
 
+  http.get("/api/tenants/:tenantId/internal-tags/", () => HttpResponse.json([])),
+
   http.get("/api/tenants/:tenantId/tags/", ({ params }) => {
     const tenantId = Number(params.tenantId);
     return HttpResponse.json(tagsByTenantState[tenantId] ?? []);

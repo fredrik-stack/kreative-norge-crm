@@ -1,3 +1,4 @@
+import { InternalTagsField } from "../components/InternalTagsField";
 import { ProfileSection, ProfileValidationSummary, revealInvalidProfileField } from "../components/ProfileSection";
 import { useReadDialog } from "../hooks/useReadDialog";
 import { ProfileFormActions } from "../components/ProfileFormActions";
@@ -161,6 +162,7 @@ export function PersonOverviewModal(props: {
               {person.tags.map((tag) => (
                 <span key={tag.id} className="mini-pill tag">{tag.name}</span>
               ))}
+              {(person.internal_tags ?? []).map(tag => <span key={`internal:${tag.id}`} className="mini-pill internal-tag">{tag.name}</span>)}
             </div>
             <div className="modal-sections">
               <section className="editor-detail-section modal-section-card">
@@ -400,6 +402,7 @@ function PeopleEditorPanel(props: {
               </p>
             </Field>
 
+            <InternalTagsField tenantId={editor.tenantId!} value={editor.personInternalTagInput} onChange={editor.setPersonInternalTagInput} disabled={editor.personSaveState === "saving"} error={editor.personFieldErrors.internal_tag_names} />
             </ProfileSection>
             <ProfileSection title="Lenker og sosiale medier" summary={editor.personDraft.website_url || "Nettside og sosiale profiler"} errors={Object.entries(editor.personFieldErrors).filter(([key]) => key.endsWith("_url")).map(([,value]) => value)}>
             <div className="link-section">

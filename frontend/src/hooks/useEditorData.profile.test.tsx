@@ -188,3 +188,30 @@ it('refreshes only derived image preview and preserves unsaved fields, tags and 
   act(() => result.current.updateOrganizationImagePreview(999, org.id, 'https://wrong.example/'));
   expect(result.current.selectedOrganization?.preview_image_url).toBe('https://public.example/media/new-square.webp');
 });
+
+it('private actor tags participate in the guard and reset, while an image kind update preserves the unsaved text', async () => {
+  const {result} = await editor();
+  act(() => result.current.setOrganizationInternalTagInput('Private draft'));
+  expect(result.current.organizationHasUnsavedChanges).toBe(true);
+  act(() => result.current.updateOrganizationImagePreview(1, result.current.selectedOrganization!.id, '/private/new-image', 'asset'));
+  await waitFor(() => expect(result.current.selectedOrganization?.preview_image_kind).toBe('asset'));
+  expect(result.current.organizationInternalTagInput).toBe('Private draft');
+  const fetchSpy = vi.spyOn(globalThis, 'fetch'); fetchSpy.mockClear();
+  act(() => result.current.onResetOrganizationDraft());
+  expect(result.current.organizationInternalTagInput).toBe('');
+  expect(result.current.organizationHasUnsavedChanges).toBe(false);
+  expect(fetchSpy).not.toHaveBeenCalled(); fetchSpy.mockRestore();
+});
+
+it('private person tags participate in the guard and reset without a write', async () => {
+  const {result} = await editor();
+  await waitFor(() => expect(typeof result.current.selectedPersonId).toBe('number'));
+  await waitFor(() => expect(result.current.personDraft.full_name).not.toBe(''));
+  act(() => result.current.setPersonInternalTagInput('Private draft'));
+  expect(result.current.personDraftHasUnsavedChanges).toBe(true);
+  const fetchSpy = vi.spyOn(globalThis, 'fetch'); fetchSpy.mockClear();
+  act(() => result.current.onResetPersonDraft());
+  expect(result.current.personInternalTagInput).toBe('');
+  expect(result.current.personDraftHasUnsavedChanges).toBe(false);
+  expect(fetchSpy).not.toHaveBeenCalled(); fetchSpy.mockRestore();
+});

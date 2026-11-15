@@ -955,7 +955,14 @@ def get_organization_image_state(
     }
     if settings.PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED:
         from .projection import project_public_image
-        common["editor_preview_image_url"] = project_public_image(organization, for_editor=True).projection.square.url
+        if organization.is_published and common["public_image"]["enabled"]:
+            projection = common["public_image"]["image"]
+            common["editor_preview_image_url"] = projection["square"]["url"]
+            common["editor_preview_image_kind"] = projection["kind"]
+        else:
+            projection = project_public_image(organization, for_editor=True).projection
+            common["editor_preview_image_url"] = projection.square.url
+            common["editor_preview_image_kind"] = projection.kind
     if selection is None:
         return {"active_selection": None, "expected_revision": 0, **common}
     preview_ref = None

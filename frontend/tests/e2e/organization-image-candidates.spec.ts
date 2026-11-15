@@ -80,6 +80,7 @@ test(`official candidate confirms once for ${published ? "published" : "unpublis
         brave_search_enabled: true,
         image_use: {pending: activeRevision > 0 && !released, ready: released},
         editor_preview_image_url: released ? imageUrl : null,
+        editor_preview_image_kind: released ? "asset" : "system_fallback",
         expected_revision: activeRevision,
         public_image: {enabled:true, kind: released && published ? "asset" : "system_fallback", reason: !published ? "organization_unpublished" : released ? "asset" : "release_missing",
           image: released && published ? {kind:"asset",alt_text:"Syntetisk bilde",credit:"Fotograf",square:{url:imageUrl,width:512,height:512},landscape:{url:imageUrl,width:800,height:450},share:{url:imageUrl,width:1200,height:630}} : null},

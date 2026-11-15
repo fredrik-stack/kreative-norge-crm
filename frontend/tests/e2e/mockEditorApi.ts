@@ -66,8 +66,10 @@ type Organization = {
    primary_link: string | null;
    primary_link_field: string | null;
    preview_image_url: string | null;
+   preview_image_kind?: "asset" | "system_fallback" | "legacy";
    image_asset_feature_enabled: boolean;
    tags: Tag[];
+  internal_tags?: Array<Pick<Tag, "id" | "name" | "slug">>;
    categories: Category[];
    subcategories: Subcategory[];
   created_at: string;
@@ -93,6 +95,7 @@ type Person = {
   facebook_url: string | null;
   youtube_url: string | null;
   tags: Tag[];
+  internal_tags?: Array<Pick<Tag, "id" | "name" | "slug">>;
   categories: Category[];
   subcategories: Subcategory[];
   created_at: string;
@@ -128,6 +131,7 @@ type MockState = {
   organizations: Organization[];
   persons: Person[];
   tags: Tag[];
+  internal_tags?: Array<Pick<Tag, "id" | "name" | "slug">>;
   categories: Category[];
   subcategories: Subcategory[];
   organizationPeople: OrganizationPerson[];
@@ -320,6 +324,8 @@ export async function setupMockEditorApi(page: Page, seed?: Partial<MockState>) 
       : state.subcategories;
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(payload) });
   });
+
+  await page.route("**/api/tenants/1/internal-tags/", route => route.fulfill({status: 200, contentType: "application/json", body: "[]"}));
 
   await page.route("**/api/tenants/1/tags/", async (route) => {
     if (route.request().method() === "GET") {

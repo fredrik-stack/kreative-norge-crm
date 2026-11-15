@@ -1,6 +1,16 @@
 # Data Model
 
 
+## Historiske interne tags – 2026-11-15
+
+0041 gjeninnfører InternalTag og de historiske Organization/Person.internal_tags-
+relasjonene. Eksisterende kompatible tabeller/rader adopteres, med uendrede PKs,
+navn, slugs, koblinger og timestamps; ren database får tomme tabeller. State-revers
+beholder alle tabeller/data. `Tag` og framtidig shared editorial mapping er uendret.
+[Adopsjonskontroller, tilgang og faktisk leveransestatus](SECURITY_AND_ROLES.md#editor-bilder-og-historiske-interne-tags--2026-11-15).
+
+
+
 ## Online-bildebehandling – 2026-11-14
 
 Ingen modell-/schemaendring. `ImageRenditionSet.processing_version` og render-

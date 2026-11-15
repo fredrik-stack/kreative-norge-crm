@@ -1,5 +1,13 @@
 # UI-6-FELLES – felles utforming av eksisterende Editor-flater
 
+
+**Eieravklart2026-11-15:** Historisk separat lagrede interne tags gjeninnføres
+under kategorisering på aktør/person med `#C8FA00` og svart `#000`. Vanlige
+legacytags forblir grønne og omklassifiseres ikke. Dette er restaurert legacy-
+Editorfunksjon med dagens tilgang, ikke shared-aktivering. [Kontrakt/status](../architecture/SECURITY_AND_ROLES.md#editor-bilder-og-historiske-interne-tags--2026-11-15).
+Eldre «kun framtidig»-føring nedenfor er overstyrt bare for denne restaureringen.
+
+
 **Gjeldende eierføring 2026-10-24:** §9 overstyrer motstridende anbefalinger i §§3–8. Ny kompakt Editor er implementert på leveransebranch, med visuell beslutning før merge. Ingen ny staging-/eieraksept er registrert.
 
 **Historisk status før ny bestilling:** §§3–7 er anbefalt mål. Første avgrensede kodepakke i §8 er merget og teknisk stagingverifisert på frontendkilde `3ede68f`; [datert evidens](../status/STAGING_UI_6_PROFILE_ACTIONS_2026-10-24.md). Visuell eieraksept er ikke mottatt.
