@@ -1,5 +1,34 @@
 # UI-6-FELLES – felles utforming av eksisterende Editor-flater
 
+## Interne tags i «Søk tag» – 2026-11-15
+
+Eierbestilt retting: eksisterende «Søk tag» i aktør-/personoversikten foreslår
+og filtrerer både vanlige og interne tags. Begge får navngitt type; intern
+merking bruker #C8FA00/#000, vanlig tag beholder sin grønnfarge. Valg bindes
+til type+ID, ikke slug/navn, så like navn/slugs/numeriske ID-er ikke blandes.
+Entydig eksakt navn kan velges ved skriving; flere like navn krever eksplisitt
+valg av merket forslag. Delvis tekst foreslår som før, maks åtte synlige.
+Forslag kan velges med mus/tastatur og åpnes igjen ved tekstendring. Reset
+og Musikkontorbytte tømmer taggvalg og tekst; filteroppsummering viser navn og
+type fremfor interne ID-tokens. Vanlige kategori-/tekstfilter virker som før.
+
+Private katalogforslag hentes gjennom eksisterende tenantautoriserte GET
+`internal-tags/`, uavhengig av ordinær Editor-innlasting. Brukte interne tags
+fra allerede autoriserte, innlastede profiler supplerer katalogen, også ved
+katalogfeil og etter profilredigering. Ingen nye serverrettigheter eller gate.
+Forslag bindes til eksakt tenant; gammel respons avvises etter tenantbytte.
+Filteret vurderer bare profilens tilsvarende tags/internal_tags. Personoversiktens
+inngang uten søk og eksisterende empty/no-match-tilstander består. Ingen nye
+writes, lagring av søk, PUBLIC-data, Brave-query, import/matching/AI eller schema.
+Generelt fritekstsøk er uendret; denne leveransen gjelder «Søk tag».
+
+Lokal frontend87/TypeScript/bygg og fire syntetiske Chromium-regresjoner er
+grønne: begge profiltyper ved kolliderende navn/slugs/ID-er, unik tekst, muse-/
+tastaturvalg, ubrukte katalogtags, nullstilling uten writes, forsinket katalog
+under tenantbytte og profilbaserte forslag ved katalogfeil. Faktisk levering
+føres i [prosjektstatus](../status/PROJECT_STATUS_CURRENT.md).
+
+
 ## Kategorisammendrag i profil – 2026-11-15
 
 Oppsummeringen i aktørens og personens «Kategorisering og tags» viser navnene

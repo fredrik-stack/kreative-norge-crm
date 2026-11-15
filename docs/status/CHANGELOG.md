@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-15 – Interne tags i Editorens «Søk tag», lokal retting
+
+- Begge taggtyper foreslås og filtreres på aktør/person, med tydelig type og
+  gulgrønn/svart intern merking. Like navn/slugs/ID-er holdes fra hverandre.
+- Tastaturvalg, ny tekst etter valgt tag og nullstilling/tenantbytte håndteres.
+- Tenantbundet privat katalog blokkerer ikke ordinær Editor; autoriserte
+  profilverdier supplerer ved feil. Ingen nye rettigheter, writes eller PUBLIC.
+- Frontend87/TS/bygg og fire målrettede browserregresjoner grønne. Review/CI/
+  staging gjenstår; ingen neste fase startet.
+
+
 ## 2026-11-15 – Kategorisammendrag i aktør- og personprofil
 
 - Oppsummeringen viser nå valgte kategorier/underkategorier og begge taggtyper,

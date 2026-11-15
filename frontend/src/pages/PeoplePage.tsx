@@ -81,7 +81,7 @@ function PeopleOverviewPanel(props: {
   }, [editor.organizationPeople, organizationsById]);
   const activePerson = modalPersonId ? persons.find((person) => person.id === modalPersonId) ?? null : null;
 
-  const constrained = Boolean(editor.overviewQuery.trim() || editor.overviewCategorySlug || editor.overviewSubcategorySlug || editor.overviewTagSlug);
+  const constrained = Boolean(editor.overviewQuery.trim() || editor.overviewCategorySlug || editor.overviewSubcategorySlug || editor.overviewTagKey);
   return (
     <section className="panel overview-panel">
       <div className="sidebar-header"><div><p className="eyebrow small">Kontaktoversikt</p><h2>Personer</h2><p className="meta overview-hint"><span aria-hidden="true">💡</span> Åpne et navn for kontaktinfo</p></div>

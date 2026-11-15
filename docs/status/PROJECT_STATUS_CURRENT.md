@@ -1,5 +1,17 @@
 # Project Status Current
 
+## Interne tags i «Søk tag» – lokal retting 2026-11-15
+
+Editor-filteret «Søk tag» omfatter nå både vanlige tags og tenantens interne
+tags på aktør/person. Forslag merkes «Tag»/«Intern tag», med gulgrønn/svart
+intern merking. Filteret skiller type og ID selv ved like navn, slugs og ID-er;
+ved tvetydig navn må riktig forslag velges. Nullstilling og tenantbytte tømmer
+valgt tagg og søketekst. Ingen lagring, nye rettigheter eller endring av PUBLIC,
+Brave/import/matching/AI, schema eller data. Lokal frontend87/TS/bygg og fire
+syntetiske browserregresjoner er grønne. Review/CI og bestilt frontend-only-
+staging gjenstår; ingen ny deploy påstås ennå. Ingen neste fase startet.
+[UI-kontrakt](../features/UI_6_FELLES_SPEC.md#interne-tags-i-søk-tag--2026-11-15).
+
 ## Kategorisammendrag i profil – stagingverifisert 2026-11-15
 
 [PR #119](https://github.com/fredrik-stack/kreative-norge-crm/pull/119) er levert

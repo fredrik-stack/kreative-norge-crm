@@ -49,6 +49,13 @@ tagsene; vanlige legacy `Tag`-rader klassifiseres ikke.
   import/matching/AI eller Brave-querygrunnlag. Usopet Django Admin ekskluderer
   den gjeninnførte relasjonen; ingen ny intern-tag-Admin eller forvaltningsflate.
 
+**Eierbestilt søk 2026-11-15:** Interne tags skal også kunne velges i Editorens
+«Søk tag». Eksisterende tenantautoriserte private GET og allerede autoriserte
+profilverdier brukes i et lokalt type+ID-filter; ingen ny tilgang, shared matching,
+PUBLIC, providerquery eller data-apply. Tenantbundet katalog og avvisning av
+forsinkede svar bevarer scope. Se [UI-kontrakten](../features/UI_6_FELLES_SPEC.md#interne-tags-i-søk-tag--2026-11-15)
+og prosjektstatus for faktisk levering. Gammel eiergodkjent rollefallback består.
+
 ### Migrasjon og bevaring
 
 Kun 0041 `restore_legacy_internal_tags` kommer etter0040. Den frosne state gir
