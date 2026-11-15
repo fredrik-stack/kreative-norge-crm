@@ -534,6 +534,31 @@ class Tag(models.Model):
         super().save(*args, **kwargs)
 
 
+class InternalTag(models.Model):
+    """Historical tenant-private editorial data; never part of PUBLIC taxonomy."""
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="internal_tags")
+    name = models.CharField(max_length=64)
+    slug = models.SlugField(max_length=80)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("tenant", "name"), ("tenant", "slug")]
+        ordering = ["name"]
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base = slugify(self.name) or "internal-tag"
+            self.slug = base
+            suffix = 2
+            while InternalTag.objects.filter(tenant=self.tenant, slug=self.slug).exclude(pk=self.pk).exists():
+                self.slug = f"{base}-{suffix}"
+                suffix += 1
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
 class Category(models.Model):
     name = models.CharField(max_length=80, unique=True)
     slug = models.SlugField(max_length=96, unique=True)
@@ -638,6 +663,7 @@ class Organization(DomainBindingMixin):
     auto_thumbnail_url = models.URLField(null=True, blank=True)
     og_last_fetched_at = models.DateTimeField(null=True, blank=True)
     tags = models.ManyToManyField(Tag, blank=True, related_name="organizations")
+    internal_tags = models.ManyToManyField(InternalTag, blank=True, related_name="organizations")
     categories = models.ManyToManyField(Category, blank=True, related_name="organizations")
     subcategories = models.ManyToManyField(Subcategory, blank=True, related_name="organizations")
 
@@ -1508,6 +1534,7 @@ class Person(DomainBindingMixin):
     municipality = models.CharField(max_length=255, blank=True)
     note = models.TextField(null=True, blank=True)
     tags = models.ManyToManyField(Tag, blank=True, related_name="persons")
+    internal_tags = models.ManyToManyField(InternalTag, blank=True, related_name="persons")
     categories = models.ManyToManyField(Category, blank=True, related_name="persons")
     subcategories = models.ManyToManyField(Subcategory, blank=True, related_name="persons")
 

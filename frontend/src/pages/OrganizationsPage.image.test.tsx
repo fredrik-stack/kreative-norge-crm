@@ -142,7 +142,7 @@ describe("OrganizationImagePanel", () => {
 
     expect(await screen.findByLabelText("Serverens bildeformater")).toBeInTheDocument();
     expect(api.getRenditionPreview).toHaveBeenCalledTimes(3);
-    expect(screen.getByText(/untagged_assumed_srgb/)).toBeInTheDocument();
+    expect(screen.queryByText(/untagged_assumed_srgb/)).not.toBeInTheDocument();
     await userEvent.type(screen.getByLabelText(/Alt-tekst/), "Offisielt foto");
     await userEvent.type(screen.getByLabelText("Offentlig kreditering (valgfritt)"), "Fotograf");
     await userEvent.click(screen.getByRole("checkbox", {name: /Jeg bekrefter/}));
@@ -215,6 +215,9 @@ describe("OrganizationImagePanel", () => {
         organizationName="Organisasjon A"
       />,
     );
+    await screen.findByText("Revisjon 1");
+    expect(api.getRenditionPreview).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByText("Godkjent aktørbilde"));
     await waitFor(() => expect(api.getRenditionPreview).toHaveBeenCalledTimes(3));
 
     rerender(
@@ -585,7 +588,7 @@ describe("OrganizationImagePanel", () => {
     await userEvent.click(confirm);
     await waitFor(()=>expect(api.completeOrganizationImage).toHaveBeenCalledWith(1,10,1));
     expect(api.approveOrganizationImage.mock.invocationCallOrder[0]).toBeLessThan(api.completeOrganizationImage.mock.invocationCallOrder[0]);
-    await waitFor(()=>expect(changed).toHaveBeenLastCalledWith("https://public.example/new.png"));
+    await waitFor(()=>expect(changed).toHaveBeenLastCalledWith("https://public.example/new.png", "asset"));
     expect(screen.queryByRole("button",{name:"Ta bildet i bruk på PUBLIC"})).not.toBeInTheDocument();
     expect(screen.queryByRole("button",{name:"Bruk standardbilde i stedet"})).not.toBeInTheDocument();
     expect(api.publishOrganizationImage).not.toHaveBeenCalled();
@@ -719,16 +722,43 @@ describe("OrganizationImagePanel", () => {
     expect(api.approveOrganizationImage).not.toHaveBeenCalled();
   });
 
+  it("keeps real processing warnings visible while suppressing only ordinary sRGB status", async () => {
+    vi.mocked(URL.createObjectURL).mockReturnValue("blob:warning");
+    api.processOrganizationImage.mockResolvedValue({approval_ref: "ref", rendition_preview_ref: "preview", variants: ["square", "landscape", "share"], warnings: ["untagged_assumed_srgb", "focus_defaulted"]});
+    render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Synthetic" />);
+    await screen.findByText("Ingen aktivt valgt bilde ennå.");
+    await userEvent.click(screen.getByRole("button", {name: "Finn bilder"}));
+    await userEvent.click(await screen.findByRole("button", {name: /Open Graph/}));
+    await userEvent.click(screen.getByRole("button", {name: "Prosesser valgt bilde"}));
+    expect(await screen.findByText(/Tekniske varsler: focus_defaulted/)).toBeInTheDocument();
+    expect(screen.queryByText(/untagged_assumed_srgb/)).not.toBeInTheDocument();
+  });
+
+  it("loads current previews only on expansion, so optional slow reads never block source selection", async () => {
+    const pending = deferred<Blob>();
+    api.getOrganizationImageState.mockResolvedValue({expected_revision: 7, brave_search_enabled: false,
+      active_selection: {revision: 7, kind: "asset", rendition_preview_ref: "current", alt_text: "Current", public_credit: ""}});
+    api.getRenditionPreview.mockReturnValue(pending.promise);
+    render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Synthetic" />);
+    await screen.findByText("Revisjon 7");
+    expect(api.getRenditionPreview).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", {name: "Finn bilder"})).toBeEnabled();
+    await userEvent.click(screen.getByText("Godkjent aktørbilde"));
+    await waitFor(() => expect(api.getRenditionPreview).toHaveBeenCalledTimes(3));
+    expect(screen.getByRole("button", {name: "Finn bilder"})).toBeEnabled();
+    await act(async () => { pending.resolve(new Blob(["preview"])); });
+  });
+
   it("shows preparation without public visibility for an unpublished actor", async () => {
     const changed=vi.fn();
-    api.getOrganizationImageState.mockResolvedValue({expected_revision:4,brave_search_enabled:false,editor_preview_image_url:"/api/tenants/1/organizations/10/images/active-preview/4/square/",
+    api.getOrganizationImageState.mockResolvedValue({expected_revision:4,brave_search_enabled:false,editor_preview_image_url:"/api/tenants/1/organizations/10/images/active-preview/4/square/",editor_preview_image_kind:"asset",
       active_selection:{id:3,revision:4,kind:"asset",alt_text:"Synthetic",public_credit:"",variants:[]},
       image_use:{pending:false,ready:true},public_image:{enabled:true,kind:"system_fallback",reason:"organization_unpublished",image:null}});
     render(<OrganizationImagePanel tenantId={1} organizationId={10} organizationName="Synthetic" onImageChanged={changed} />);
     expect(await screen.findByText("Bildet er bekreftet. Det blir offentlig når du publiserer aktøren.")).toBeInTheDocument();
     expect(screen.queryByRole("button",{name:/PUBLIC|standardbilde/})).not.toBeInTheDocument();
     expect(api.completeOrganizationImage).not.toHaveBeenCalled();
-    expect(changed).toHaveBeenCalledWith("/api/tenants/1/organizations/10/images/active-preview/4/square/");
+    expect(changed).toHaveBeenCalledWith("/api/tenants/1/organizations/10/images/active-preview/4/square/", "asset");
   });
 
 

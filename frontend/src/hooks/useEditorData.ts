@@ -1,3 +1,4 @@
+import { parseInternalTags } from "../editor-utils";
 import { usePersonForm } from "./usePersonForm";
 import type { FormEvent } from "react";
 import { useDeferredValue, useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -61,7 +62,8 @@ type FormFieldErrors = Partial<
     | "instagram_url"
     | "tiktok_url"
     | "linkedin_url"
-    | "youtube_url",
+    | "youtube_url"
+    | "internal_tag_names",
     string
   >
 >;
@@ -150,6 +152,7 @@ export function useEditorData() {
   const [selectedPersonId, setSelectedPersonId] = useState<number | "new" | null>(null);
   const [draft, setDraft] = useState<OrganizationPatch>(emptyDraft);
   const [organizationTagInput, setOrganizationTagInput] = useState("");
+  const [organizationInternalTagInput, setOrganizationInternalTagInput] = useState("");
   const [overviewQuery, setOverviewQuery] = useState("");
   const [overviewCategorySlug, setOverviewCategorySlug] = useState("");
   const [overviewSubcategorySlug, setOverviewSubcategorySlug] = useState("");
@@ -277,12 +280,13 @@ export function useEditorData() {
   }, [tenantId, selectedOrgId, selectedTenant?.default_phone_region]);
 
   const organizationFormState = JSON.stringify(selectedOrganization
-    ? { ...selectedOrganization, preview_image_url: undefined } : null);
+    ? { ...selectedOrganization, preview_image_url: undefined, preview_image_kind: undefined } : null);
 
   useEffect(() => {
     if (selectedOrgId === "new") {
       setDraft({ ...emptyDraft, phone_region: selectedTenant?.default_phone_region ?? null });
       setOrganizationTagInput("");
+      setOrganizationInternalTagInput("");
       if (!organizationWriting.current) setSaveState("idle");
       setOrganizationFieldErrors({});
       return;
@@ -315,6 +319,7 @@ export function useEditorData() {
       subcategory_ids: (selectedOrganization.subcategories ?? []).map((item) => item.id),
     });
     setOrganizationTagInput(formatTagInput(selectedOrganization.tags ?? []));
+    setOrganizationInternalTagInput((selectedOrganization.internal_tags ?? []).map(tag => tag.name).join(", "));
     if (!organizationWriting.current) setSaveState("idle");
     setOrganizationFieldErrors({});
     // A fresh server-derived image must not reset unsaved profile fields.
@@ -458,9 +463,10 @@ export function useEditorData() {
     const baselineTagInput = formatTagInput(selectedOrganization?.tags ?? []);
     return (
       !isEqualShallowOrganizationDraft(normalizeDraft(draft), normalizeDraft(baseline)) ||
-      isDifferentTagInput(organizationTagInput, baselineTagInput)
+      isDifferentTagInput(organizationTagInput, baselineTagInput) ||
+      organizationInternalTagInput !== (selectedOrganization?.internal_tags ?? []).map(tag => tag.name).join(", ")
     );
-  }, [draft, organizationTagInput, selectedOrgId, selectedOrganization, selectedTenant?.default_phone_region]);
+  }, [draft, organizationTagInput, organizationInternalTagInput, selectedOrgId, selectedOrganization, selectedTenant?.default_phone_region]);
 
   const personForm = usePersonForm({
     tenantId, selectedId: selectedPersonId, person: selectedPerson,
@@ -488,11 +494,11 @@ export function useEditorData() {
     };
   }, [hasUnsavedChanges]);
 
-  function updateOrganizationImagePreview(expectedTenantId: number, organizationId: number, url: string | null) {
+  function updateOrganizationImagePreview(expectedTenantId: number, organizationId: number, url: string | null, kind?: Organization["preview_image_kind"]) {
     if (currentTenantId.current !== expectedTenantId) return;
     setOrganizations(current => current.map(organization =>
-      organization.id === organizationId && organization.tenant === expectedTenantId && organization.preview_image_url !== url
-        ? { ...organization, preview_image_url: url } : organization));
+      organization.id === organizationId && organization.tenant === expectedTenantId && (organization.preview_image_url !== url || (kind !== undefined && organization.preview_image_kind !== kind))
+        ? { ...organization, preview_image_url: url, ...(kind !== undefined ? {preview_image_kind: kind} : {}) } : organization));
   }
 
   async function reloadOrganizations(nextSelectedId?: number | "new") {
@@ -538,10 +544,11 @@ export function useEditorData() {
     setError(null);
     try {
       const resolvedTagIds = await resolveTagIdsForInput(tenantId, organizationTagInput);
-      const payload = normalizeDraft({
-        ...draft,
-        tag_ids: resolvedTagIds,
-      });
+      const payload = normalizeDraft({ ...draft, tag_ids: resolvedTagIds });
+      const internalNames = parseInternalTags(organizationInternalTagInput);
+      if (organizationInternalTagInput !== (selectedOrganization?.internal_tags ?? []).map(tag => tag.name).join(", ")) {
+        payload.internal_tag_names = internalNames;
+      }
       if (selectedOrgId === "new") {
         const created = await createOrganization(tenantId, payload);
         await reloadOrganizations(created.id);
@@ -561,7 +568,7 @@ export function useEditorData() {
       if (err instanceof ApiError && err.status === 400) {
         setOrganizationFieldErrors((current) => ({
           ...current,
-          ...pickFieldErrors(err.data, ["org_number", "email", "phone"]),
+          ...pickFieldErrors(err.data, ["org_number", "email", "phone", "internal_tag_names"]),
           ...pickFieldErrors(err.data, [
             "website_url",
             "facebook_url",
@@ -731,6 +738,7 @@ export function useEditorData() {
       setSelectedOrgId(null);
       setDraft(emptyDraft);
       setOrganizationTagInput("");
+      setOrganizationInternalTagInput("");
       setOrganizationFieldErrors({});
       setSaveState("idle");
       return true;
@@ -774,6 +782,7 @@ export function useEditorData() {
       setDraft({ ...emptyDraft, phone_region: selectedTenant?.default_phone_region ?? null });
       setOrganizationFieldErrors({});
       setOrganizationTagInput("");
+      setOrganizationInternalTagInput("");
       setSaveState("idle");
       return;
     }
@@ -804,6 +813,7 @@ export function useEditorData() {
       subcategory_ids: (selectedOrganization.subcategories ?? []).map((item) => item.id),
     });
     setOrganizationTagInput(formatTagInput(selectedOrganization.tags ?? []));
+    setOrganizationInternalTagInput((selectedOrganization.internal_tags ?? []).map(tag => tag.name).join(", "));
     setSaveState("idle");
     setOrganizationFieldErrors({});
   }
@@ -884,6 +894,8 @@ export function useEditorData() {
     setDraft,
     organizationTagInput,
     setOrganizationTagInput,
+    organizationInternalTagInput,
+    setOrganizationInternalTagInput,
     overviewQuery,
     setOverviewQuery,
     overviewCategorySlug,
@@ -1083,6 +1095,9 @@ function pickFieldErrors<T extends string>(
 }
 
 function normalizeBackendFieldMessage(value: unknown): string | null {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return Object.values(value).map(normalizeBackendFieldMessage).filter(Boolean).join(" ") || null;
+  }
   if (typeof value === "string") return value;
   if (Array.isArray(value)) {
     const parts = value

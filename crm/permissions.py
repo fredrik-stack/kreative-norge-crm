@@ -120,3 +120,15 @@ class ImportExportAccessPermission(TenantScopedPermission):
 
     def required_roles(self, request, view) -> set[str]:
         return IMPORT_EXPORT_ROLES
+
+
+def legacy_internal_tag_access(user, tenant_id):
+    """Existing legacy tenant authority, with explicit inactivity failing closed."""
+    return bool(user and user.is_authenticated and user.is_active and tenant_id is not None
+                and not TenantMembership.objects.filter(user=user, tenant_id=tenant_id, is_active=False).exists()
+                and user_can_access_tenant(user, tenant_id))
+
+
+class InternalTagPermission(TenantScopedPermission):
+    def has_permission(self, request, view):
+        return legacy_internal_tag_access(request.user, self.get_tenant_id(request, view)) and super().has_permission(request, view)

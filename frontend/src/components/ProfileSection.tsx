@@ -29,7 +29,7 @@ export function revealInvalidProfileField(event: InvalidEvent<HTMLFormElement>) 
 }
 
 export function ProfileValidationSummary({ errors }: { errors: Record<string, string | undefined> }) {
-  const labels: Record<string, string> = { name: "Navn", full_name: "Fullt navn", org_number: "Org.nr", email: "E-post", phone: "Telefon", website_url: "Nettside", facebook_url: "Facebook", instagram_url: "Instagram", tiktok_url: "TikTok", linkedin_url: "LinkedIn", youtube_url: "YouTube" };
+  const labels: Record<string, string> = { name: "Navn", full_name: "Fullt navn", org_number: "Org.nr", email: "E-post", phone: "Telefon", website_url: "Nettside", facebook_url: "Facebook", instagram_url: "Instagram", tiktok_url: "TikTok", linkedin_url: "LinkedIn", youtube_url: "YouTube", internal_tag_names: "Interne tags" };
   const entries = Object.entries(errors).filter(([, value]) => value);
   if (!entries.length) return null;
   return <div className="profile-validation" role="alert">

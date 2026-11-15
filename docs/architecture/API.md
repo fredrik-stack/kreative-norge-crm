@@ -1,5 +1,24 @@
 # API
 
+
+## Editor-presisering2026-11-15
+
+Autentisert Organization får `preview_image_kind` fra samme projector/cache som
+preview-URL; systemfallback vises med aktørnavn i Editor. PUBLIC-shape/bytes er
+uendret. Bildestate gir `editor_preview_image_kind` og gjenbruker den publiserte
+projeksjonen; skjulte aktive fullpreviews er behovsstyrte i klienten.
+
+Tenant-Organization/Person gir egne `internal_tags` som `{id,name,slug}`.
+`internal_tag_names` er write-only, eksplisitte navn opptil64 tegn. Utelatt felt
+bevarer relasjonen; tom liste fjerner kun profilens koblinger. Tags opprettes i
+den faktiske routetenant og lagres atomisk med profilen. Foreign ID-payload
+`internal_tag_ids` avvises. GET `/api/tenants/{id}/internal-tags/` er read-only og
+private/no-store med samme legacy-tenantautoritet som Editor, pluss eksplisitt
+inaktivitetsavvisning. Profilsvar er private/no-store. Ingen intern-tag-felter i
+PUBLIC, nested offentlig personprojeksjon eller provider/matching/import.
+[Kontrakt, migrasjon og bevisgrenser](SECURITY_AND_ROLES.md#editor-bilder-og-historiske-interne-tags--2026-11-15).
+
+
 **Editor-layout, runde 2 (25.10.2026):** Gjenopprettet Slett aktør bruker dagens
 `DELETE /api/tenants/{tenant_id}/organizations/{id}/`. Eksisterende autorisasjon
 og `profile_delete_protected`/409 består. Kun bekreftet DELETE fjerner aktør

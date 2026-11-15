@@ -1,5 +1,32 @@
 # ADR-011: Sharing domain, canonical identity og tenantassignments
 
+
+## Eierbestilt restaurering av historiske interne tags – 2026-11-15
+
+Historisk `InternalTag` og eksisterende aktør-/personkoblinger skal gjeninnføres
+som egne legacytenantdata i Editor, med gulgrønn `#C8FA00` og svart tekst.
+Dette er en restaurering av tidligere funksjon og bevarte tabeller, ikke en
+klassifisering av dagens vanlige `Tag`-rader eller aktivering av shared tagging.
+Ingen data flyttes, slettes eller utledes av navn. PUBLIC, import/matching/AI og
+Brave-querygrunnlaget får ikke interne tags. Manglende API-felt bevarer koblinger;
+uttrykkelig tomt felt tømmer bare den valgte profilens egne interne koblinger.
+
+**Uttrykkelig eiergodkjent2026-11-15:** Restaureringen bruker eksisterende
+tenantavgrensede Editor-rettigheter som
+legacyprofiler/notater. Den endrer ikke gammel rollefallback eller gir nye
+shared capabilities. Senere streng medlemskaps-/agreement-/writerovergang er
+fortsatt separat, og de fem avslåtte gatene forblir av. Cross-tenant-ID-er og
+koblinger skal avvises eller skjules, også ved manipulerte API-kall. Usopet
+Admin, PUBLIC og providerpayload skal ikke få nye interne felter.
+
+Migrationen skal opprette tomme tabeller i en ren database eller adoptere de
+nøyaktig kompatible historiske tabellene uten raddataendring. Delvis/ukjent schema,
+ugyldige foreign keys eller cross-tenant-koblinger stopper før aktivering.
+Reverse skal aldri droppe bevarte private data. Staging er levende redaksjonelle
+data og følger varslet pause, fersk baseline og etablerte backup-/restoreporter.
+Faktisk kode-/test-/stagingstatus føres i prosjektstatus, ikke som forhåndsløfte.
+
+
 **Datert videreføring 2026-10-13:** [5E-planen](../status/PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) er nå eiergodkjent som plan; senere formuleringer om at detaljplanen skal godkjennes i 5E beskriver den tidligere planstatusen. 6A → 6B → 6C → fase 7 konkretiserer leveransene. ADR-012 §28 er datert presisert slik at stedskjerne/STEDER/import kan leveres før separat kartarbeid. Tilgangs-, image-home-, kontakt-/relasjons-, storage- og aktiveringsporter består. [ADR-013](ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md) formaliserer importkontrakten. Ingen ny runtime er implementert. Dokumentasjonsleveransen er lagret på `docs/phase5e-approved-plan` og leveres gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74); review er gjennomført uten blokkerende funn og kontrollert merge er bestilt 2026-10-13. Faktisk mergestatus og CI følger GitHub.
 
 ## Status

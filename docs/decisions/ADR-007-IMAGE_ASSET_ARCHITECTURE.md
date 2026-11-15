@@ -2,6 +2,17 @@
 
 ## Status
 
+**Eierbestilt retting2026-11-15:** Normalstatusen `untagged_assumed_srgb` skal
+ikke presenteres som rødt teknisk varsel. Proveniens/sRGB-håndtering beholdes,
+og andre reelle varsler/valideringsfeil skjules ikke. Editor-thumbnails skal
+vise aktørnavn når den autoritative projeksjonen er systemfallback eller bildet
+ikke kan lastes. PUBLICs generiske fallbackbytes og sikkerhetsavgjørelse består.
+Projeksjonens kind gjenbrukes, uten per-kort ekstraoppslag eller parallel resolver.
+Skjulte aktive bildepreviews hentes først når detaljene åpnes; reserve/activate,
+frisk autorisasjon og off-server ankret sikkerhetsbevis svekkes ikke for hastighet.
+
+
+
 **Eierbeslutning 2026-11-14 – visuell onlinekvalitet og tilgjengelig bildebytte:**
 Kildeoppløsning er ikke lenger en hard readiness-gate. Gyldige rasterbilder kan
 resamples til de eksisterende onlineformatene; redaktøren vurderer de ferdige

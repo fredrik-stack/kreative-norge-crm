@@ -1,3 +1,4 @@
+import { InternalTagsField } from "../components/InternalTagsField";
 import { ProfileSection, ProfileValidationSummary, revealInvalidProfileField } from "../components/ProfileSection";
 import { useReadDialog } from "../hooks/useReadDialog";
 import { ProfileThumbnail } from "../components/ProfileThumbnail";
@@ -185,7 +186,7 @@ function OrganizationOverviewPanel(props: {
             className="editor-card public-like"
             onClick={() => onModalOrgIdChange(organization.id)}
           >
-            <ProfileThumbnail url={organization.preview_image_url} name={organization.name} />
+            <ProfileThumbnail url={organization.preview_image_url} kind={organization.preview_image_kind} name={organization.name} />
             <div className="editor-card-body">
               <div className="editor-card-head">
                 <h3><button type="button" className="card-name" onClick={(event) => { event.stopPropagation(); onModalOrgIdChange(organization.id); }}>{organization.name}</button></h3>
@@ -266,7 +267,7 @@ function OrganizationOverviewModal(props: {
           </button>
         </div>
         <div className="editor-card modal-card modal-shell">
-          <ProfileThumbnail url={organization.preview_image_url} name={organization.name} className="modal-thumb" />
+          <ProfileThumbnail url={organization.preview_image_url} kind={organization.preview_image_kind} name={organization.name} className="modal-thumb" />
           <div className="editor-card-body">
             <div className="editor-card-head">
               <div>
@@ -287,6 +288,7 @@ function OrganizationOverviewModal(props: {
               {organization.tags.map((tag) => (
                 <span key={tag.id} className="mini-pill tag">{tag.name}</span>
               ))}
+              {(organization.internal_tags ?? []).map(tag => <span key={`internal:${tag.id}`} className="mini-pill internal-tag">{tag.name}</span>)}
             </div>
             <p className="muted editor-card-copy">
               {organization.description || organization.note || "Ingen beskrivelse lagt inn ennå."}
@@ -542,6 +544,7 @@ function OrganizationEditorPanel(props: {
               </p>
             </Field>
 
+            <InternalTagsField tenantId={editor.tenantId!} value={editor.organizationInternalTagInput} onChange={editor.setOrganizationInternalTagInput} disabled={editor.saveState === "saving"} error={editor.organizationFieldErrors.internal_tag_names} />
             </ProfileSection>
             <ProfileSection title="Internt notat" summary={editor.draft.note ? "Notat er lagt inn" : "Ingen notat"}>
             <Field label="Notat">
@@ -644,14 +647,14 @@ function OrganizationEditorPanel(props: {
 
           {typeof editor.selectedOrgId === "number" && editor.selectedOrganization?.image_asset_feature_enabled ? (
             <div className="profile-image-entry">
-              <ProfileThumbnail url={editor.selectedOrganization?.preview_image_url} name={editor.selectedOrganization?.name ?? ""} />
+              <ProfileThumbnail url={editor.selectedOrganization?.preview_image_url} kind={editor.selectedOrganization?.preview_image_kind} name={editor.selectedOrganization?.name ?? ""} />
               <ProfileSection key={`${editor.tenantId}:${editor.selectedOrgId}`} title="Endre bilde" summary="Velg og godkjenn bilde">
             <OrganizationImagePanel
               key={`${editor.tenantId}:${editor.selectedOrgId}`}
               tenantId={editor.tenantId!}
               organizationId={editor.selectedOrgId}
               organizationName={editor.selectedOrganization.name}
-              onImageChanged={url => editor.updateOrganizationImagePreview(editor.tenantId!, editor.selectedOrgId as number, url)}
+              onImageChanged={(url, kind) => editor.updateOrganizationImagePreview(editor.tenantId!, editor.selectedOrgId as number, url, kind)}
             />
               </ProfileSection>
             </div>
@@ -819,7 +822,7 @@ export function OrganizationImagePanel(props: {
   tenantId: number;
   organizationId: number;
   organizationName: string;
-  onImageChanged?: (url: string | null) => void;
+  onImageChanged?: (url: string | null, kind?: "asset" | "system_fallback" | "legacy") => void;
 }) {
   const { tenantId, organizationId, organizationName } = props;
   const objectUrls = useRef<string[]>([]);
@@ -853,6 +856,7 @@ export function OrganizationImagePanel(props: {
   const [zoom, setZoom] = useState(DEFAULT_COVER_ZOOM);
   const [processed, setProcessed] = useState<ProcessedOrganizationImage | null>(null);
   const [processedPreviews, setProcessedPreviews] = useState<Partial<Record<ImageVariant, string>>>({});
+  const [activeExpanded, setActiveExpanded] = useState(false);
   const [activePreviews, setActivePreviews] = useState<Partial<Record<ImageVariant, string>>>({});
   const [imageState, setImageState] = useState<OrganizationImageState | null>(null);
   const [altText, setAltText] = useState("");
@@ -1013,15 +1017,14 @@ export function OrganizationImagePanel(props: {
     setImageState(state);
     if (state.public_image?.enabled) props.onImageChanged?.(
       state.editor_preview_image_url !== undefined ? state.editor_preview_image_url : state.public_image.image?.square.url ?? null,
+      state.editor_preview_image_kind ?? state.public_image.kind,
     );
     if (state.active_selection) {
       setAltText(state.active_selection.alt_text);
       setPublicCredit(state.active_selection.public_credit);
-      if (state.active_selection.rendition_preview_ref) {
-        const previews = await loadPreviews(state.active_selection.rendition_preview_ref, generation);
-        if (scopeGeneration.current !== generation) return;
-        revokePreviewUrls(activePreviews);
-        setActivePreviews(previews);
+      // The three full-size previews are optional details, not a save gate.
+      if (imageState?.active_selection?.revision !== state.active_selection.revision) {
+        revokePreviewUrls(activePreviews); setActivePreviews({});
       }
     } else {
       revokePreviewUrls(activePreviews);
@@ -1031,6 +1034,19 @@ export function OrganizationImagePanel(props: {
     }
     return state;
   }
+
+  useEffect(() => {
+    if (!activeExpanded || !imageState?.active_selection?.rendition_preview_ref) return;
+    const generation = scopeGeneration.current;
+    let cancelled = false;
+    void loadPreviews(imageState.active_selection.rendition_preview_ref, generation).then(previews => {
+      if (!cancelled && scopeGeneration.current === generation) setActivePreviews(previews);
+      else revokePreviewUrls(previews);
+    }).catch(() => { /* Advisory preview only; the current image state stays visible. */ });
+    return () => { cancelled = true; };
+    // Full previews are fetched only when details are open or their revision changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeExpanded, imageState?.active_selection?.revision, tenantId, organizationId]);
 
   function invalidateProcessing() {
     setRightsConfirmed(false);
@@ -1067,6 +1083,7 @@ export function OrganizationImagePanel(props: {
     setImageState(null);
     setAltText("");
     setPublicCredit("");
+    setActiveExpanded(false);
     setOfficialAttempted(false);
     setSourcePanel(null);
     setDragActive(false); dragDepth.current = 0;
@@ -1485,7 +1502,7 @@ export function OrganizationImagePanel(props: {
       </p>
       {error ? <div className="inline-banner warn" role="alert">{error}</div> : null}
       {imageState?.active_selection ? (
-        <details className="image-active-state image-current-picture">
+        <details open={activeExpanded} className="image-active-state image-current-picture" onToggle={event => setActiveExpanded(event.currentTarget.open)}>
           <summary><strong>{imageState.active_selection.kind === "asset" ? "Godkjent aktørbilde" : "Standardbilde valgt"}</strong>
           <span className="meta">Revisjon {imageState.active_selection.revision}</span></summary>
           <span className="meta">{imageState.active_selection.alt_text || "Ingen alt-tekst"}</span>
@@ -1911,8 +1928,8 @@ export function OrganizationImagePanel(props: {
       {processed ? (
         <div className="image-approval-panel">
           <ImagePreviewGrid urls={processedPreviews} label="Serverens bildeformater" />
-          {processed.warnings.length > 0 ? (
-            <div className="inline-banner warn">Tekniske varsler: {processed.warnings.join(", ")}</div>
+          {processed.warnings.filter(warning => warning !== "untagged_assumed_srgb").length > 0 ? (
+            <div className="inline-banner warn">Tekniske varsler: {processed.warnings.filter(warning => warning !== "untagged_assumed_srgb").join(", ")}</div>
           ) : null}
           <Field label="Alt-tekst (valgfritt)">
             <input maxLength={500} value={altText} onChange={(event) => setAltText(event.target.value)} placeholder={`Beskriv bildet av ${organizationName}`} />

@@ -1,6 +1,13 @@
 # Feature: Public
 
 
+**Editorretting2026-11-15:** Aktørnavn i Editor-fallback, færre skjulte bilde-
+requests og restaurerte interne tags endrer ikke PUBLIC-projeksjonen eller
+publiserte bildebytes. Interne tags er kun Editor-data i riktig tenant og
+inngår ikke i PUBLIC, provider eller shared taxonomy. [Kontrakt/status](../architecture/SECURITY_AND_ROLES.md#editor-bilder-og-historiske-interne-tags--2026-11-15).
+
+
+
 ## Bildebytte og onlinekvalitet – 2026-11-14
 
 Alle fire kilder kan åpnes direkte også når aktøren allerede har et bilde.

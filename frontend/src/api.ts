@@ -173,6 +173,11 @@ export async function getOrganizations(tenantId: number): Promise<Organization[]
   return isPaginated(data) ? data.results : data;
 }
 
+export async function getInternalTags(tenantId: number): Promise<Pick<Tag, "id" | "name" | "slug">[]> {
+  const data = await request<Tag[] | Paginated<Tag>>(`/api/tenants/${tenantId}/internal-tags/`);
+  return isPaginated(data) ? data.results : data;
+}
+
 export async function getTags(tenantId: number): Promise<Tag[]> {
   const data = await request<Tag[] | Paginated<Tag>>(`/api/tenants/${tenantId}/tags/`);
   return isPaginated(data) ? data.results : data;
@@ -273,6 +278,7 @@ export type OrganizationPatch = Pick<
 > & {
   phone_region: string | null;
   tag_ids: number[];
+  internal_tag_names?: string[];
   category_ids: number[];
   subcategory_ids: number[];
 };
@@ -292,6 +298,7 @@ export type PersonPayload = {
   facebook_url: string | null;
   youtube_url: string | null;
   tag_ids: number[];
+  internal_tag_names?: string[];
   category_ids: number[];
   subcategory_ids: number[];
 };

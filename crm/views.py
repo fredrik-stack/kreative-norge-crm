@@ -1,3 +1,4 @@
+from .permissions import InternalTagPermission
 from django.conf import settings
 from django.db.models import Prefetch
 from django.contrib.auth import authenticate, login, logout
@@ -25,6 +26,7 @@ from .models import (
     Tenant,
     TenantMembership,
     Tag,
+    InternalTag,
     Category,
     Subcategory,
     Organization,
@@ -45,6 +47,7 @@ from .serializers import (
     TenantSerializer,
     TenantMembershipSerializer,
     TagSerializer,
+    InternalTagSerializer,
     CategorySerializer,
     SubcategorySerializer,
     OrganizationSerializer,
@@ -220,6 +223,19 @@ class TagViewSet(viewsets.ModelViewSet):
             serializer.save()
 
 
+class InternalTagViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [InternalTagPermission]
+    serializer_class = InternalTagSerializer
+
+    def get_queryset(self):
+        return InternalTag.objects.filter(tenant_id=self.kwargs["tenant_id"]).order_by("name", "pk")
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        response["Cache-Control"] = "private, no-store, max-age=0"
+        return response
+
+
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = Category.objects.all().order_by("name")
@@ -255,9 +271,8 @@ class OrganizationViewSet(DomainProtectedDestroyMixin, viewsets.ModelViewSet):
 
     def finalize_response(self, request, response, *args, **kwargs):
         response = super().finalize_response(request, response, *args, **kwargs)
-        if "/images/" in request.path:
-            response["Cache-Control"] = "private, no-store, max-age=0"
-            response["Pragma"] = "no-cache"
+        response["Cache-Control"] = "private, no-store, max-age=0"
+        response["Pragma"] = "no-cache"
         return response
 
     def get_queryset(self):
@@ -276,6 +291,7 @@ class OrganizationViewSet(DomainProtectedDestroyMixin, viewsets.ModelViewSet):
             Organization.objects.select_related("tenant").order_by("name")
             .prefetch_related(
                 "tags", "categories", "subcategories__category",
+                Prefetch("internal_tags", queryset=InternalTag.objects.filter(tenant_id=self.kwargs.get("tenant_id")), to_attr="_editor_internal_tags"),
                 Prefetch("org_people", queryset=active_people, to_attr="_editor_active_people"),
             )
         )
@@ -299,6 +315,8 @@ class OrganizationViewSet(DomainProtectedDestroyMixin, viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save()
         # Prefetch to_attr is not invalidated by DRF after a publication edit.
+        if hasattr(serializer.instance, "_editor_internal_tags"):
+            del serializer.instance._editor_internal_tags
         if hasattr(serializer.instance, "_public_image_projection_selections"):
             del serializer.instance._public_image_projection_selections
 
@@ -732,8 +750,14 @@ class PersonViewSet(DomainProtectedDestroyMixin, viewsets.ModelViewSet):
     permission_classes = [TenantScopedPermission]
     serializer_class = PersonSerializer
 
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        response["Cache-Control"] = "private, no-store, max-age=0"
+        response["Pragma"] = "no-cache"
+        return response
+
     def get_queryset(self):
-        qs = Person.objects.select_related("tenant").order_by("full_name").prefetch_related("contacts", "tags", "subcategories__category")
+        qs = Person.objects.select_related("tenant").order_by("full_name").prefetch_related("contacts", "tags", "subcategories__category", Prefetch("internal_tags", queryset=InternalTag.objects.filter(tenant_id=self.kwargs.get("tenant_id")), to_attr="_editor_internal_tags"))
         tenant_id = self.kwargs.get("tenant_id")
         if tenant_id is not None:
             qs = qs.filter(tenant_id=tenant_id)

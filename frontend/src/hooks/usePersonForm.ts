@@ -1,3 +1,4 @@
+import { parseInternalTags } from "../editor-utils";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ApiError, createPerson, createPersonContact, deletePersonContact, patchPerson, patchPersonContact, type PersonPayload } from "../api";
 import type { Person, PersonContact } from "../types";
@@ -27,6 +28,7 @@ export function usePersonForm(options: {
   const { tenantId, selectedId, person, region, empty, normalize, validate, resolveTags, select, remember, setError } = options;
   const [personDraft, setPersonDraft] = useState(empty);
   const [personTagInput, setPersonTagInput] = useState("");
+  const [personInternalTagInput, setPersonInternalTagInput] = useState("");
   const [personContactRows, setRows] = useState<PersonContactRow[]>([]);
   const [personSaveState, setState] = useState<SaveState>("idle");
   const [personFieldErrors, setErrors] = useState<Partial<Record<string, string>>>({});
@@ -37,6 +39,7 @@ export function usePersonForm(options: {
   const identity = useRef("");
   const baseline = useRef(empty);
   const baselineTags = useRef("");
+  const baselineInternalTags = useRef("");
   const knownPerson = useRef<Person | null>(null);
   const writing = useRef(false);
   const unknownPost = useRef(false);
@@ -75,6 +78,8 @@ export function usePersonForm(options: {
     } : { ...empty, phone_region: region };
     baseline.current = normalize(payload);
     baselineTags.current = (value?.tags ?? []).map(tag => tag.name).join(", ");
+    baselineInternalTags.current = (value?.internal_tags ?? []).map(tag => tag.name).join(", ");
+    setPersonInternalTagInput(baselineInternalTags.current);
     knownPerson.current = value; setPersistedId(value?.id ?? null);
     setPersonDraft(payload); setPersonTagInput(baselineTags.current); setRows(rowsFor(value));
     const needsRead = Boolean(value && unresolvedDeletes.current.has(`${tenantId}:${value.id}`));
@@ -121,7 +126,7 @@ export function usePersonForm(options: {
     : Boolean((!row.is_primary && row.value.trim()) || row.is_public));
   const personDraftHasUnsavedChanges = unknownCreate || personSaveState === "error" ||
     JSON.stringify(normalize(personDraft)) !== JSON.stringify(baseline.current) ||
-    personTagInput !== baselineTags.current || personContactRows.some(rowDirty);
+    personTagInput !== baselineTags.current || personInternalTagInput !== baselineInternalTags.current || personContactRows.some(rowDirty);
 
   async function submitPersonDraft(): Promise<boolean> {
     if (!tenantId || selectedId === null || writing.current || unknownPost.current || unknownCreate || personContactRows.some(row => row.unknown)) return false;
@@ -142,7 +147,9 @@ export function usePersonForm(options: {
     const publishRows = () => setRows(rows.map(row => ({ ...row })));
     try {
       const tagIds = await resolveTags(tenantId, personTagInput);
-      const fullPayload = normalize({ ...personDraft, tag_ids: tagIds });
+      const profilePayload = normalize({ ...personDraft, tag_ids: tagIds });
+      const fullPayload = { ...profilePayload, ...(personInternalTagInput !== baselineInternalTags.current
+        ? {internal_tag_names: parseInternalTags(personInternalTagInput)} : {}) };
       const changedMainFields = new Set((['email', 'phone'] as const).filter(field => !knownPerson.current || fullPayload[field] !== baseline.current[field]));
       // Delete by actual ID, then clear any corresponding legacy main field.
       for (const row of rows.filter(row => row.removed && row.id && !row.deleted)) {
@@ -188,7 +195,7 @@ export function usePersonForm(options: {
         if (contact) { row.id = contact.id; row.baseline = contact; }
       }
       for (const row of rows) if (row.deleted) row.mainClearPending = false;
-      baseline.current = fullPayload; baselineTags.current = personTagInput;
+      baseline.current = profilePayload; baselineTags.current = personTagInput; baselineInternalTags.current = personInternalTagInput;
       setPersonDraft(draft => ({ ...draft, tag_ids: tagIds })); publishRows();
       for (const row of rows.filter(row => !row.removed && row.value.trim())) {
         activeContactKey = row.key;
@@ -229,7 +236,8 @@ export function usePersonForm(options: {
       if (error instanceof ApiError && error.data && typeof error.data === "object") {
         const fields: Record<string, string> = {};
         for (const [key, value] of Object.entries(error.data)) {
-          const message = Array.isArray(value) ? value.join(" ") : typeof value === "string" ? value : "";
+          const message = Array.isArray(value) ? value.join(" ") : typeof value === "string" ? value :
+            value && typeof value === "object" ? Object.values(value).flat().filter(item => typeof item === "string").join(" ") : "";
           if (!message) continue;
           backendMessage = message;
           const row = rows.find(row => row.is_primary && row.type === (key === "email" ? "EMAIL" : key === "phone" ? "PHONE" : null));
@@ -253,7 +261,7 @@ export function usePersonForm(options: {
     hydrate(knownPerson.current);
   }
   async function onSubmitPerson(event: FormEvent) { event.preventDefault(); await submitPersonDraft(); }
-  return { persistedPersonId, personDraft, setPersonDraft, personTagInput, setPersonTagInput, personContactRows,
+  return { persistedPersonId, personDraft, setPersonDraft, personTagInput, setPersonTagInput, personInternalTagInput, setPersonInternalTagInput, personContactRows,
     startNewPerson: () => { if (!writing.current) { identity.current = `${tenantId}:new`; hydrate(null); } },
     updatePersonContact, addPersonContact, personSaveState, personSaveMessage, personFieldErrors,
     personLastSavedAt, personDraftHasUnsavedChanges, peopleHasUnsavedChanges: personDraftHasUnsavedChanges,

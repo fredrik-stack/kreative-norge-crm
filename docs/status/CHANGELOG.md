@@ -1,6 +1,20 @@
 # Changelog
 
 
+## 2026-11-15 – Editor-bilder og restaurerte interne tags, lokal leveranse
+
+- Normal sRGB-status vises ikke som rødt varsel; andre feil/varsler består.
+- Navnefallback i Editor bruker samme autoritative bilde-kind; PUBLIC bevares.
+- Aktive fullpreviews hentes ved behov, og state deler publisert projeksjon.
+  Off-server reserve/activate og frisk safetykontroll beholdes; ingen ny sekunde-SLA.
+- Interne tags restaureres på aktør/person med eiergodkjent legacytilgang,
+  gulgrønn/svart farge og atomisk profilwrite. Ingen vanlige tags omklassifiseres.
+- 0041 adopterer kompatible historiske tabeller intakt eller oppretter tomme i
+  ren database. Revers dropper ikke data. [Kontrakt og faktisk status](../architecture/SECURITY_AND_ROLES.md#editor-bilder-og-historiske-interne-tags--2026-11-15).
+- Ingen stagingpåstand før fullførte tester/review/CI og bestilt driftsgate.
+
+
+
 ## 2026-11-14 – Bilderedigering etter desktoptest, stagingverifisert
 
 - Små gyldige bilder resamples til faste onlineformater; visuell vurdering i

@@ -20,3 +20,7 @@ export function saveLabel(state: SaveState): string {
       return "Klar";
   }
 }
+
+export function parseInternalTags(value: string): string[] {
+  return [...new Set(value.split(",").map(name => name.trim()).filter(Boolean))];
+}

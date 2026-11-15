@@ -1,5 +1,93 @@
 # Security and Roles
 
+## Editor-bilder og historiske interne tags – 2026-11-15
+
+**Mandat og eieravklaring:** Fjern normalvarselet `untagged_assumed_srgb`, vis
+aktørnavn i Editor-thumbnail ved fallback og reduser unødig venting ved
+bildebekreftelse. Gjeninnfør historiske interne tags for aktør/person med
+`#C8FA00` og svart tekst. Eier har uttrykkelig valgt samme tenantavgrensede
+legacy-Editor-tilgang som dagens interne notater. Gammel global rollefallback
+består; dette er ikke shared tilgang eller ny medlemskaps-/agreementaktivering.
+[Beslutningen](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md)
+overstyrer tidligere utsettelse bare for de separat lagrede historiske interne
+tagsene; vanlige legacy `Tag`-rader klassifiseres ikke.
+
+### Implementert avgrensning
+
+- Normal antakelse om sRGB vises ikke som rødt teknisk varsel i Editor.
+  Proveniens, fargeromshåndtering og validering beholdes; øvrige varsler og
+  faktiske feil skjules ikke.
+- Ny read-only `preview_image_kind` fra samme autoritative projector/cache
+  følger `preview_image_url`. Systemfallback eller mislykket bildefetch viser
+  aktørnavnet i thumbnail, med full tekst tilgjengelig. Asset/legacy/private
+  preview bevares. Ingen ny resolver, per-kort DB-/safety-N+1 eller PUBLIC-bytes.
+  Bare avledet bildestate oppdateres; ulagrede profilfelt/interne tags bevares.
+- Aktive bilders tre fullformatpreviews hentes først når detaljpanelet åpnes,
+  og blokkerer ikke lenger bekreftelsen. Publiserte aktørers state gjenbruker
+  samme requestlokale PUBLIC-projeksjon for Editor: én trevariantskontroll i
+  stedet for to. Ny request reautoriseres; intet gjenbrukbart safetygrant.
+- «Bekreft og bruk» består fortsatt av approval og complete med separate
+  varige commitgrenser. Reserve og activate ankres off-server før suksess.
+  Dette nettverksarbeidet kan forklare flere sekunders venting. Eiers observerte
+  cirka15 sekunder er ikke målt som produksjonsbenchmark her. Tre skjulte
+  previewrequests og én duplisert projeksjon fjernes, men ingen bestemt ny
+  svartid loves, og sikkerhets-/backupgarantier svekkes ikke.
+- `InternalTag` og de to historiske M2M-tabellene brukes igjen med samme keys,
+  navn, slugs og timestamps. Et datert read-only oppslag fant8 tags/104 aktør-
+  og131 personkoblinger; dette er diagnosegrunnlag, ikke autoritet for apply.
+  Ny input under kategorisering lagres atomisk med profilen som eksplisitte
+  `internal_tag_names`. Utelatt felt bevarer; `[]` fjerner bare egne koblinger,
+  aldri taggrader. Nye navn opprettes bare i profilens tenant. Feil ruller tilbake
+  profil og taggoperasjon. Ingen femtagsgrense for interne tags; navn maks64 tegn.
+- Egne interne tags leses fra samme eksakte tenant. Manipulerte tagg-ID-er
+  avvises; feil tenant, anonym, inaktiv bruker/medlemskap og utilstrekkelig rolle
+  får ingen interne rettigheter. Også en ugyldig historisk cross-tenant-join
+  filtreres bort ved lesing. Prefetch/requestlokal scopevurdering er avgrenset,
+  uten per-profil taggoppslag. Profilsvar og tagglister er private/no-store.
+- Ny GET-only `/api/tenants/{id}/internal-tags/` gir Editor-forslag. Interne
+  felter er ikke med i PUBLIC, nested public-person-projeksjon, vanlig `Tag`,
+  import/matching/AI eller Brave-querygrunnlag. Usopet Django Admin ekskluderer
+  den gjeninnførte relasjonen; ingen ny intern-tag-Admin eller forvaltningsflate.
+
+### Migrasjon og bevaring
+
+Kun0041 `restore_legacy_internal_tags` kommer etter0040. Den frosne state gir
+`InternalTag` og Organization/Person.internal_tags. I en ren database opprettes
+tre tomme tabeller. Hvis alle tre finnes, valideres kolonneegenskaper, PK/unique/
+FK, faktisk full unikhet (ikke delvis indeks), constraintvalidering, fravær av
+uventede triggere, faktisk ID-default/identity, neste sekvensverdi og gyldige
+same-tenant-relasjoner under transaksjonslås. Delvis/inkompatibelt schema,
+orphans/cross-tenant, feil ID-generator eller en neste sekvensverdi som kan
+kollidere/overskride maksimum stopper. Kontrollene kaller aldri nextval/setval. Ingen automatisk
+reparasjon, flytting, omklassifisering eller reset. Eksisterende kompatible
+tabeller adopteres uten schema-/raddataendring. Revers er kun Django-state og
+migrasjonsmetadata; tabeller, koblinger og sekvenser droppes aldri. Vanlig
+rollback bytter kode og beholder schema/data/nyere safety- og deny-state.
+
+Staging krever fersk baseline etter varslet eierpause, verifisert database,
+eksakt én pending0041, READ COMMITTED,2s lock timeout/30s statement timeout,
+pre/post-backup/fullverify/isolert PostgreSQL16-restore og read-back. Alle gamle
+rader/relasjoner/timestamps/stamps, tags/interne koblinger, bilder, media/static,
+PUBLIC og ledger skal bevares. Bare ny migrasjonsrad er tillatt når de historiske
+tabellene allerede er kompatible. Ingen reelle profil-/bilde-/taggtestwrites,
+medlemmer/aksepter, notatkopiering eller aktivering av fem avslåtte gater.
+
+### Tester og faktisk leveransestatus
+
+Målrettede backendtester for private tags/adopsjon og bilde/PUBLIC/ledger er
+grønne. Frontend-/desktopregresjoner dekker varsel, navn, skjulte previews,
+profilutkast/reset, private felt på begge profiltyper, fargen og eksplisitt
+profilwrite. [Aktør](../status/evidence/editor-images-internal-tags-2026-11-15/organizations-private-tags.png),
+[person](../status/evidence/editor-images-internal-tags-2026-11-15/persons-private-tags.png)
+og [navnefallback](../status/evidence/editor-images-internal-tags-2026-11-15/named-thumbnail.png)
+er kun syntetiske kontrollbilder, ikke nye reelle data eller visuell eieraksept.
+En eksisterende avtaletest blandet hosttid med DB-tid; bare testens effektive
+«nå» er flyttet til DB-klokken som policyen allerede bruker. Tilgangspolicyen
+endres ikke. Full lokal PostgreSQL16-regresjon788 og frontend87/TS/bygg er grønne. Ni
+avgrensede syntetiske bilde-/tagg-E2E inngår. Separat review/CI og bestilt staging
+føres i prosjektstatus etter faktisk utførelse. Ingen stagingdeploy påstås ennå.
+
+
 ## Bilderedigering etter desktoptest – 2026-11-14
 
 Eiermandatet gjelder fire konkrete rettinger og levering helt til staging.

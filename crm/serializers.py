@@ -1,6 +1,7 @@
 import phonenumbers
 
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 from django.conf import settings
 from django.db import transaction
 
@@ -9,6 +10,7 @@ from .models import (
     Tenant,
     TenantMembership,
     Tag,
+    InternalTag,
     Category,
     Subcategory,
     Organization,
@@ -99,6 +101,69 @@ class TagSerializer(serializers.ModelSerializer):
         read_only_fields = ["tenant", "slug", "created_at"]
 
 
+class InternalTagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InternalTag
+        fields = ["id", "name", "slug"]
+        read_only_fields = fields
+
+
+class InternalTagsMixin(serializers.ModelSerializer):
+    internal_tags = serializers.SerializerMethodField()
+    internal_tag_names = serializers.ListField(
+        child=serializers.CharField(max_length=64, allow_blank=False),
+        required=False, write_only=True,
+    )
+
+    def _internal_tenant(self):
+        if not hasattr(self, "_internal_tenant_cache"):
+            from .permissions import legacy_internal_tag_access
+            view = self.context.get("view")
+            request = self.context.get("request")
+            value = view.kwargs.get("tenant_id") if view else None
+            tenant_id = int(value) if value is not None else None
+            self._internal_tenant_cache = tenant_id if request and legacy_internal_tag_access(request.user, tenant_id) else None
+        return self._internal_tenant_cache
+
+    def get_internal_tags(self, obj):
+        if self._internal_tenant() != obj.tenant_id:
+            return []
+        tags = getattr(obj, "_editor_internal_tags", None)
+        if tags is None:
+            tags = obj.internal_tags.filter(tenant_id=obj.tenant_id)
+        return InternalTagSerializer(tags, many=True).data
+
+    def validate(self, attrs):
+        if "internal_tag_ids" in getattr(self, "initial_data", {}):
+            raise serializers.ValidationError({"internal_tag_names": "Use names within the route tenant, not tag IDs."})
+        return super().validate(attrs)
+
+    def _save_internal_tags(self, obj, names):
+        if names is None:
+            return
+        if self._internal_tenant() != obj.tenant_id:
+            raise PermissionDenied("Aktiv tilgang til dette Musikkontoret kreves for interne tags.")
+        tags = [InternalTag.objects.get_or_create(tenant_id=obj.tenant_id, name=name)[0]
+                for name in dict.fromkeys(names)]
+        obj.internal_tags.set(tags)
+        if hasattr(obj, "_editor_internal_tags"):
+            del obj._editor_internal_tags
+
+    def create(self, validated_data):
+        names = validated_data.pop("internal_tag_names", None)
+        with transaction.atomic():
+            obj = super().create(validated_data)
+            self._save_internal_tags(obj, names)
+            return obj
+
+    def update(self, instance, validated_data):
+        names = validated_data.pop("internal_tag_names", None)
+        with transaction.atomic():
+            obj = super().update(instance, validated_data)
+            self._save_internal_tags(obj, names)
+            return obj
+
+
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
@@ -130,7 +195,7 @@ class OrganizationListSerializer(serializers.ListSerializer):
         return super().to_representation(data)
 
 
-class OrganizationSerializer(serializers.ModelSerializer):
+class OrganizationSerializer(InternalTagsMixin):
     phone_dial_uri = serializers.SerializerMethodField()
     phone_country_calling_code_hint = serializers.SerializerMethodField()
     phone_region = serializers.CharField(
@@ -149,6 +214,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
     primary_link = serializers.SerializerMethodField()
     primary_link_field = serializers.SerializerMethodField()
     preview_image_url = serializers.SerializerMethodField()
+    preview_image_kind = serializers.SerializerMethodField()
     image_asset_feature_enabled = serializers.SerializerMethodField()
     tags = TagSerializer(many=True, read_only=True)
     tag_ids = serializers.PrimaryKeyRelatedField(
@@ -209,9 +275,12 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "primary_link",
             "primary_link_field",
             "preview_image_url",
+            "preview_image_kind",
             "image_asset_feature_enabled",
             "tags",
             "tag_ids",
+            "internal_tags",
+            "internal_tag_names",
             "categories",
             "category_ids",
             "subcategories",
@@ -306,15 +375,24 @@ class OrganizationSerializer(serializers.ModelSerializer):
     def get_primary_link_field(self, obj):
         return obj.get_primary_link_field()
 
+    def _editor_image(self, obj):
+        from .services.images.projection import project_public_image
+        cache = getattr(self, "_editor_image_projection_cache", None)
+        if cache is None:
+            cache = self._editor_image_projection_cache = {}
+        if obj.pk not in cache:
+            cache[obj.pk] = project_public_image(obj, for_editor=True)
+        return cache[obj.pk].projection
+
     def get_preview_image_url(self, obj):
         if settings.PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED:
-            from .services.images.projection import project_public_image
-            cache = getattr(self, "_editor_image_projection_cache", {})
-            result = cache.get(obj.pk)
-            if result is None:
-                result = project_public_image(obj, for_editor=True)
-            return result.projection.square.url
+            return self._editor_image(obj).square.url
         return obj.get_preview_image_url()
+
+    def get_preview_image_kind(self, obj):
+        if settings.PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED:
+            return self._editor_image(obj).kind
+        return "legacy" if obj.get_preview_image_url() else "system_fallback"
 
 class PersonContactSerializer(serializers.ModelSerializer):
     phone_dial_uri = serializers.SerializerMethodField()
@@ -484,7 +562,7 @@ class PersonForOrganizationSerializer(serializers.ModelSerializer):
         return PublicPersonContactSerializer(qs, many=True).data
 
 
-class PersonSerializer(serializers.ModelSerializer):
+class PersonSerializer(InternalTagsMixin):
     phone_dial_uri = serializers.SerializerMethodField()
     phone_country_calling_code_hint = serializers.SerializerMethodField()
     phone_region = serializers.CharField(
@@ -542,6 +620,8 @@ class PersonSerializer(serializers.ModelSerializer):
             "youtube_url",
             "tags",
             "tag_ids",
+            "internal_tags",
+            "internal_tag_names",
             "categories",
             "category_ids",
             "subcategories",
