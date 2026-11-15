@@ -1,0 +1,163 @@
+{
+  "backup": {
+    "post": {
+      "archive": "kreative-norge-staging-20261115T212230Z",
+      "no_new_volumes": true,
+      "restore": true,
+      "schema_validated": true,
+      "verified": true
+    },
+    "pre": {
+      "archive": "kreative-norge-staging-20261115T212116Z",
+      "no_new_volumes": true,
+      "restore": true,
+      "schema_validated": true,
+      "verified": true
+    }
+  },
+  "control_window": {
+    "duration_seconds": 207,
+    "snapshots_historical_not_authority_for_future_apply": true,
+    "write_pause_release_utc": "2026-11-15T21:24:01.915880+00:00",
+    "write_pause_start_utc": "2026-11-15T21:20:34.773964+00:00"
+  },
+  "editor_images_brave": {
+    "anonymous_and_no_role_private_tag_denied": true,
+    "asset_matches": 27,
+    "brave_count": 200,
+    "database_writes": 0,
+    "editor_tenant_lists": 7,
+    "exact_scope_allowed_wrong_tenant_denied": true,
+    "existing_unpublished_private_preview_checked": 1,
+    "fallback_matches": 95,
+    "five_gates_off": true,
+    "internal_tag_get_scope_and_no_store_verified": true,
+    "internal_tag_rows_read": 8,
+    "maximum_batch_size": 24,
+    "no_v2_approval_or_completion_created": true,
+    "nonowner_denied": true,
+    "owner_suggestions_available": true,
+    "private_list_batch_calls": 5,
+    "private_list_single_authorize_or_legacy_calls": 0,
+    "private_organization_links_read": 104,
+    "private_person_links_read": 131,
+    "private_variant_checks": 87,
+    "provider_calls": 0,
+    "published_previews_equal_public": 122,
+    "real_detail_preview_matches": true,
+    "status": "READ_ONLY_IMAGE_PASS"
+  },
+  "evidence_limits": {
+    "http_probe_corrections_before_runtime_change": "urllib header casing and container localhost; separately re-reviewed; aborted attempt retained privately; fresh r2 baseline used",
+    "no_staging_schema_or_data_apply": true,
+    "not_a_public_target_cutover": true,
+    "real_positive_writes_not_tested": true,
+    "schema_catalogs": "columns: type/null/default/length; constraints: definitions/validated; triggers: definitions/status; crm_% function bodies; not a full owner/grant/index/sequence/view comparison",
+    "synthetic_multiassignment_and_ambiguous_alias_tests": "PR123 801 backend / 58 targeted, no staging fixtures"
+  },
+  "gates": {
+    "effective_and_persistent_five_off": true,
+    "persistent_modes": {
+      "ACCESS_MANAGEMENT_ENABLED": "unset_default_false",
+      "CANONICAL_WRITER_ENABLED": "unset_default_false",
+      "SHARING_ACCESS_ENABLED": "unset_default_false",
+      "STRICT_TENANT_ACCESS_ENABLED": "unset_default_false",
+      "TENANT_NOTE_OVERLAYS_ENABLED": "unset_default_false"
+    },
+    "provider_calls": 0,
+    "remaining_flags_and_brave_owner_binding_preserved": true
+  },
+  "helper_sha256": {
+    "base-web.json": "87da91719c5a0cc8125192d9e6e160dc82763d5468e061a8d5468c84556ab32c",
+    "common.py": "307480ca6de6137a9e7a65c2c5874788d3ba8721e342b0daa0b1edf13ed2f63f",
+    "db-read.py": "658a30ee3d8cc4ddf54873e4c8cc07e25b307be1c204ec3ccfd54b1333dd624a",
+    "https.py": "c66e69507f75e4228f2e207f914d4a6b667b81eb73c6d4857c647e5a46b4171b",
+    "image-readback.py": "bcab21a6f18ae10b368d81d64f58ed02a3f40957fad71e1a8dde86da7893b787",
+    "public-read.py": "c3682709cdf36428b94fbcf07cc470c9b3ad28f5317e9505e5548dd08f7ac386",
+    "reviewed-head.txt": "33620e484c374328a9342d5bbfc3ad76ca8c4918d5b074e5821fbb4e15c227ec",
+    "stage.py": "d742da386147829a31d8b6de764c3ac49c26b94b2cada7c681045d9dd64284bc",
+    "target-commit.txt": "d3f3c8ff222409f0ba2839bd49526ea86e968dbb30b8d465811bf6e16df49696"
+  },
+  "https": {
+    "asset_fallback_image_bytes_equal_variants": 6,
+    "before_after_pass": true,
+    "canonical_id_additive_only": true,
+    "new_canonical_id_detail_samples": 2,
+    "old_alias_and_html_301_samples": 2,
+    "public_count": 122,
+    "unchanged_index_bundle_references": true,
+    "unchanged_js_css_files_and_mime": 2
+  },
+  "operations": {
+    "all_restored": true,
+    "safety_health_timer_normal": true
+  },
+  "preservation": {
+    "all_existing_rows_and_relations_timestamps_stamps_migrations_preserved": true,
+    "empty_history_membership_overlay_and_batch_tables": [
+      "crm_tenantmembership",
+      "crm_sharingagreement",
+      "crm_sharingagreementacceptance",
+      "crm_sharingagreementrevocation",
+      "crm_sharingaccessaudit",
+      "crm_accessmanagementgrant",
+      "crm_accessmanagementgrantrevocation",
+      "crm_membershipmanagementaudit",
+      "crm_canonicalwriteaudit",
+      "crm_organizationnoteoverlay",
+      "crm_personnoteoverlay",
+      "crm_tenantnotecopybatch"
+    ],
+    "ledger_bytes_equal": true,
+    "media_static_manifests_equal": true,
+    "no_profile_image_assignment_or_ledger_writes": true,
+    "organizations": 128,
+    "persons": 157,
+    "registered_schema_catalogs_equal": true,
+    "safety_cursor_after": 73,
+    "safety_cursor_before": 73,
+    "safety_ready": true,
+    "tables_compared": 56
+  },
+  "public": {
+    "ambiguous_existing_aliases": 0,
+    "asset_and_fallback_image_bytes_equal_variants": 6,
+    "html_id_routes_and_301_preserved": true,
+    "id_details": 3,
+    "id_details_without_org_number": 1,
+    "missing_alias_404": true,
+    "missing_canonical_id_404": true,
+    "no_actor_or_assignment_writes": true,
+    "normalized_list_and_representative_detail_payloads_equal": true,
+    "normalized_tag_shuffle_html_list_and_detail_bytes_equal": true,
+    "only_additive_canonical_id_response_change": true,
+    "private_fields_absent": true,
+    "private_id_404": 2,
+    "published": 122,
+    "real_ambiguous_aliases_absent_synthetic_regression_reused": true,
+    "unique_aliases": 2
+  },
+  "recorded_at": "2026-11-15T21:24:07.956962+00:00",
+  "reused_test_evidence": {
+    "backend": 801,
+    "ci_conclusion": "SUCCESS 6/6",
+    "code_pr": 123,
+    "last_targeted": 58,
+    "main_ci": 43753864983,
+    "no_tests_or_synthetic_fixtures_created_in_staging": true,
+    "pr_ci": 43753358665
+  },
+  "runtime": {
+    "api_commit": "c602e229e6e637aa50c412f598b9e2f7c6d8f3d9",
+    "api_image": "sha256:a3f27a4c08f5733dcb1559b79cb222a4a5037e20c4710abca6f4e51dac080020",
+    "api_only": true,
+    "database_image": "sha256:49767d69e57428bc8229d8427521605e90b230c908d19542644d92b77dc1984d",
+    "dependencies_environment_host_bridge_and_operational_files_preserved": true,
+    "frontend_commit": "4d2740043c73ed1b560876585ebdb5ce743891d3",
+    "frontend_database_containers_unchanged": true,
+    "pending_migrations": 0,
+    "schema": "0041_restore_legacy_internal_tags",
+    "web_image": "sha256:dc5c71bc54267780913cd504abce7e59a148646cffc69f24a5f6340ba63d29a4"
+  },
+  "status": "STAGING_VERIFIED"
+}

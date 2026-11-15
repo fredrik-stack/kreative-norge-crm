@@ -1,23 +1,29 @@
 # Project Status Current
 
-## Fase 6A trinn 10 – canonical PUBLIC-identitet, lokal leveranse 2026-11-15
+## Fase 6A trinn 10 – canonical PUBLIC-identitet, teknisk stagingverifisert 2026-11-15
 
-ADR-011 §10 implementeres først som en additiv identitets-/kompatibilitetsgrense:
-public API får read-only `canonical_id = Organization.pk` og separat
-`/api/public/actors/id/<canonical_id>/`. Eksisterende org.nr.-API beholder URL,
-200/JSON ved entydig publisert treff, og gir kontrollert 404 ved manglende eller
-tvetydig publisert alias. HTMLs PK-rute og org.nr.-301 består. En Organization
-leses én gang fra basetabellen, uavhengig av antall tenantassignments; ingen
-PK-merge eller ny hub. Eksisterende publication-, kontakt-, tagg- og bilderegler
-beholdes. Dette er ikke target PUBLIC-cutover eller taggklassifisering.
+[PR #123](https://github.com/fredrik-stack/kreative-norge-crm/pull/123) er deployet
+API-only fra `c602e229e6e637aa50c412f598b9e2f7c6d8f3d9`. Frontend er uendret på
+`4d2740043c73ed1b560876585ebdb5ce743891d3`, DB-container og schema 0041 består med
+tom migrasjonsplan. Ingen schema-/data-apply eller PUBLIC-target-cutover.
 
-Lokal isolert PostgreSQL 16: 801 backendtester og siste 58 målrettede PUBLIC-/
-bilde-/auth-tester er grønne; ingen modell-/migrasjonsendring. Separat review
-og faktisk PR-/merge-/CI-status spores i [PR #123](https://github.com/fredrik-stack/kreative-norge-crm/pull/123).
-Ingen stagingkontakt/deploy, schema-/data-apply eller aktivering inngår. Aktiv
-staging/bildebrukerreise og Brave er urørt. Full målprojeksjon krever fortsatt
-uttrykkelig eiergodkjent mapping av uklassifiserte legacytags og egne senere
-aktiverings-/publicationporter. [PUBLIC-kontrakt](../features/PUBLIC.md#canonical-public-identitet-før-cutover--2026-11-15).
+PUBLIC-API gir additivt `canonical_id = Organization.pk` på 122 publiserte
+aktører. Tre ID-detaljer (én uten org.nr.), to entydige org.nr.-aliaser,
+HTML-ID/301, manglende alias/ID og to upubliserte ID-er er kontrollert. Kun
+canonical_id er lagt til sammenlignede API-responser; øvrig payload og normalisert
+HTML består. Ingen tvetydige aliaser fantes i staging; multiassignment og
+konflikter gjenbruker PR #123s grønne syntetiske bevis, uten nye stagingprofiler.
+
+Fersk baseline etter varslet skrivepause beviser alle 56 tabellers rader,
+relasjoner, tidsstempler, stamps, migrasjonshistorikk og målte schemakataloger
+bevart. Editor-/session-/Admin-lesing, bilder, interne tags/notater, Brave kun
+eier, media/static og hele safety-ledger er bevart, READY 73→73. Fem gater av.
+Pre/post-backup/fullverify/isolert restore og eksterne HTTPS-/bundle-/bildekontroller
+er grønne; timere er normale og redigering frigitt. Ingen reelle testwrites.
+
+[Kontrakt, sanitert evidens og bevisgrenser](../features/PUBLIC.md#canonical-public-identitet--teknisk-stagingverifisert-2026-11-15).
+Full målprojeksjon, publication authority og eiergodkjent legacytaggmapping
+gjenstår. Fase 6A er ikke lukket. Dokumentasjonsmerge utløser ingen deploy.
 
 ## Interne tags i «Søk tag» – stagingverifisert 2026-11-15
 
