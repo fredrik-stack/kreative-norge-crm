@@ -1,16 +1,27 @@
 # Roadmap
 
-## Kategorisammendrag i profil – lokal retting 2026-11-15
+## Kategorisammendrag i profil – stagingverifisert 2026-11-15
 
-Seksjonsoppsummeringen under «Kategorisering og tags» på aktør og person
-viser nå valgte kategorier, underkategorier, vanlige tags og separat merkede
-interne tags fra gjeldende profilutkast. Endring og tømming vises umiddelbart,
-uten autosave; tomt skjema viser «Ingen kategorier eller tags valgt».
-Dette retter en visningsfeil der bare taggteksten ble brukt. Ingen verdier,
-lagringsruter, tilgang, PUBLIC, API eller schema endres. Frontend87/TypeScript/
-bygg og to syntetiske browserregresjoner er grønne. Review/CI og bestilt
-frontend-staging gjenstår; ingen ny deploy påstås ennå. Neste produktfase er
-ikke startet. Se [UI-kontrakten](../features/UI_6_FELLES_SPEC.md#kategorisammendrag-i-profil--2026-11-15).
+[PR #119](https://github.com/fredrik-stack/kreative-norge-crm/pull/119) er levert
+frontend-only fra `797f69acb059a4aaa85168f5f0850a618ee4ae23` etter separat review
+og grønn PR-/main-CI, 6/6. Underteksten i aktørens og personens «Kategorisering
+og tags» viser gjeldende hovedkategori, underkategori, vanlige tags og separat
+merkede interne tags. Endring/tømming følger utkastet uten autosave. Tommelding:
+«Ingen kategorier eller tags valgt». Kun visning; lagrede verdier er uendret.
+
+API er fortsatt `b63b7e486c8c2d39c053d5eecd7606f1814204da`, schema 0041 og tom
+restplan. API-/DB-container, miljø, dependencies og infrastruktur er bevart.
+Fersk baseline etter varslet pause bekrefter alle 56 tabellers rader,
+relasjoner/timestamps/stamps/migrasjonshistorikk og registrerte schemaegenskaper,
+media/static, PUBLIC og hele safety-ledger uendret, READY71→71.
+Ingen migrasjon, reelle profiltestwrites eller ny aktivering; fem gater av og
+Brave kun eier. Pre/post-backup/fullverify/isolert restore og HTTPS-bundle er
+verifisert; normale timere og redigering er gjenopprettet.
+
+[UI-kontrakt og sanitert evidens](../features/UI_6_FELLES_SPEC.md#kategorisammendrag-i-profil--2026-11-15). Lokal frontend87/TS/bygg og to
+syntetiske browserregresjoner er grønne. Stagingkontrollen er skrivebeskyttet;
+ny visuell eieraksept påstås ikke. Siste innmeldte UI-funn er teknisk rettet;
+ingen neste produktfase er startet. Dokumentasjonsmerge gir ingen ny deploy.
 
 ## Editor-bilder og interne tags – stagingverifisert 2026-11-15
 
