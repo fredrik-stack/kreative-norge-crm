@@ -118,6 +118,58 @@ class InternalTagTests(TestCase):
         self.assertEqual(list(InternalTag.objects.order_by("pk").values()), before)
         self.assertEqual(list(self.org.internal_tags.values_list("pk", flat=True)), links)
 
+    def test_adoption_rejects_a_reused_next_id_without_advancing_or_repairing_sequence(self):
+        migration = importlib.import_module("crm.migrations.0041_restore_legacy_internal_tags")
+        state = MigrationExecutor(connection).loader.project_state([("crm", "0041_restore_legacy_internal_tags")])
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_get_serial_sequence('crm_internaltag','id')")
+            sequence = cursor.fetchone()[0]
+            quoted = ".".join(connection.ops.quote_name(part) for part in sequence.split("."))
+            cursor.execute("SELECT last_value,is_called FROM " + quoted); before = cursor.fetchone()
+            cursor.execute("SELECT max(id) FROM crm_internaltag"); maximum = cursor.fetchone()[0]
+            cursor.execute("SELECT setval(%s,%s,false)", [sequence, maximum])
+            try:
+                with connection.schema_editor(atomic=False) as editor:
+                    with self.assertRaisesRegex(RuntimeError, "ID_SEQUENCE_UNSAFE"):
+                        migration.RestoreInternalTags().database_forwards("crm", editor, state, state)
+                cursor.execute("SELECT last_value,is_called FROM " + quoted)
+                self.assertEqual(cursor.fetchone(), (maximum, False))
+            finally:
+                cursor.execute("SELECT setval(%s,%s,%s)", [sequence, *before])
+
+    def test_adoption_rejects_partial_index_as_a_substitute_for_name_uniqueness(self):
+        migration = importlib.import_module("crm.migrations.0041_restore_legacy_internal_tags")
+        state = MigrationExecutor(connection).loader.project_state([("crm", "0041_restore_legacy_internal_tags")])
+        with connection.cursor() as cursor:
+            cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
+            constraints = connection.introspection.get_constraints(cursor, "crm_internaltag")
+            name = next(name for name, c in constraints.items() if c["unique"] and c["columns"] == ["tenant_id", "name"])
+            cursor.execute("ALTER TABLE crm_internaltag DROP CONSTRAINT " + connection.ops.quote_name(name))
+            cursor.execute("CREATE UNIQUE INDEX synthetic_partial_name ON crm_internaltag(tenant_id,name) WHERE false")
+        with connection.schema_editor(atomic=False) as editor:
+            with self.assertRaisesRegex(RuntimeError, "UNIQUE_MISMATCH"):
+                migration.RestoreInternalTags().database_forwards("crm", editor, state, state)
+
+    def test_adoption_rejects_id_default_that_does_not_use_its_owned_sequence(self):
+        migration = importlib.import_module("crm.migrations.0041_restore_legacy_internal_tags")
+        state = MigrationExecutor(connection).loader.project_state([("crm", "0041_restore_legacy_internal_tags")])
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_get_serial_sequence('crm_internaltag','id')")
+            sequence = cursor.fetchone()[0]
+            quoted = ".".join(connection.ops.quote_name(part) for part in sequence.split("."))
+            cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
+            cursor.execute("SELECT attidentity FROM pg_attribute WHERE attrelid='crm_internaltag'::regclass AND attname='id'")
+            if cursor.fetchone()[0]:
+                cursor.execute("ALTER TABLE crm_internaltag ALTER COLUMN id DROP IDENTITY")
+                cursor.execute("CREATE SEQUENCE " + quoted)
+                cursor.execute("ALTER SEQUENCE " + quoted + " OWNED BY crm_internaltag.id")
+                cursor.execute("SELECT COALESCE(max(id),0)+1 FROM crm_internaltag")
+                cursor.execute("SELECT setval(%s,%s,false)", [sequence, cursor.fetchone()[0]])
+            cursor.execute("ALTER TABLE crm_internaltag ALTER COLUMN id SET DEFAULT 0")
+        with connection.schema_editor(atomic=False) as editor:
+            with self.assertRaisesRegex(RuntimeError, "ID_DEFAULT_UNSAFE"):
+                migration.RestoreInternalTags().database_forwards("crm", editor, state, state)
+
     def test_adoption_rejects_cross_tenant_links_and_partial_schema(self):
         migration = importlib.import_module("crm.migrations.0041_restore_legacy_internal_tags")
         state = MigrationExecutor(connection).loader.project_state([("crm", "0041_restore_legacy_internal_tags")])

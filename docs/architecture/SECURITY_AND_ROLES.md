@@ -54,9 +54,11 @@ tagsene; vanlige legacy `Tag`-rader klassifiseres ikke.
 Kun0041 `restore_legacy_internal_tags` kommer etter0040. Den frosne state gir
 `InternalTag` og Organization/Person.internal_tags. I en ren database opprettes
 tre tomme tabeller. Hvis alle tre finnes, valideres kolonneegenskaper, PK/unique/
-FK, constraintvalidering, fravær av uventede triggere, ID-sekvens og gyldige
+FK, faktisk full unikhet (ikke delvis indeks), constraintvalidering, fravær av
+uventede triggere, faktisk ID-default/identity, neste sekvensverdi og gyldige
 same-tenant-relasjoner under transaksjonslås. Delvis/inkompatibelt schema,
-orphans/cross-tenant eller sekvens bak siste ID stopper. Ingen automatisk
+orphans/cross-tenant, feil ID-generator eller en neste sekvensverdi som kan
+kollidere/overskride maksimum stopper. Kontrollene kaller aldri nextval/setval. Ingen automatisk
 reparasjon, flytting, omklassifisering eller reset. Eksisterende kompatible
 tabeller adopteres uten schema-/raddataendring. Revers er kun Django-state og
 migrasjonsmetadata; tabeller, koblinger og sekvenser droppes aldri. Vanlig

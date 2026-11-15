@@ -52,7 +52,15 @@ class RestoreInternalTags(Operation):
                 constraints = connection.introspection.get_constraints(cursor, name)
                 if {tuple(c["columns"]) for c in constraints.values() if c["primary_key"]} != {("id",)}:
                     raise RuntimeError("INTERNAL_TAGS_PRIMARY_KEY_MISMATCH")
-                uniques = {tuple(c["columns"]) for c in constraints.values() if c["unique"] and not c["primary_key"]}
+                # Partial/invalid unique indexes do not enforce tenant/name identity.
+                cursor.execute("""SELECT ARRAY(
+                    SELECT a.attname FROM unnest(c.conkey) WITH ORDINALITY k(attnum,pos)
+                    JOIN pg_attribute a ON a.attrelid=c.conrelid AND a.attnum=k.attnum ORDER BY k.pos
+                ) FROM pg_constraint c JOIN pg_index i ON i.indexrelid=c.conindid
+                WHERE c.conrelid=%s::regclass AND c.contype='u' AND c.convalidated
+                  AND i.indisvalid AND i.indisready AND i.indisunique
+                  AND i.indpred IS NULL AND i.indexprs IS NULL""", [name])
+                uniques = {tuple(row[0]) for row in cursor.fetchall()}
                 wanted = {("tenant_id", "name"), ("tenant_id", "slug")} if name == names[0] else {(name.removeprefix("crm_").split("_internal_tags")[0]+"_id", "internaltag_id")}
                 if uniques != wanted:
                     raise RuntimeError("INTERNAL_TAGS_UNIQUE_MISMATCH")
@@ -73,11 +81,21 @@ class RestoreInternalTags(Operation):
                 sequence = cursor.fetchone()[0]
                 if not sequence:
                     raise RuntimeError("INTERNAL_TAGS_ID_SEQUENCE_MISSING")
-                cursor.execute("SELECT last_value FROM " + ".".join(quote(part) for part in sequence.split(".")))
-                last = cursor.fetchone()[0]
+                cursor.execute("""SELECT a.attidentity,pg_get_expr(d.adbin,d.adrelid),
+                    format('nextval(%%L::regclass)', %s::regclass::text)
+                    FROM pg_attribute a LEFT JOIN pg_attrdef d ON d.adrelid=a.attrelid AND d.adnum=a.attnum
+                    WHERE a.attrelid=%s::regclass AND a.attname='id' AND NOT a.attisdropped""", [sequence, name])
+                identity, default, expected_default = cursor.fetchone()
+                if identity not in ("", "a", "d") or (identity and default is not None) or (not identity and default != expected_default):
+                    raise RuntimeError("INTERNAL_TAGS_ID_DEFAULT_UNSAFE")
+                cursor.execute("SELECT last_value,is_called FROM " + ".".join(quote(part) for part in sequence.split(".")))
+                last, called = cursor.fetchone()
+                cursor.execute("SELECT seqincrement,seqmax,seqcycle FROM pg_sequence WHERE seqrelid=%s::regclass", [sequence])
+                increment, maximum, cycle = cursor.fetchone()
+                next_value = last + increment if called else last
                 cursor.execute("SELECT COALESCE(max(id),0) FROM " + quote(name))
-                if last < cursor.fetchone()[0]:
-                    raise RuntimeError("INTERNAL_TAGS_ID_SEQUENCE_BEHIND")
+                if increment <= 0 or cycle or next_value > maximum or next_value <= cursor.fetchone()[0]:
+                    raise RuntimeError("INTERNAL_TAGS_ID_SEQUENCE_UNSAFE")
             cursor.execute("SELECT count(*) FROM crm_internaltag t LEFT JOIN crm_tenant n ON n.id=t.tenant_id WHERE n.id IS NULL")
             if cursor.fetchone()[0]:
                 raise RuntimeError("INTERNAL_TAGS_ORPHAN_TENANT")
