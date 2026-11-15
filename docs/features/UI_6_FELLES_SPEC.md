@@ -15,8 +15,41 @@ Lokal frontend87/TypeScript/bygg og to syntetiske Chromium-regresjoner er
 grønne. Begge ruter testes med innlastet underkategori, begge taggtyper,
 endring av hovedkategori (som tømmer underkategori), endring av tagger og
 tømming. Ingen profilwrite skal utløses av oppsummeringen. Ingen backend-,
-API-, database-, PUBLIC- eller featureflaggendring. Faktisk leveransestatus
-føres i [prosjektstatus](../status/PROJECT_STATUS_CURRENT.md).
+API-, database-, PUBLIC- eller featureflaggendring. [PR #119](https://github.com/fredrik-stack/kreative-norge-crm/pull/119) er nå
+stagingverifisert frontend-only fra `797f69acb059a4aaa85168f5f0850a618ee4ae23` etter
+separat review på base `b8cc154d978791edd2d8e224ec80dc84db2ad099` / head `8fba251fe05a0668fac48c04460364cadcbf3e58`,
+[PR-CI](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/43716906208)
+og [main-CI](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/43717431629),
+begge SUCCESS 6/6. Separat operatørreview er lagret med helperSHAer i PR-en.
+Frontendens faktiske mergekilde/revisjon/manifest og HTTPS-JS/CSS-bytes/MIME er
+verifisert. API forblir `b63b7e486c8c2d39c053d5eecd7606f1814204da` med samme container;
+DB-container, dependencies, miljø, nginx/Caddy/bridge og operative filer består.
+Ingen migrate, collectstatic, dependencyinstallasjon eller schema-/data-apply.
+
+Fersk bevaringsbaseline etter varslet eierpause bekrefter alle 56 tabellers
+rader, relasjoner, notater/tags/interne koblinger, timestamps og canonical stamps
+identiske. Også hele migrasjonshistorikken og restplanen (tom/schema 0041) er
+uendret. Registrerte kolonneegenskaper (type/null/default/tegnlengde), constraints
+(definisjon/validering), triggere (definisjon/aktivitet) og `crm_%`-funksjonskropper
+er identiske. Dette er ikke et komplett fingeravtrykk av alle PostgreSQL-egenskaper.
+Media/static, PUBLIC-katalog/eksisterende bildebytes og ledger/denyhistorikk er
+uendret; READY71→71. Fem gater er effektivt/varig av; Brave kun eier. Aktive
+API/session/Admin/PUBLIC-leseruter og MembershipAdmin readonly er kontrollert.
+Ingen reelle profil-/bilde-/taggtestwrites, providerqueries, medlemskap/aksepter,
+notatkopiering eller aktivering. Gjeldende datatall er daterte kontrollbevis.
+
+Pre/post-backup med fullverify og isolert PostgreSQL16-restore er bundet til
+hvert eksakte arkivID/dumpSHA, inkludert historiske interne tags. Ingen live
+restore, prune/compact, etterlatte restorevolumer eller endrede backupmoduler.
+Timerne er normale og skrivepausen opphevet. Rollback gjelder kun web/kode og
+beholder dagens database, media og nyere safety/deny-state.
+
+[Sanitert stagingevidens](../status/evidence/profile-classification-summary-2026-11-15/staging-evidence.json)
+og [HTTPS-bundle](../status/evidence/profile-classification-summary-2026-11-15/https.json).
+Private råmanifester og radfingeravtrykk beholdes utenfor Git. Klassifiserings-
+visning/utkast er lokalt browsertestet syntetisk; read-only stagingbevis er ikke
+ny visuell eieraksept. Ingen neste fase startet; dokumentasjonsmerge deployes ikke.
+Faktisk leveransestatus følger [prosjektstatus](../status/PROJECT_STATUS_CURRENT.md).
 
 
 

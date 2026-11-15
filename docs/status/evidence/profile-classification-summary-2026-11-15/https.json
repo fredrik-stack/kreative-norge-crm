@@ -1,0 +1,21 @@
+{
+  "files": {
+    "assets/index-CsBKVGlM-797f69a.js": {
+      "content_type": "application/javascript",
+      "sha256": "34de21ddce0062fd8a0bb244d3b2a673fe8f04791336cdd69439b28a5fdb3976",
+      "status": 200
+    },
+    "assets/index-CzCjL65B-797f69a.css": {
+      "content_type": "text/css",
+      "sha256": "77a677153e5a64a98c386e22c74f26f5978a1deb3d146e6af1847299c0f76012",
+      "status": 200
+    },
+    "index.html": {
+      "content_type": "text/html",
+      "new_asset_references": true,
+      "status": 200
+    }
+  },
+  "source_commit": "797f69acb059a4aaa85168f5f0850a618ee4ae23",
+  "status": "HTTPS_BUNDLE_VERIFIED"
+}

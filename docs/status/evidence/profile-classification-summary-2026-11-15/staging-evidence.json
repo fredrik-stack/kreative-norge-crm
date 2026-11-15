@@ -1,0 +1,116 @@
+{
+  "backup": {
+    "all_timers_normal": true,
+    "both_fullverify_and_same_archive_isolated_pg16_restore": true,
+    "installed_modules_unchanged": true,
+    "no_live_restore_prune_compact_or_new_volumes": true,
+    "post": {
+      "archive": "kreative-norge-staging-20261115T131853Z",
+      "archive_id": "1c171c499eb69b7aabab4dc2d6f61aaca17eb2f82b48c7de760f55ab49c3e959",
+      "dump_sha256": "0f8d79bf6189a6b0ed554600433e8b3238e4745e3ac4dbba05db4b6e0ac62832",
+      "no_new_volumes": true,
+      "restore": true,
+      "schema_validated": true,
+      "verified": true
+    },
+    "pre": {
+      "archive": "kreative-norge-staging-20261115T131753Z",
+      "archive_id": "3899ec8b0f6493e1e3e6aed8fb3cb3a4cd0b0070daa2bd3f7cd9faffc50af235",
+      "dump_sha256": "36ac352e1347bf358c1c7695b92ffef9a14a4f174c4a95f99dba0215baee4f5a",
+      "no_new_volumes": true,
+      "restore": true,
+      "schema_validated": true,
+      "verified": true
+    }
+  },
+  "code": {
+    "base_main": "b8cc154d978791edd2d8e224ec80dc84db2ad099",
+    "ci_backend_tests": 792,
+    "ci_jobs_successful": 6,
+    "frontend_tests": 87,
+    "local_database_tests": "not relevant: frontend-only",
+    "main_ci": 43717431629,
+    "merge": "797f69acb059a4aaa85168f5f0850a618ee4ae23",
+    "pr": 119,
+    "pr_ci": 43716906208,
+    "reviewed_head": "8fba251fe05a0668fac48c04460364cadcbf3e58",
+    "targeted_synthetic_e2e": 2
+  },
+  "database": {
+    "all_rows_relationships_timestamps_stamps_and_migration_history_identical": true,
+    "inactive_history_still_empty": true,
+    "internal_tag_rows": 8,
+    "memberships": {
+      "inactive": 0,
+      "total": 0
+    },
+    "no_migration_or_database_writes": true,
+    "organization_internal_tag_links": 104,
+    "organization_rows": 128,
+    "person_internal_tag_links": 131,
+    "person_rows": 157,
+    "recorded_schema_properties_identical": true,
+    "remaining_migrations": 0,
+    "schema": "0041_restore_legacy_internal_tags",
+    "table_count": 56
+  },
+  "flags": {
+    "ACCESS_MANAGEMENT_ENABLED": false,
+    "CANONICAL_WRITER_ENABLED": false,
+    "IMAGE_ASSET_FEATURE_ENABLED": true,
+    "IMPORT_IMAGE_DECISIONS_ENABLED": false,
+    "PUBLIC_IMAGE_API_SCHEMA_ENABLED": true,
+    "PUBLIC_IMAGE_PROJECTION_ENABLED": true,
+    "PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED": true,
+    "PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED": true,
+    "PUBLIC_IMAGE_SERVING_ENABLED": true,
+    "PUBLIC_IMAGE_TAKEDOWN_ENABLED": true,
+    "SHARING_ACCESS_ENABLED": false,
+    "SHARING_DOMAIN_SHADOW_ENABLED": false,
+    "STRICT_TENANT_ACCESS_ENABLED": false,
+    "TENANT_NOTE_OVERLAYS_ENABLED": false
+  },
+  "helper_sha256": {
+    "common.py": "a319f5c4b358696e6c5b3549ab7526cb7daf9a4317bf64f2fe46fb878e23d61d",
+    "db-read.py": "658a30ee3d8cc4ddf54873e4c8cc07e25b307be1c204ec3ccfd54b1333dd624a",
+    "export-sanitized.py": "dab8b94feacc3835c241b8196652cc9f1501a07ce1f1f7c394dfeeebe94513aa",
+    "stage.py": "a579460077c9126d603c187e56b46034bfc62aeebd847c01febcd95a9e485c6b"
+  },
+  "management_gate_checks": {
+    "authenticated_context_empty_disabled": true,
+    "membership_admin_readonly_superuser": true,
+    "new_history_not_admin_registered": true
+  },
+  "measured_at_utc": "2026-11-15T13:19:55.719444+00:00",
+  "preservation": {
+    "media_static_bytes_ledger_history_deny_and_public_bytes_identical": true,
+    "no_profile_or_image_writes": true,
+    "safety_cursor_after": 71,
+    "safety_cursor_before": 71,
+    "safety_ready": true
+  },
+  "proof_limits": [
+    "Staging uses read-only API/Admin/session/PUBLIC checks and data-preservation snapshots; classification rendering and draft changes are tested locally with synthetic Chromium fixtures.",
+    "No real profile testwrites, provider query, data apply, migration or feature activation.",
+    "Fresh preservation baseline follows announced owner pause; counts are dated evidence, not authority for a later apply.",
+    "Schema proof covers recorded column types/nullability/defaults/character lengths, constraint definitions/validation, trigger definitions/enabled state and crm-prefixed function bodies, not every PostgreSQL property.",
+    "No new visual owner approval or next product phase is claimed."
+  ],
+  "runtime": {
+    "api_commit": "b63b7e486c8c2d39c053d5eecd7606f1814204da",
+    "api_database_containers_dependencies_environment_and_infrastructure_unchanged": true,
+    "api_image": "sha256:fd8139060ab1d6f03eec3d943c03266136564e3e707277189738c3c4f68fd9a5",
+    "db_image": "sha256:49767d69e57428bc8229d8427521605e90b230c908d19542644d92b77dc1984d",
+    "frontend_commit": "797f69acb059a4aaa85168f5f0850a618ee4ae23",
+    "web_image": "sha256:8c448b9486d165dd492d8c5e024135e06ff78275947343aab6d11db3d616f891"
+  },
+  "status": "STAGING_VERIFIED",
+  "technical_reads": {
+    "admin_lists": 2,
+    "admin_note_forms": 2,
+    "api_details": 6,
+    "api_lists": 14,
+    "authenticated_session": true,
+    "operator_reused": true
+  }
+}

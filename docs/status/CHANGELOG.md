@@ -6,7 +6,11 @@
   med egne etiketter; ikke bare taggfeltet eller gjentatt hjelpetekst.
 - Følger utkastet uten automatisk lagring, med tydelig tommelding.
 - Kun frontend. Verdier, API, database, tilgang og PUBLIC er uendret.
-- Lokal validering grønn; review/CI/staging gjenstår.
+- PR #119 /`797f69a`, separat review og PR-/main-CI6/6.
+  Frontend-only-staging/HTTPS er verifisert; API/DB/schema0041 og alle gamle
+  data/media/ledger bevares, READY71→71. Ingen migrasjon eller reelle writes.
+- Pre/post-backup/fullverify/isolert restore og normale timere er grønne;
+  pausen er opphevet. Ingen ny fase eller ny deploy fra dokumentasjonsmerge.
 
 
 
