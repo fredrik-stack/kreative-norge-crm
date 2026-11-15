@@ -11,7 +11,14 @@ shared-autorisasjon. Legacytags og kontaktregler er fortsatt kompatibilitetsdata
 full targetprojection og eiergodkjent shared/private-mapping gjenstår. Image-
 projection/release/safety/Brave og de fem avslåtte gatene er urørt. [Kontrakt og
 faktisk leveransestatus](../features/PUBLIC.md#canonical-public-identitet-før-cutover--2026-11-15).
-Ingen staging eller data-apply inngår i mandatet.
+Identitetsdelen er nå teknisk API-only stagingverifisert fra PR #123 /
+`c602e229…`, uten schema-/data-apply. Alle fem gater er effektivt og varig av,
+historikk/audit/medlemskap/overlays fortsatt tomme. PRIVATE-feltavvisning og
+upubliserte ID-er er kontrollert uten nye stagingprofiler. Editor/bilder/Brave,
+hele ledgerbytes/deny og READY 73→73 er bevart. Pre/post-backup/fullverify/isolert
+restore og normale timere er bekreftet; eierredigering er frigitt. [Sanitert
+evidens og presise bevisgrenser](../features/PUBLIC.md#canonical-public-identitet--teknisk-stagingverifisert-2026-11-15).
+Dokumentasjonsmerge deployes ikke.
 
 
 ## Editor-bilder og historiske interne tags – 2026-11-15

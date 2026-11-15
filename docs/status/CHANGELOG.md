@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-11-15 – Canonical PUBLIC-identitet, API-only stagingverifisert
+
+- API PR #123 / `c602e229…` deployet, frontend PR #121 / `4d27400…`, DB og schema
+  0041 beholdt. Tom migrasjonsplan, ingen schema-/data-apply eller target-cutover.
+- 122 unike canonical_id, tre ID-detaljer inkl. én uten org.nr., gamle entydige
+  API-/HTML-/301-ruter og manglende/upubliserte avslag kontrollert. Bare ID-feltet
+  endrer sammenlignede API-responser. Tvetydighet/multiassignment syntetisk bevist.
+- Alle 56 tabellers eksisterende data/stamps/relasjoner og målte schemakataloger,
+  Editor/bilder/Brave, frontendbundle, media/static og safety READY 73→73 bevart.
+  Pre/post-backup/fullverify/isolert restore, HTTPS og normale timere er grønne.
+- Skrivepausen er opphevet. Ingen reelle testwrites/fixtures, providerkall,
+  taggmapping, notatkopi eller gateaktivering. [Evidens/bevisgrenser](../features/PUBLIC.md#canonical-public-identitet--teknisk-stagingverifisert-2026-11-15).
+  Full målprojeksjon gjenstår; dokumentasjonsmerge gir ingen deploy.
+
 ## 2026-11-15 – Fase 6A trinn 10, additiv canonical PUBLIC-identitet
 
 - Read-only canonical_id=eksisterende Organization-PK på public API og separat

@@ -1,9 +1,71 @@
 # Feature: Public
 
+## Canonical PUBLIC-identitet – teknisk stagingverifisert 2026-11-15
+
+**Faktisk runtime:** PR #123 / API `c602e229e6e637aa50c412f598b9e2f7c6d8f3d9`,
+image `sha256:a3f27a4c08f5733dcb1559b79cb222a4a5037e20c4710abca6f4e51dac080020`.
+Frontend fra PR #121 / `4d2740043c73ed1b560876585ebdb5ce743891d3` og web-image
+`sha256:dc5c71bc54267780913cd504abce7e59a148646cffc69f24a5f6340ba63d29a4` er bevart.
+DB-container, schema 0041, miljø, dependencies, mounts, hostbridge, operative
+filer, media/static og øvrig infrastruktur er uendret. API starter direkte
+Gunicorn; ingen migrate, collectstatic, seed, dependencyinstallasjon eller apply.
+Kun nødvendig nginx-configtest/upstreamreload; ingen web-/frontend-recreate.
+
+[Sanitert evidens](../status/evidence/canonical-public-2026-11-15/checks.json)
+registrerer fersk, varslet pause på omtrent 207 sekunder. Alle 56 tabellers
+rader/felt/relasjoner/tidsstempler/stamps og migrasjonshistorikk er eksakt
+sammenlignet. Målte schemakataloger består av kolonnenes type/null/default/lengde,
+constraintdefinisjoner/-validering, triggerdefinisjoner/-status og `crm_%`-
+funksjonskropper. Dette er ikke full sammenligning av indekser, sekvensegenskaper,
+views, eiere, grants eller annen metadata. 128 Organizations/157 Persons består.
+Private tabell-/profilfingeravtrykk, responsinnhold og miljøverdier er ikke publisert.
+
+**PUBLIC-kontroller:** 122 publiserte rader med unike canonical_id, tre nye
+ID-detaljer (én eksisterende aktør uten org.nr.), to entydige gamle org.nr.-API,
+HTML-ID/301, manglende alias/ID og to upubliserte ID-er. Sammenlignede API-lister
+og representative detaljer er identiske etter at bare canonical_id fjernes.
+PUBLIC HTML-liste/detail er bevart; eksisterende tilfeldig taggrekkefølge er
+normalisert bare i isolert operatørrender. Faktiske HTTPS-kall bekrefter ny
+ID-detalj, gamle aliaser/HTML, uendrede JS/CSS-bytes/MIME/indexreferanser og seks
+asset-/fallback-bildevarianter. Ingen tvetydige publiserte aliaser fantes i
+staging. Konflikt-/multiassignment- og øvrige negative tester gjenbruker PR #123s
+801 backend-/58 siste målrettede tester og grønne PR-/main-CI, 6/6; ingen
+syntetiske profiler, assignments eller positive writes er opprettet i staging.
+
+**Editor/bilder/safety:** Eksisterende autentisert API/session/Admin-lesing,
+interne tags/notater, publiserte Editor-previews lik PUBLIC, beskyttet privat
+preview, batchlesing, scope-avvisning og Brave-eiergrensen er leseverifisert.
+Ingen providerkall, ny approval/complete, bildevalg, release eller profilwrite.
+Alle gamle image-/release-/fallback-/media-/denydata og hele ledgerbytes er
+bevart, READY 73→73. Fem tilgangs-/writer-/notatgater er effektivt og varig av;
+øvrige flagg og Brave-nøkkel/eierbinding er uendret. Forvaltnings-/avtale-/audit-/
+medlemskaps-/overlay-/kopibatchtabeller er fortsatt tomme.
+
+**Drift og bevisgrenser:** Pre-backup `kreative-norge-staging-20261115T212116Z`
+og post-backup `kreative-norge-staging-20261115T212230Z` har fullverify og isolert
+PostgreSQL 16-restore uten nettverk mot live DB. Private kopier av etablerte
+backupmoduler hopper over prune/compact; installert kode er uendret. Restore
+validerer etablert schema-/kontakts-/historikkgrunnlag og ferske private-tag-antall;
+56-tabellers eksaktsammenligning gjelder live før/etter, ikke full radfingerprinting
+av alle restoretabeller. Engangsvolumer er ryddet, timere aktive/enabled og
+redigering frigitt. Før runtimeendring ble to lesefeil i operatørverktøyet
+(header-case og containerens localhost) rettet og separat re-reviewet. Avbrutt
+forsøk er bevart privat; nytt kontrollområde og fersk baseline ble brukt.
+Dette var ingen data-/schema-/safetyreparasjon eller deployreplay.
+
+Dette verifiserer identitets-/kompatibilitetsdelen. **Ingen canonical PUBLIC-
+målprojeksjon, publication-writer, shared/writer/strict-tenant/overlayaktivering,
+notatkopiering eller taggklassifisering er utført.** Full cutover krever fortsatt
+uttrykkelig eiergodkjent mapping av uklassifiserte legacytags og senere godkjent
+publication-/aktiveringsflyt. Daterte snapshots gir ikke fullmakt eller ferskt
+grunnlag for fremtidig data-apply. API-rollback bevarer 0041, nåværende data,
+media/releases og nyere safety-/deny-state; ingen schema-/data-reverse.
+Dokumentasjonsleveransen følger separat review/PR/merge/CI og deployes ikke.
+
 ## Canonical PUBLIC-identitet før cutover – 2026-11-15
 
 **Vedtatt:** ADR-011 §10 bevarer Organization-PK som offentlig identitet.
-**Implementert lokalt:** `canonical_id` er et additivt, read-only heltallsfelt
+**Implementert (nå teknisk stagingverifisert):** `canonical_id` er et additivt, read-only heltallsfelt
 på hver public API-rad/detalj, alltid samme eksisterende PK. Det er verken
 assignment-ID, tenant-ID, org.nr., revision eller ny hub. API-listen, ID-detalj
 og eksisterende HTML-side starter i publiserte Organization-rader; ingen join
@@ -39,8 +101,9 @@ PUBLIC-publiseringer. Full cutover krever eksplisitt eiergodkjent taggmapping;
 uklassifiserte tags skal holdes utenfor fremtidig shared/PUBLIC-target til da.
 Denne beslutningen blokkerer ikke identitetsfeltet eller det sikre aliasoppslaget.
 
-Faktisk lokal test-, review-/merge-/CI-status føres i prosjektstatus. Ingen
-stagingdeploy/apply/PUBLIC-cutover er tillatt i denne leveransen. Rollback av
+Faktisk test-/review-/merge-/CI-status føres i prosjektstatus/PR #123. Den opprinnelige
+kodeleveransen forbød staging; den separat bestilte tekniske etappen ovenfor er nå
+utført uten schema-/data-apply eller PUBLIC-target-cutover. Rollback av
 kode krever ingen schema-revers; nye klienter må tåle manglende `canonical_id`
 eller ny rute dersom de rulles tilbake til kode før denne leveransen. Gamle
 API-URL-er og HTML-lenker beholdes, og data/media/nyere deny-state bevares.

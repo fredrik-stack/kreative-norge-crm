@@ -11,6 +11,12 @@ org.nr.-unikhetsconstraint. Ingen migrasjon, seed eller data-apply. [Kompatibili
 
 
 
+PR #123 / `c602e229…` er teknisk API-only stagingverifisert med fortsatt schema
+0041 og tom migrasjonsplan. Alle 56 tabellers eksisterende rader/relasjoner,
+tidsstempler, stamps og migrasjonshistorikk er eksakt bevart i ferskt kontrollvindu;
+ingen aktør-/assignment-/publiserings-/tagg-/notat-/auditwrite. [Datert evidens
+og målte schemakataloger](../features/PUBLIC.md#canonical-public-identitet--teknisk-stagingverifisert-2026-11-15).
+
 ## Historiske interne tags – 2026-11-15
 
 0041 gjeninnfører InternalTag og de historiske Organization/Person.internal_tags-

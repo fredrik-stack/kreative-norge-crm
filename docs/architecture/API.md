@@ -20,7 +20,10 @@ Dette er legacy-kompatibilitet før canonical target PUBLIC-cutover. Legacytags
 bevares uten klassifisering; assignments/private overlays, interne tags/notater,
 revisjonsstempel og rå personkontakt serialiseres ikke. Ingen ny publication-
 writer, featureflagaktivering eller migrasjon. [Full avgrensning og taggport](../features/PUBLIC.md#canonical-public-identitet-før-cutover--2026-11-15).
-Ingen stagingdeploy inngår; faktisk kode-/testleveranse følger prosjektstatus.
+Identitetsdelen er nå API-only stagingverifisert fra PR #123 / `c602e229…`,
+uten migrasjon/cutover. Ferske før/etter-responser har kun canonical_id som
+additiv forskjell; gamle URL-er, kontakter og bilder består. [Faktiske kontroller
+og bevisgrenser](../features/PUBLIC.md#canonical-public-identitet--teknisk-stagingverifisert-2026-11-15).
 
 
 
