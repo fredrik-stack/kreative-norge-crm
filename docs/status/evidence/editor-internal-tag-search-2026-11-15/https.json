@@ -1,0 +1,21 @@
+{
+  "files": {
+    "assets/index-BtTazGpz-4d27400.css": {
+      "content_type": "text/css",
+      "sha256": "6d9b34f63657125c5337576194afb5eca5e55c6409747068a80439a4ceba7760",
+      "status": 200
+    },
+    "assets/index-yKKeP-AU-4d27400.js": {
+      "content_type": "application/javascript",
+      "sha256": "64d6a81776de58552224f13c47e6419891fc6a795a875c8aef61bc0f889c7b22",
+      "status": 200
+    },
+    "index.html": {
+      "content_type": "text/html",
+      "new_asset_references": true,
+      "status": 200
+    }
+  },
+  "source_commit": "4d2740043c73ed1b560876585ebdb5ce743891d3",
+  "status": "HTTPS_BUNDLE_VERIFIED"
+}

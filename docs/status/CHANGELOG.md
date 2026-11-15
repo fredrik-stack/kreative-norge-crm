@@ -1,14 +1,19 @@
 # Changelog
 
-## 2026-11-15 – Interne tags i Editorens «Søk tag», lokal retting
+## 2026-11-15 – Interne tags i Editorens «Søk tag», stagingverifisert
 
 - Begge taggtyper foreslås og filtreres på aktør/person, med tydelig type og
   gulgrønn/svart intern merking. Like navn/slugs/ID-er holdes fra hverandre.
 - Tastaturvalg, ny tekst etter valgt tag og nullstilling/tenantbytte håndteres.
 - Tenantbundet privat katalog blokkerer ikke ordinær Editor; autoriserte
   profilverdier supplerer ved feil. Ingen nye rettigheter, writes eller PUBLIC.
-- Frontend87/TS/bygg og åtte målrettede browserregresjoner grønne. Review/CI/
-  staging gjenstår; ingen neste fase startet.
+- Frontend 90/TS/bygg og åtte målrettede browserregresjoner grønne, inkludert
+  sen navnekollisjon, automatisk/eksplisitt valg og katalog-403/401-/utkastbevaring.
+- PR #121 /`4d27400`, separat re-review og PR-/main-CI6/6. Frontend-only
+  staging/HTTPS verifisert; API/DB/schema 0041 og data/media/ledger bevart,
+  READY71→71. Ingen migrasjon eller reelle testwrites. Pre/post-backup/fullverify/
+  isolert restore og normale timere grønne; pausen opphevet. Ingen neste fase
+  eller ny deploy fra dokumentasjonsmerge.
 
 
 ## 2026-11-15 – Kategorisammendrag i aktør- og personprofil

@@ -1,16 +1,27 @@
 # Project Status Current
 
-## Interne tags i «Søk tag» – lokal retting 2026-11-15
+## Interne tags i «Søk tag» – stagingverifisert 2026-11-15
 
-Editor-filteret «Søk tag» omfatter nå både vanlige tags og tenantens interne
-tags på aktør/person. Forslag merkes «Tag»/«Intern tag», med gulgrønn/svart
-intern merking. Filteret skiller type og ID selv ved like navn, slugs og ID-er;
-ved tvetydig navn må riktig forslag velges. Nullstilling og tenantbytte tømmer
-valgt tagg og søketekst. Ingen lagring, nye rettigheter eller endring av PUBLIC,
-Brave/import/matching/AI, schema eller data. Lokal frontend90/TS/bygg og åtte
-syntetiske browserregresjoner er grønne. Review/CI og bestilt frontend-only-
-staging gjenstår; ingen ny deploy påstås ennå. Ingen neste fase startet.
-[UI-kontrakt](../features/UI_6_FELLES_SPEC.md#interne-tags-i-søk-tag--2026-11-15).
+[PR #121](https://github.com/fredrik-stack/kreative-norge-crm/pull/121) er levert
+frontend-only fra `4d2740043c73ed1b560876585ebdb5ce743891d3` etter separat
+review/re-review og grønn PR-/main-CI, 6/6. «Søk tag» foreslår og filtrerer både
+vanlige og tenantens interne tags på aktør/person. Merking/type+ID skiller like
+navn/slugs/ID-er; intern merking er #C8FA00/#000. Sen navnekollisjon revurderer
+automatisk valg, mens faktiske muse-/tastaturvalg beholdes. Valgfri katalog-403
+kaster ikke ut Editor/utkast; reell 401 og øvrig auth-feilflyt består. Reset og
+tenantbytte tømmer valgt tagg og tekst. Generelt fritekstsøk er uendret.
+
+API er fortsatt `b63b7e486c8c2d39c053d5eecd7606f1814204da`, samme API-/DB-container og
+schema 0041/tom restplan. Alle 56 tabellers rader, relasjoner, notater/tags,
+stamps/tidsstempler/migrasjonshistorikk, registrerte schemaegenskaper, media/static,
+PUBLIC og hele safety-ledger er bevart i ferskt kontrollvindu, READY71→71.
+Privat GET-katalog er leseverifisert for 7 tenants/8 tags, med no-store og
+anonym/no-role-avvisning. Ingen nye serverrettigheter, migrasjon, reelle writes,
+providerquery eller aktivering; fem gater av og Brave kun eier. Pre/post-backup,
+fullverify/isolert restore, HTTPS-bundle og normale timere er grønne; pausen er
+opphevet. Lokal frontend 90/TS/bygg og åtte syntetiske browserregresjoner er grønne.
+[UI-kontrakt og sanitert evidens](../features/UI_6_FELLES_SPEC.md#interne-tags-i-søk-tag--2026-11-15). Ingen ny visuell eieraksept eller
+neste produktfase påstås. Dokumentasjonsmerge utløser ingen ny deploy.
 
 ## Kategorisammendrag i profil – stagingverifisert 2026-11-15
 
