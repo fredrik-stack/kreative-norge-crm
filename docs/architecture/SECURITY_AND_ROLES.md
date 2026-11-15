@@ -51,7 +51,7 @@ tagsene; vanlige legacy `Tag`-rader klassifiseres ikke.
 
 ### Migrasjon og bevaring
 
-Kun0041 `restore_legacy_internal_tags` kommer etter0040. Den frosne state gir
+Kun 0041 `restore_legacy_internal_tags` kommer etter0040. Den frosne state gir
 `InternalTag` og Organization/Person.internal_tags. I en ren database opprettes
 tre tomme tabeller. Hvis alle tre finnes, valideres kolonneegenskaper, PK/unique/
 FK, faktisk full unikhet (ikke delvis indeks), constraintvalidering, fravær av
@@ -65,7 +65,7 @@ migrasjonsmetadata; tabeller, koblinger og sekvenser droppes aldri. Vanlig
 rollback bytter kode og beholder schema/data/nyere safety- og deny-state.
 
 Staging krever fersk baseline etter varslet eierpause, verifisert database,
-eksakt én pending0041, READ COMMITTED,2s lock timeout/30s statement timeout,
+eksakt én pending 0041, READ COMMITTED, 2s lock timeout/30s statement timeout,
 pre/post-backup/fullverify/isolert PostgreSQL16-restore og read-back. Alle gamle
 rader/relasjoner/timestamps/stamps, tags/interne koblinger, bilder, media/static,
 PUBLIC og ledger skal bevares. Bare ny migrasjonsrad er tillatt når de historiske
@@ -74,19 +74,66 @@ medlemmer/aksepter, notatkopiering eller aktivering av fem avslåtte gater.
 
 ### Tester og faktisk leveransestatus
 
-Målrettede backendtester for private tags/adopsjon og bilde/PUBLIC/ledger er
-grønne. Frontend-/desktopregresjoner dekker varsel, navn, skjulte previews,
-profilutkast/reset, private felt på begge profiltyper, fargen og eksplisitt
-profilwrite. [Aktør](../status/evidence/editor-images-internal-tags-2026-11-15/organizations-private-tags.png),
-[person](../status/evidence/editor-images-internal-tags-2026-11-15/persons-private-tags.png)
-og [navnefallback](../status/evidence/editor-images-internal-tags-2026-11-15/named-thumbnail.png)
-er kun syntetiske kontrollbilder, ikke nye reelle data eller visuell eieraksept.
-En eksisterende avtaletest blandet hosttid med DB-tid; bare testens effektive
-«nå» er flyttet til DB-klokken som policyen allerede bruker. Tilgangspolicyen
-endres ikke. Full lokal PostgreSQL16-regresjon788 og frontend87/TS/bygg er grønne. Ni
-avgrensede syntetiske bilde-/tagg-E2E inngår. Separat review/CI og bestilt staging
-føres i prosjektstatus etter faktisk utførelse. Ingen stagingdeploy påstås ennå.
+Lokal isolert PostgreSQL16-regresjon 791 bestod før siste avgrensede indeksretting;
+alle 13 private-tag-/migrasjonstester bestod på endelig head. CI kjørte alle 792
+backendtester, og frontend 87/TS/bygg samt ni lokale syntetiske Chromium-E2E er
+grønne. Regressjoner dekker varsel/navn/lazy-preview, ulagrede utkast, begge
+private profiltyper og migrasjonens feiltilstander: partial schema, cross-scope,
+full unikhet mot partial/ekstra indeks og faktisk neste ID/default. En eksisterende
+avtaletests effektive «nå» bruker nå samme DB-klokke som uendret policy.
 
+[PR #117](https://github.com/fredrik-stack/kreative-norge-crm/pull/117) er ordinært
+merget til `b63b7e486c8c2d39c053d5eecd7606f1814204da` etter separat review/re-review uten
+blokkere på base `59e81222d9fbcfacc1046a3ba8508baa560de7bd` / head `59b1f635c672ca19d0fe4a2fdf10cd56d27f2957`.
+[PR-CI](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/43709952772)
+og [main-CI](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/43710521203)
+er SUCCESS 6/6. Separat statisk operatørreview med eksakte helperSHAer er lagret i
+PR-en. API og frontend er deployet fra faktisk merge, med verifisert kilde/tree,
+bundlemanifest/revisjon og HTTPS-JS/CSS-bytes/MIME. Dependencies, DB-container,
+miljø, hostbridge, operative filer, media/static og eksisterende PUBLIC-bytes er
+uendret. Ingen automatisk migrate/collectstatic eller ny dependencyinstallasjon.
+
+### Faktisk stagingevidens og bevisgrenser
+
+Fersk baseline ble tatt etter varslet eierpause. Eksakt én pending 0041 ble
+anvendt eksplisitt under READ COMMITTED, 2s lock/30s statement timeout. Alle tre
+historiske tabeller fantes og ble låst/validert/adoptert uten DDL, reparasjon,
+sekvensforbruk eller endring av taggdata. Alle gamle 56 tabellers rader er
+bevart; eneste metadataendring er én ny 0041-rad. Gamle migrasjonsrader, alle
+profilverdier/relasjoner/notater/tags/timestamps og canonical UUID-stamps er
+identiske. Tom restplan. Interne tags/aktørkoblinger/personkoblinger er
+8/104/131, lest via egne tenant-GETs uten å publisere navn eller radfingeravtrykk.
+
+Registrerte kolonneegenskaper (type/null/default/tegnlengde), constraintdefinisjoner
+og validering, triggerdefinisjoner/aktivitet og `crm_%`-funksjonskropper er
+sammenlignet uendret. Dette er ikke et komplett fingeravtrykk av alle PostgreSQL-
+egenskaper. Radbevis og det verifiserte fraværet av DDL gjelder adopsjonsløpet.
+
+Autentisert API/session/Admin og write-disabled MembershipAdmin er leseverifisert.
+Private taggsvar er no-store; anonym og bruker uten rolle avvises. PUBLIC har
+ingen interne felter. 122 publiserte Editor-previews matcher PUBLIC
+(22 asset/100 fallback), og 1 eksisterende privat preview er kontrollert med
+anonym avvisning. Syv aktørlister bruker 5 safety-batcher, ingen single-/legacykall
+per kort; maks 24 elementer per batch. Frisk exact-scope-avvisning og Brave-
+eierbinding er bevart, uten providerquery. Historisk bilde-/deny-state og hele
+ledgerfilen er identisk, READY63→63. Fem gater avslått; medlemskap/avtaler/aksepter/
+forvaltningsaudit/canonicalaudit/notatoverlays/kopibatcher fortsatt tomme.
+
+Begge checkpointenes Borg-arkivID og dumpSHA er bundet til fullverify og isolert
+PostgreSQL16-restore, inkludert de tre historiske taggtabellene og post-0041.
+Ingen restore til live, prune/compact, etterlatte restorevolumer eller endring av
+installerte backupmoduler. Backup-/verify-/safetytimere er normale. Ingen reelle
+profil-/bilde-/taggtestwrites, medlemskap/aksepter, notatkopiering eller aktivering.
+Skrivepausen er opphevet; rollback er kode-only og beholder0041/data/deny-state.
+
+[Sanitert teknisk evidens](../status/evidence/editor-images-internal-tags-2026-11-15/staging-evidence.json)
+og [faktisk HTTPS-bundle](../status/evidence/editor-images-internal-tags-2026-11-15/https.json).
+Private manifester/logg/radfingeravtrykk beholdes utenfor Git. De tre syntetiske
+kontrollbildene viser [aktør](../status/evidence/editor-images-internal-tags-2026-11-15/organizations-private-tags.png),
+[person](../status/evidence/editor-images-internal-tags-2026-11-15/persons-private-tags.png)
+og [navnefallback](../status/evidence/editor-images-internal-tags-2026-11-15/named-thumbnail.png).
+Dette er teknisk stagingverifikasjon, ikke ny visuell eieraksept eller måling av
+ny lagringstid. Ankret reserve/activate består. Dokumentasjonsmerge deployes ikke.
 
 ## Bilderedigering etter desktoptest – 2026-11-14
 

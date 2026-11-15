@@ -7,6 +7,9 @@
 relasjonene. Eksisterende kompatible tabeller/rader adopteres, med uendrede PKs,
 navn, slugs, koblinger og timestamps; ren database får tomme tabeller. State-revers
 beholder alle tabeller/data. `Tag` og framtidig shared editorial mapping er uendret.
+PR #117 /`b63b7e4` er stagingverifisert:0041 adopterte de tre
+historiske tabellene intakt uten DDL. Bare én migrasjonsrad er lagt til;
+8 tags/104 aktørkoblinger/131 personkoblinger og alle gamle verdier/stamps er bevart.
 [Adopsjonskontroller, tilgang og faktisk leveransestatus](SECURITY_AND_ROLES.md#editor-bilder-og-historiske-interne-tags--2026-11-15).
 
 

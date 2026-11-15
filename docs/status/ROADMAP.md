@@ -1,18 +1,26 @@
 # Roadmap
 
-## Editor-bilder og interne tags – lokal retting 2026-11-15
+## Editor-bilder og interne tags – stagingverifisert 2026-11-15
 
-Normal sRGB-status fjernes fra varsler; navnefallback og behovsstyrt henting
-forbedrer Editor-bilder. Historiske interne tags for aktør/person gjeninnføres
-med eiergodkjent legacy-Editor-tilgang og gulgrønn/svart farge. Ingen Tag-mapping,
-PUBLIC-/providerbruk, shared-/writer-/notataktivering eller reell datareparasjon.
-0041 oppretter tomme tabeller lokalt eller adopterer kompatible historiske tabeller
-uten raddataendring. Gamle data bevares; snapshot før apply tas på nytt.
-[Kontrakt og bevisgrenser](../architecture/SECURITY_AND_ROLES.md#editor-bilder-og-historiske-interne-tags--2026-11-15).
-Full tester/review/CI og bestilt staging er under gjennomføring; ingen ny deploy
-eller bestemt ny lagringstid påstås. Forrige stagingkode67a95ad er fortsatt
-siste verifiserte deploy inntil en ny faktisk etappe dokumenteres.
+[PR #117](https://github.com/fredrik-stack/kreative-norge-crm/pull/117), eksakt
+API/frontend `b63b7e486c8c2d39c053d5eecd7606f1814204da`, er levert etter separat
+review/re-review og grønn PR-/main-CI,6/6. Normal sRGB-status vises ikke som rødt
+varsel; Editor viser aktørnavn ved fallback. Aktive fullpreviews hentes ved behov,
+og publisert state deler én projeksjon. Ingen bestemt ny lagringstid loves.
 
+Historiske interne tags for aktør/person er tilbake i gulgrønn/svart med
+uttrykkelig eiergodkjent, tenantavgrenset legacy-Editor-tilgang. Ingen Tag-mapping
+eller PUBLIC/provider/import/matching-eksponering. Kun 0041 er anvendt: alle tre
+historiske tabeller adoptert uten DDL/raddataendring; bare én migrasjonsrad ny.
+Fersk baseline etter varslet pause bekrefter gamle rader/timestamps/stamps,
+relasjoner, registrerte schemaegenskaper, media/static og safety-ledger bevart.
+8 interne tags/104 aktørkoblinger/131 personkoblinger er leseverifisert.
+122 publiserte Editor-previews er like PUBLIC (22 asset/100 fallback).
+READY63→63, fem gater avslått, Brave kun eier; ingen reelle profil-/bilde-/taggtestwrites.
+Pre/post-backup/fullverify/isolert restore, faktisk HTTPS-bundle og normale timere
+er grønne. Skrivepausen er opphevet. Ingen ny visuell eieraksept påstås.
+[Kontrakt, sanitert evidens og syntetisk kontrollgrunnlag](../architecture/SECURITY_AND_ROLES.md#editor-bilder-og-historiske-interne-tags--2026-11-15).
+Dokumentasjonsmerge deployes ikke. Eldre daterte tall er historisk evidens.
 
 ## Bilderedigering etter desktoptest – stagingverifisert 2026-11-14
 

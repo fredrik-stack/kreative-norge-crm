@@ -1,7 +1,7 @@
 # Changelog
 
 
-## 2026-11-15 – Editor-bilder og restaurerte interne tags, lokal leveranse
+## 2026-11-15 – Editor-bilder og restaurerte interne tags, stagingverifisert
 
 - Normal sRGB-status vises ikke som rødt varsel; andre feil/varsler består.
 - Navnefallback i Editor bruker samme autoritative bilde-kind; PUBLIC bevares.
@@ -11,7 +11,12 @@
   gulgrønn/svart farge og atomisk profilwrite. Ingen vanlige tags omklassifiseres.
 - 0041 adopterer kompatible historiske tabeller intakt eller oppretter tomme i
   ren database. Revers dropper ikke data. [Kontrakt og faktisk status](../architecture/SECURITY_AND_ROLES.md#editor-bilder-og-historiske-interne-tags--2026-11-15).
-- Ingen stagingpåstand før fullførte tester/review/CI og bestilt driftsgate.
+- PR #117 /`b63b7e4`, separat re-review og PR-/main-CI 6/6. API+frontend
+  og kun0041 er stagingverifisert; historiske tabeller adoptert intakt, kun én
+  migrasjonsrad ny. Eksisterende data/media/static/ledger og fem gater avslått bevart,
+  READY63→63. Pre/post-backup/fullverify/isolert restore/HTTPS/timere grønne.
+- Skrivepausen opphevet; ingen reelle testwrites eller ny visuell eieraksept.
+  Dokumentasjonsmerge gir ingen ny deploy.
 
 
 

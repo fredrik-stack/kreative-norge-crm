@@ -1,0 +1,166 @@
+{
+  "backup": {
+    "all_timers_normal": true,
+    "both_full_repository_verified": true,
+    "both_same_archive_isolated_pg16_restored": true,
+    "installed_modules_unchanged": true,
+    "no_live_restore": true,
+    "no_prune_compact": true,
+    "no_restore_volumes_left": true,
+    "post": {
+      "archive": "kreative-norge-staging-20261115T115643Z",
+      "archive_id": "1ddd4b4dcbcec39dc4dfb6153c7979f5c5d0f0e81e32269609bb75c252440e3e",
+      "dump_sha256": "be7b49280e9daddb53627017d552c6707898f462765caf282c7f8edf513aedec",
+      "no_new_volumes": true,
+      "restore": true,
+      "schema_validated": true,
+      "verified": true
+    },
+    "pre": {
+      "archive": "kreative-norge-staging-20261115T115534Z",
+      "archive_id": "40f3f39189f3b2b56de01af942216c8f7900399b0a82bd9655637de20f90f3e9",
+      "dump_sha256": "2590ec654810842f6975f17a2123ceface670ee92b86c2b727164b6c88cc2937",
+      "no_new_volumes": true,
+      "restore": true,
+      "schema_validated": true,
+      "verified": true
+    }
+  },
+  "boundaries": {
+    "new_users_memberships_grants_agreements_acceptances": false,
+    "new_visual_owner_approval_claimed": false,
+    "notes_copy_or_plan": false,
+    "production_deploy": false,
+    "real_profile_or_image_writes": 0,
+    "shared_canonical_note_activation": false
+  },
+  "code": {
+    "backend_full_local_tests_before_last_index_regression": 791,
+    "base_main": "59e81222d9fbcfacc1046a3ba8508baa560de7bd",
+    "ci_backend_tests": 792,
+    "ci_jobs_successful": 6,
+    "final_private_tag_migration_tests": 13,
+    "frontend_tests": 87,
+    "local_postgresql_version": "16.14",
+    "main_ci": 43710521203,
+    "merge": "b63b7e486c8c2d39c053d5eecd7606f1814204da",
+    "pr": 117,
+    "pr_ci": 43709952772,
+    "reviewed_head": "59b1f635c672ca19d0fe4a2fdf10cd56d27f2957",
+    "targeted_local_image_private_tags_e2e": 9
+  },
+  "database": {
+    "all_rows_fields_relationships_timestamps_stamps_preserved": true,
+    "historical_internal_tags": 8,
+    "historical_private_tables_adopted_without_DDL": true,
+    "identity_verified": true,
+    "image_event_rows_after": 39,
+    "image_event_rows_before": 39,
+    "management_agreement_canonical_audit_overlays_batches_still_empty": true,
+    "memberships": {
+      "inactive": 0,
+      "total": 0
+    },
+    "old_migration_rows_preserved": true,
+    "only_delta_one_0041_migration_row": true,
+    "organization_internal_tag_links": 104,
+    "organization_rows": 128,
+    "person_internal_tag_links": 131,
+    "person_rows": 157,
+    "recorded_column_properties_constraint_definitions_trigger_definitions_and_crm_function_bodies_preserved": true,
+    "remaining_migrations": 0,
+    "schema": "0041_restore_legacy_internal_tags",
+    "table_count": 56
+  },
+  "flags": {
+    "ACCESS_MANAGEMENT_ENABLED": false,
+    "CANONICAL_WRITER_ENABLED": false,
+    "IMAGE_ASSET_FEATURE_ENABLED": true,
+    "IMPORT_IMAGE_DECISIONS_ENABLED": false,
+    "PUBLIC_IMAGE_API_SCHEMA_ENABLED": true,
+    "PUBLIC_IMAGE_PROJECTION_ENABLED": true,
+    "PUBLIC_IMAGE_PUBLIC_CUTOVER_ENABLED": true,
+    "PUBLIC_IMAGE_RELEASE_MATERIALIZATION_ENABLED": true,
+    "PUBLIC_IMAGE_SERVING_ENABLED": true,
+    "PUBLIC_IMAGE_TAKEDOWN_ENABLED": true,
+    "SHARING_ACCESS_ENABLED": false,
+    "SHARING_DOMAIN_SHADOW_ENABLED": false,
+    "STRICT_TENANT_ACCESS_ENABLED": false,
+    "TENANT_NOTE_OVERLAYS_ENABLED": false
+  },
+  "helper_sha256": {
+    "db-read.py": "658a30ee3d8cc4ddf54873e4c8cc07e25b307be1c204ec3ccfd54b1333dd624a",
+    "image-readback.py": "bcab21a6f18ae10b368d81d64f58ed02a3f40957fad71e1a8dde86da7893b787",
+    "stage.py": "9f6340d003f289605fa90b4804550e7c0c794a64958df23b1fa8345d280dfbc2"
+  },
+  "image_readback": {
+    "anonymous_and_no_role_private_tag_denied": true,
+    "asset_matches": 22,
+    "brave_count": 200,
+    "database_writes": 0,
+    "editor_tenant_lists": 7,
+    "exact_scope_allowed_wrong_tenant_denied": true,
+    "existing_unpublished_private_preview_checked": 1,
+    "fallback_matches": 100,
+    "five_gates_off": true,
+    "internal_tag_get_scope_and_no_store_verified": true,
+    "internal_tag_rows_read": 8,
+    "maximum_batch_size": 24,
+    "no_v2_approval_or_completion_created": true,
+    "nonowner_denied": true,
+    "owner_suggestions_available": true,
+    "private_list_batch_calls": 5,
+    "private_list_single_authorize_or_legacy_calls": 0,
+    "private_organization_links_read": 104,
+    "private_person_links_read": 131,
+    "private_variant_checks": 72,
+    "provider_calls": 0,
+    "published_previews_equal_public": 122,
+    "real_detail_preview_matches": true,
+    "status": "READ_ONLY_IMAGE_PASS"
+  },
+  "management_gate_checks": {
+    "authenticated_context_empty_disabled": true,
+    "membership_admin_readonly_superuser": true,
+    "new_history_not_admin_registered": true
+  },
+  "measured_at_utc": "2026-11-15T11:57:44.942057+00:00",
+  "preservation": {
+    "all_old_media_static_bytes": true,
+    "ledger_full_bytes_and_history_deny": true,
+    "new_safety_events": 0,
+    "no_profile_image_approval_completion_or_ledger_writes": true,
+    "private_manifests_retained_outside_git": true,
+    "public_catalog_and_existing_asset_fallback_variant_bytes": true,
+    "safety_cursor_after": 63,
+    "safety_cursor_before": 63,
+    "safety_ready": true
+  },
+  "proof_limits": [
+    "Live staging verification used GET/read-only snapshots and an existing operator, without creating a session or testing real image writes.",
+    "Routine-warning filtering, named thumbnails, lazy previews, private tag editing and migration failure paths use local synthetic tests plus green CI; read-only staging checks do not constitute new visual owner acceptance or a measured image-save benchmark.",
+    "Fresh preservation baseline was captured after the announced owner pause; prior counts/cursors were historical evidence only.",
+    "No new provider query, existing actor image change, general inventory or general UX test was performed.",
+    "Schema comparisons cover recorded column types/nullability/defaults/character lengths, constraint definitions and validation, trigger definitions/enabled state, and crm-prefixed function bodies; they are not a complete proof of every PostgreSQL schema property."
+  ],
+  "runtime": {
+    "api_commit": "b63b7e486c8c2d39c053d5eecd7606f1814204da",
+    "api_image": "sha256:fd8139060ab1d6f03eec3d943c03266136564e3e707277189738c3c4f68fd9a5",
+    "api_web_dependencies_unchanged": true,
+    "db_image": "sha256:49767d69e57428bc8229d8427521605e90b230c908d19542644d92b77dc1984d",
+    "environment_host_bridge_and_database_container_unchanged": true,
+    "frontend_source_commit": "b63b7e486c8c2d39c053d5eecd7606f1814204da",
+    "nginx_units_peers_and_operative_config_unchanged": true,
+    "previous_code": "67a95ada57344932a667d6f58b612e66c7fc2a5f",
+    "web_image": "sha256:c916849075cfb1d9d11c0f2127d62fc5ee18448c9c8fc777517260cd472a2bd1"
+  },
+  "status": "STAGING_VERIFIED",
+  "technical_reads": {
+    "admin_lists": 2,
+    "admin_note_forms": 2,
+    "api_details": 6,
+    "api_lists": 14,
+    "authenticated_session": true,
+    "operator_reused": true
+  }
+}
