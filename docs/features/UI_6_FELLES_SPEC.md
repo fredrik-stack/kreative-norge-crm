@@ -30,11 +30,52 @@ Tre API-client-regresjoner dekker disse 403-/401-grensene; to ekstra async-
 browsercases dekker automatisk mot eksplisitt valg ved sen navnekollisjon,
 og en case bekrefter utkastbevaring. Ingen serverrettighet endres.
 
-Lokal frontend90/TypeScript/bygg og åtte syntetiske Chromium-regresjoner er
+Lokal frontend 90/TypeScript/bygg og åtte syntetiske Chromium-regresjoner er
 grønne: begge profiltyper ved kolliderende navn/slugs/ID-er, unik tekst, muse-/
 tastaturvalg, ubrukte katalogtags, nullstilling uten writes, forsinket katalog
-under tenantbytte og profilbaserte forslag ved katalogfeil. Faktisk levering
-føres i [prosjektstatus](../status/PROJECT_STATUS_CURRENT.md).
+under tenantbytte og profilbaserte forslag ved katalogfeil. [PR #121](https://github.com/fredrik-stack/kreative-norge-crm/pull/121) er nå
+teknisk stagingverifisert frontend-only fra `4d2740043c73ed1b560876585ebdb5ce743891d3`.
+Separat review/re-review gjelder base `98cd0a968e731c1f51c0f5cf51fe98f4f6839893` /
+head `2259d2f6848004d1ddacd9e5ceee9dcdb77a6fbd`, uten gjenværende blokkere.
+[PR-CI](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/43727898450)
+og [main-CI](https://github.com/fredrik-stack/kreative-norge-crm/actions/runs/43728637552)
+er SUCCESS 6/6. De to async-funnene er rettet og dekket av de målrettede testene;
+API-client403/401/øvrig403 inngår i 90 frontendtester. Backend 792 er grønn i CI.
+Separat operatørreview med eksakte helperSHAer er lagret i PR-en.
+
+Bare web er erstattet, fra kilde-/tree-/manifest-/revisjonsbundet merge, uten
+ny dependencyinstallasjon. Faktiske HTTPS-indexreferanser og JS/CSS-bytes/MIME
+er kontrollert. API forblir `b63b7e486c8c2d39c053d5eecd7606f1814204da` i samme container;
+DB-container, dependencies, miljø, mounts, nginx/Caddy/hostbridge og operative
+filer er uendret. Ingen migrate/collectstatic/schema-apply eller datareparasjon.
+
+Fersk baseline etter varslet eierpause bekrefter alle 56 tabellers rader,
+relasjoner, notater/tags/interne koblinger, tidsstempler, canonical stamps og
+hele migrasjonshistorikken identiske; restplan tom/schema 0041. Registrerte
+kolonnetyper/null/default/tegnlengde, constraintdefinisjoner/validering, trigger-
+definisjoner/aktivitet og `crm_%`-funksjonskropper er uendret. Dette er ikke et
+komplett fingeravtrykk av alle PostgreSQL-egenskaper. Private råmanifester og
+radfingeravtrykk beholdes utenfor Git; daterte tall er ikke senere applyautoritet.
+
+READ ONLY mot verifisert database og eksisterende operatør bekrefter private
+katalog-GET for 7 tenants/8 tags, med eksakt tenantinnhold/no-store og
+anonym/no-role-403. Ingen nye brukere/sessions/grants eller profiltestwrites.
+Autentisert API/session/Admin/PUBLIC og readonly MembershipAdmin er bevart.
+Media/static, PUBLIC-katalog/eksisterende bildebytes og hele ledger/deny-state er
+identiske, READY71→71. Fem gater er effektivt/varig av; Brave-binding bevares.
+Ingen providerquery, import/shared matching, note-copy, canonical eller delt tilgang.
+
+Pre/post-backup/fullverify og isolert PostgreSQL16-restore er bundet til hvert
+eksakte Borg-arkivID/dumpSHA, inkludert historiske private tags. Ingen live restore,
+prune/compact, nye restorevolumer eller endrede backupmoduler. Timerne er normale
+og redigeringspausen opphevet. Rollback er kun web/kode, med data/media og nyere
+deny-state beholdt. Lokal syntetisk browserverifikasjon beviser taggvalg/filter;
+skrivebeskyttet stagingkontroll og bundlebevis er ikke ny visuell eieraksept.
+
+[Sanitert stagingevidens](../status/evidence/editor-internal-tag-search-2026-11-15/staging-evidence.json)
+og [HTTPS-bundle](../status/evidence/editor-internal-tag-search-2026-11-15/https.json).
+Faktisk leveransestatus følger [prosjektstatus](../status/PROJECT_STATUS_CURRENT.md).
+Ingen neste fase startet; dokumentasjonsmerge utløser ingen deploy.
 
 
 ## Kategorisammendrag i profil – 2026-11-15

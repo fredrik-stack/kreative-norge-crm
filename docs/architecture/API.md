@@ -16,6 +16,12 @@ den faktiske routetenant og lagres atomisk med profilen. Foreign ID-payload
 private/no-store med samme legacy-tenantautoritet som Editor, pluss eksplisitt
 inaktivitetsavvisning. Profilsvar er private/no-store. Ingen intern-tag-felter i
 PUBLIC, nested offentlig personprojeksjon eller provider/matching/import.
+Editorens «Søk tag» bruker nå samme private GET-katalog og autoriserte
+profilverdier til lokal type+ID-filtrering; ingen ny serverrute eller responsform.
+Bare denne valgfrie katalogens403 håndteres lokalt i API-klienten (ApiError
+beholdes), slik at gyldig legacy-session/utkast ikke kastes ved privat avslag.
+401 og øvrige lesende403 beholder auth-feilflyten. Backendens avslag, scope og
+private/no-store er uendret. [Søkekontrakt og faktisk stagingstatus](../features/UI_6_FELLES_SPEC.md#interne-tags-i-søk-tag--2026-11-15).
 [Kontrakt, migrasjon og bevisgrenser](SECURITY_AND_ROLES.md#editor-bilder-og-historiske-interne-tags--2026-11-15).
 
 
