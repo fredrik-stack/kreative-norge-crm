@@ -13,7 +13,7 @@ beholdes. Dette er ikke target PUBLIC-cutover eller taggklassifisering.
 
 Lokal isolert PostgreSQL 16: 801 backendtester og siste 58 målrettede PUBLIC-/
 bilde-/auth-tester er grønne; ingen modell-/migrasjonsendring. Separat review
-og faktisk PR-/merge-/CI-status spores i leveransens GitHub-PR.
+og faktisk PR-/merge-/CI-status spores i [PR #123](https://github.com/fredrik-stack/kreative-norge-crm/pull/123).
 Ingen stagingkontakt/deploy, schema-/data-apply eller aktivering inngår. Aktiv
 staging/bildebrukerreise og Brave er urørt. Full målprojeksjon krever fortsatt
 uttrykkelig eiergodkjent mapping av uklassifiserte legacytags og egne senere

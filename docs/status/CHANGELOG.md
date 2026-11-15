@@ -11,7 +11,8 @@
   compatibility. Full targetprojection/cutover og taggmapping gjenstår.
 - Lokal PostgreSQL 16: 801 backendtester og siste 58 målrettede tester grønne;
   `makemigrations --check --dry-run` uten endringer. Separat review og faktisk
-  merge/CI spores i leveransens PR; ingen staging, apply eller aktivering.
+  merge/CI spores i [PR #123](https://github.com/fredrik-stack/kreative-norge-crm/pull/123);
+  ingen staging, apply eller aktivering.
 
 
 ## 2026-11-15 – Interne tags i Editorens «Søk tag», stagingverifisert
