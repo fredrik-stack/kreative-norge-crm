@@ -48,7 +48,7 @@ for (const kind of ["organizations", "persons"] as const) {
   });
 }
 
-test("late private catalog cannot block loading or appear after tenant switch", async ({ page }) => {
+for (const status of [200, 403]) test(`late private catalog ${status} cannot block loading, cross tenant or expire the session`, async ({ page }) => {
   const state = await setupMockEditorApi(page);
   state.tenants.push({ ...state.tenants[0], id: 2, name: "Andre kontor", slug: "andre" });
   let release!: () => void;
@@ -56,7 +56,7 @@ test("late private catalog cannot block loading or appear after tenant switch", 
   let started = false;
   await page.route("**/api/tenants/1/internal-tags/", async route => {
     started = true; await gate;
-    await route.fulfill({ json: [{ id: 999, name: "Forsinket privat", slug: "forsinket" }] });
+    await route.fulfill({ status, json: status === 200 ? [{ id: 999, name: "Forsinket privat", slug: "forsinket" }] : { detail: "Synthetic forbidden" } });
   });
   for (const [path, data] of Object.entries({ organizations: [{ ...state.organizations[0], id: 90, tenant: 2, name: "Andre aktør" }], persons: [], tags: [], "organization-people": [], "internal-tags": [] })) {
     await page.route(`**/api/tenants/2/${path}/`, route => route.fulfill({ json: data }));
@@ -88,4 +88,49 @@ test("failed private catalog retains authorized profile suggestions and regular 
   await expect(page.locator(".filter-summary").first()).toContainText("intern tag «Fra profil»");
   await input.fill(state.tags[0].name);
   await expect(page.locator(".filter-summary").first()).toContainText(`tag «${state.tags[0].name}»`);
+});
+
+for (const explicit of [false, true]) {
+  test(`late same-name catalog rechecks automatic choice but preserves explicit=${explicit}`, async ({ page }) => {
+    const state = await setupMockEditorApi(page);
+    state.organizations[0].tags = [state.tags[0]];
+    state.organizations.push({ ...state.organizations[0], id: 11, name: "Uten tagg", tags: [] });
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    await page.route("**/api/tenants/1/internal-tags/", async route => {
+      await gate;
+      await route.fulfill({ json: [{ id: state.tags[0].id, name: state.tags[0].name, slug: state.tags[0].slug }] });
+    });
+    await page.goto("/organizations"); await loginAsEditor(page);
+    const input = page.getByRole("textbox", { name: "Søk tag", exact: true });
+    await input.fill(state.tags[0].name);
+    const rows = page.locator(".editor-card-grid article");
+    await expect(rows).toHaveCount(1);
+    if (explicit) await page.getByRole("listbox", { name: "Tag-forslag" })
+      .getByRole("button", { name: `${state.tags[0].name} Tag`, exact: true }).click();
+    const response = page.waitForResponse(value => value.url().endsWith("/api/tenants/1/internal-tags/"));
+    release(); await (await response).finished();
+    await input.blur();
+    await input.focus();
+    await expect(page.getByRole("listbox", { name: "Tag-forslag" }).getByRole("button")).toHaveCount(2);
+    await expect(rows).toHaveCount(explicit ? 1 : 2);
+    if (!explicit) await expect(page.locator(".filter-summary")).toHaveCount(0);
+  });
+}
+
+test("optional catalog permission denial preserves the mounted unsaved actor draft", async ({ page }) => {
+  const state = await setupMockEditorApi(page);
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route("**/api/tenants/1/internal-tags/", async route => {
+    await gate; await route.fulfill({ status: 403, json: { detail: "Synthetic private permission denied" } });
+  });
+  await page.goto(`/organizations/${state.organizations[0].id}`); await loginAsEditor(page);
+  const name = page.getByRole("textbox", { name: "Navn *", exact: true });
+  await name.fill("Ulagret syntetisk utkast");
+  const response = page.waitForResponse(value => value.url().endsWith("/api/tenants/1/internal-tags/"));
+  release(); await (await response).finished();
+  await expect(name).toHaveValue("Ulagret syntetisk utkast");
+  await expect(page.getByRole("heading", { name: "Logg inn", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("status").first()).toContainText("Ulagrede profilfelt");
 });

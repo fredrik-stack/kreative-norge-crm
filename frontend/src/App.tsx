@@ -49,6 +49,7 @@ function EditorShell({ username, user, onLogout }: { username: string; user: Aut
   const onOrganizationsPage = location.pathname.startsWith("/organizations");
   const [overviewTagQuery, setOverviewTagQuery] = useState("");
   const [tagSearchFocused, setTagSearchFocused] = useState(false);
+  const [tagChoiceIsExplicit, setTagChoiceIsExplicit] = useState(false);
   const overviewEntityLabel = isPeopleOverview ? "personer" : "aktører";
   const overviewFilterSummary = buildEditorOverviewFilterSummary({
     entityLabel: overviewEntityLabel,
@@ -98,7 +99,15 @@ function EditorShell({ username, user, onLogout }: { username: string; user: Aut
   useEffect(() => {
     setOverviewTagQuery("");
     setTagSearchFocused(false);
+    setTagChoiceIsExplicit(false);
   }, [editor.tenantId]);
+
+  useEffect(() => {
+    if (tagChoiceIsExplicit) return;
+    const raw = overviewTagQuery.trim().toLocaleLowerCase("nb");
+    const matches = editor.overviewTagChoices.filter(tag => tag.name.toLocaleLowerCase("nb") === raw);
+    editor.setOverviewTagKey(matches.length === 1 ? matches[0].key : "");
+  }, [overviewTagQuery, editor.overviewTagChoices, editor.setOverviewTagKey, tagChoiceIsExplicit]);
 
   const overviewTagSuggestions = useMemo(() => {
     const query = overviewTagQuery.trim().toLocaleLowerCase("nb");
@@ -110,6 +119,7 @@ function EditorShell({ username, user, onLogout }: { username: string; user: Aut
   function resetOverviewFilters() {
     setOverviewTagQuery("");
     setTagSearchFocused(false);
+    setTagChoiceIsExplicit(false);
     editor.resetOverviewFilters();
   }
   const initials = (user?.display_name || username).split(/\s+/).map(part => part[0]).slice(0, 2).join("").toUpperCase();
@@ -201,9 +211,7 @@ function EditorShell({ username, user, onLogout }: { username: string; user: Aut
                       const nextValue = e.target.value;
                       setTagSearchFocused(true);
                       setOverviewTagQuery(nextValue);
-                      const raw = nextValue.trim().toLocaleLowerCase("nb");
-                      const matches = editor.overviewTagChoices.filter(tag => tag.name.toLocaleLowerCase("nb") === raw);
-                      editor.setOverviewTagKey(matches.length === 1 ? matches[0].key : "");
+                      setTagChoiceIsExplicit(false);
                     }}
                   />
                   {tagSearchFocused && overviewTagSuggestions.length > 0 ? (
@@ -216,6 +224,7 @@ function EditorShell({ username, user, onLogout }: { username: string; user: Aut
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => {
                             setOverviewTagQuery(tag.name);
+                            setTagChoiceIsExplicit(true);
                             editor.setOverviewTagKey(tag.key);
                             setTagSearchFocused(false);
                           }}

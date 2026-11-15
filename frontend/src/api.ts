@@ -49,7 +49,7 @@ function isPaginated<T>(data: T[] | Paginated<T>): data is Paginated<T> {
   return !!data && typeof data === "object" && "results" in data;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit, options?: { forbiddenIsLocal?: boolean }): Promise<T> {
   const method = (init?.method ?? "GET").toUpperCase();
   const writes = !["GET", "HEAD", "OPTIONS"].includes(method);
   const csrfToken = method === "GET" || method === "HEAD" ? null : getCsrfCookie();
@@ -80,7 +80,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
     // A rejected write must leave the form and its confirmed IDs mounted.
     // Read-side auth checks still return an expired session to the login flow.
-    if (!writes && (response.status === 401 || response.status === 403)) {
+    if (!writes && (response.status === 401 || (response.status === 403 && !options?.forbiddenIsLocal))) {
       notifyAuthError({ status: response.status, path });
     }
     throw new ApiError(response.status, message, data);
@@ -174,7 +174,9 @@ export async function getOrganizations(tenantId: number): Promise<Organization[]
 }
 
 export async function getInternalTags(tenantId: number): Promise<Pick<Tag, "id" | "name" | "slug">[]> {
-  const data = await request<Tag[] | Paginated<Tag>>(`/api/tenants/${tenantId}/internal-tags/`);
+  // A private permission denial is not proof that the legacy Editor session expired.
+  // Only this optional dictionary treats 403 locally; a genuine 401 still expires it.
+  const data = await request<Tag[] | Paginated<Tag>>(`/api/tenants/${tenantId}/internal-tags/`, undefined, { forbiddenIsLocal: true });
   return isPaginated(data) ? data.results : data;
 }
 

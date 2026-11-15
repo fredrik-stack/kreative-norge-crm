@@ -53,7 +53,10 @@ tagsene; vanlige legacy `Tag`-rader klassifiseres ikke.
 «Søk tag». Eksisterende tenantautoriserte private GET og allerede autoriserte
 profilverdier brukes i et lokalt type+ID-filter; ingen ny tilgang, shared matching,
 PUBLIC, providerquery eller data-apply. Tenantbundet katalog og avvisning av
-forsinkede svar bevarer scope. Se [UI-kontrakten](../features/UI_6_FELLES_SPEC.md#interne-tags-i-søk-tag--2026-11-15)
+forsinkede svar bevarer scope. Katalogens403 er et lokalt avslag, uten å
+feilaktig utløpe en gyldig legacy-Editor-session eller kaste utkast. Den
+avgrensede API-client-kontrakten beholder ApiError/403, reell401 og auth-flyt
+for øvrige lesende403; servertilgang endres ikke. Se [UI-kontrakten](../features/UI_6_FELLES_SPEC.md#interne-tags-i-søk-tag--2026-11-15)
 og prosjektstatus for faktisk levering. Gammel eiergodkjent rollefallback består.
 
 ### Migrasjon og bevaring

@@ -7,7 +7,7 @@
 - Tastaturvalg, ny tekst etter valgt tag og nullstilling/tenantbytte håndteres.
 - Tenantbundet privat katalog blokkerer ikke ordinær Editor; autoriserte
   profilverdier supplerer ved feil. Ingen nye rettigheter, writes eller PUBLIC.
-- Frontend87/TS/bygg og fire målrettede browserregresjoner grønne. Review/CI/
+- Frontend87/TS/bygg og åtte målrettede browserregresjoner grønne. Review/CI/
   staging gjenstår; ingen neste fase startet.
 
 

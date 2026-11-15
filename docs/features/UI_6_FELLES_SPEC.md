@@ -21,8 +21,16 @@ Filteret vurderer bare profilens tilsvarende tags/internal_tags. Personoversikte
 inngang uten søk og eksisterende empty/no-match-tilstander består. Ingen nye
 writes, lagring av søk, PUBLIC-data, Brave-query, import/matching/AI eller schema.
 Generelt fritekstsøk er uendret; denne leveransen gjelder «Søk tag».
+Automatiske eksaktvalg vurderes på nytt når katalog/profilforslag endres; et
+senere navnesammenfall tømmer automatisk valg, mens eksplisitt mus/tastaturvalg
+beholdes. Valgfri katalog-403 håndteres lokalt som tilgangsavslag, ikke utløpt
+Editor-session; ApiError/403 beholdes, og 401 samt øvrige lesende403 har
+uendret auth-feilflyt. Dermed beholdes utkast/ny tenant ved sen gammel403.
+Tre API-client-regresjoner dekker disse 403-/401-grensene; to ekstra async-
+browsercases dekker automatisk mot eksplisitt valg ved sen navnekollisjon,
+og en case bekrefter utkastbevaring. Ingen serverrettighet endres.
 
-Lokal frontend87/TypeScript/bygg og fire syntetiske Chromium-regresjoner er
+Lokal frontend90/TypeScript/bygg og åtte syntetiske Chromium-regresjoner er
 grønne: begge profiltyper ved kolliderende navn/slugs/ID-er, unik tekst, muse-/
 tastaturvalg, ubrukte katalogtags, nullstilling uten writes, forsinket katalog
 under tenantbytte og profilbaserte forslag ved katalogfeil. Faktisk levering
