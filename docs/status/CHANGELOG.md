@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-15 – Kategorisammendrag i aktør- og personprofil
+
+- Oppsummeringen viser nå valgte kategorier/underkategorier og begge taggtyper,
+  med egne etiketter; ikke bare taggfeltet eller gjentatt hjelpetekst.
+- Følger utkastet uten automatisk lagring, med tydelig tommelding.
+- Kun frontend. Verdier, API, database, tilgang og PUBLIC er uendret.
+- Lokal validering grønn; review/CI/staging gjenstår.
+
+
 
 ## 2026-11-15 – Editor-bilder og restaurerte interne tags, stagingverifisert
 

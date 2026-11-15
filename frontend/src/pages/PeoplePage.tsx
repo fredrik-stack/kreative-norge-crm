@@ -10,6 +10,7 @@ import { PhoneRegionSelect } from "../components/PhoneRegionSelect";
 import { useEditor } from "../context/EditorContext";
 import { filterSubcategoriesForCategory, sortedCategories as sortCategoriesByTaxonomy } from "../editorTaxonomy";
 import { useRouteSyncedSelection } from "../hooks/useRouteSyncedSelection";
+import { classificationSummary } from "../editor-utils";
 
 export function PeoplePage() {
   const editor = useEditor();
@@ -369,7 +370,7 @@ function PeopleEditorPanel(props: {
             </Field>
 
             </ProfileSection>
-            <ProfileSection title="Kategorisering og tags" summary={editor.personTagInput || "Kategori, underkategori og tags"}>
+            <ProfileSection title="Kategorisering og tags" summary={classificationSummary(editor.categories, editor.personDraft.category_ids, editor.subcategories, editor.personDraft.subcategory_ids, editor.personTagInput, editor.personInternalTagInput)}>
             <CategorySelectFields
               title="Kategori og underkategori"
               description="Velg hovedkategori, deretter underkategori."

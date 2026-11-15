@@ -1,5 +1,24 @@
 # UI-6-FELLES – felles utforming av eksisterende Editor-flater
 
+## Kategorisammendrag i profil – 2026-11-15
+
+Oppsummeringen i aktørens og personens «Kategorisering og tags» viser navnene
+på valgte hovedkategorier og underkategorier, deretter «Tags: …» og «Interne
+tags: …» når disse har innhold. Samme formatter brukes i begge Editor-ruter.
+Den bruker gjeldende utkast og allerede innlastet taksonomi; eksisterende
+hydrering av hovedkategori fra underkategori beholdes. Ingen ny fetch,
+autosave, normalisering eller endring av payload/lagrede verdier. Tommelding:
+«Ingen kategorier eller tags valgt». Oppsummeringen oppdateres også mens
+seksjonen er lukket. Interne navn blir kun i eksisterende private Editorflate.
+
+Lokal frontend87/TypeScript/bygg og to syntetiske Chromium-regresjoner er
+grønne. Begge ruter testes med innlastet underkategori, begge taggtyper,
+endring av hovedkategori (som tømmer underkategori), endring av tagger og
+tømming. Ingen profilwrite skal utløses av oppsummeringen. Ingen backend-,
+API-, database-, PUBLIC- eller featureflaggendring. Faktisk leveransestatus
+føres i [prosjektstatus](../status/PROJECT_STATUS_CURRENT.md).
+
+
 
 **Eieravklart2026-11-15:** Historisk separat lagrede interne tags gjeninnføres
 under kategorisering på aktør/person med `#C8FA00` og svart `#000`. Vanlige

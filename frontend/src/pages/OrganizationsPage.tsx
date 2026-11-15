@@ -14,7 +14,7 @@ import { PhoneRegionSelect } from "../components/PhoneRegionSelect";
 import { useEditor } from "../context/EditorContext";
 import { describeEffectivePublication } from "../editorPublication";
 import { filterSubcategoriesForCategory, sortedCategories as sortCategoriesByTaxonomy } from "../editorTaxonomy";
-import { saveLabel } from "../editor-utils";
+import { classificationSummary, saveLabel } from "../editor-utils";
 import { useRouteSyncedSelection } from "../hooks/useRouteSyncedSelection";
 import {
   ApiError,
@@ -511,7 +511,7 @@ function OrganizationEditorPanel(props: {
 
             </Field>
 
-            <ProfileSection title="Kategorisering og tags" summary={editor.organizationTagInput || "Kategori, underkategori og tags"}>
+            <ProfileSection title="Kategorisering og tags" summary={classificationSummary(editor.categories, editor.draft.category_ids, editor.subcategories, editor.draft.subcategory_ids, editor.organizationTagInput, editor.organizationInternalTagInput)}>
             <CategorySelectFields
               title="Kategori og underkategori"
               description="Velg hovedkategori, deretter underkategori."
