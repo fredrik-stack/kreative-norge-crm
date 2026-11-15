@@ -1,14 +1,14 @@
 import random
 
 from django.conf import settings
-from django.http import Http404
 from django.db.models import Q
 from django.shortcuts import redirect
 from django.utils.text import slugify
 from django.views import View
 from django.views.generic import DetailView, ListView
 
-from .models import Organization, Tag
+from .models import Tag
+from .services.public_actor_identity import public_actors, public_actor_by_org_number
 from .services.images.projection import (
     prefetch_public_image_projection,
     project_public_image,
@@ -56,7 +56,7 @@ class PublicActorListView(ListView):
 
     def get_queryset(self):
         qs = (
-            Organization.objects.filter(is_published=True)
+            public_actors()
             .prefetch_related("tags", "categories", "subcategories__category", "org_people__person__contacts")
             .order_by("name")
         )
@@ -128,7 +128,7 @@ class PublicActorDetailView(DetailView):
 
     def get_queryset(self):
         queryset = (
-            Organization.objects.filter(is_published=True)
+            public_actors()
             .prefetch_related("tags", "categories", "subcategories__category", "org_people__person__contacts")
             .order_by("name")
         )
@@ -152,14 +152,8 @@ class PublicActorDetailView(DetailView):
 
 class PublicActorLegacyDetailRedirectView(View):
     def get(self, request, org_number: str, *args, **kwargs):
-        matches = list(
-            Organization.objects.filter(is_published=True, org_number=org_number)
-            .order_by("id")
-            .values_list("id", flat=True)[:2]
-        )
-        if len(matches) != 1:
-            raise Http404("No unique published actor matches this organization number.")
-        return redirect("public-actor-detail", actor_id=matches[0], permanent=True)
+        actor = public_actor_by_org_number(public_actors().only("pk"), org_number)
+        return redirect("public-actor-detail", actor_id=actor.pk, permanent=True)
 
 
 def dedupe_tags(tags):

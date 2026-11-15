@@ -467,6 +467,17 @@ PUBLIC bruker bare shared editorial tags og aldri private overlays. Structured
 places og actor-only Google Maps følger den senere godkjente ADR-012, men er
 ikke implementert. Personer får aldri egne PUBLIC-kartpunkter.
 
+**Avgrenset implementeringsmandat 2026-11-15:** Trinn 10 starter med additivt
+canonical_id=bevart PK og ID-basert public API-detalj, med eksplisitt legacy-
+kompatibilitet og kontrollert org.nr.-tvetydighet. Dagens publiserings-/tagg-/
+kontakt-/imageprojeksjon består. Dette aktiverer ikke canonical targetprojection,
+shared tilgang eller ny publication authority. Full shared/PUBLIC-targetcutover
+avventer fortsatt eiergodkjent mapping av uklassifiserte legacytags; ingen
+klassifisering eller publikasjon utledes automatisk. Ingen ny gate innføres
+for selve identitetsfeltet: det utvider bare allerede offentlig respons for
+publiserte aktører. Targetprojection krever fortsatt separat fail-closed gate
+og senere godkjent aktivering. [Kontrakt/status](../features/PUBLIC.md#canonical-public-identitet-før-cutover--2026-11-15).
+
 ### 11. Image-home uten reassosiering
 
 Hver canonical Organization skal til enhver tid ha nøyaktig én aktiv,

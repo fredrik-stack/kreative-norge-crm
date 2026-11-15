@@ -66,6 +66,10 @@ class PublicImageSerializer(serializers.Serializer):
 
 
 class PublicActorSerializer(serializers.ModelSerializer):
+    canonical_id = serializers.IntegerField(
+        source="pk", read_only=True,
+        help_text="Stabil Organization-PK (ADR-011), uavhengig av tenantassignments.",
+    )
     # people blir bygget fra OrganizationPerson + Person + PersonContact
     people = serializers.SerializerMethodField()
 
@@ -88,6 +92,7 @@ class PublicActorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization
         fields = (
+            "canonical_id",
             "name",
             "org_number",
             "municipality",

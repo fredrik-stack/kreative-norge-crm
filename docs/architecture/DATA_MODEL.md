@@ -1,5 +1,15 @@
 # Data Model
 
+## Canonical PUBLIC-ID, ingen schemaendring – 2026-11-15
+
+`canonical_id` er et read-only API-kontraktsnavn for eksisterende Organization.pk,
+ikke et nytt modellfelt eller ny identitets-/alias-/assignmenttabell. Eksisterende
+PK-er, domainbindinger, assignments, is_published og canonical_write_stamp
+beholdes. Flere assignments kopierer ikke PUBLIC-rader. Doble publiserte org.nr.
+avvises ved aliasoppslag, men PK-identiteter merges ikke og får ingen ny global
+org.nr.-unikhetsconstraint. Ingen migrasjon, seed eller data-apply. [Kompatibilitetsgrense](../features/PUBLIC.md#canonical-public-identitet-før-cutover--2026-11-15).
+
+
 
 ## Historiske interne tags – 2026-11-15
 

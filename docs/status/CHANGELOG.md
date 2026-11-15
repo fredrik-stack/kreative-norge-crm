@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-11-15 – Fase 6A trinn 10, additiv canonical PUBLIC-identitet
+
+- Read-only canonical_id=eksisterende Organization-PK på public API og separat
+  ID-detalj. Gamle org.nr.-URL-er og HTML-ID/301 beholdes; tvetydige publiserte
+  API-aliaser får kontrollert 404 i stedet for serverfeil.
+- Én base-Organization per PUBLIC-rad, uavhengig av assignments. Ingen hub,
+  sammenslåing, schema-/dataendring, taggklassifisering eller nye private felter.
+- Eksisterende image-, kontakt-, tagg- og publiseringskontrakt beholdes som
+  compatibility. Full targetprojection/cutover og taggmapping gjenstår.
+- Lokal PostgreSQL 16: 801 backendtester og siste 58 målrettede tester grønne;
+  `makemigrations --check --dry-run` uten endringer. Separat review og faktisk
+  merge/CI spores i leveransens PR; ingen staging, apply eller aktivering.
+
+
 ## 2026-11-15 – Interne tags i Editorens «Søk tag», stagingverifisert
 
 - Begge taggtyper foreslås og filtreres på aktør/person, med tydelig type og
