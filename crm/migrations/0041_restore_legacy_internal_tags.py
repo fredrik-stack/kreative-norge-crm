@@ -53,16 +53,19 @@ class RestoreInternalTags(Operation):
                 if {tuple(c["columns"]) for c in constraints.values() if c["primary_key"]} != {("id",)}:
                     raise RuntimeError("INTERNAL_TAGS_PRIMARY_KEY_MISMATCH")
                 # Partial/invalid unique indexes do not enforce tenant/name identity.
-                cursor.execute("""SELECT ARRAY(
+                cursor.execute("""SELECT c.conindid,ARRAY(
                     SELECT a.attname FROM unnest(c.conkey) WITH ORDINALITY k(attnum,pos)
                     JOIN pg_attribute a ON a.attrelid=c.conrelid AND a.attnum=k.attnum ORDER BY k.pos
                 ) FROM pg_constraint c JOIN pg_index i ON i.indexrelid=c.conindid
                 WHERE c.conrelid=%s::regclass AND c.contype='u' AND c.convalidated
                   AND i.indisvalid AND i.indisready AND i.indisunique
                   AND i.indpred IS NULL AND i.indexprs IS NULL""", [name])
-                uniques = {tuple(row[0]) for row in cursor.fetchall()}
+                unique_constraints = cursor.fetchall()
+                uniques = {tuple(row[1]) for row in unique_constraints}
                 wanted = {("tenant_id", "name"), ("tenant_id", "slug")} if name == names[0] else {(name.removeprefix("crm_").split("_internal_tags")[0]+"_id", "internaltag_id")}
-                if uniques != wanted:
+                cursor.execute("SELECT indexrelid FROM pg_index WHERE indrelid=%s::regclass AND indisunique AND NOT indisprimary", [name])
+                unique_indexes = {row[0] for row in cursor.fetchall()}
+                if uniques != wanted or unique_indexes != {row[0] for row in unique_constraints}:
                     raise RuntimeError("INTERNAL_TAGS_UNIQUE_MISMATCH")
                 fks = {(tuple(c["columns"]), tuple(c["foreign_key"])) for c in constraints.values() if c["foreign_key"]}
                 wanted_fks = {(("tenant_id",), ("crm_tenant", "id"))} if name == names[0] else {

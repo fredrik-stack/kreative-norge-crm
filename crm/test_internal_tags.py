@@ -150,6 +150,16 @@ class InternalTagTests(TestCase):
             with self.assertRaisesRegex(RuntimeError, "UNIQUE_MISMATCH"):
                 migration.RestoreInternalTags().database_forwards("crm", editor, state, state)
 
+    def test_adoption_rejects_extra_unique_index_that_imposes_global_names(self):
+        migration = importlib.import_module("crm.migrations.0041_restore_legacy_internal_tags")
+        state = MigrationExecutor(connection).loader.project_state([("crm", "0041_restore_legacy_internal_tags")])
+        with connection.cursor() as cursor:
+            cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
+            cursor.execute("CREATE UNIQUE INDEX synthetic_global_name ON crm_internaltag(name)")
+        with connection.schema_editor(atomic=False) as editor:
+            with self.assertRaisesRegex(RuntimeError, "UNIQUE_MISMATCH"):
+                migration.RestoreInternalTags().database_forwards("crm", editor, state, state)
+
     def test_adoption_rejects_id_default_that_does_not_use_its_owned_sequence(self):
         migration = importlib.import_module("crm.migrations.0041_restore_legacy_internal_tags")
         state = MigrationExecutor(connection).loader.project_state([("crm", "0041_restore_legacy_internal_tags")])
