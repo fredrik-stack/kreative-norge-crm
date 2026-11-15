@@ -1,5 +1,24 @@
 # Kreative Norge CRM – dokumentasjon
 
+## Fase 6A trinn 10 – canonical PUBLIC-identitet, lokal leveranse 2026-11-15
+
+ADR-011 §10 implementeres først som en additiv identitets-/kompatibilitetsgrense:
+public API får read-only `canonical_id = Organization.pk` og separat
+`/api/public/actors/id/<canonical_id>/`. Eksisterende org.nr.-API beholder URL,
+200/JSON ved entydig publisert treff, og gir kontrollert 404 ved manglende eller
+tvetydig publisert alias. HTMLs PK-rute og org.nr.-301 består. En Organization
+leses én gang fra basetabellen, uavhengig av antall tenantassignments; ingen
+PK-merge eller ny hub. Eksisterende publication-, kontakt-, tagg- og bilderegler
+beholdes. Dette er ikke target PUBLIC-cutover eller taggklassifisering.
+
+Lokal isolert PostgreSQL 16: 801 backendtester og siste 58 målrettede PUBLIC-/
+bilde-/auth-tester er grønne; ingen modell-/migrasjonsendring. Separat review
+og faktisk PR-/merge-/CI-status spores i [PR #123](https://github.com/fredrik-stack/kreative-norge-crm/pull/123).
+Ingen stagingkontakt/deploy, schema-/data-apply eller aktivering inngår. Aktiv
+staging/bildebrukerreise og Brave er urørt. Full målprojeksjon krever fortsatt
+uttrykkelig eiergodkjent mapping av uklassifiserte legacytags og egne senere
+aktiverings-/publicationporter. [PUBLIC-kontrakt](features/PUBLIC.md#canonical-public-identitet-før-cutover--2026-11-15).
+
 ## Interne tags i «Søk tag» – stagingverifisert 2026-11-15
 
 [PR #121](https://github.com/fredrik-stack/kreative-norge-crm/pull/121) er levert

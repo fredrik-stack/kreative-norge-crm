@@ -1,5 +1,51 @@
 # Feature: Public
 
+## Canonical PUBLIC-identitet før cutover – 2026-11-15
+
+**Vedtatt:** ADR-011 §10 bevarer Organization-PK som offentlig identitet.
+**Implementert lokalt:** `canonical_id` er et additivt, read-only heltallsfelt
+på hver public API-rad/detalj, alltid samme eksisterende PK. Det er verken
+assignment-ID, tenant-ID, org.nr., revision eller ny hub. API-listen, ID-detalj
+og eksisterende HTML-side starter i publiserte Organization-rader; ingen join
+mot assignments kan multiplisere disse. Flere reelle Organization-PK-er med
+samme signal/org.nr. holdes adskilt; dette slår ikke sammen duplikater.
+
+**Eksplisitt kompatibilitetsgrense:**
+
+- `GET /api/public/actors/` beholder alle eksisterende felter og legger bare til
+  `canonical_id`. Kontakt-/telefonvalg og bilde-/legacytagginnhold består.
+- `GET /api/public/actors/id/<canonical_id>/` er ny, read-only ID-detalj med
+  nøyaktig samme legacy-kompatible respons som eksisterende detail.
+- `GET /api/public/actors/<org_number>/` er fortsatt org.nr.-alias, aldri et
+  heuristisk PK-oppslag. Ett publisert treff gir samme 200/JSON; null eller flere
+  distinkte publiserte treff gir samme 404 uten telling, ID-er eller kandidater.
+  Interne treff teller ikke og påvirker ikke svaret. Ingen ny normalisering.
+- HTML `/public/actors/id/<actor_id>/`, kortlenker og canonical/head beholder
+  eksisterende PK-identitet. Org.nr.-ruten beholder 301 ved ett publisert treff
+  og 404 ellers. ID-rutene virker uten org.nr. eller ved tvetydig alias.
+- Ingen nye writes eller publication authority. `is_published` er fortsatt
+  autoritativt i denne compatibility-grensen; assignments gir ingen publisering.
+
+**Bevart:** PUBLIC-image projection, release/fallback/media/ledger/safety,
+image-home/legacytenant, Editor, Brave, kontakter, rå aktørdata og alle gater.
+Ingen modell-/migrasjons-/dataendring eller ny aktivering. Samme serializer og
+prefetch/projection brukes for begge API-detaljer; ingen ny bilderesolver.
+
+**Ikke levert/aktivert:** full canonical PUBLIC-targetprojection med shared
+editorial tags, ny publication-writer/capabilityflyt, shared tilgang eller
+legacydeprecation. Dagens `Tag`-innhold beholdes som eksisterende compatibility-
+data. Det er ikke erklært shared editorial eller brukt som grunnlag for nye
+PUBLIC-publiseringer. Full cutover krever eksplisitt eiergodkjent taggmapping;
+uklassifiserte tags skal holdes utenfor fremtidig shared/PUBLIC-target til da.
+Denne beslutningen blokkerer ikke identitetsfeltet eller det sikre aliasoppslaget.
+
+Faktisk lokal test-, review-/merge-/CI-status føres i prosjektstatus. Ingen
+stagingdeploy/apply/PUBLIC-cutover er tillatt i denne leveransen. Rollback av
+kode krever ingen schema-revers; nye klienter må tåle manglende `canonical_id`
+eller ny rute dersom de rulles tilbake til kode før denne leveransen. Gamle
+API-URL-er og HTML-lenker beholdes, og data/media/nyere deny-state bevares.
+
+
 
 **Editorretting2026-11-15:** Aktørnavn i Editor-fallback, færre skjulte bilde-
 requests og restaurerte interne tags endrer ikke PUBLIC-projeksjonen eller
@@ -107,8 +153,9 @@ Staging-data ble rettet 2026-07-26 slik at eksisterende e-postkontakter er offen
 
 [ADR-011](../decisions/ADR-011-SHARING_DOMAIN_CANONICAL_IDENTITY_AND_TENANT_ASSIGNMENTS.md)
 har i tillegg godkjent én framtidig PUBLIC-identitet og global publication state
-per canonical Organization. Dette er ikke implementert: dagens aktører og tags
-er fortsatt direkte tenant-eide. Målprojeksjonen skal returnere aktøren én gang,
+per canonical Organization. Identitetsdelen er additivt implementert i leveransen ovenfor; full
+canonical targetprojection er ikke implementert/aktivert. Dagens legacy-scope
+og tags består fortsatt i kompatibilitetsprojeksjonen. Målprojeksjonen skal returnere aktøren én gang,
 bruke bare shared editorial tags og aldri eksponere assignments eller private
 overlays. Offisiell `Organization.email` følger aktørens PUBLIC-state uten et
 nytt `publish_email`-flagg; telefon beholder eget publiseringsvalg. Structured

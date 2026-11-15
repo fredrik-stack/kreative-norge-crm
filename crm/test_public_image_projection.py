@@ -596,6 +596,7 @@ class PublicImageProjectionTests(TestCase):
         self.assertEqual(
             set(response.json()),
             {
+                "canonical_id",
                 "name",
                 "org_number",
                 "municipality",
@@ -675,6 +676,44 @@ class PublicImageProjectionTests(TestCase):
         self.assertEqual(
             fallback["thumbnail_image_url"], fallback["image"]["square"]["url"]
         )
+
+    @override_settings(
+        PUBLIC_IMAGE_API_SCHEMA_ENABLED=True,
+        CACHES={"default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "canonical-public-image-parity-test",
+        }},
+    )
+    def test_canonical_id_route_reuses_exact_asset_fallback_and_fresh_safety_projection(self):
+        fallback = Organization.objects.create(
+            tenant=self.tenant, name="Canonical fallback", is_published=True,
+            org_number="123123123",
+        )
+        for actor, checks in ((self.organization, 3), (fallback, 0)):
+            payloads = []
+            for path in (f"/api/public/actors/{actor.org_number}/", f"/api/public/actors/id/{actor.pk}/"):
+                ProjectionBridge.reset()
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["canonical_id"], actor.pk)
+                self.assertEqual(len(ProjectionBridge.calls), checks)
+                payloads.append(response.json())
+            self.assertEqual(*payloads)
+
+        # A successful earlier request must never become a reusable safety grant.
+        for unavailable in (False, True):
+            ProjectionBridge.reset()
+            if unavailable:
+                ProjectionBridge.error = ImageSafetyBridgeUnavailable(
+                    "safety_unavailable", "synthetic", retryable=True,
+                )
+            else:
+                ProjectionBridge.category_by_variant = {"share": "denied"}
+            response = self.client.get(f"/api/public/actors/id/{self.organization.pk}/")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["image"]["kind"], "system_fallback")
+            for forbidden in ("legacy.example.no", "private_storage_key", self.release_id):
+                self.assertNotIn(forbidden, response.content.decode())
 
     @override_settings(
         PUBLIC_IMAGE_API_SCHEMA_ENABLED=True,
@@ -915,6 +954,8 @@ class PublicImageProjectionTests(TestCase):
         with override_settings(PUBLIC_IMAGE_API_SCHEMA_ENABLED=False):
             legacy_schema = SchemaGenerator().get_schema(request=None, public=True)
         legacy_component = legacy_schema["components"]["schemas"]["PublicActor"]
+        self.assertTrue(legacy_component["properties"]["canonical_id"]["readOnly"])
+        self.assertEqual(legacy_component["properties"]["canonical_id"]["type"], "integer")
         self.assertNotIn("image", legacy_component["properties"])
         self.assertNotIn("PublicImage", legacy_schema["components"]["schemas"])
 
@@ -942,3 +983,8 @@ class PublicImageProjectionTests(TestCase):
         self.assertEqual(set(detail_path), {"get"})
         parameter = detail_path["get"]["parameters"][0]
         self.assertEqual(parameter["name"], "org_number")
+        canonical = target_schema["paths"]["/api/public/actors/id/{canonical_id}/"]
+        self.assertEqual(set(canonical), {"get"})
+        canonical_parameter = canonical["get"]["parameters"][0]
+        self.assertEqual(canonical_parameter["name"], "canonical_id")
+        self.assertEqual(canonical_parameter["schema"]["type"], "integer")

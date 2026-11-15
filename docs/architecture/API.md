@@ -1,5 +1,28 @@
 # API
 
+## Canonical PUBLIC-identitet, additiv kontrakt – 2026-11-15
+
+`PublicActorSerializer.canonical_id` er read-only integer fra Organization.pk.
+Eksisterende felt/URL-er består; eneste additive responsfelt er `canonical_id`.
+Ny `GET /api/public/actors/id/{canonical_id}/` returnerer samme publiserte
+Organization som eksisterende `GET /api/public/actors/{org_number}/`. Numerisk
+org.nr.-URL tolkes aldri som PK. Begge detaljer bruker samme serializer/prefetch,
+image projection og kontaktregler. LIST viser én Organization én gang uten
+assignmentjoin. Begge lookup er read-only og skjuler upubliserte aktører.
+
+Org.nr.-API og HTML deler at-most-two-oppslag av distinkte publiserte PK-er i
+én databasespørring. Ingen/tvetydig alias gir kontrollert 404 uten kandidater eller
+private eksistenssignaler; HTML beholder 301 og API 200 ved ett publisert treff.
+Et internt treff telles ikke. HTML-ID-route og canonical metadata endres ikke.
+Ingen org.nr.-normalisering eller ny aliasmodell/unikhetsconstraint/datareparasjon.
+
+Dette er legacy-kompatibilitet før canonical target PUBLIC-cutover. Legacytags
+bevares uten klassifisering; assignments/private overlays, interne tags/notater,
+revisjonsstempel og rå personkontakt serialiseres ikke. Ingen ny publication-
+writer, featureflagaktivering eller migrasjon. [Full avgrensning og taggport](../features/PUBLIC.md#canonical-public-identitet-før-cutover--2026-11-15).
+Ingen stagingdeploy inngår; faktisk kode-/testleveranse følger prosjektstatus.
+
+
 
 ## Editor-presisering2026-11-15
 
@@ -76,7 +99,7 @@ er read-only i intern tenantrespons og endres ikke gjennom denne
 API-kontrakten. Public API er uendret og returnerer fortsatt bare
 presentasjonsverdien etter eksisterende publiseringsregler.
 
-Den ene kanoniske public API-ruten under `/api/public/` bruker `crm.urls_public`, `crm.views_public.PublicActorPublicViewSet` og `crm.serializers_public.PublicActorSerializer`. Detail-ruten slår opp på `org_number`. Den tidligere overlappende registreringen gjennom `crm.urls`, `PublicActorViewSet` og `PublicOrganizationSerializer` er fjernet i 3E.2. API-et returnerer bare kontaktpersoner fra aktive `OrganizationPerson`-koblinger med `publish_person=True`, og bare kontaktverdier fra `PersonContact` der `is_public=True`. Public API bruker ikke fallback fra `Person.email` eller `Person.phone`.
+Den ene kanoniske public API-ruten under `/api/public/` bruker `crm.urls_public`, `crm.views_public.PublicActorPublicViewSet` og `crm.serializers_public.PublicActorSerializer`. Legacy detail-ruten slår opp entydig på publisert `org_number`; additiv ID-detalj bruker `canonical_id`/Organization-PK som beskrevet ovenfor. Den tidligere overlappende registreringen gjennom `crm.urls`, `PublicActorViewSet` og `PublicOrganizationSerializer` er fjernet i 3E.2. API-et returnerer bare kontaktpersoner fra aktive `OrganizationPerson`-koblinger med `publish_person=True`, og bare kontaktverdier fra `PersonContact` der `is_public=True`. Public API bruker ikke fallback fra `Person.email` eller `Person.phone`.
 
 Personobjektet i public-kontrakten inneholder additivt `title` når `Person.title` har en verdi. Feltet utelates når tittelen er null eller tom. Tittelen er foreløpig global på `Person`; relasjonsspesifikk tittel er planlagt senere.
 

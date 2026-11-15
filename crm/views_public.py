@@ -3,11 +3,13 @@ from django.conf import settings
 from django.db.models import Prefetch
 from rest_framework.permissions import AllowAny
 from rest_framework.viewsets import ReadOnlyModelViewSet
+from rest_framework.generics import get_object_or_404
 from drf_spectacular.utils import extend_schema
 
-from .models import Organization, OrganizationPerson, PersonContact
+from .models import OrganizationPerson, PersonContact
 from .serializers_public import PublicActorSerializer
 from .services.images.projection import prefetch_public_image_projection
+from .services.public_actor_identity import public_actors, public_actor_by_org_number
 
 
 class PublicActorPublicViewSet(ReadOnlyModelViewSet):
@@ -18,7 +20,7 @@ class PublicActorPublicViewSet(ReadOnlyModelViewSet):
     lookup_url_kwarg = "org_number"
 
     def get_queryset(self):
-        queryset = Organization.objects.filter(is_published=True).order_by("name")
+        queryset = public_actors().order_by("name")
         public_contacts = PersonContact.objects.filter(is_public=True).order_by(
             "type", "value"
         )
@@ -48,8 +50,17 @@ class PublicActorPublicViewSet(ReadOnlyModelViewSet):
             return prefetch_public_image_projection(queryset)
         return queryset
 
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset())
+        if "canonical_id" in self.kwargs:
+            actor = get_object_or_404(queryset, pk=self.kwargs["canonical_id"])
+        else:
+            actor = public_actor_by_org_number(queryset, self.kwargs["org_number"])
+        self.check_object_permissions(self.request, actor)
+        return actor
+
     @extend_schema(
-        description="Public, read-only liste over publiserte aktører (Organization.is_published=True).",
+        description="Read-only legacy-kompatibel PUBLIC-liste: én rad per publisert Organization, canonical_id=PK. Ingen assignment- eller target-tag-cutover.",
     )
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)

@@ -1,5 +1,19 @@
 # Security and Roles
 
+## Canonical PUBLIC-identitet før cutover – 2026-11-15
+
+ADR-011 §10s identitetsleveranse gir offentlig read-only canonical_id=Organization.pk,
+uten tenant/assignment/domain/revision/private-overlay-felt eller nye writes.
+ID- og org.nr.-detaljer krever samme is_published som dagens liste. Tvetydige
+publiserte org.nr.-aliaser får 404 uten ID-er, telling eller kandidater; interne
+duplikater påvirker ikke svaret. Ingen automatisk sammenslåing/publisering eller
+shared-autorisasjon. Legacytags og kontaktregler er fortsatt kompatibilitetsdata;
+full targetprojection og eiergodkjent shared/private-mapping gjenstår. Image-
+projection/release/safety/Brave og de fem avslåtte gatene er urørt. [Kontrakt og
+faktisk leveransestatus](../features/PUBLIC.md#canonical-public-identitet-før-cutover--2026-11-15).
+Ingen staging eller data-apply inngår i mandatet.
+
+
 ## Editor-bilder og historiske interne tags – 2026-11-15
 
 **Mandat og eieravklaring:** Fjern normalvarselet `untagged_assumed_srgb`, vis
