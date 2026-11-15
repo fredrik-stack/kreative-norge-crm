@@ -24,3 +24,19 @@ export function saveLabel(state: SaveState): string {
 export function parseInternalTags(value: string): string[] {
   return [...new Set(value.split(",").map(name => name.trim()).filter(Boolean))];
 }
+
+/** Describe the current draft without changing its classification or tag values. */
+export function classificationSummary(
+  categories: Array<{ id: number; name: string }>, categoryIds: number[],
+  subcategories: Array<{ id: number; name: string }>, subcategoryIds: number[],
+  tags: string, internalTags: string,
+): string {
+  const categoryNames = categories.filter(item => categoryIds.includes(item.id)).map(item => item.name).join(", ");
+  const subcategoryNames = subcategories.filter(item => subcategoryIds.includes(item.id)).map(item => item.name).join(", ");
+  return [
+    categoryNames && `Kategori: ${categoryNames}`,
+    subcategoryNames && `Underkategori: ${subcategoryNames}`,
+    tags.trim() && `Tags: ${tags.trim()}`,
+    internalTags.trim() && `Interne tags: ${internalTags.trim()}`,
+  ].filter(Boolean).join(" · ") || "Ingen kategorier eller tags valgt";
+}

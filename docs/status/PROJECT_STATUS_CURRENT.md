@@ -1,5 +1,17 @@
 # Project Status Current
 
+## Kategorisammendrag i profil – lokal retting 2026-11-15
+
+Seksjonsoppsummeringen under «Kategorisering og tags» på aktør og person
+viser nå valgte kategorier, underkategorier, vanlige tags og separat merkede
+interne tags fra gjeldende profilutkast. Endring og tømming vises umiddelbart,
+uten autosave; tomt skjema viser «Ingen kategorier eller tags valgt».
+Dette retter en visningsfeil der bare taggteksten ble brukt. Ingen verdier,
+lagringsruter, tilgang, PUBLIC, API eller schema endres. Frontend87/TypeScript/
+bygg og to syntetiske browserregresjoner er grønne. Review/CI og bestilt
+frontend-staging gjenstår; ingen ny deploy påstås ennå. Neste produktfase er
+ikke startet. Se [UI-kontrakten](../features/UI_6_FELLES_SPEC.md#kategorisammendrag-i-profil--2026-11-15).
+
 ## Editor-bilder og interne tags – stagingverifisert 2026-11-15
 
 [PR #117](https://github.com/fredrik-stack/kreative-norge-crm/pull/117), eksakt
