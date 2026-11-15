@@ -27,12 +27,12 @@ data og følger varslet pause, fersk baseline og etablerte backup-/restoreporter
 Faktisk kode-/test-/stagingstatus føres i prosjektstatus, ikke som forhåndsløfte.
 
 
-**Datert videreføring 2026-10-13:** [5E-planen](../status/PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) er nå eiergodkjent som plan; senere formuleringer om at detaljplanen skal godkjennes i 5E beskriver den tidligere planstatusen. 6A → 6B → 6C → fase 7 konkretiserer leveransene. ADR-012 §28 er datert presisert slik at stedskjerne/STEDER/import kan leveres før separat kartarbeid. Tilgangs-, image-home-, kontakt-/relasjons-, storage- og aktiveringsporter består. [ADR-013](ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md) formaliserer importkontrakten. Ingen ny runtime er implementert. Dokumentasjonsleveransen er lagret på `docs/phase5e-approved-plan` og leveres gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74); review er gjennomført uten blokkerende funn og kontrollert merge er bestilt 2026-10-13. Faktisk mergestatus og CI følger GitHub.
-
-Eier presiserte samme dag at eksisterende «Søk tag» i Editor skal omfatte både
+Eier presiserte 2026-11-15 at eksisterende «Søk tag» i Editor skal omfatte både
 vanlige og tenantens interne tags. Dette er lokal profilfiltrering med dagens
 autoriserte Editor-tilgang; det åpner ikke shared matching, PUBLIC eller provider-
 søk. Taggtypene holdes adskilt ved valg. Ingen omklassifisering av legacytags.
+
+**Datert videreføring 2026-10-13:** [5E-planen](../status/PHASE_5E_IMPLEMENTATION_AND_TEST_PLAN_2026-10-13.md) er nå eiergodkjent som plan; senere formuleringer om at detaljplanen skal godkjennes i 5E beskriver den tidligere planstatusen. 6A → 6B → 6C → fase 7 konkretiserer leveransene. ADR-012 §28 er datert presisert slik at stedskjerne/STEDER/import kan leveres før separat kartarbeid. Tilgangs-, image-home-, kontakt-/relasjons-, storage- og aktiveringsporter består. [ADR-013](ADR-013-IMPORT_2_0_EXECUTION_AND_COMMIT_CONTRACT.md) formaliserer importkontrakten. Ingen ny runtime er implementert. Dokumentasjonsleveransen er lagret på `docs/phase5e-approved-plan` og leveres gjennom [PR #74](https://github.com/fredrik-stack/kreative-norge-crm/pull/74); review er gjennomført uten blokkerende funn og kontrollert merge er bestilt 2026-10-13. Faktisk mergestatus og CI følger GitHub.
 
 ## Status
 
