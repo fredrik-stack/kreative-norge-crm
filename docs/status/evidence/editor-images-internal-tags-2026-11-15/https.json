@@ -1,0 +1,21 @@
+{
+  "files": {
+    "assets/index-CtWqIiAl-b63b7e4.js": {
+      "content_type": "application/javascript",
+      "sha256": "b40ac1b5d00e3f58d6396a8bcc717388f0b587157529264198d8fec9d5729144",
+      "status": 200
+    },
+    "assets/index-CzCjL65B-b63b7e4.css": {
+      "content_type": "text/css",
+      "sha256": "77a677153e5a64a98c386e22c74f26f5978a1deb3d146e6af1847299c0f76012",
+      "status": 200
+    },
+    "index.html": {
+      "content_type": "text/html",
+      "new_asset_references": true,
+      "status": 200
+    }
+  },
+  "source_commit": "b63b7e486c8c2d39c053d5eecd7606f1814204da",
+  "status": "HTTPS_BUNDLE_VERIFIED"
+}
