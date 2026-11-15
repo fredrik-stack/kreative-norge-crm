@@ -22,7 +22,7 @@ import { OrganizationsPage } from "./pages/OrganizationsPage";
 import { PeoplePage } from "./pages/PeoplePage";
 import { ImportExportPage } from "./pages/ImportExportPage";
 import { useEditorData } from "./hooks/useEditorData";
-import { filterSubcategoriesForCategory, sortedCategories, sortedTags } from "./editorTaxonomy";
+import { filterSubcategoriesForCategory, sortedCategories } from "./editorTaxonomy";
 
 export default function App() {
   const router = useMemo(() => createBrowserRouter([{ path: "*", element: <AppShell /> }]), []);
@@ -49,13 +49,14 @@ function EditorShell({ username, user, onLogout }: { username: string; user: Aut
   const onOrganizationsPage = location.pathname.startsWith("/organizations");
   const [overviewTagQuery, setOverviewTagQuery] = useState("");
   const [tagSearchFocused, setTagSearchFocused] = useState(false);
+  const [tagChoiceIsExplicit, setTagChoiceIsExplicit] = useState(false);
   const overviewEntityLabel = isPeopleOverview ? "personer" : "aktører";
   const overviewFilterSummary = buildEditorOverviewFilterSummary({
     entityLabel: overviewEntityLabel,
     query: editor.overviewQuery,
     categorySlug: editor.overviewCategorySlug,
     subcategorySlug: editor.overviewSubcategorySlug,
-    tagSlug: editor.overviewTagSlug,
+    tagLabel: editor.overviewTagLabel,
   });
   const dirtySummary = useMemo(() => {
     const items: string[] = [];
@@ -85,7 +86,7 @@ function EditorShell({ username, user, onLogout }: { username: string; user: Aut
   });
 
   const goToEditorHome = () => {
-    editor.resetOverviewFilters();
+    resetOverviewFilters();
     navigate("/organizations");
   };
 
@@ -96,16 +97,31 @@ function EditorShell({ username, user, onLogout }: { username: string; user: Aut
   }, [editor.canImportExport, editor.tenantDataLoaded, location.pathname, navigate]);
 
   useEffect(() => {
-    setOverviewTagQuery(editor.tags.find((tag) => tag.slug === editor.overviewTagSlug)?.name ?? "");
-  }, [editor.overviewTagSlug, editor.tags]);
+    setOverviewTagQuery("");
+    setTagSearchFocused(false);
+    setTagChoiceIsExplicit(false);
+  }, [editor.tenantId]);
+
+  useEffect(() => {
+    if (tagChoiceIsExplicit) return;
+    const raw = overviewTagQuery.trim().toLocaleLowerCase("nb");
+    const matches = editor.overviewTagChoices.filter(tag => tag.name.toLocaleLowerCase("nb") === raw);
+    editor.setOverviewTagKey(matches.length === 1 ? matches[0].key : "");
+  }, [overviewTagQuery, editor.overviewTagChoices, editor.setOverviewTagKey, tagChoiceIsExplicit]);
 
   const overviewTagSuggestions = useMemo(() => {
     const query = overviewTagQuery.trim().toLocaleLowerCase("nb");
     if (!query) return [];
-    return sortedTags(editor.tags)
-      .filter((tag) => tag.name.toLocaleLowerCase("nb").includes(query))
+    return editor.overviewTagChoices
+      .filter(tag => tag.name.toLocaleLowerCase("nb").includes(query))
       .slice(0, 8);
-  }, [overviewTagQuery, editor.tags]);
+  }, [overviewTagQuery, editor.overviewTagChoices]);
+  function resetOverviewFilters() {
+    setOverviewTagQuery("");
+    setTagSearchFocused(false);
+    setTagChoiceIsExplicit(false);
+    editor.resetOverviewFilters();
+  }
   const initials = (user?.display_name || username).split(/\s+/).map(part => part[0]).slice(0, 2).join("").toUpperCase();
 
   return (
@@ -181,39 +197,40 @@ function EditorShell({ username, user, onLogout }: { username: string; user: Aut
                     </option>
                   ))}
                 </select>
-                <div className="overview-tag-search">
+                <div className="overview-tag-search" onBlur={event => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) setTagSearchFocused(false);
+                }}>
                   <input
                     className="search-input"
                     value={overviewTagQuery}
                     aria-label="Søk tag"
+                    disabled={!editor.tenantDataLoaded || editor.tenantDataLoading || Boolean(editor.tenantDataError)}
                     placeholder="Søk tag"
                     onFocus={() => setTagSearchFocused(true)}
-                    onBlur={() => {
-                      window.setTimeout(() => setTagSearchFocused(false), 120);
-                    }}
                     onChange={(e) => {
                       const nextValue = e.target.value;
+                      setTagSearchFocused(true);
                       setOverviewTagQuery(nextValue);
-                      const raw = nextValue.trim().toLocaleLowerCase("nb");
-                      const match = editor.tags.find((tag) => tag.name.toLocaleLowerCase("nb") === raw);
-                      editor.setOverviewTagSlug(match?.slug ?? "");
+                      setTagChoiceIsExplicit(false);
                     }}
                   />
                   {tagSearchFocused && overviewTagSuggestions.length > 0 ? (
                     <div className="overview-tag-suggestions" role="listbox" aria-label="Tag-forslag">
                       {overviewTagSuggestions.map((tag) => (
                         <button
-                          key={tag.id}
+                          key={tag.key}
                           type="button"
                           className="overview-tag-suggestion"
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => {
                             setOverviewTagQuery(tag.name);
-                            editor.setOverviewTagSlug(tag.slug);
+                            setTagChoiceIsExplicit(true);
+                            editor.setOverviewTagKey(tag.key);
                             setTagSearchFocused(false);
                           }}
                         >
-                          {tag.name}
+                          <span>{tag.name}</span>
+                          <span className={`mini-pill ${tag.kind === "internal" ? "internal-tag" : "tag"}`}>{tag.kind === "internal" ? "Intern tag" : "Tag"}</span>
                         </button>
                       ))}
                     </div>
@@ -240,7 +257,7 @@ function EditorShell({ username, user, onLogout }: { username: string; user: Aut
                     {isPeopleOverview ? "Ny person" : "Ny aktør"}
                   </button>
                 ) : null}
-                <button type="button" className="ghost-button" onClick={editor.resetOverviewFilters}>
+                <button type="button" className="ghost-button" onClick={resetOverviewFilters}>
                   Nullstill filtre
                 </button>
               </div>
@@ -276,14 +293,14 @@ function buildEditorOverviewFilterSummary(input: {
   query: string;
   categorySlug: string;
   subcategorySlug: string;
-  tagSlug: string;
+  tagLabel: string;
 }): string | null {
-  const { entityLabel, query, categorySlug, subcategorySlug, tagSlug } = input;
+  const { entityLabel, query, categorySlug, subcategorySlug, tagLabel } = input;
   const parts: string[] = [];
   if (query.trim()) parts.push(`søk "${query.trim()}"`);
   if (categorySlug) parts.push(`hovedkategori ${humanizeSlug(categorySlug)}`);
   if (subcategorySlug) parts.push(`underkategori ${humanizeSlug(subcategorySlug)}`);
-  if (tagSlug) parts.push(`tag ${humanizeSlug(tagSlug)}`);
+  if (tagLabel) parts.push(tagLabel);
   if (parts.length === 0) return null;
   return `Viser ${entityLabel} filtrert på ${parts.join(", ")}.`;
 }

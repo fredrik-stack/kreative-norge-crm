@@ -1,3 +1,4 @@
+import { editorTagChoices, editorTagLabel, matchesEditorTag } from "../editorTagFilter";
 import { parseInternalTags } from "../editor-utils";
 import { usePersonForm } from "./usePersonForm";
 import type { FormEvent } from "react";
@@ -20,6 +21,7 @@ import {
   getPersonContacts,
   patchPersonContact,
   getTags,
+  getInternalTags,
   getTenants,
   patchOrganization,
   patchOrganizationPerson,
@@ -145,6 +147,7 @@ export function useEditorData() {
   currentTenantId.current = tenantId;
   const [persons, setPersons] = useState<Person[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
+  const [internalTagCatalog, setInternalTagCatalog] = useState<{ tenantId: number; tags: Pick<Tag, "id" | "name" | "slug">[] } | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [organizationPeople, setOrganizationPeople] = useState<OrganizationPerson[]>([]);
@@ -156,7 +159,7 @@ export function useEditorData() {
   const [overviewQuery, setOverviewQuery] = useState("");
   const [overviewCategorySlug, setOverviewCategorySlug] = useState("");
   const [overviewSubcategorySlug, setOverviewSubcategorySlug] = useState("");
-  const [overviewTagSlug, setOverviewTagSlug] = useState("");
+  const [overviewTagKey, setOverviewTagKey] = useState("");
   const [query, setQuery] = useState("");
   const [personQuery, setPersonQuery] = useState("");
   const deferredOverviewQuery = useDeferredValue(overviewQuery);
@@ -256,6 +259,16 @@ export function useEditorData() {
     };
   }, [tenantId]);
 
+  // Private suggestions must neither block ordinary Editor loading nor cross a tenant switch.
+  useEffect(() => {
+    let cancelled = false;
+    setInternalTagCatalog(null);
+    if (tenantId) void getInternalTags(tenantId)
+      .then(tags => { if (!cancelled) setInternalTagCatalog({ tenantId, tags }); })
+      .catch(() => { /* Authorized profile values remain available as suggestions. */ });
+    return () => { cancelled = true; };
+  }, [tenantId]);
+
   const selectedOrganization =
     typeof selectedOrgId === "number"
       ? organizations.find((org) => org.id === selectedOrgId) ?? null
@@ -345,6 +358,16 @@ export function useEditorData() {
     return subcategories.filter((subcategory) => subcategory.category.slug === overviewCategorySlug);
   }, [overviewCategorySlug, subcategories]);
 
+  const overviewTagChoices = useMemo(() => editorTagChoices(
+    tags.filter(tag => tag.tenant === tenantId),
+    [
+      ...(internalTagCatalog?.tenantId === tenantId ? internalTagCatalog.tags : []),
+      ...organizations.filter(profile => profile.tenant === tenantId).flatMap(profile => profile.internal_tags ?? []),
+      ...persons.filter(profile => profile.tenant === tenantId).flatMap(profile => profile.internal_tags ?? []),
+    ],
+  ), [tenantId, tags, internalTagCatalog, organizations, persons]);
+  const overviewTagLabel = editorTagLabel(overviewTagChoices.find(choice => choice.key === overviewTagKey));
+
   const filteredOverviewOrganizations = useMemo(() => {
     return organizations.filter((organization) =>
       matchesOrganizationOverviewFilter({
@@ -352,10 +375,10 @@ export function useEditorData() {
         query: deferredOverviewQuery,
         categorySlug: overviewCategorySlug,
         subcategorySlug: overviewSubcategorySlug,
-        tagSlug: overviewTagSlug,
+        tagKey: overviewTagKey,
       }),
     );
-  }, [deferredOverviewQuery, organizations, overviewCategorySlug, overviewSubcategorySlug, overviewTagSlug]);
+  }, [deferredOverviewQuery, organizations, overviewCategorySlug, overviewSubcategorySlug, overviewTagKey]);
 
   const filteredOverviewPersons = useMemo(() => {
     const linkedOrganizationsByPersonId = new Map<number, string[]>();
@@ -372,11 +395,11 @@ export function useEditorData() {
         query: deferredOverviewQuery,
         categorySlug: overviewCategorySlug,
         subcategorySlug: overviewSubcategorySlug,
-        tagSlug: overviewTagSlug,
+        tagKey: overviewTagKey,
         linkedOrganizationNames: linkedOrganizationsByPersonId.get(person.id) ?? [],
       }),
     );
-  }, [deferredOverviewQuery, organizationPeople, organizations, overviewCategorySlug, overviewSubcategorySlug, overviewTagSlug, persons]);
+  }, [deferredOverviewQuery, organizationPeople, organizations, overviewCategorySlug, overviewSubcategorySlug, overviewTagKey, persons]);
 
   const overviewFilterSummary = useMemo(
     () =>
@@ -384,9 +407,9 @@ export function useEditorData() {
         query: overviewQuery,
         categorySlug: overviewCategorySlug,
         subcategorySlug: overviewSubcategorySlug,
-        tagSlug: overviewTagSlug,
+        tagLabel: overviewTagLabel,
       }),
-    [overviewCategorySlug, overviewQuery, overviewSubcategorySlug, overviewTagSlug],
+    [overviewCategorySlug, overviewQuery, overviewSubcategorySlug, overviewTagLabel],
   );
 
   const visiblePersons = useMemo(() => {
@@ -846,6 +869,7 @@ export function useEditorData() {
   }
 
   function applyTenantSelection(nextTenantId: number | null) {
+    setOverviewTagKey("");
     setTenantId(nextTenantId);
     setSelectedOrgId(null);
     setSelectedPersonId(null);
@@ -855,7 +879,7 @@ export function useEditorData() {
     setOverviewQuery("");
     setOverviewCategorySlug("");
     setOverviewSubcategorySlug("");
-    setOverviewTagSlug("");
+    setOverviewTagKey("");
   }
 
   const currentTenant = tenants.find((tenant) => tenant.id === tenantId) ?? null;
@@ -902,8 +926,10 @@ export function useEditorData() {
     setOverviewCategorySlug,
     overviewSubcategorySlug,
     setOverviewSubcategorySlug,
-    overviewTagSlug,
-    setOverviewTagSlug,
+    overviewTagKey,
+    setOverviewTagKey,
+    overviewTagChoices,
+    overviewTagLabel,
     resetOverviewFilters,
     filteredOverviewSubcategories,
     filteredOverviewOrganizations,
@@ -1300,16 +1326,16 @@ function matchesOrganizationOverviewFilter(input: {
   query: string;
   categorySlug: string;
   subcategorySlug: string;
-  tagSlug: string;
+  tagKey: string;
 }): boolean {
-  const { organization, query, categorySlug, subcategorySlug, tagSlug } = input;
+  const { organization, query, categorySlug, subcategorySlug, tagKey } = input;
   if (categorySlug && !(organization.categories ?? []).some((category) => category.slug === categorySlug)) {
     return false;
   }
   if (subcategorySlug && !(organization.subcategories ?? []).some((subcategory) => subcategory.slug === subcategorySlug)) {
     return false;
   }
-  if (tagSlug && !(organization.tags ?? []).some((tag) => tag.slug === tagSlug)) {
+  if (!matchesEditorTag(organization, tagKey)) {
     return false;
   }
 
@@ -1350,17 +1376,17 @@ function matchesPersonOverviewFilter(input: {
   query: string;
   categorySlug: string;
   subcategorySlug: string;
-  tagSlug: string;
+  tagKey: string;
   linkedOrganizationNames: string[];
 }): boolean {
-  const { person, query, categorySlug, subcategorySlug, tagSlug, linkedOrganizationNames } = input;
+  const { person, query, categorySlug, subcategorySlug, tagKey, linkedOrganizationNames } = input;
   if (categorySlug && !(person.categories ?? []).some((category) => category.slug === categorySlug)) {
     return false;
   }
   if (subcategorySlug && !(person.subcategories ?? []).some((subcategory) => subcategory.slug === subcategorySlug)) {
     return false;
   }
-  if (tagSlug && !(person.tags ?? []).some((tag) => tag.slug === tagSlug)) {
+  if (!matchesEditorTag(person, tagKey)) {
     return false;
   }
 
@@ -1395,14 +1421,14 @@ function describeOverviewFilters(input: {
   query: string;
   categorySlug: string;
   subcategorySlug: string;
-  tagSlug: string;
+  tagLabel: string;
 }): string | null {
-  const { query, categorySlug, subcategorySlug, tagSlug } = input;
+  const { query, categorySlug, subcategorySlug, tagLabel } = input;
   const parts: string[] = [];
   if (query.trim()) parts.push(`søk "${query.trim()}"`);
   if (categorySlug) parts.push(`hovedkategori ${humanizeSlug(categorySlug)}`);
   if (subcategorySlug) parts.push(`underkategori ${humanizeSlug(subcategorySlug)}`);
-  if (tagSlug) parts.push(`tag ${humanizeSlug(tagSlug)}`);
+  if (tagLabel) parts.push(tagLabel);
   if (parts.length === 0) return null;
   return `Viser kort filtrert på ${parts.join(", ")}.`;
 }

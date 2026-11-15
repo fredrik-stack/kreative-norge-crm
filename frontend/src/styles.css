@@ -559,6 +559,11 @@ select,
 }
 
 .overview-tag-suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  overflow-wrap: anywhere;
   text-align: left;
   border: 1px solid transparent;
   border-radius: 10px;
